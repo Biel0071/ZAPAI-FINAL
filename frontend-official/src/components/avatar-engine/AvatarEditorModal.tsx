@@ -31,6 +31,8 @@ import {
   AVATAR_ACCESSORIES,
   AVATAR_STYLES,
   resolveItemSpriteForGender,
+  resolveHairColorForHair,
+  resolveItemDisplayForGender,
 } from "./AvatarDefinition";
 import {
   createAgentAvatar,
@@ -64,29 +66,6 @@ import {
 const AVATAR_PREVIEW_FOCAL_X: Record<string, number> = {
   sprite_r2_c3: 73,
   sprite_r2_c4: 84,
-};
-const AVATAR_HAIR_COLORS: Record<string, AgentAvatarConfig["hairColor"]> = {
-  female_ponytail_brunette: "auburn",
-  female_straight_glasses: "dark_brown",
-  female_wavy_blonde: "golden_blonde",
-  female_curly_updo: "dark_brown",
-  female_long_wavy_coffee: "dark_brown",
-  female_pink_cap: "neon_pink",
-  female_short_business: "dark_brown",
-  female_peace_brunette: "auburn",
-  female_silver_waves: "platinum",
-  female_blue_wavy: "cyber_blue",
-  female_hardhat_brunette: "auburn",
-  hair_01: "auburn",
-  hair_02: "dark_brown",
-  hair_03: "golden_blonde",
-  hair_04: "dark_brown",
-  hair_05: "black",
-  hair_06: "black",
-  hair_07: "auburn",
-  hair_08: "black",
-  hair_09: "dark_brown",
-  hair_10: "cyber_blue",
 };
 
 export interface AvatarEditorModalProps {
@@ -210,11 +189,13 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
   const handleGenderChange = (newGender: "male" | "female") => {
     const newHair = newGender === "male" ? "male_short_fade" : "female_ponytail_brunette";
+    const isFemale = newGender !== "male";
     setAvatar((prev) => ({
       ...prev,
       body: newGender,
       base: newGender,
       hair: newHair,
+      hairColor: resolveHairColorForHair(newHair, prev.hairColor, isFemale),
       catalogSpriteId: resolveSpriteForAvatar({ ...prev, body: newGender, base: newGender, hair: newHair }, true),
     }));
   };
@@ -223,6 +204,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     setAvatar((prev) => ({
       ...prev,
       hair: item.id,
+      hairColor: resolveHairColorForHair(item.id, prev.hairColor, prev.body !== "male"),
       catalogSpriteId: resolveItemSpriteForGender(item, prev.body) || resolveSpriteForAvatar({ ...prev, hair: item.id, catalogSpriteId: undefined }, true),
     }));
   };
@@ -376,7 +358,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-12 lg:max-h-[75dvh] lg:overflow-hidden">
           
           {/* LEFT: Live Avatar Preview & State Controller */}
-          <div className="relative flex min-h-[310px] flex-col items-center justify-between overflow-hidden border-b border-border/50 bg-gradient-to-b from-card/80 via-card/40 to-background p-4 lg:col-span-5 lg:min-h-0 lg:border-b-0 lg:border-r lg:p-6">
+          <div className="relative flex min-h-[250px] sm:min-h-[310px] flex-col items-center justify-between overflow-hidden border-b border-border/50 bg-gradient-to-b from-card/80 via-card/40 to-background p-3 sm:p-4 lg:col-span-5 lg:min-h-0 lg:border-b-0 lg:border-r lg:p-6">
             {/* Subtle Isometric Grid Texture */}
             <div
               className="absolute inset-0 opacity-10 pointer-events-none"
@@ -422,12 +404,12 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
             </div>
 
             {/* Detailed catalog illustration by default; the layer mode remains available for exact modular feedback. */}
-            <div className="relative my-auto flex-1 flex flex-col items-center justify-center py-3 w-full">
+            <div className="relative my-auto flex-1 flex flex-col items-center justify-center py-1.5 sm:py-3 w-full">
               <div
                 data-avatar-stage-rotation={rotationY}
                 data-avatar-stage-movement={movement3D}
                 className={cn(
-                  "flex h-[220px] w-full items-center justify-center drop-shadow-2xl transition-transform duration-300 sm:h-[240px] lg:h-[260px]",
+                  "flex h-[175px] w-full items-center justify-center drop-shadow-2xl transition-transform duration-300 sm:h-[240px] lg:h-[260px]",
                   movement3D === "walk" && "animate-bounce",
                   movement3D === "wave" && "animate-pulse"
                 )}
@@ -647,33 +629,40 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                       Cortes Modulares ZAI
                     </Label>
                     <div className="grid grid-cols-2 gap-2.5">
-                      {AVATAR_HAIRS.map((h) => (
-                        <button
-                          key={h.id}
-                          data-avatar-item={h.id}
-                          type="button"
-                          onClick={() => setAvatar((prev) => ({
-                            ...prev,
-                            hair: h.id,
-                            hairColor: AVATAR_HAIR_COLORS[h.id] || prev.hairColor,
-                            catalogSpriteId: resolveItemSpriteForGender(h, prev.body) || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
-                          }))}
-                          className={cn(
-                            "p-2.5 rounded-xl border text-left transition-all",
-                            avatar.hair === h.id
-                              ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
-                              : "border-border hover:border-border/80 text-muted-foreground"
-                          )}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <AvatarItemPreview spriteRef={resolveItemSpriteForGender(h, avatar.body)} focus="hair" title={h.title} />
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-foreground truncate">{h.title}</div>
-                              <div className="text-[10px] text-muted-foreground line-clamp-2">{h.description}</div>
+                      {AVATAR_HAIRS.map((h) => {
+                        const display = resolveItemDisplayForGender(h, avatar.body);
+                        const isSelected =
+                          avatar.hair === h.id ||
+                          (h.id === "hair_01" && avatar.hair === "female_ponytail_brunette") ||
+                          (h.id === "hair_05" && avatar.hair === "male_short_fade");
+                        return (
+                          <button
+                            key={h.id}
+                            data-avatar-item={h.id}
+                            type="button"
+                            onClick={() => setAvatar((prev) => ({
+                              ...prev,
+                              hair: h.id,
+                              hairColor: resolveHairColorForHair(h.id, prev.hairColor, prev.body !== "male"),
+                              catalogSpriteId: resolveItemSpriteForGender(h, prev.body) || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
+                            }))}
+                            className={cn(
+                              "p-2.5 rounded-xl border text-left transition-all",
+                              isSelected
+                                ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                                : "border-border hover:border-border/80 text-muted-foreground"
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <AvatarItemPreview spriteRef={resolveItemSpriteForGender(h, avatar.body)} focus="hair" title={display.title} />
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-foreground truncate">{display.title}</div>
+                                <div className="text-[10px] text-muted-foreground line-clamp-2">{display.description}</div>
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -691,7 +680,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           onClick={() => setAvatar((prev) => ({
                             ...prev,
                             hair: h.id,
-                            hairColor: AVATAR_HAIR_COLORS[h.id] || prev.hairColor,
+                            hairColor: resolveHairColorForHair(h.id, prev.hairColor, prev.body !== "male"),
                             catalogSpriteId: resolveItemSpriteForGender(h, prev.body) || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
                           }))}
                           className={cn(

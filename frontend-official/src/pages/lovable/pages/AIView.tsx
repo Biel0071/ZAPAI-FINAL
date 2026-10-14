@@ -2883,7 +2883,7 @@ export function AIView(props: AIViewProps) {
                             <Card key={agent.key || agent.name} className="relative overflow-hidden border border-border/60 bg-card/45 hover:border-primary/20 transition-all shadow-sm">
                               <CardHeader className="flex flex-row items-center gap-4 p-5 pb-3">
                                 <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary shrink-0 shadow-inner border border-primary/20 overflow-hidden">
-                                  <img src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(agent.name || 'Agent')}`} alt={agent.name} className="w-full h-full object-cover p-1" />
+                                  <img src={agent.avatarUrl || `/assets/avatar_factory/catalog/${agent.avatarConfig?.catalogSpriteId || "sprite_r2_c1"}_clean.png`} alt={agent.name} className="w-full h-full object-contain p-1" />
                                   <div className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-background shadow-sm"></div>
                                 </div>
                                 <div className="min-w-0 flex-grow">

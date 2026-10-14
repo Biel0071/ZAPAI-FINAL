@@ -20,6 +20,7 @@ import {
   POSTURES,
   AVATAR_STYLES,
   resolveItemSpriteForGender,
+  resolveHairColorForHair,
 } from "./AvatarDefinition";
 
 const RENDERER_HAIR_ALIASES: Record<string, string> = {
@@ -87,12 +88,15 @@ export function normalizeAvatarForRenderer(avatar: Partial<AgentAvatarConfig>): 
   const legacyFace = avatar.face || avatar.eyes;
   const configuredOutfit = avatar.outfit || avatar.clothing;
   const resolvedHair = RENDERER_HAIR_ALIASES[avatar.hair || ""] || avatar.hair || "";
+  const finalHair = /^hair_(0[1-9]|10)$/.test(resolvedHair) ? resolvedHair : (avatar.body === "male" ? "hair_05" : "hair_01");
   const resolvedFace = RENDERER_FACE_ALIASES[legacyFace || ""] || legacyFace || "";
   const resolvedOutfit = RENDERER_OUTFIT_ALIASES[configuredOutfit || ""] || configuredOutfit || "";
+  const isFemale = avatar.body !== "male" && avatar.base !== "male";
 
   return {
     ...avatar,
-    hair: /^hair_(0[1-9]|10)$/.test(resolvedHair) ? resolvedHair : (avatar.body === "male" ? "hair_05" : "hair_01"),
+    hair: finalHair,
+    hairColor: resolveHairColorForHair(avatar.hair || finalHair, avatar.hairColor, isFemale),
     face: /^face_0[1-6]$/.test(resolvedFace) ? resolvedFace : "face_01",
     outfit: /^outfit_0[1-8]$/.test(resolvedOutfit) ? resolvedOutfit : "outfit_01",
     style: RENDERER_STYLE_ALIASES[avatar.style || ""] || avatar.style || "style_vendas",

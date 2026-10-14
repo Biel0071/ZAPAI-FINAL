@@ -44,8 +44,13 @@ export function AIAssistantAvatar({
     offline: "bg-slate-500",
   }[status];
 
-  const defaultAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+  const lowerName = String(name || "").toLowerCase();
+  const isMaleName = ["lucas", "rafael", "carlos", "pedro", "bruno", "marcos", "diego", "thiago", "joão", "joao", "gabriel"].some((m) => lowerName.includes(m));
+  const defaultAvatar = isMaleName
+    ? "/assets/avatar_factory/catalog/sprite_r1_c1_clean.png"
+    : "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png";
   const resolvedUrl = avatarUrl || defaultAvatar;
+  const isCatalogSprite = resolvedUrl.includes("/avatar_factory/catalog/");
 
   const avatarBox = (
     <div className="relative shrink-0 select-none">
@@ -63,7 +68,11 @@ export function AIAssistantAvatar({
             src={resolvedUrl}
             alt={name}
             onError={() => setImageFailed(true)}
-            className="h-full w-full object-cover object-top"
+            className={cn(
+              "h-full w-full",
+              isCatalogSprite ? "object-contain object-top p-0.5 scale-125 origin-top" : "object-cover object-top"
+            )}
+            style={isCatalogSprite ? { imageRendering: "pixelated" } : undefined}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 text-white">

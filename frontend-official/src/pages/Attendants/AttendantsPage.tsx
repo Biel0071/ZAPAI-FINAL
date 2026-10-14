@@ -102,6 +102,8 @@ import {
   HAIRSTYLES_MALE,
   CLOTHING_STYLES,
   resolveItemSpriteForGender,
+  resolveHairColorForHair,
+  resolveItemDisplayForGender,
   type AgentAvatarConfig,
 } from "@/components/avatar-engine/AvatarDefinition";
 import { AvatarItemPreview } from "@/components/avatar-engine/AvatarItemPreview";
@@ -395,12 +397,13 @@ export default function AttendantsPage() {
 
   const activeHairItem = useMemo(() => {
     const hair = previewAgent?.avatarConfig?.hair;
+    const gender = previewAgent?.avatarConfig?.body === "male" ? "male" : "female";
     const foundModular = AVATAR_HAIRS.find((h) => h.id === hair);
-    if (foundModular) return foundModular;
+    if (foundModular) return resolveItemDisplayForGender(foundModular, gender);
     const foundLegacy = [...HAIRSTYLES_FEMALE, ...HAIRSTYLES_MALE].find((h) => h.id === hair);
     if (foundLegacy) return { title: foundLegacy.label };
-    return { title: "Rabo de Cavalo Executivo" };
-  }, [previewAgent?.avatarConfig?.hair]);
+    return { title: gender === "male" ? "Executivo Clássico" : "Rabo de Cavalo Executivo" };
+  }, [previewAgent?.avatarConfig?.hair, previewAgent?.avatarConfig?.body]);
 
   const activeFaceItem = useMemo(() => {
     const face = previewAgent?.avatarConfig?.face;
@@ -851,6 +854,7 @@ export default function AttendantsPage() {
                   handleUpdateAvatar({
                     body: "female",
                     base: "female",
+                    hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, true),
                     catalogSpriteId: resolveSpriteForAvatar(updated, true),
                   });
                 }}
@@ -872,6 +876,7 @@ export default function AttendantsPage() {
                   handleUpdateAvatar({
                     body: "male",
                     base: "male",
+                    hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, false),
                     catalogSpriteId: resolveSpriteForAvatar(updated, true),
                   });
                 }}
@@ -1116,8 +1121,13 @@ export default function AttendantsPage() {
             {studioCategory === "hair" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_HAIRS.map((h) => {
-                  const isSelected = previewAgent?.avatarConfig?.hair === h.id;
+                  const currentHair = previewAgent?.avatarConfig?.hair;
+                  const isSelected =
+                    currentHair === h.id ||
+                    (h.id === "hair_01" && currentHair === "female_ponytail_brunette") ||
+                    (h.id === "hair_05" && currentHair === "male_short_fade");
                   const resolvedHairSprite = resolveItemSpriteForGender(h, inlineGender);
+                  const display = resolveItemDisplayForGender(h, inlineGender);
                   return (
                     <button
                       key={h.id}
@@ -1125,6 +1135,7 @@ export default function AttendantsPage() {
                       data-avatar-item={h.id}
                       onClick={() => handleUpdateAvatar({
                         hair: h.id,
+                        hairColor: resolveHairColorForHair(h.id, previewAgent?.avatarConfig?.hairColor, inlineGender !== "male"),
                         catalogSpriteId: resolvedHairSprite || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), body: inlineGender, base: inlineGender, hair: h.id, catalogSpriteId: undefined }, true),
                       })}
                       className={cn(
@@ -1141,8 +1152,8 @@ export default function AttendantsPage() {
                         size="sm"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate text-foreground">{h.title}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{h.description}</p>
+                        <p className="text-xs font-bold truncate text-foreground">{display.title}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{display.description}</p>
                       </div>
                     </button>
                   );

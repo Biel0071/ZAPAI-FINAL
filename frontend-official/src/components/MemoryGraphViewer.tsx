@@ -226,7 +226,7 @@ export const MemoryGraphViewer: React.FC<MemoryGraphViewerProps> = ({ graphData,
 
           // Se for o agente, desenhamos o avatar
           if (node.type === 'agent') {
-            const avatarUrl = node.avatar || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(label)}`;
+            const avatarUrl = node.avatar || "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png";
             let img = imageCache.get(avatarUrl);
             
             if (!img) {

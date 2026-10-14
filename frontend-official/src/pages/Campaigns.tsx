@@ -441,7 +441,15 @@ export default function Campaigns() {
       setQuickReplies(Array.isArray(quickRepliesData) ? quickRepliesData : []);
       const loadedAgents = Array.isArray(agentsData?.agents) ? agentsData.agents : [];
       setAiAgents(loadedAgents);
-      setSelectedAiAgentKey((current) => current || String(loadedAgents.find((agent) => agent.active !== false)?.key || loadedAgents[0]?.key || ""));
+      setSelectedAiAgentKey((current) =>
+        current ||
+        String(
+          loadedAgents.find((agent) => agent.active !== false && String(agent.key || "").toLowerCase() !== "zaibot")?.key ||
+          loadedAgents.find((agent) => agent.active !== false)?.key ||
+          loadedAgents[0]?.key ||
+          ""
+        )
+      );
 
       setMaturationLoading(true);
       apiService.getCampaignMaturationStats()
@@ -1684,13 +1692,25 @@ export default function Campaigns() {
                             Atendente IA Responsável
                           </Label>
                           <div className="rounded-xl border border-border/60 bg-background/50 p-3.5 space-y-3">
-                            <AIAssistantAvatar
-                              name={aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || "Camila — Especialista ZAI"}
-                              role="Atendente Comercial de Alta Conversão"
-                              description="Treinada para criar mensagens humanizadas, ofertas irresistíveis e follow-up estratégico."
-                              status="online"
-                              size="md"
-                            />
+                            {(() => {
+                              const selectedAgentObj = aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey);
+                              const spriteId =
+                                selectedAgentObj?.avatarConfig?.catalogSpriteId ||
+                                (selectedAgentObj?.avatarConfig?.body === "male" ? "sprite_r1_c1" : "sprite_r2_c1");
+                              const agentAvatarUrl =
+                                selectedAgentObj?.avatarUrl ||
+                                `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
+                              return (
+                                <AIAssistantAvatar
+                                  name={selectedAgentObj?.name || selectedAiAgentKey || "Camila — Especialista ZAI"}
+                                  avatarUrl={agentAvatarUrl}
+                                  role={selectedAgentObj?.role || "Atendente Comercial de Alta Conversão"}
+                                  description="Treinada para criar mensagens humanizadas, ofertas irresistíveis e follow-up estratégico."
+                                  status="online"
+                                  size="md"
+                                />
+                              );
+                            })()}
                             {aiAgents.length > 1 && (
                               <div className="pt-1 border-t border-border/40">
                                 <Label className="text-[10px] text-muted-foreground mb-1 block">Trocar Atendente:</Label>

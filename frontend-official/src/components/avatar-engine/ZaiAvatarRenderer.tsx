@@ -14,7 +14,7 @@
  */
 
 import React, { useMemo } from "react";
-import { AgentAvatarConfig, AnimationState, StoreBranding } from "./AvatarDefinition";
+import { AgentAvatarConfig, AnimationState, StoreBranding, resolveHairColorForHair } from "./AvatarDefinition";
 import { normalizeAvatarForRenderer, resolveSpriteForAvatar } from "./CharacterFactory";
 import { cn } from "@/core/lib/utils";
 import {
@@ -45,7 +45,7 @@ const SIZE_CONFIGS = {
   xl: { container: "w-48 h-64", character: "h-56 w-auto", badge: "text-xs px-3 py-1", indicator: "w-4 h-4" },
   workspace: {
     container: "w-full h-full flex flex-col items-center justify-center",
-    character: "h-full max-h-[235px] w-[160px]",
+    character: "h-full max-h-[175px] sm:max-h-[235px] w-[140px] sm:w-[160px]",
     badge: "text-xs px-2.5 py-0.5",
     indicator: "w-3 h-3",
   },
@@ -138,17 +138,7 @@ function ModularLayerAvatar({
 
   // Resolve Hair Style & Palette
   const hairId = avatar.hair || (isFemale ? "hair_01" : "hair_05");
-  const defaultHairColor =
-    hairId === "hair_03"
-      ? "golden_blonde"
-      : hairId === "hair_10"
-      ? "cyber_blue"
-      : hairId === "hair_07"
-      ? "auburn"
-      : isFemale
-      ? "dark_brown"
-      : "black";
-  const hairColorKey = avatar.hairColor || defaultHairColor;
+  const hairColorKey = resolveHairColorForHair(hairId, avatar.hairColor, isFemale);
   const hairColor = HAIR_PALETTES[hairColorKey] || HAIR_PALETTES.dark_brown;
 
   // Resolve Face (5th Category)
@@ -574,25 +564,31 @@ function ModularLayerAvatar({
         )}
 
         {outfitId === "outfit_05" && (
-          // Blazer Alfaiataria Comercial: Charcoal blazer with emerald lapel & inner shirt
+          // Blazer Alfaiataria Comercial: Charcoal blazer with emerald lapel & V-neck inner shirt
           <>
-            {/* Inner Shirt */}
-            <rect x="32" y="70" width="36" height="34" rx="3" fill={isBackView ? "#0f172a" : "#f8fafc"} />
+            {/* Tailored Dark Charcoal Blazer Body */}
+            <rect x="32" y="70" width="36" height="35" rx="3" fill="#18181b" stroke="#334155" strokeWidth="0.8" />
             {!isBackView && (
               <>
-                {/* Blazer Left & Right Sides */}
-                <path d="M 32 70 L 44 70 L 46 95 L 32 99 Z" fill="#0f172a" />
-                <path d="M 68 70 L 56 70 L 54 95 L 68 99 Z" fill="#0f172a" />
+                {/* Crisp Inner Shirt V-Insert */}
+                <polygon points="43,70 57,70 52,90 48,90" fill="#e2e8f0" />
+                {/* Center Tie / Accent */}
+                <polygon points="49,73 51,73 51.5,89 50,91 48.5,89" fill={primaryBrandColor} />
                 {/* Emerald Satin Lapel */}
-                <polygon points="40,70 45,86 42,88 38,70" fill={primaryBrandColor} />
-                <polygon points="60,70 55,86 58,88 62,70" fill={primaryBrandColor} />
-                {/* Gold/Emerald Pin */}
-                <circle cx="39" cy="78" r="1.5" fill="#f59e0b" />
+                <polygon points="41,70 47,89 44,90 38,70" fill={primaryBrandColor} />
+                <polygon points="59,70 53,89 56,90 62,70" fill={primaryBrandColor} />
+                {/* Bottom Blazer Hem Split & Buttons */}
+                <line x1="50" y1="90" x2="50" y2="105" stroke="#09090b" strokeWidth="1.2" />
+                <circle cx="50" cy="93" r="0.9" fill={primaryBrandColor} />
+                {/* Gold/Emerald Executive Pin */}
+                <circle cx="38.5" cy="78" r="1.4" fill="#f59e0b" />
               </>
             )}
-            {/* Sleeves */}
-            <rect x="27" y="70" width="7" height="17" rx="2.5" fill="#0f172a" />
-            <rect x="66" y="70" width="7" height="17" rx="2.5" fill="#0f172a" />
+            {/* Sleeves with Emerald Cuff Piping */}
+            <rect x="27" y="70" width="7" height="17" rx="2.5" fill="#18181b" stroke="#334155" strokeWidth="0.6" />
+            <rect x="27" y="85" width="7" height="2" fill={primaryBrandColor} />
+            <rect x="66" y="70" width="7" height="17" rx="2.5" fill="#18181b" stroke="#334155" strokeWidth="0.6" />
+            <rect x="66" y="85" width="7" height="2" fill={primaryBrandColor} />
           </>
         )}
 

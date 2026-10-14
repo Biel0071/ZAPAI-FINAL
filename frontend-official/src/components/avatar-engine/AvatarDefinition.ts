@@ -134,6 +134,96 @@ export function resolveItemSpriteForGender(
   return rawSprite;
 }
 
+const HAIR_ID_TO_COLOR: Record<string, HairColor> = {
+  hair_01: "auburn",
+  hair_02: "black",
+  hair_03: "golden_blonde",
+  hair_04: "dark_brown",
+  hair_05: "auburn",
+  hair_06: "black",
+  hair_07: "black",
+  hair_08: "golden_blonde",
+  hair_09: "dark_brown",
+  hair_10: "cyber_blue",
+  female_ponytail_brunette: "auburn",
+  female_straight_glasses: "black",
+  female_wavy_blonde: "golden_blonde",
+  female_curly_updo: "dark_brown",
+  female_long_wavy_coffee: "dark_brown",
+  female_pink_cap: "neon_pink",
+  female_short_business: "black",
+  female_peace_brunette: "auburn",
+  female_silver_waves: "platinum",
+  female_blue_wavy: "cyber_blue",
+  female_hardhat_brunette: "auburn",
+  male_short_fade: "auburn",
+  male_spiky: "golden_blonde",
+  male_textured_crop: "black",
+  male_cap_hair: "dark_brown",
+  male_curly_brown: "dark_brown",
+  male_anime_silver: "platinum",
+  male_afro_curls: "black",
+  male_professor_beard: "dark_brown",
+  male_dark_shades: "black",
+  male_red_hoodie: "fiery_red",
+};
+
+/**
+ * Resolves the canonical hair color baked into a catalog hairstyle so 2D sprites and 3D puppets stay in sync.
+ */
+export function resolveHairColorForHair(
+  hairId?: string,
+  fallback?: HairColor,
+  isFemale: boolean = true
+): HairColor {
+  if (hairId && HAIR_ID_TO_COLOR[hairId]) {
+    return HAIR_ID_TO_COLOR[hairId];
+  }
+  return fallback || (isFemale ? "auburn" : "black");
+}
+
+const MALE_HAIR_DISPLAY_OVERRIDES: Record<string, { title: string; description: string }> = {
+  hair_01: {
+    title: "Executivo Clássico",
+    description: "Corte masculino alinhado com acabamento lateral",
+  },
+  hair_02: {
+    title: "Texturizado Urbano",
+    description: "Corte médio estruturado com volume natural",
+  },
+  hair_03: {
+    title: "Loiro Texturizado",
+    description: "Mechas loiras curtas com corte dinâmico",
+  },
+  hair_04: {
+    title: "Esportivo com Boné ZAI",
+    description: "Visual tático masculino com boné oficial",
+  },
+  hair_07: {
+    title: "Social com Franja Lateral",
+    description: "Corte liso executivo com caimento frontal",
+  },
+  hair_10: {
+    title: "Cyber Spiky Urbano",
+    description: "Corte masculino moderno estilo tech",
+  },
+};
+
+/**
+ * Returns gender-appropriate display title and description for catalog items (e.g., masculine hair cuts when male is selected).
+ */
+export function resolveItemDisplayForGender(
+  item: { id?: string; title?: string; name?: string; description?: string } | undefined | null,
+  gender?: string
+): { title: string; description: string } {
+  const defaultTitle = item?.title || item?.name || "";
+  const defaultDescription = item?.description || "";
+  if (gender === "male" && item?.id && MALE_HAIR_DISPLAY_OVERRIDES[item.id]) {
+    return MALE_HAIR_DISPLAY_OVERRIDES[item.id];
+  }
+  return { title: defaultTitle, description: defaultDescription };
+}
+
 /* ==========================================================================
    OFFICIAL AVATAR STUDIO — 5 CATEGORIES (CABELO, ROSTO, ROUPA, ACESSÓRIOS, ESTILO)
    ========================================================================== */

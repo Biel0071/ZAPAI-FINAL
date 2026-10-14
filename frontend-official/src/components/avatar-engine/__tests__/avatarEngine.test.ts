@@ -28,6 +28,8 @@ import {
   AVATAR_ACCESSORIES,
   AVATAR_STYLES,
   AgentAvatarConfig,
+  resolveHairColorForHair,
+  resolveItemDisplayForGender,
 } from "../AvatarDefinition";
 
 describe("ZAI Avatar Engine — Modular Character Factory & Store DNA", () => {
@@ -692,5 +694,36 @@ describe("Avatar operational state regressions", () => {
       saveAvatar.mockRestore();
     }
   });
+
+  it("preserves canonical hair color in 3D puppet views, renders dark charcoal outfit_05 blazer, and shows gender-aware hair titles", () => {
+    // 1. Hair color sync between 2D sprite (hair_03 blonde) and 3D puppet even if legacy hairColor was 'auburn'
+    expect(resolveHairColorForHair("hair_03", "auburn", true)).toBe("golden_blonde");
+    expect(resolveHairColorForHair("hair_08", "auburn", true)).toBe("golden_blonde");
+    expect(resolveHairColorForHair("hair_10", "auburn", false)).toBe("cyber_blue");
+
+    const blonde3DMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: { body: "female", hair: "hair_03", hairColor: "auburn", outfit: "outfit_05" },
+        size: "workspace",
+        rotationY: 90,
+        movement3D: "walk",
+      })
+    );
+    // Golden blonde (#eab308) must be rendered in 3D instead of auburn (#78350f)
+    expect(blonde3DMarkup).toContain("#eab308");
+    expect(blonde3DMarkup).not.toContain("#78350f");
+    // Outfit 05 must render dark charcoal blazer (#18181b) and V-neck inner shirt, not a full-width white tunic (#f8fafc)
+    expect(blonde3DMarkup).toContain("#18181b");
+    expect(blonde3DMarkup).not.toContain('width="36" height="34" rx="4" fill="#f8fafc"');
+
+    // 2. Gender-aware hair titles for male vs female
+    const hair01 = AVATAR_HAIRS.find((h) => h.id === "hair_01")!;
+    const hair03 = AVATAR_HAIRS.find((h) => h.id === "hair_03")!;
+    expect(resolveItemDisplayForGender(hair01, "female").title).toBe("Rabo de Cavalo Executivo");
+    expect(resolveItemDisplayForGender(hair01, "male").title).toBe("Executivo Clássico");
+    expect(resolveItemDisplayForGender(hair03, "female").title).toBe("Ondulado Longo Elegante");
+    expect(resolveItemDisplayForGender(hair03, "male").title).toBe("Loiro Texturizado");
+  });
 });
+
 
