@@ -783,6 +783,16 @@ export default function AttendantsPage() {
   ------------------------------------------------------------- */
   const renderAvatarStudioSection = () => {
     if (!previewAgent) return null;
+    const resolvedInlineAvatar = previewAgent.avatarConfig || createAgentAvatar({
+      agentId: previewAgent.key || previewAgent.name,
+      name: previewAgent.name,
+      role: previewAgent.role,
+      storeId: previewStore?.id,
+      storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
+      gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+    });
+    const inlineSpriteId = resolvedInlineAvatar.catalogSpriteId || resolveSpriteForAvatar(resolvedInlineAvatar, false);
+
     return (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left: 2.5D Living Avatar Box (Col 5) */}
@@ -815,7 +825,11 @@ export default function AttendantsPage() {
               type="button"
               onClick={() => {
                 const currentGender = previewAgent?.avatarConfig?.body === "male" ? "female" : "male";
-                handleUpdateAvatar({ body: currentGender });
+                const updated = { ...(previewAgent?.avatarConfig || {}), body: currentGender, catalogSpriteId: undefined };
+                handleUpdateAvatar({
+                  body: currentGender,
+                  catalogSpriteId: resolveSpriteForAvatar(updated, true),
+                });
               }}
               className="absolute top-2.5 right-2.5 z-20 px-2.5 py-0.5 rounded-full bg-black/70 border border-emerald-500/40 text-[10px] text-emerald-300 font-mono hover:bg-emerald-500/20 transition-all flex items-center gap-1 backdrop-blur-xs cursor-pointer"
               title="Alternar silhueta feminina / masculina"
@@ -824,21 +838,19 @@ export default function AttendantsPage() {
             </button>
 
             {/* Centered 2.5D Character Sprite */}
-            <div className="relative w-full h-[270px] sm:h-[290px] flex items-center justify-center my-auto">
-              <ZaiAvatarRenderer
-                avatar={previewAgent.avatarConfig || createAgentAvatar({
-                  agentId: previewAgent.key || previewAgent.name,
-                  name: previewAgent.name,
-                  role: previewAgent.role,
-                  storeId: previewStore?.id,
-                  storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
-                  gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
-                })}
-                state={previewPresence?.state || "WAITING"}
-                size="workspace"
-                showAura={true}
-                showStatusBadge={false}
-                showBrandingLayer={false}
+            <div className="relative w-full h-[230px] sm:h-[250px] flex items-center justify-center my-auto">
+              <div
+                className="absolute bottom-2 left-1/2 -translate-x-1/2 w-36 sm:w-44 h-6 rounded-full pointer-events-none"
+                style={{
+                  background: "radial-gradient(ellipse at center, rgba(16,185,129,0.28) 0%, rgba(16,185,129,0.06) 60%, transparent 80%)",
+                  border: "1px solid rgba(16,185,129,0.3)",
+                }}
+              />
+              <img
+                src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
+                alt={previewAgent.name || "Avatar do atendente"}
+                className="relative z-10 h-full w-auto max-w-[150px] object-contain drop-shadow-2xl"
+                style={{ imageRendering: "pixelated" }}
               />
             </div>
 

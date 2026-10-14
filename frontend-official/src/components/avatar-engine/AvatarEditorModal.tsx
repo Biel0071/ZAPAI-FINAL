@@ -512,43 +512,8 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     </p>
                   </div>
 
-                  {/* Lista de Cortes */}
+                  {/* Cortes Modulares ZAI (Topo da aba Cabelo) */}
                   <div>
-                    <Label className="text-xs font-bold text-foreground mb-2 block">
-                      Cortes Disponíveis
-                    </Label>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      {availableHairstyles.map((h) => (
-                        <button
-                          key={h.id}
-                          data-avatar-item={h.id}
-                          type="button"
-                          onClick={() => setAvatar((prev) => ({
-                            ...prev,
-                            hair: h.id,
-                            hairColor: AVATAR_HAIR_COLORS[h.id] || prev.hairColor,
-                            catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
-                          }))}
-                          className={cn(
-                            "p-2.5 rounded-xl border text-left transition-all",
-                            avatar.hair === h.id
-                              ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
-                              : "border-border hover:border-border/80 text-muted-foreground"
-                          )}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <AvatarItemPreview spriteRef={h.spriteRef} focus="hair" title={h.name} />
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-foreground truncate">{h.name}</div>
-                              <div className="text-[10px] text-muted-foreground line-clamp-2">{h.description}</div>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-border/50">
                     <Label className="text-xs font-bold text-foreground mb-2 block">
                       Cortes Modulares ZAI
                     </Label>
@@ -575,6 +540,42 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             <AvatarItemPreview spriteRef={h.spriteRef} focus="hair" title={h.title} />
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-foreground truncate">{h.title}</div>
+                              <div className="text-[10px] text-muted-foreground line-clamp-2">{h.description}</div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Lista de Cortes do Catálogo */}
+                  <div className="pt-3 border-t border-border/50">
+                    <Label className="text-xs font-bold text-foreground mb-2 block">
+                      Cortes Disponíveis
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {availableHairstyles.map((h) => (
+                        <button
+                          key={h.id}
+                          data-avatar-item={h.id}
+                          type="button"
+                          onClick={() => setAvatar((prev) => ({
+                            ...prev,
+                            hair: h.id,
+                            hairColor: AVATAR_HAIR_COLORS[h.id] || prev.hairColor,
+                            catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
+                          }))}
+                          className={cn(
+                            "p-2.5 rounded-xl border text-left transition-all",
+                            avatar.hair === h.id
+                              ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                              : "border-border hover:border-border/80 text-muted-foreground"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <AvatarItemPreview spriteRef={h.spriteRef} focus="hair" title={h.name} />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-foreground truncate">{h.name}</div>
                               <div className="text-[10px] text-muted-foreground line-clamp-2">{h.description}</div>
                             </div>
                           </div>
@@ -618,33 +619,43 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
                 {/* 3. ROUPAS (Uniformes & Vestuário) */}
                 <TabsContent value="clothing" className="mt-0 space-y-4">
-                  <Label className="text-xs font-bold text-foreground block">
-                    Modelos completos e uniformes do catálogo
-                  </Label>
-                  <p className="text-xs text-muted-foreground">Escolha um visual completo ou traje corporativo do atendente.</p>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {availableHairstyles.map((c) => (
-                      <button
-                        key={c.id}
-                        data-avatar-item={c.id}
-                        type="button"
-                        onClick={() => selectCatalogLook(c)}
-                        className={cn(
-                          "p-2.5 rounded-xl border text-left transition-all",
-                          avatar.hair === c.id
-                            ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
-                            : "border-border hover:border-border/80 text-muted-foreground"
-                        )}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <AvatarItemPreview spriteRef={c.spriteRef} focus="full" title={c.name} />
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-foreground truncate">{c.name}</div>
-                            <div className="text-[10px] text-muted-foreground line-clamp-2">Visual completo · {c.description}</div>
+                  <div>
+                    <Label className="text-xs font-bold text-foreground block mb-1">
+                      Roupas Modulares ZAI
+                    </Label>
+                    <p className="text-xs text-muted-foreground mb-2.5">Escolha o traje corporativo ou uniforme operacional do atendente.</p>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {AVATAR_OUTFITS.map((o) => (
+                        <button
+                          key={o.id}
+                          data-avatar-item={o.id}
+                          type="button"
+                          onClick={() => {
+                            setAvatar((prev) => {
+                              const updated = { ...prev, outfit: o.id, clothing: o.id };
+                              return {
+                                ...updated,
+                                catalogSpriteId: o.spriteRef || resolveSpriteForAvatar(updated, true),
+                              };
+                            });
+                          }}
+                          className={cn(
+                            "p-2.5 rounded-xl border text-left transition-all",
+                            (avatar.outfit === o.id || avatar.clothing === o.id)
+                              ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                              : "border-border hover:border-border/80 text-muted-foreground"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <AvatarItemPreview spriteRef={o.spriteRef} focus="outfit" title={o.title} />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-foreground truncate">{o.title}</div>
+                              <div className="text-[10px] text-muted-foreground line-clamp-2">{o.description}</div>
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                    ))}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="pt-3 border-t border-border/50">
@@ -686,35 +697,27 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
                   <div className="pt-3 border-t border-border/50">
                     <Label className="text-xs font-bold text-foreground block mb-2">
-                      Roupas Modulares ZAI
+                      Modelos completos e uniformes do catálogo
                     </Label>
                     <div className="grid grid-cols-2 gap-2.5">
-                      {AVATAR_OUTFITS.map((o) => (
+                      {availableHairstyles.map((c) => (
                         <button
-                          key={o.id}
-                          data-avatar-item={o.id}
+                          key={c.id}
+                          data-avatar-item={c.id}
                           type="button"
-                          onClick={() => {
-                            setAvatar((prev) => {
-                              const updated = { ...prev, outfit: o.id, clothing: o.id };
-                              return {
-                                ...updated,
-                                catalogSpriteId: o.spriteRef || resolveSpriteForAvatar(updated, true),
-                              };
-                            });
-                          }}
+                          onClick={() => selectCatalogLook(c)}
                           className={cn(
                             "p-2.5 rounded-xl border text-left transition-all",
-                            (avatar.outfit === o.id || avatar.clothing === o.id)
+                            avatar.hair === c.id
                               ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
                               : "border-border hover:border-border/80 text-muted-foreground"
                           )}
                         >
                           <div className="flex items-center gap-2.5">
-                            <AvatarItemPreview spriteRef={o.spriteRef} focus="outfit" title={o.title} />
+                            <AvatarItemPreview spriteRef={c.spriteRef} focus="full" title={c.name} />
                             <div className="min-w-0">
-                              <div className="text-xs font-bold text-foreground truncate">{o.title}</div>
-                              <div className="text-[10px] text-muted-foreground line-clamp-2">{o.description}</div>
+                              <div className="text-xs font-bold text-foreground truncate">{c.name}</div>
+                              <div className="text-[10px] text-muted-foreground line-clamp-2">Visual completo · {c.description}</div>
                             </div>
                           </div>
                         </button>
