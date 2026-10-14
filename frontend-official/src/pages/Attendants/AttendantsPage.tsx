@@ -101,6 +101,7 @@ import {
   HAIRSTYLES_FEMALE,
   HAIRSTYLES_MALE,
   CLOTHING_STYLES,
+  resolveItemSpriteForGender,
   type AgentAvatarConfig,
 } from "@/components/avatar-engine/AvatarDefinition";
 import { AvatarItemPreview } from "@/components/avatar-engine/AvatarItemPreview";
@@ -289,6 +290,8 @@ export default function AttendantsPage() {
 
   // Inline 5-category Avatar Studio state
   const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories" | "style">("hair");
+  const [studioRotationY, setStudioRotationY] = useState<number>(0);
+  const [studioMovement3D, setStudioMovement3D] = useState<"idle" | "walk" | "wave" | "spin360">("idle");
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
 
   const handleUpdateAvatar = useCallback((overrides: Partial<AgentAvatarConfig>) => {
@@ -306,7 +309,7 @@ export default function AttendantsPage() {
     if (overrides.outfit) updatedConfig.clothing = overrides.outfit;
     if (overrides.clothing) updatedConfig.outfit = overrides.clothing;
     if (overrides.body) updatedConfig.base = overrides.body === "male" ? "male" : "female";
-    if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "neutral";
+    if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "female";
 
     const updatedSprite = resolveSpriteForAvatar(updatedConfig, true);
     updatedConfig.catalogSpriteId = updatedSprite;
@@ -791,12 +794,14 @@ export default function AttendantsPage() {
       storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
       gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
     });
-    const inlineSpriteId = resolvedInlineAvatar.catalogSpriteId || resolveSpriteForAvatar(resolvedInlineAvatar, false);
+    const inlineGender: "male" | "female" =
+      resolvedInlineAvatar.body === "male" || resolvedInlineAvatar.base === "male" ? "male" : "female";
+    const inlineSpriteId = resolveSpriteForAvatar(resolvedInlineAvatar, false);
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left: 2.5D Living Avatar Box (Col 5) */}
-        <div className="lg:col-span-5 space-y-3">
+        {/* Left: 3D/2.5D Living Avatar Box (Col 5) */}
+        <div className="lg:col-span-5 space-y-2.5">
           <div className="w-full h-[300px] sm:h-[330px] rounded-2xl overflow-hidden border border-border/60 shadow-inner relative flex flex-col items-center justify-center bg-gradient-to-b from-[#091120] to-[#040812] select-none">
             {/* Isometric Grid Floor Accent */}
             <div
@@ -820,24 +825,53 @@ export default function AttendantsPage() {
               <span className="font-mono text-emerald-400 text-[9px]">{previewPresence?.label}</span>
             </div>
 
-            {/* Top-right Gender Switcher */}
-            <button
-              type="button"
-              onClick={() => {
-                const currentGender = previewAgent?.avatarConfig?.body === "male" ? "female" : "male";
-                const updated = { ...(previewAgent?.avatarConfig || {}), body: currentGender, catalogSpriteId: undefined };
-                handleUpdateAvatar({
-                  body: currentGender,
-                  catalogSpriteId: resolveSpriteForAvatar(updated, true),
-                });
-              }}
-              className="absolute top-2.5 right-2.5 z-20 px-2.5 py-0.5 rounded-full bg-black/70 border border-emerald-500/40 text-[10px] text-emerald-300 font-mono hover:bg-emerald-500/20 transition-all flex items-center gap-1 backdrop-blur-xs cursor-pointer"
-              title="Alternar silhueta feminina / masculina"
-            >
-              <span>{previewAgent?.avatarConfig?.body === "male" ? "Masc" : "Fem"}</span>
-            </button>
+            {/* Top-right Dual Gender Switcher (Feminino / Masculino) */}
+            <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
+              <button
+                type="button"
+                data-studio-gender="female"
+                onClick={() => {
+                  const updated = { ...resolvedInlineAvatar, body: "female" as const, base: "female" as const, catalogSpriteId: undefined };
+                  handleUpdateAvatar({
+                    body: "female",
+                    base: "female",
+                    catalogSpriteId: resolveSpriteForAvatar(updated, true),
+                  });
+                }}
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                  inlineGender === "female"
+                    ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Personagem Feminina"
+              >
+                ♀ Fem
+              </button>
+              <button
+                type="button"
+                data-studio-gender="male"
+                onClick={() => {
+                  const updated = { ...resolvedInlineAvatar, body: "male" as const, base: "male" as const, catalogSpriteId: undefined };
+                  handleUpdateAvatar({
+                    body: "male",
+                    base: "male",
+                    catalogSpriteId: resolveSpriteForAvatar(updated, true),
+                  });
+                }}
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                  inlineGender === "male"
+                    ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Personagem Masculino"
+              >
+                ♂ Masc
+              </button>
+            </div>
 
-            {/* Centered 2.5D Character Sprite */}
+            {/* Centered 3D Character & 2.5D Sprite */}
             <div className="relative w-full h-[230px] sm:h-[250px] flex items-center justify-center my-auto">
               <div
                 className="absolute bottom-2 left-1/2 -translate-x-1/2 w-36 sm:w-44 h-6 rounded-full pointer-events-none"
@@ -846,12 +880,29 @@ export default function AttendantsPage() {
                   border: "1px solid rgba(16,185,129,0.3)",
                 }}
               />
-              <img
-                src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
-                alt={previewAgent.name || "Avatar do atendente"}
-                className="relative z-10 h-full w-auto max-w-[150px] object-contain drop-shadow-2xl"
-                style={{ imageRendering: "pixelated" }}
-              />
+              {studioRotationY === 0 && studioMovement3D === "idle" ? (
+                <img
+                  src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
+                  alt={previewAgent.name || "Avatar do atendente"}
+                  className="relative z-10 h-full w-auto max-w-[150px] object-contain drop-shadow-2xl transition-all duration-300"
+                  style={{ imageRendering: "pixelated" }}
+                />
+              ) : (
+                <ZaiAvatarRenderer
+                  avatar={{
+                    ...resolvedInlineAvatar,
+                    body: inlineGender,
+                    base: inlineGender,
+                    rotationY: studioRotationY,
+                    movement3D: studioMovement3D,
+                  }}
+                  state="IDLE"
+                  size="workspace"
+                  rotationY={studioRotationY}
+                  movement3D={studioMovement3D}
+                  showStatusBadge={false}
+                />
+              )}
             </div>
 
             {/* Bottom Layer Summary Chips */}
@@ -869,6 +920,95 @@ export default function AttendantsPage() {
                 {activeStyleItem.title}
               </span>
             </div>
+          </div>
+
+          {/* 3D Rotation & Movement Controls */}
+          <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-muted/20 border border-border/60">
+            <button
+              type="button"
+              data-studio-3d="rotate-left"
+              onClick={() => {
+                setStudioMovement3D((m) => (m === "spin360" ? "idle" : m));
+                setStudioRotationY((prev) => (prev - 45 + 360) % 360);
+              }}
+              className="py-1 px-1.5 rounded-lg bg-card/80 hover:bg-emerald-500/15 border border-border/60 text-[10px] font-mono text-muted-foreground hover:text-emerald-300 transition-all cursor-pointer"
+              title="Girar personagem para a esquerda (-45°)"
+            >
+              ⟲ Girar Esq
+            </button>
+            <button
+              type="button"
+              data-studio-3d="front"
+              onClick={() => {
+                setStudioMovement3D("idle");
+                setStudioRotationY(0);
+              }}
+              className={cn(
+                "py-1 px-1.5 rounded-lg border text-[10px] font-mono transition-all cursor-pointer",
+                studioRotationY === 0 && studioMovement3D === "idle"
+                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold"
+                  : "bg-card/80 border-border/60 text-muted-foreground hover:text-foreground"
+              )}
+              title="Visão Frontal (0°)"
+            >
+              Frente 0°
+            </button>
+            <button
+              type="button"
+              data-studio-3d="back"
+              onClick={() => {
+                setStudioMovement3D((m) => (m === "spin360" ? "idle" : m));
+                setStudioRotationY(180);
+              }}
+              className={cn(
+                "py-1 px-1.5 rounded-lg border text-[10px] font-mono transition-all cursor-pointer",
+                studioRotationY === 180 && studioMovement3D !== "spin360"
+                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold"
+                  : "bg-card/80 border-border/60 text-muted-foreground hover:text-foreground"
+              )}
+              title="Visão de Costas (180°)"
+            >
+              Costas 180°
+            </button>
+            <button
+              type="button"
+              data-studio-3d="rotate-right"
+              onClick={() => {
+                setStudioMovement3D((m) => (m === "spin360" ? "idle" : m));
+                setStudioRotationY((prev) => (prev + 45) % 360);
+              }}
+              className="py-1 px-1.5 rounded-lg bg-card/80 hover:bg-emerald-500/15 border border-border/60 text-[10px] font-mono text-muted-foreground hover:text-emerald-300 transition-all cursor-pointer"
+              title="Girar personagem para a direita (+45°)"
+            >
+              Girar Dir ⟳
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-muted/15 border border-border/50">
+            {([
+              { id: "walk", label: "Andar 3D" },
+              { id: "wave", label: "Acenar 3D" },
+              { id: "spin360", label: "Giro 360°" },
+            ] as const).map((mv) => (
+              <button
+                key={mv.id}
+                type="button"
+                data-studio-movement={mv.id}
+                onClick={() => {
+                  setStudioMovement3D((prev) => (prev === mv.id ? "idle" : mv.id));
+                  if (mv.id !== "spin360" && studioRotationY === 0) {
+                    setStudioRotationY(45);
+                  }
+                }}
+                className={cn(
+                  "py-1 px-1.5 rounded-lg border text-[10px] font-mono transition-all cursor-pointer",
+                  studioMovement3D === mv.id
+                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold"
+                    : "bg-card/70 border-border/60 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {mv.label}
+              </button>
+            ))}
           </div>
 
           {/* Action Row */}
@@ -946,6 +1086,7 @@ export default function AttendantsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_HAIRS.map((h) => {
                   const isSelected = previewAgent?.avatarConfig?.hair === h.id;
+                  const resolvedHairSprite = resolveItemSpriteForGender(h, inlineGender);
                   return (
                     <button
                       key={h.id}
@@ -953,7 +1094,7 @@ export default function AttendantsPage() {
                       data-avatar-item={h.id}
                       onClick={() => handleUpdateAvatar({
                         hair: h.id,
-                        catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), hair: h.id, catalogSpriteId: undefined }, true),
+                        catalogSpriteId: resolvedHairSprite || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), body: inlineGender, base: inlineGender, hair: h.id, catalogSpriteId: undefined }, true),
                       })}
                       className={cn(
                         "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
@@ -963,7 +1104,7 @@ export default function AttendantsPage() {
                       )}
                     >
                       <AvatarItemPreview
-                        spriteRef={h.spriteRef}
+                        spriteRef={resolvedHairSprite}
                         focus="hair"
                         selected={isSelected}
                         size="sm"
@@ -982,6 +1123,7 @@ export default function AttendantsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_FACES.map((f) => {
                   const isSelected = previewAgent?.avatarConfig?.face === f.id;
+                  const resolvedFaceSprite = resolveItemSpriteForGender(f, inlineGender);
                   return (
                     <button
                       key={f.id}
@@ -996,7 +1138,7 @@ export default function AttendantsPage() {
                       )}
                     >
                       <AvatarItemPreview
-                        spriteRef={f.spriteRef || previewAgent?.avatarConfig?.catalogSpriteId || "sprite_r1_c1"}
+                        spriteRef={resolvedFaceSprite || inlineSpriteId}
                         focus="face"
                         selected={isSelected}
                         size="sm"
@@ -1015,6 +1157,7 @@ export default function AttendantsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_OUTFITS.map((o) => {
                   const isSelected = (previewAgent?.avatarConfig?.outfit || previewAgent?.avatarConfig?.clothing) === o.id;
+                  const resolvedOutfitSprite = resolveItemSpriteForGender(o, inlineGender);
                   return (
                     <button
                       key={o.id}
@@ -1023,7 +1166,7 @@ export default function AttendantsPage() {
                       onClick={() => handleUpdateAvatar({
                         outfit: o.id,
                         clothing: o.id,
-                        catalogSpriteId: o.spriteRef || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), outfit: o.id, clothing: o.id, catalogSpriteId: undefined }, true),
+                        catalogSpriteId: resolvedOutfitSprite || resolveSpriteForAvatar({ ...(previewAgent?.avatarConfig || {}), body: inlineGender, base: inlineGender, outfit: o.id, clothing: o.id, catalogSpriteId: undefined }, true),
                       })}
                       className={cn(
                         "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
@@ -1033,7 +1176,7 @@ export default function AttendantsPage() {
                       )}
                     >
                       <AvatarItemPreview
-                        spriteRef={o.spriteRef}
+                        spriteRef={resolvedOutfitSprite}
                         focus="outfit"
                         selected={isSelected}
                         size="sm"
@@ -1066,6 +1209,7 @@ export default function AttendantsPage() {
                       : a.id === "acc_02" || a.id === "acc_04"
                       ? "accessory-head"
                       : "accessory-body";
+                  const resolvedAccSprite = resolveItemSpriteForGender(a, inlineGender);
 
                   return (
                     <button
@@ -1113,7 +1257,7 @@ export default function AttendantsPage() {
                       )}
                     >
                       <AvatarItemPreview
-                        spriteRef={a.spriteRef || previewAgent?.avatarConfig?.catalogSpriteId || "sprite_r1_c1"}
+                        spriteRef={resolvedAccSprite || inlineSpriteId}
                         focus={focusType}
                         selected={Boolean(isEquipped)}
                         size="sm"
@@ -1132,6 +1276,7 @@ export default function AttendantsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_STYLES.map((s) => {
                   const isSelected = previewAgent?.avatarConfig?.style === s.id;
+                  const resolvedStyleSprite = resolveItemSpriteForGender(s, inlineGender);
                   return (
                     <button
                       key={s.id}
@@ -1139,7 +1284,7 @@ export default function AttendantsPage() {
                       data-avatar-item={s.id}
                       onClick={() => {
                         const currentConfig = previewAgent?.avatarConfig || {};
-                        const styled = applyStylePreset(currentConfig, s.id);
+                        const styled = applyStylePreset({ ...currentConfig, body: inlineGender, base: inlineGender }, s.id);
                         handleUpdateAvatar(styled);
                       }}
                       className={cn(
@@ -1150,7 +1295,7 @@ export default function AttendantsPage() {
                       )}
                     >
                       <AvatarItemPreview
-                        spriteRef={s.spriteRef || previewAgent?.avatarConfig?.catalogSpriteId || "sprite_r1_c1"}
+                        spriteRef={resolvedStyleSprite || inlineSpriteId}
                         focus="full"
                         accentColor={s.palette}
                         selected={isSelected}

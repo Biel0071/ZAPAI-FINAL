@@ -568,4 +568,101 @@ describe("Avatar operational state regressions", () => {
       container.remove();
     }
   });
+
+  it("maintains strict male vs female sprite fidelity across hair, outfit, and style presets", () => {
+    const femaleBase = createAgentAvatar({ agentId: "camila", name: "Camila", gender: "female" });
+    const maleBase = createAgentAvatar({ agentId: "carlos", name: "Carlos", gender: "male" });
+
+    // Even if a female character selects hair_05 (which defaults to sprite_r1_c1 in the raw catalog),
+    // resolveSpriteForAvatar must map it to a female sprite (sprite_r2_*).
+    const femaleWithMaleRawHair = resolveSpriteForAvatar({ ...femaleBase, hair: "hair_05", catalogSpriteId: undefined }, true);
+    expect(femaleWithMaleRawHair).toMatch(/^sprite_r2_/);
+
+    // Conversely, if a male character selects hair_01 (which defaults to sprite_r2_c2 in the raw catalog),
+    // resolveSpriteForAvatar must map it to a male sprite (sprite_r1_*).
+    const maleWithFemaleRawHair = resolveSpriteForAvatar({ ...maleBase, hair: "hair_01", catalogSpriteId: undefined }, true);
+    expect(maleWithFemaleRawHair).toMatch(/^sprite_r1_/);
+
+    // Style preset on female must resolve to female sprite
+    const femaleExec = applyStylePreset(femaleBase, "style_executivo");
+    expect(femaleExec.catalogSpriteId).toMatch(/^sprite_r2_/);
+
+    // Style preset on male must resolve to male sprite
+    const maleExec = applyStylePreset(maleBase, "style_executivo");
+    expect(maleExec.catalogSpriteId).toMatch(/^sprite_r1_/);
+  });
+
+  it("supports 3D character rotation (0°, 90°, 180°) and 3D movement (walk, wave, spin360) in ZaiAvatarRenderer and AvatarEditorModal", async () => {
+    // 1. Direct ZaiAvatarRenderer 3D view angles & movements
+    const backMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: { body: "female", hair: "hair_01", outfit: "outfit_01" },
+        size: "workspace",
+        rotationY: 180,
+        movement3D: "walk",
+        showStatusBadge: true,
+      })
+    );
+    expect(backMarkup).toContain('data-avatar-rotation="180"');
+    expect(backMarkup).toContain('data-avatar-movement="walk"');
+    expect(backMarkup).toContain('data-avatar-gender="female"');
+    expect(backMarkup).toContain("outfit-back-emblem");
+    expect(backMarkup).toContain("Costas 180°");
+
+    const maleWaveMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: { body: "male", hair: "hair_05", outfit: "outfit_03" },
+        size: "workspace",
+        rotationY: 90,
+        movement3D: "wave",
+        showStatusBadge: true,
+      })
+    );
+    expect(maleWaveMarkup).toContain('data-avatar-rotation="90"');
+    expect(maleWaveMarkup).toContain('data-avatar-movement="wave"');
+    expect(maleWaveMarkup).toContain('data-avatar-gender="male"');
+    expect(maleWaveMarkup).toContain("Perfil 90°");
+
+    // 2. Interactive 3D controls inside AvatarEditorModal
+    const agent = {
+      key: "carlos",
+      name: "Carlos",
+      avatarConfig: createAgentAvatar({ agentId: "carlos", name: "Carlos", gender: "male" }),
+    };
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(React.createElement(AvatarEditorModal, { open: true, onOpenChange: vi.fn(), agent }));
+      });
+
+      const rotateRightBtn = document.querySelector<HTMLButtonElement>('[data-avatar-3d-action="rotate-right"]');
+      const rotateBackBtn = document.querySelector<HTMLButtonElement>('[data-avatar-3d-action="rotate-back"]');
+      const walkBtn = document.querySelector<HTMLButtonElement>('[data-avatar-3d-movement="walk"]');
+      expect(rotateRightBtn).toBeTruthy();
+      expect(rotateBackBtn).toBeTruthy();
+      expect(walkBtn).toBeTruthy();
+
+      await act(async () => {
+        rotateRightBtn?.click();
+      });
+      expect(document.querySelector('[data-avatar-rotation="45"]')).toBeTruthy();
+
+      await act(async () => {
+        rotateBackBtn?.click();
+      });
+      expect(document.querySelector('[data-avatar-rotation="180"]')).toBeTruthy();
+
+      await act(async () => {
+        walkBtn?.click();
+      });
+      expect(document.querySelector('[data-avatar-movement="walk"]')).toBeTruthy();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
 });
+

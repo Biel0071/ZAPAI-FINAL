@@ -31,6 +31,8 @@ export interface ZaiAvatarRendererProps {
   showAura?: boolean;
   showStatusBadge?: boolean;
   showBrandingLayer?: boolean;
+  rotationY?: number;
+  movement3D?: "idle" | "walk" | "wave" | "spin360";
   className?: string;
   onClick?: () => void;
 }
@@ -99,8 +101,9 @@ const STYLE_PALETTES: Record<string, { primary: string; aura: string; title: str
 };
 
 /**
- * 2.5D Modular Layered SVG Character
- * Composes BASE + ROSTO + ROUPA + CABELO + ACESSÓRIOS + ESTILO simultaneously in vector pixel art.
+ * 2.5D / 3D Modular Layered SVG Character
+ * Composes BASE + ROSTO + ROUPA + CABELO + ACESSÓRIOS + ESTILO simultaneously in vector pixel art,
+ * with multi-angle 3D rotation (Front, 3/4, Profile, Back) and articulated limb animations.
  */
 function ModularLayerAvatar({
   avatar,
@@ -108,16 +111,30 @@ function ModularLayerAvatar({
   currentState,
   size,
   showBrandingLayer,
+  rotationY = 0,
+  movement3D = "idle",
 }: {
   avatar: Partial<AgentAvatarConfig>;
   branding: StoreBranding;
   currentState: AnimationState;
   size: "xs" | "sm" | "md" | "lg" | "xl" | "workspace";
   showBrandingLayer: boolean;
+  rotationY?: number;
+  movement3D?: "idle" | "walk" | "wave" | "spin360";
 }) {
-  const isFemale = avatar.body === "female" || avatar.base === "female" || (!avatar.body && !avatar.base);
+  const isFemale = avatar.body !== "male" && avatar.base !== "male";
   const skinKey = avatar.skin || (avatar.face === "face_04" ? "tan" : avatar.face === "face_06" ? "bronze" : "peach");
   const skin = SKIN_PALETTES[skinKey] || SKIN_PALETTES.peach;
+
+  // Normalize 3D rotation angle [0..359]
+  const angle = (((rotationY % 360) + 360) % 360);
+  const rad = (angle * Math.PI) / 180;
+  const sinA = Math.sin(rad);
+  const cosA = Math.cos(rad);
+  const isBackView = cosA < -0.25; // ~105° to 255° is looking at the character's back
+  const faceShiftX = Math.round(sinA * 6.5 * 10) / 10; // Shifts head/facial features horizontally as character turns
+  const torsoShiftX = Math.round(sinA * 3 * 10) / 10;
+  const bodyScaleX = Math.round((0.82 + 0.18 * Math.abs(cosA)) * 100) / 100; // Narrower profile silhouette at 90°/270°
 
   // Resolve Hair Style & Palette
   const hairId = avatar.hair || (isFemale ? "hair_01" : "hair_05");
@@ -170,10 +187,11 @@ function ModularLayerAvatar({
   const style = STYLE_PALETTES[styleId] || STYLE_PALETTES.style_vendas;
   const primaryBrandColor = branding.primaryColor || style.primary;
 
-  const isOperating = currentState !== "OFFLINE";
   const isTalking = currentState === "TALKING";
   const isThinking = currentState === "THINKING";
-  const isWalking = currentState === "WALKING";
+  const isWalking = currentState === "WALKING" || movement3D === "walk";
+  const isWaving = movement3D === "wave";
+  const isSpinning = movement3D === "spin360";
 
   return (
     <svg
@@ -202,7 +220,7 @@ function ModularLayerAvatar({
         </clipPath>
       </defs>
 
-      {/* ── LAYER 1: PEDESTAL & SHADOW ─────────────────────────────── */}
+      {/* ── LAYER 1: PEDESTAL & 3D COMPASS RING ─────────────────────── */}
       <g id="layer-pedestal">
         {/* Floor Ambient Glow */}
         <ellipse cx="50" cy="143" rx="36" ry="11" fill="url(#pedestalGlow)" />
@@ -217,54 +235,159 @@ function ModularLayerAvatar({
           strokeWidth="1.5"
           strokeOpacity="0.6"
         />
+        {/* 3D Rotation Direction Indicator Dot on Pedestal Rim */}
+        <circle
+          cx={50 + Math.round(sinA * 29 * 10) / 10}
+          cy={143 + Math.round(cosA * 7.5 * 10) / 10}
+          r="2.2"
+          fill="#00f090"
+        />
         {/* Soft Floor Shadow beneath feet */}
         <ellipse cx="50" cy="141" rx="22" ry="5.5" fill="#000000" fillOpacity="0.55" />
       </g>
 
+      {/* 3D Character Puppet Root Group with Perspective Scaling & Breathing */}
+      <g
+        id="character-3d-rig"
+        transform={`translate(${50 - 50 * bodyScaleX + torsoShiftX}, 0) scale(${bodyScaleX}, 1)`}
+      >
+        {(movement3D === "idle" || isSpinning) && (
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            values={`${50 - 50 * bodyScaleX + torsoShiftX},0; ${50 - 50 * bodyScaleX + torsoShiftX},-1.8; ${50 - 50 * bodyScaleX + torsoShiftX},0`}
+            dur="2.8s"
+            repeatCount="indefinite"
+          />
+        )}
+
       {/* ── LAYER 2: BASE BODY (Silhouette, Skin, Legs, Shoes) ─────── */}
       <g id="layer-base">
-        {/* Legs / Trousers */}
-        <rect x="40" y="104" width="8" height="30" fill="#1e293b" />
-        <rect x="52" y="104" width="8" height="30" fill="#0f172a" />
-        <rect x="40" y="130" width="8" height="4" fill="#090d16" />
-        <rect x="52" y="130" width="8" height="4" fill="#090d16" />
+        {/* Left Leg + Shoe */}
+        <g id="limb-leg-left">
+          {isWalking && (
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              values="0,0; 0,-4; 0,0; 0,2; 0,0"
+              dur="0.7s"
+              repeatCount="indefinite"
+            />
+          )}
+          <rect x={isFemale ? "41" : "39"} y="104" width={isFemale ? "7" : "8.5"} height="30" fill="#1e293b" />
+          <rect x={isFemale ? "41" : "39"} y="130" width={isFemale ? "7" : "8.5"} height="4" fill="#090d16" />
+          <rect x="37" y="133" width="12" height="7" rx="2" fill={primaryBrandColor} />
+          <rect x="37" y="138" width="12" height="3" fill="#ffffff" fillOpacity="0.8" />
+        </g>
 
-        {/* Shoes (Sneakers / Dress Shoes) */}
-        <rect x="37" y="133" width="12" height="7" rx="2" fill={primaryBrandColor} />
-        <rect x="37" y="138" width="12" height="3" fill="#ffffff" fillOpacity="0.8" />
-        <rect x="51" y="133" width="12" height="7" rx="2" fill={primaryBrandColor} />
-        <rect x="51" y="138" width="12" height="3" fill="#ffffff" fillOpacity="0.8" />
+        {/* Right Leg + Shoe */}
+        <g id="limb-leg-right">
+          {isWalking && (
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              values="0,0; 0,2; 0,0; 0,-4; 0,0"
+              dur="0.7s"
+              repeatCount="indefinite"
+            />
+          )}
+          <rect x={isFemale ? "52" : "52.5"} y="104" width={isFemale ? "7" : "8.5"} height="30" fill="#0f172a" />
+          <rect x={isFemale ? "52" : "52.5"} y="130" width={isFemale ? "7" : "8.5"} height="4" fill="#090d16" />
+          <rect x="51" y="133" width="12" height="7" rx="2" fill={primaryBrandColor} />
+          <rect x="51" y="138" width="12" height="3" fill="#ffffff" fillOpacity="0.8" />
+        </g>
 
         {/* Neck */}
-        <rect x="46" y="64" width="8" height="8" fill={skin.shadow} />
+        <rect x={isFemale ? "46.5" : "45"} y="64" width={isFemale ? "7" : "10"} height="8" fill={skin.shadow} />
 
-        {/* Head Base */}
-        <rect x="35" y="26" width="30" height="38" rx="13" fill={skin.base} />
-        {/* Jaw & Chin highlight / shadow */}
-        <rect x="38" y="52" width="24" height="12" rx="6" fill={skin.base} />
-        <rect x="42" y="60" width="16" height="4" rx="2" fill={skin.shadow} fillOpacity="0.4" />
+        {/* Head Base (shifted subtly by 3D rotation) */}
+        <g transform={`translate(${faceShiftX * 0.45}, 0)`}>
+          <rect
+            x={isFemale ? "35.5" : "34.5"}
+            y="26"
+            width={isFemale ? "29" : "31"}
+            height="38"
+            rx={isFemale ? "14" : "10"}
+            fill={skin.base}
+          />
+          {/* Jaw & Chin highlight / shadow */}
+          <rect
+            x={isFemale ? "39" : "37"}
+            y="52"
+            width={isFemale ? "22" : "26"}
+            height="12"
+            rx={isFemale ? "7" : "4"}
+            fill={skin.base}
+          />
+          <rect x="42" y="60" width="16" height="4" rx="2" fill={skin.shadow} fillOpacity="0.4" />
 
-        {/* Ears */}
-        <rect x="33" y="44" width="3" height="7" rx="1.5" fill={skin.shadow} />
-        <rect x="64" y="44" width="3" height="7" rx="1.5" fill={skin.shadow} />
+          {/* Ears */}
+          <rect x="33" y="44" width="3" height="7" rx="1.5" fill={skin.shadow} />
+          <rect x="64" y="44" width="3" height="7" rx="1.5" fill={skin.shadow} />
+        </g>
 
         {/* Arms / Hands */}
         {/* Left Arm (holds tablet if equipped) */}
-        <rect x={isFemale ? "28" : "25"} y="72" width="7" height="24" rx="3.5" fill={skin.shadow} />
-        <circle cx={isFemale ? "31" : "28"} cy="97" r="3.5" fill={skin.base} />
+        <g id="limb-arm-left">
+          {isWalking && (
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              values="0 28 74; 14 28 74; 0 28 74; -14 28 74; 0 28 74"
+              dur="0.7s"
+              repeatCount="indefinite"
+            />
+          )}
+          <rect x={isFemale ? "28" : "24"} y="72" width={isFemale ? "6.5" : "8"} height="24" rx="3.5" fill={skin.shadow} />
+          <circle cx={isFemale ? "31" : "28"} cy="97" r={isFemale ? "3.2" : "3.8"} fill={skin.base} />
+        </g>
 
-        {/* Right Arm */}
-        <rect x={isFemale ? "65" : "68"} y="72" width="7" height="24" rx="3.5" fill={skin.shadow} />
-        <circle cx={isFemale ? "68" : "71"} cy="97" r="3.5" fill={skin.base} />
+        {/* Right Arm (waves when movement3D === "wave") */}
+        <g id="limb-arm-right">
+          {isWaving && (
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              values="-125 68 74; -148 68 74; -125 68 74"
+              dur="0.65s"
+              repeatCount="indefinite"
+            />
+          )}
+          {isWalking && !isWaving && (
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              values="0 68 74; -14 68 74; 0 68 74; 14 68 74; 0 68 74"
+              dur="0.7s"
+              repeatCount="indefinite"
+            />
+          )}
+          <rect x={isFemale ? "65.5" : "68"} y="72" width={isFemale ? "6.5" : "8"} height="24" rx="3.5" fill={skin.shadow} />
+          <circle cx={isFemale ? "68.5" : "72"} cy="97" r={isFemale ? "3.2" : "3.8"} fill={skin.base} />
+        </g>
       </g>
 
       {/* ── LAYER 3: ROSTO (5ª Categoria oficial: Olhos, Boca, Expressão) ─ */}
-      <g id="layer-face">
+      {!isBackView && (
+      <g id="layer-face" transform={`translate(${faceShiftX}, 0)`}>
+        {/* Female Eyelashes Accent vs Male Stronger Brow Ridge */}
+        {isFemale ? (
+          <>
+            <line x1="39.5" y1="45" x2="41.5" y2="46" stroke="#18181b" strokeWidth="1.2" strokeLinecap="round" />
+            <line x1="60.5" y1="45" x2="58.5" y2="46" stroke="#18181b" strokeWidth="1.2" strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            <rect x="40" y="41.5" width="7" height="1.2" rx="0.5" fill={hairColor.shadow} fillOpacity="0.65" />
+            <rect x="53" y="41.5" width="7" height="1.2" rx="0.5" fill={hairColor.shadow} fillOpacity="0.65" />
+          </>
+        )}
+
         {/* Cheeks / Rosy Blush */}
         {(faceId === "face_01" || faceId === "face_03" || faceId === "face_04") && (
           <>
-            <circle cx="40" cy="53" r="2.5" fill={skin.blush} fillOpacity="0.65" />
-            <circle cx="60" cy="53" r="2.5" fill={skin.blush} fillOpacity="0.65" />
+            <circle cx="40" cy="53" r={isFemale ? "2.8" : "2"} fill={skin.blush} fillOpacity={isFemale ? "0.7" : "0.4"} />
+            <circle cx="60" cy="53" r={isFemale ? "2.8" : "2"} fill={skin.blush} fillOpacity={isFemale ? "0.7" : "0.4"} />
           </>
         )}
 
@@ -363,6 +486,7 @@ function ModularLayerAvatar({
         {/* Nose dot */}
         <rect x="49" y="50" width="2" height="2" rx="0.5" fill={skin.shadow} />
       </g>
+      )}
 
       {/* ── LAYER 4: ROUPA (Outfits 01 to 08) ───────────────────────── */}
       <g id="layer-outfit">
@@ -393,9 +517,13 @@ function ModularLayerAvatar({
             {/* Collar Points */}
             <polygon points="40,70 50,77 46,70" fill="#e2e8f0" />
             <polygon points="60,70 50,77 54,70" fill="#e2e8f0" />
-            {/* Dark Tie */}
-            <polygon points="48.5,75 51.5,75 52,94 50,97 48,94" fill="#0f172a" />
-            <rect x="49.5" y="82" width="1" height="4" fill={primaryBrandColor} />
+            {/* Dark Tie (hidden on back view) */}
+            {!isBackView && (
+              <>
+                <polygon points="48.5,75 51.5,75 52,94 50,97 48,94" fill="#0f172a" />
+                <rect x="49.5" y="82" width="1" height="4" fill={primaryBrandColor} />
+              </>
+            )}
             {/* White Sleeves */}
             <rect x="28" y="70" width="6" height="16" rx="2" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.8" />
             <rect x="66" y="70" width="6" height="16" rx="2" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.8" />
@@ -409,10 +537,14 @@ function ModularLayerAvatar({
             {/* High neck hood collar */}
             <path d="M 38 69 Q 50 74 62 69" stroke="#334155" strokeWidth="3" fill="none" />
             {/* Neon Green Zipper Track */}
-            <line x1="50" y1="72" x2="50" y2="104" stroke="#00f090" strokeWidth="1.5" />
-            <circle cx="50" cy="74" r="1.5" fill="#ffffff" />
-            {/* Pouch pocket seams */}
-            <path d="M 40 92 L 43 100 L 57 100 L 60 92" stroke="#334155" strokeWidth="1" fill="none" />
+            {!isBackView && (
+              <>
+                <line x1="50" y1="72" x2="50" y2="104" stroke="#00f090" strokeWidth="1.5" />
+                <circle cx="50" cy="74" r="1.5" fill="#ffffff" />
+                {/* Pouch pocket seams */}
+                <path d="M 40 92 L 43 100 L 57 100 L 60 92" stroke="#334155" strokeWidth="1" fill="none" />
+              </>
+            )}
             {/* Sleeves */}
             <rect x="27" y="70" width="7" height="18" rx="3" fill="#1e293b" />
             <rect x="66" y="70" width="7" height="18" rx="3" fill="#1e293b" />
@@ -423,13 +555,17 @@ function ModularLayerAvatar({
           // Uniforme Técnico: Navy utility shirt with chest flap pockets
           <>
             <rect x="32" y="70" width="36" height="35" rx="3" fill="#1e3a8a" />
-            {/* Chest flap pockets */}
-            <rect x="36" y="78" width="8" height="7" rx="1" fill="#172554" />
-            <rect x="36" y="77" width="8" height="2" fill="#2563eb" />
-            <rect x="56" y="78" width="8" height="7" rx="1" fill="#172554" />
-            <rect x="56" y="77" width="8" height="2" fill="#2563eb" />
-            {/* Center placket */}
-            <rect x="49" y="72" width="2" height="32" fill="#172554" />
+            {!isBackView && (
+              <>
+                {/* Chest flap pockets */}
+                <rect x="36" y="78" width="8" height="7" rx="1" fill="#172554" />
+                <rect x="36" y="77" width="8" height="2" fill="#2563eb" />
+                <rect x="56" y="78" width="8" height="7" rx="1" fill="#172554" />
+                <rect x="56" y="77" width="8" height="2" fill="#2563eb" />
+                {/* Center placket */}
+                <rect x="49" y="72" width="2" height="32" fill="#172554" />
+              </>
+            )}
             {/* Sleeves */}
             <rect x="28" y="70" width="6" height="15" rx="2" fill="#1e3a8a" />
             <rect x="66" y="70" width="6" height="15" rx="2" fill="#1e3a8a" />
@@ -440,15 +576,19 @@ function ModularLayerAvatar({
           // Blazer Alfaiataria Comercial: Charcoal blazer with emerald lapel & inner shirt
           <>
             {/* Inner Shirt */}
-            <rect x="43" y="70" width="14" height="34" fill="#f8fafc" />
-            {/* Blazer Left & Right Sides */}
-            <path d="M 32 70 L 44 70 L 46 95 L 32 99 Z" fill="#0f172a" />
-            <path d="M 68 70 L 56 70 L 54 95 L 68 99 Z" fill="#0f172a" />
-            {/* Emerald Satin Lapel */}
-            <polygon points="40,70 45,86 42,88 38,70" fill={primaryBrandColor} />
-            <polygon points="60,70 55,86 58,88 62,70" fill={primaryBrandColor} />
-            {/* Gold/Emerald Pin */}
-            <circle cx="39" cy="78" r="1.5" fill="#f59e0b" />
+            <rect x="32" y="70" width="36" height="34" rx="3" fill={isBackView ? "#0f172a" : "#f8fafc"} />
+            {!isBackView && (
+              <>
+                {/* Blazer Left & Right Sides */}
+                <path d="M 32 70 L 44 70 L 46 95 L 32 99 Z" fill="#0f172a" />
+                <path d="M 68 70 L 56 70 L 54 95 L 68 99 Z" fill="#0f172a" />
+                {/* Emerald Satin Lapel */}
+                <polygon points="40,70 45,86 42,88 38,70" fill={primaryBrandColor} />
+                <polygon points="60,70 55,86 58,88 62,70" fill={primaryBrandColor} />
+                {/* Gold/Emerald Pin */}
+                <circle cx="39" cy="78" r="1.5" fill="#f59e0b" />
+              </>
+            )}
             {/* Sleeves */}
             <rect x="27" y="70" width="7" height="17" rx="2.5" fill="#0f172a" />
             <rect x="66" y="70" width="7" height="17" rx="2.5" fill="#0f172a" />
@@ -460,13 +600,17 @@ function ModularLayerAvatar({
           <>
             <rect x="32" y="70" width="36" height="35" rx="3" fill="#eab308" />
             {/* Dark inner workshirt */}
-            <rect x="45" y="70" width="10" height="34" fill="#1e293b" />
+            {!isBackView && <rect x="45" y="70" width="10" height="34" fill="#1e293b" />}
             {/* Horizontal Silver Reflective Bands */}
             <rect x="32" y="80" width="36" height="4" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.5" />
             <rect x="32" y="91" width="36" height="4" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.5" />
             {/* Vest opening lines */}
-            <line x1="45" y1="70" x2="45" y2="105" stroke="#ca8a04" strokeWidth="1" />
-            <line x1="55" y1="70" x2="55" y2="105" stroke="#ca8a04" strokeWidth="1" />
+            {!isBackView && (
+              <>
+                <line x1="45" y1="70" x2="45" y2="105" stroke="#ca8a04" strokeWidth="1" />
+                <line x1="55" y1="70" x2="55" y2="105" stroke="#ca8a04" strokeWidth="1" />
+              </>
+            )}
             {/* Sleeves */}
             <rect x="28" y="70" width="6" height="14" rx="2" fill="#1e293b" />
             <rect x="66" y="70" width="6" height="14" rx="2" fill="#1e293b" />
@@ -492,7 +636,7 @@ function ModularLayerAvatar({
             <rect x="40" y="69" width="20" height="3" rx="1.5" fill={primaryBrandColor} />
             <rect x="31" y="101" width="38" height="4" rx="1" fill={primaryBrandColor} />
             {/* Zipper */}
-            <line x1="50" y1="72" x2="50" y2="101" stroke="#e2e8f0" strokeWidth="1.2" />
+            {!isBackView && <line x1="50" y1="72" x2="50" y2="101" stroke="#e2e8f0" strokeWidth="1.2" />}
             {/* Contrast Sleeves */}
             <rect x="26" y="70" width="8" height="16" rx="3" fill="#1e293b" />
             <rect x="26" y="84" width="8" height="3" fill={primaryBrandColor} />
@@ -500,10 +644,29 @@ function ModularLayerAvatar({
             <rect x="66" y="84" width="8" height="3" fill={primaryBrandColor} />
           </>
         )}
+
+        {/* Back-of-Outfit ZAI Emblem when rotated to Back View (180°) */}
+        {isBackView && (
+          <g id="outfit-back-emblem">
+            <rect x="42" y="78" width="16" height="8" rx="2" fill="#091120" stroke={primaryBrandColor} strokeWidth="0.8" />
+            <circle cx="50" cy="82" r="2.2" fill={primaryBrandColor} />
+          </g>
+        )}
       </g>
 
-      {/* ── LAYER 5: CABELO (Hairs 01 to 10) ────────────────────────── */}
-      <g id="layer-hair">
+      {/* ── LAYER 5: CABELO (Hairs 01 to 10 + Back View Coverage) ────── */}
+      <g id="layer-hair" transform={`translate(${faceShiftX * 0.45}, 0)`}>
+        {isBackView && (
+          // Full back-of-head hair coverage when viewing from behind (180°)
+          <rect
+            x="34"
+            y="25"
+            width="32"
+            height={isFemale ? "42" : "30"}
+            rx="11"
+            fill={hairColor.base}
+          />
+        )}
         {hairId === "hair_01" && (
           // Rabo de Cavalo Executivo: Sleek parted crown with high ponytail behind right shoulder
           <>
@@ -512,9 +675,9 @@ function ModularLayerAvatar({
             <path d="M 34 32 Q 50 26 66 32 L 66 40 L 34 40 Z" fill={hairColor.base} />
             {/* Hair highlight curve */}
             <path d="M 38 29 Q 50 26 62 29" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
-            {/* High Ponytail on Right */}
-            <circle cx="64" cy="34" r="3" fill={primaryBrandColor} /> {/* Hair tie */}
-            <path d="M 64 34 Q 72 44 70 66 Q 66 58 64 48 Z" fill={hairColor.base} />
+            {/* High Ponytail on Right (or centered in Back View) */}
+            <circle cx={isBackView ? "50" : "64"} cy="34" r="3" fill={primaryBrandColor} />
+            <path d={isBackView ? "M 46 34 Q 50 52 50 72 Q 54 52 54 34 Z" : "M 64 34 Q 72 44 70 66 Q 66 58 64 48 Z"} fill={hairColor.base} />
             <path d="M 66 38 Q 71 48 69 62" stroke={hairColor.highlight} strokeWidth="1" fill="none" />
           </>
         )}
@@ -595,9 +758,13 @@ function ModularLayerAvatar({
             <rect x="62.5" y="34" width="5.5" height="42" rx="2.5" fill={hairColor.base} />
             <line x1="66" y1="36" x2="66" y2="72" stroke={hairColor.highlight} strokeWidth="1" />
             {/* Distinct Straight Fringe / Bangs across forehead */}
-            <rect x="38" y="31" width="24" height="7" rx="1.5" fill={hairColor.base} />
-            <line x1="39" y1="38" x2="61" y2="38" stroke={hairColor.shadow} strokeWidth="1" />
-            <line x1="40" y1="33" x2="60" y2="33" stroke={hairColor.highlight} strokeWidth="1" />
+            {!isBackView && (
+              <>
+                <rect x="38" y="31" width="24" height="7" rx="1.5" fill={hairColor.base} />
+                <line x1="39" y1="38" x2="61" y2="38" stroke={hairColor.shadow} strokeWidth="1" />
+                <line x1="40" y1="33" x2="60" y2="33" stroke={hairColor.highlight} strokeWidth="1" />
+              </>
+            )}
           </>
         )}
 
@@ -642,22 +809,26 @@ function ModularLayerAvatar({
       <g id="layer-accessories">
         {/* Headset Pro Wireless */}
         {hasHeadset && (
-          <g id="acc-headset">
+          <g id="acc-headset" transform={`translate(${faceShiftX * 0.45}, 0)`}>
             {/* Headband over crown */}
             <path d="M 33 38 Q 50 19 67 38" stroke="#0f172a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
             {/* Left Ear Cushion */}
             <rect x="31" y="38" width="4.5" height="10" rx="2" fill="#1e293b" stroke="#00f090" strokeWidth="0.8" />
-            {/* Curved Microphone Boom */}
-            <path d="M 33 46 Q 36 57 44 56" stroke="#0f172a" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-            {/* Glowing Emerald Microphone LED */}
-            <circle cx="44.5" cy="56" r="1.8" fill="#00f090" className={isTalking ? "animate-ping" : ""} />
-            <circle cx="44.5" cy="56" r="1.2" fill="#ffffff" />
+            {!isBackView && (
+              <>
+                {/* Curved Microphone Boom */}
+                <path d="M 33 46 Q 36 57 44 56" stroke="#0f172a" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+                {/* Glowing Emerald Microphone LED */}
+                <circle cx="44.5" cy="56" r="1.8" fill="#00f090" className={isTalking ? "animate-ping" : ""} />
+                <circle cx="44.5" cy="56" r="1.2" fill="#ffffff" />
+              </>
+            )}
           </g>
         )}
 
         {/* Executive Glasses */}
-        {hasGlasses && (
-          <g id="acc-glasses">
+        {hasGlasses && !isBackView && (
+          <g id="acc-glasses" transform={`translate(${faceShiftX}, 0)`}>
             <rect x="39" y="44" width="9" height="6.5" rx="1.5" fill="none" stroke="#0f172a" strokeWidth="1.5" />
             <rect x="52" y="44" width="9" height="6.5" rx="1.5" fill="none" stroke="#0f172a" strokeWidth="1.5" />
             <line x1="48" y1="47" x2="52" y2="47" stroke="#0f172a" strokeWidth="1.5" />
@@ -668,7 +839,7 @@ function ModularLayerAvatar({
         )}
 
         {/* Lanyard ID Badge */}
-        {hasBadge && (
+        {hasBadge && !isBackView && (
           <g id="acc-badge">
             {/* Ribbon Straps */}
             <line x1="45" y1="68" x2="49" y2="82" stroke={primaryBrandColor} strokeWidth="1.2" />
@@ -703,7 +874,7 @@ function ModularLayerAvatar({
       </g>
 
       {/* ── LAYER 7: ESTILO & STORE BRANDING (Chest Badge & Micro-States) ── */}
-      {showBrandingLayer && (
+      {showBrandingLayer && !isBackView && (
         <g id="layer-branding">
           {/* Store Chest Logo Pin */}
           <rect
@@ -719,6 +890,7 @@ function ModularLayerAvatar({
           <circle cx="38" cy="77.7" r="0.7" fill={primaryBrandColor} />
         </g>
       )}
+      </g>
 
       {/* Micro-Animation Indicators */}
       {isTalking && (
@@ -760,12 +932,17 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
   showAura = true,
   showStatusBadge = false,
   showBrandingLayer = true,
+  rotationY: rotationYProp,
+  movement3D: movement3DProp,
   className,
   onClick,
 }) => {
   const currentState = stateProp || avatar.animationState || "WAITING";
   const sizeConfig = SIZE_CONFIGS[size] || SIZE_CONFIGS.md;
   const renderedAvatar = normalizeAvatarForRenderer(avatar || {});
+  const resolvedRotationY = (((rotationYProp ?? avatar?.rotationY ?? 0) % 360) + 360) % 360;
+  const resolvedMovement3D = movement3DProp || avatar?.movement3D || "idle";
+  const resolvedGender = avatar?.body === "male" || avatar?.base === "male" ? "male" : "female";
 
   // Resolve branding attributes with robust fallbacks
   const rawBranding = avatar?.branding || (avatar as any)?.storeBranding || {};
@@ -787,6 +964,9 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
   return (
     <div
       onClick={onClick}
+      data-avatar-rotation={resolvedRotationY}
+      data-avatar-movement={resolvedMovement3D}
+      data-avatar-gender={resolvedGender}
       className={cn(
         "relative flex flex-col items-center justify-end select-none transition-all group",
         sizeConfig.container,
@@ -829,16 +1009,34 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
         />
       )}
 
-      {/* Main 2.5D Pixel-Art Character (Never clipped, fits 35%-50% container height) */}
-      <div className={cn("relative z-10 flex items-center justify-center my-auto", sizeConfig.character)}>
+      {/* Main 2.5D / 3D Pixel-Art Character (Never clipped, fits 35%-50% container height) */}
+      <div
+        className={cn(
+          "relative z-10 flex items-center justify-center my-auto transition-transform duration-500",
+          sizeConfig.character
+        )}
+      >
         <ModularLayerAvatar
           avatar={renderedAvatar}
           branding={branding}
           currentState={currentState}
           size={size}
           showBrandingLayer={showBrandingLayer}
+          rotationY={resolvedRotationY}
+          movement3D={resolvedMovement3D}
         />
       </div>
+
+      {/* 3D Angle & Movement Indicator for Workspace */}
+      {size === "workspace" && (resolvedRotationY !== 0 || resolvedMovement3D !== "idle") && (
+        <span className="sr-only">
+          {resolvedRotationY === 180
+            ? "Costas 180°"
+            : resolvedRotationY === 90 || resolvedRotationY === 270
+            ? "Perfil 90°"
+            : `${resolvedRotationY}°`}
+        </span>
+      )}
 
       {/* Optional Status Badge Below Avatar */}
       {showStatusBadge && (

@@ -260,31 +260,39 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                     </p>
                   </div>
                   <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-400">
-                    Maior Conversão: 14h - 16h (38%)
+                    {heatmapBlocks.length > 0
+                      ? `Maior Conversão: ${heatmapBlocks[0].label} (${heatmapBlocks[0].conversion})`
+                      : "Aguardando histórico operacional"}
                   </Badge>
                 </div>
 
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                  {heatmapBlocks.map((block) => (
-                    <button
-                      key={block.label}
-                      type="button"
-                      onClick={() => setSelectedHeatBlock(block.label)}
-                      className={`rounded-2xl border p-3 text-left transition-all ${
-                        selectedHeatBlock === block.label
-                          ? "bg-primary/10 border-primary shadow-glow"
-                          : "bg-background/40 border-border/60 hover:bg-card/75"
-                      }`}
-                    >
-                      <span className="text-xs font-bold text-foreground block">{block.label}</span>
-                      <span className="text-[10px] text-primary font-bold block mt-1">{block.status}</span>
-                      <div className="mt-2 space-y-0.5 text-[10px] text-muted-foreground">
-                        <div>Vol: <strong className="text-foreground">{block.volume}</strong></div>
-                        <div>Conv: <strong className="text-success">{block.conversion}</strong></div>
-                        <div>Vendas: <strong className="text-foreground">{block.sales}</strong></div>
-                      </div>
-                    </button>
-                  ))}
+                  {heatmapBlocks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground col-span-full py-4 text-center">
+                      Dados de conversão por faixa horária serão exibidos conforme o volume operacional for registrado.
+                    </p>
+                  ) : (
+                    heatmapBlocks.map((block) => (
+                      <button
+                        key={block.label}
+                        type="button"
+                        onClick={() => setSelectedHeatBlock(block.label)}
+                        className={`rounded-2xl border p-3 text-left transition-all ${
+                          selectedHeatBlock === block.label
+                            ? "bg-primary/10 border-primary shadow-glow"
+                            : "bg-background/40 border-border/60 hover:bg-card/75"
+                        }`}
+                      >
+                        <span className="text-xs font-bold text-foreground block">{block.label}</span>
+                        <span className="text-[10px] text-primary font-bold block mt-1">{block.status}</span>
+                        <div className="mt-2 space-y-0.5 text-[10px] text-muted-foreground">
+                          <div>Vol: <strong className="text-foreground">{block.volume}</strong></div>
+                          <div>Conv: <strong className="text-success">{block.conversion}</strong></div>
+                          <div>Vendas: <strong className="text-foreground">{block.sales}</strong></div>
+                        </div>
+                      </button>
+                    ))
+                  )}
                 </div>
               </Card>
             </div>
@@ -303,7 +311,7 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                 <Card className="glass-card p-5">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground">Latência Média LLM</span>
                   <h3 className="font-display text-2xl font-bold text-foreground mt-1">{metricsData?.avgLatencyMs ? `${metricsData.avgLatencyMs} ms` : "—"}</h3>
-                  <span className="text-[10px] text-success font-semibold">Socket Response: {metricsData?.socketLatencyMs || "26"} ms</span>
+                  <span className="text-[10px] text-success font-semibold">Socket Response: {metricsData?.socketLatencyMs ? `${metricsData.socketLatencyMs} ms` : "—"}</span>
                 </Card>
 
                 <Card className="glass-card p-5">
@@ -408,8 +416,10 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                     <span className="text-[10px] uppercase font-bold text-muted-foreground">Uso de CPU</span>
                     <Badge variant="outline" className="text-[9px] border-success/30 text-success">Saudável</Badge>
                   </div>
-                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">14.2%</h3>
-                  <span className="text-[10px] text-muted-foreground">Servidor VPS Quad-Core</span>
+                  <h3 className="font-display text-2xl font-bold text-foreground mt-1">
+                    {metricsData?.cpuUsagePercent != null ? `${metricsData.cpuUsagePercent}%` : "—"}
+                  </h3>
+                  <span className="text-[10px] text-muted-foreground">Ver Status &amp; Saúde para telemetria real</span>
                 </Card>
 
                 <Card className="glass-card p-5">

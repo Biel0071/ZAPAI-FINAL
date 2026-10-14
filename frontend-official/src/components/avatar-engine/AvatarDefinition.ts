@@ -111,6 +111,27 @@ export interface AgentAvatarConfig {
   animationState: AnimationState;
   personalityVisual: PersonalityVisualConfig;
   catalogSpriteId?: string;
+  rotationY?: number;
+  movement3D?: "idle" | "walk" | "wave" | "spin360";
+}
+
+/**
+ * Resolves a catalog item's sprite reference so it matches the character's selected gender (male = r1, female = r2),
+ * while preserving operational row 3 sprites (sprite_r3_*).
+ */
+export function resolveItemSpriteForGender(
+  item: { spriteRef?: string; gender?: "male" | "female" | "all"; category?: string } | undefined | null,
+  gender?: string
+): string {
+  const isMale = gender === "male";
+  const rawSprite = item?.spriteRef || (isMale ? "sprite_r1_c1" : "sprite_r2_c1");
+  if (isMale && rawSprite.startsWith("sprite_r2_")) {
+    return rawSprite.replace(/^sprite_r2_/, "sprite_r1_");
+  }
+  if (!isMale && rawSprite.startsWith("sprite_r1_")) {
+    return rawSprite.replace(/^sprite_r1_/, "sprite_r2_");
+  }
+  return rawSprite;
 }
 
 /* ==========================================================================

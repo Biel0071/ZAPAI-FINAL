@@ -61,7 +61,7 @@ export default function Analytics() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Conversas Hoje</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-foreground">{metrics?.activeConversations ?? 2267}</span>
+              <span className="text-2xl font-black text-foreground">{metrics?.activeConversations ?? metrics?.activeChats ?? "—"}</span>
               <MessageSquare className="h-4 w-4 text-emerald-400" />
             </div>
           </Card>
@@ -69,7 +69,7 @@ export default function Analytics() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Mensagens Processadas</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-emerald-400">{metrics?.messagesProcessed ?? 82949}</span>
+              <span className="text-2xl font-black text-emerald-400">{metrics?.messagesProcessed ?? metrics?.messagesToday ?? metrics?.totalMessages ?? "—"}</span>
               <Activity className="h-4 w-4 text-emerald-400" />
             </div>
           </Card>
@@ -77,7 +77,7 @@ export default function Analytics() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Respostas por IA</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-purple-400">{metrics?.aiResponses ?? 171}</span>
+              <span className="text-2xl font-black text-purple-400">{metrics?.aiResponses ?? "—"}</span>
               <Bot className="h-4 w-4 text-purple-400" />
             </div>
           </Card>
@@ -93,7 +93,7 @@ export default function Analytics() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Tempo Médio Resposta</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-amber-400">18s</span>
+              <span className="text-2xl font-black text-amber-400">{metrics?.avgResponseTime ? `${metrics.avgResponseTime}s` : "—"}</span>
               <Clock className="h-4 w-4 text-amber-400" />
             </div>
           </Card>
@@ -101,7 +101,9 @@ export default function Analytics() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Saúde do WhatsApp</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-xl font-bold text-emerald-400">100% Online</span>
+              <span className="text-xl font-bold text-emerald-400">
+                {metrics?.sessions != null ? (metrics.sessions > 0 ? `${metrics.sessions} Online` : "Offline") : "—"}
+              </span>
               <ShieldCheck className="h-4 w-4 text-emerald-400" />
             </div>
           </Card>
@@ -133,13 +135,19 @@ export default function Analytics() {
 
               <Card className="bg-card border-border p-5 space-y-2">
                 <span className="text-xs font-bold text-muted-foreground uppercase">Ticket Médio por Cliente</span>
-                <p className="text-3xl font-black text-foreground">R$ 654,00</p>
-                <span className="text-[11px] text-muted-foreground">Calculado com base em 227 compras fechadas</span>
+                <p className="text-3xl font-black text-foreground">
+                  {metrics?.averageTicket ? `R$ ${Number(metrics.averageTicket).toFixed(2)}` : "—"}
+                </p>
+                <span className="text-[11px] text-muted-foreground">
+                  {metrics?.closedPurchases ? `Calculado com base em ${metrics.closedPurchases} compras fechadas` : "Módulo de vendas em desenvolvimento"}
+                </span>
               </Card>
 
               <Card className="bg-card border-border p-5 space-y-2">
                 <span className="text-xs font-bold text-muted-foreground uppercase">Taxa de Conversão do Funil</span>
-                <p className="text-3xl font-black text-cyan-400">18.6%</p>
+                <p className="text-3xl font-black text-cyan-400">
+                  {metrics?.conversionRate != null ? `${metrics.conversionRate}%` : "—"}
+                </p>
                 <span className="text-[11px] text-cyan-400 font-semibold">Leads Qualificados -&gt; Clientes</span>
               </Card>
             </div>
@@ -162,7 +170,9 @@ export default function Analytics() {
                 <Brain className="h-5 w-5 text-purple-400" /> Consumo de Tokens & Latência da IA
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                Total de 1.482.000 tokens consumidos neste mês com tempo médio de inferência de 620ms.
+                {metrics?.tokensToday != null || metrics?.totalTokens != null
+                  ? `Total de ${metrics?.tokensToday ?? metrics?.totalTokens ?? 0} tokens consumidos${metrics?.avgLatencyMs ? ` com tempo médio de inferência de ${metrics.avgLatencyMs}ms` : ""}.`
+                  : "Telemetria de consumo de tokens sincronizada em tempo real conforme as interações da IA."}
               </CardDescription>
             </Card>
           </TabsContent>

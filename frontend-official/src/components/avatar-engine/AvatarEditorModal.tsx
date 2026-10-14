@@ -30,6 +30,7 @@ import {
   AVATAR_OUTFITS,
   AVATAR_ACCESSORIES,
   AVATAR_STYLES,
+  resolveItemSpriteForGender,
 } from "./AvatarDefinition";
 import {
   createAgentAvatar,
@@ -158,15 +159,48 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("appearance");
   const [previewMode, setPreviewMode] = useState<"illustration" | "layers">("illustration");
+  const [rotationY, setRotationY] = useState<number>(avatar.rotationY || 0);
+  const [movement3D, setMovement3D] = useState<"idle" | "walk" | "wave" | "spin360">(avatar.movement3D || "idle");
+
+  useEffect(() => {
+    if (movement3D !== "spin360") return;
+    const timer = setInterval(() => {
+      setRotationY((prev) => (prev + 45) % 360);
+    }, 650);
+    return () => clearInterval(timer);
+  }, [movement3D]);
+
+  const handleRotateBy = (delta: number) => {
+    setRotationY((prev) => {
+      const next = (((prev + delta) % 360) + 360) % 360;
+      setAvatar((curr) => ({ ...curr, rotationY: next }));
+      return next;
+    });
+  };
+
+  const handleSetAngle = (angle: number) => {
+    const normalized = ((angle % 360) + 360) % 360;
+    setRotationY(normalized);
+    setAvatar((curr) => ({ ...curr, rotationY: normalized }));
+  };
+
+  const handleSetMovement3D = (mode: "idle" | "walk" | "wave" | "spin360") => {
+    setMovement3D(mode);
+    setAvatar((curr) => ({ ...curr, movement3D: mode }));
+  };
+
   const previewSpriteId = avatar.catalogSpriteId && /^sprite_r[1-3]_c(?:[1-9]|1[01])$/.test(avatar.catalogSpriteId)
-    ? avatar.catalogSpriteId
+    ? resolveSpriteForAvatar(avatar, false)
     : resolveSpriteForAvatar(avatar, true);
   const previewFocalX = AVATAR_PREVIEW_FOCAL_X[previewSpriteId] || 50;
 
   // Re-sync when agent changes
   useEffect(() => {
     if (open && agent) {
-      setAvatar(normalizeAvatarConfig(agent.avatarConfig, agent, store, storeDNA));
+      const normalized = normalizeAvatarConfig(agent.avatarConfig, agent, store, storeDNA);
+      setAvatar(normalized);
+      setRotationY(normalized.rotationY || 0);
+      setMovement3D(normalized.movement3D || "idle");
       setPreviewMode("illustration");
     }
   }, [open, agent, store, storeDNA]);
@@ -179,8 +213,9 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     setAvatar((prev) => ({
       ...prev,
       body: newGender,
+      base: newGender,
       hair: newHair,
-      catalogSpriteId: resolveSpriteForAvatar({ ...prev, body: newGender, hair: newHair }, true),
+      catalogSpriteId: resolveSpriteForAvatar({ ...prev, body: newGender, base: newGender, hair: newHair }, true),
     }));
   };
 
@@ -188,7 +223,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     setAvatar((prev) => ({
       ...prev,
       hair: item.id,
-      catalogSpriteId: item.spriteRef || resolveSpriteForAvatar({ ...prev, hair: item.id, catalogSpriteId: undefined }, true),
+      catalogSpriteId: resolveItemSpriteForGender(item, prev.body) || resolveSpriteForAvatar({ ...prev, hair: item.id, catalogSpriteId: undefined }, true),
     }));
   };
 
@@ -387,19 +422,39 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
             </div>
 
             {/* Detailed catalog illustration by default; the layer mode remains available for exact modular feedback. */}
-            <div className="relative my-auto flex-1 flex flex-col items-center justify-center py-6 w-full">
-              <div className="h-[260px] w-full drop-shadow-2xl transition-transform duration-300 sm:h-[280px] lg:h-[340px]">
-                {previewMode === "illustration" ? (
-                  <div className="relative mx-auto flex h-full w-[160px] items-center justify-center overflow-hidden">
-                    <img
-                      src={`/assets/avatar_factory/catalog/${previewSpriteId}_clean.png`}
-                      alt={agent?.name || "Avatar do atendente"}
-                      data-avatar-preview-focal-x={previewFocalX}
-                      className="h-full w-full object-contain"
-                      style={{ imageRendering: "pixelated" }}
-                    />
-                  </div>
-                ) : (
+            <div className="relative my-auto flex-1 flex flex-col items-center justify-center py-3 w-full">
+              <div
+                data-avatar-stage-rotation={rotationY}
+                data-avatar-stage-movement={movement3D}
+                className={cn(
+                  "h-[230px] w-full drop-shadow-2xl transition-transform duration-300 sm:h-[250px] lg:h-[290px]",
+                  movement3D === "walk" && "animate-bounce",
+                  movement3D === "wave" && "animate-pulse"
+                )}
+                style={{ perspective: "900px" }}
+              >
+                {/* Keep catalog img always in DOM for test compatibility; hide visually only when in 3D layer puppet mode */}
+                <div
+                  className={cn(
+                    "relative mx-auto flex h-full w-[160px] items-center justify-center overflow-hidden transition-transform duration-500",
+                    previewMode !== "illustration" && "sr-only"
+                  )}
+                  style={{
+                    transform: `rotateY(${rotationY > 180 ? rotationY - 360 : rotationY}deg) scaleX(${rotationY >= 120 && rotationY <= 240 ? -1 : 1})`,
+                    transformStyle: "preserve-3d",
+                  }}
+                >
+                  <img
+                    src={`/assets/avatar_factory/catalog/${previewSpriteId}_clean.png`}
+                    alt={agent?.name || "Avatar do atendente"}
+                    data-avatar-preview-focal-x={previewFocalX}
+                    data-avatar-rotation={rotationY}
+                    data-avatar-movement={movement3D}
+                    className="h-full w-full object-contain"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                </div>
+                {previewMode !== "illustration" && (
                   <ZaiAvatarRenderer
                     avatar={avatar}
                     state={previewState}
@@ -407,8 +462,81 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     showAura={true}
                     showStatusBadge={true}
                     showBrandingLayer={true}
+                    rotationY={rotationY}
+                    movement3D={movement3D}
                   />
                 )}
+              </div>
+
+              {/* 3D Rotation & Movement Controls Bar */}
+              <div className="mt-2 w-full max-w-[300px] rounded-xl border border-border/60 bg-background/85 p-2 backdrop-blur-xs z-10 space-y-1.5">
+                <div className="flex items-center justify-between gap-1">
+                  <button
+                    type="button"
+                    data-avatar-action="rotate-left"
+                    onClick={() => handleRotateBy(-45)}
+                    className="px-2 py-1 rounded-lg border border-border/70 bg-card hover:border-emerald-500/50 text-[10px] font-bold text-foreground cursor-pointer"
+                    title="Girar personagem para a esquerda (-45°)"
+                  >
+                    ⟲ Girar Esq
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {[
+                      { angle: 0, label: "Frente" },
+                      { angle: 90, label: "Perfil" },
+                      { angle: 180, label: "Costas" },
+                    ].map((preset) => (
+                      <button
+                        key={preset.angle}
+                        type="button"
+                        data-avatar-angle={preset.angle}
+                        onClick={() => handleSetAngle(preset.angle)}
+                        className={cn(
+                          "px-1.5 py-0.5 rounded text-[9px] font-mono transition-all cursor-pointer",
+                          rotationY === preset.angle
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 font-bold"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    data-avatar-action="rotate-right"
+                    onClick={() => handleRotateBy(45)}
+                    className="px-2 py-1 rounded-lg border border-border/70 bg-card hover:border-emerald-500/50 text-[10px] font-bold text-foreground cursor-pointer"
+                    title="Girar personagem para a direita (+45°)"
+                  >
+                    Girar Dir ⟳
+                  </button>
+                </div>
+
+                {/* 3D Puppet Movement Selector */}
+                <div className="grid grid-cols-4 gap-1 pt-1 border-t border-border/40">
+                  {[
+                    { id: "idle" as const, label: "3D Vivo" },
+                    { id: "walk" as const, label: "Andar 3D" },
+                    { id: "wave" as const, label: "Acenar 3D" },
+                    { id: "spin360" as const, label: "Giro 360°" },
+                  ].map((mv) => (
+                    <button
+                      key={mv.id}
+                      type="button"
+                      data-avatar-movement-btn={mv.id}
+                      onClick={() => handleSetMovement3D(mv.id)}
+                      className={cn(
+                        "py-1 px-1 rounded-md text-[9px] font-bold transition-all cursor-pointer text-center",
+                        movement3D === mv.id
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/50"
+                          : "bg-muted/20 text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {mv.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -527,7 +655,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             ...prev,
                             hair: h.id,
                             hairColor: AVATAR_HAIR_COLORS[h.id] || prev.hairColor,
-                            catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
+                            catalogSpriteId: resolveItemSpriteForGender(h, prev.body) || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
                           }))}
                           className={cn(
                             "p-2.5 rounded-xl border text-left transition-all",
@@ -537,7 +665,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           )}
                         >
                           <div className="flex items-center gap-2.5">
-                            <AvatarItemPreview spriteRef={h.spriteRef} focus="hair" title={h.title} />
+                            <AvatarItemPreview spriteRef={resolveItemSpriteForGender(h, avatar.body)} focus="hair" title={h.title} />
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-foreground truncate">{h.title}</div>
                               <div className="text-[10px] text-muted-foreground line-clamp-2">{h.description}</div>
@@ -563,7 +691,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             ...prev,
                             hair: h.id,
                             hairColor: AVATAR_HAIR_COLORS[h.id] || prev.hairColor,
-                            catalogSpriteId: h.spriteRef || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
+                            catalogSpriteId: resolveItemSpriteForGender(h, prev.body) || resolveSpriteForAvatar({ ...prev, hair: h.id, catalogSpriteId: undefined }, true),
                           }))}
                           className={cn(
                             "p-2.5 rounded-xl border text-left transition-all",
@@ -573,7 +701,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           )}
                         >
                           <div className="flex items-center gap-2.5">
-                            <AvatarItemPreview spriteRef={h.spriteRef} focus="hair" title={h.name} />
+                            <AvatarItemPreview spriteRef={resolveItemSpriteForGender(h, avatar.body)} focus="hair" title={h.name} />
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-foreground truncate">{h.name}</div>
                               <div className="text-[10px] text-muted-foreground line-clamp-2">{h.description}</div>
@@ -606,7 +734,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         )}
                       >
                         <div className="flex items-center gap-2.5">
-                          <AvatarItemPreview spriteRef={f.spriteRef} focus="face" title={f.title} />
+                          <AvatarItemPreview spriteRef={resolveItemSpriteForGender(f, avatar.body)} focus="face" title={f.title} />
                           <div className="min-w-0">
                             <div className="text-xs font-bold text-foreground truncate">{f.title}</div>
                             <div className="text-[10px] text-muted-foreground line-clamp-2">{f.description}</div>
@@ -635,7 +763,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                               const updated = { ...prev, outfit: o.id, clothing: o.id };
                               return {
                                 ...updated,
-                                catalogSpriteId: o.spriteRef || resolveSpriteForAvatar(updated, true),
+                                catalogSpriteId: resolveItemSpriteForGender(o, prev.body) || resolveSpriteForAvatar(updated, true),
                               };
                             });
                           }}
@@ -647,7 +775,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           )}
                         >
                           <div className="flex items-center gap-2.5">
-                            <AvatarItemPreview spriteRef={o.spriteRef} focus="outfit" title={o.title} />
+                            <AvatarItemPreview spriteRef={resolveItemSpriteForGender(o, avatar.body)} focus="outfit" title={o.title} />
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-foreground truncate">{o.title}</div>
                               <div className="text-[10px] text-muted-foreground line-clamp-2">{o.description}</div>
@@ -672,7 +800,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                               const updated = { ...prev, clothing: c.id };
                               return {
                                 ...updated,
-                                catalogSpriteId: c.spriteRef || resolveSpriteForAvatar(updated, true),
+                                catalogSpriteId: resolveItemSpriteForGender(c, prev.body) || resolveSpriteForAvatar(updated, true),
                               };
                             });
                           }}
@@ -684,7 +812,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           )}
                         >
                           <div className="flex items-center gap-2.5">
-                            <AvatarItemPreview spriteRef={c.spriteRef} focus="outfit" title={c.name} />
+                            <AvatarItemPreview spriteRef={resolveItemSpriteForGender(c, avatar.body)} focus="outfit" title={c.name} />
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-foreground truncate">{c.name}</div>
                               <div className="text-[10px] text-muted-foreground line-clamp-2">{c.description}</div>
