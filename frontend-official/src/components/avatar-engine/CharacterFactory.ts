@@ -19,6 +19,7 @@ import {
   WORK_OBJECTS,
   POSTURES,
   AVATAR_STYLES,
+  resolveItemSpriteForGender,
 } from "./AvatarDefinition";
 
 const RENDERER_HAIR_ALIASES: Record<string, string> = {
@@ -197,8 +198,12 @@ export function applyStylePreset(
   current: AgentAvatarConfig,
   styleId: string
 ): AgentAvatarConfig {
+  const normalizedId = styleId.toLowerCase();
   const style = AVATAR_STYLES.find(
-    (s) => s.id === styleId || s.name.toLowerCase() === styleId.toLowerCase()
+    (s) =>
+      s.id === styleId ||
+      s.name.toLowerCase() === normalizedId ||
+      (normalizedId.includes("executivo") && s.id === "style_corporativo")
   );
   if (!style || !style.preset) return current;
 
@@ -231,7 +236,7 @@ export function applyStylePreset(
     },
   };
 
-  updated.catalogSpriteId = resolveSpriteForAvatar(updated, true);
+  updated.catalogSpriteId = resolveItemSpriteForGender(style, updated.body) || resolveSpriteForAvatar(updated, true);
   return updated;
 }
 

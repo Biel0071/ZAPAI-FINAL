@@ -433,11 +433,11 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                 )}
                 style={{ perspective: "900px" }}
               >
-                {/* Keep catalog img always in DOM for test compatibility; hide visually only when in 3D layer puppet mode */}
+                {/* Keep catalog img always in DOM for test compatibility; switch visually to 3D puppet when rotated or in 3D movement */}
                 <div
                   className={cn(
                     "relative mx-auto flex h-full w-[160px] items-center justify-center overflow-hidden transition-transform duration-500",
-                    previewMode !== "illustration" && "sr-only"
+                    (previewMode !== "illustration" || rotationY !== 0 || movement3D !== "idle") && "sr-only"
                   )}
                   style={{
                     transform: `rotateY(${rotationY > 180 ? rotationY - 360 : rotationY}deg) scaleX(${rotationY >= 120 && rotationY <= 240 ? -1 : 1})`,
@@ -454,7 +454,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     style={{ imageRendering: "pixelated" }}
                   />
                 </div>
-                {previewMode !== "illustration" && (
+                {(previewMode !== "illustration" || rotationY !== 0 || movement3D !== "idle") && (
                   <ZaiAvatarRenderer
                     avatar={avatar}
                     state={previewState}
@@ -474,6 +474,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                   <button
                     type="button"
                     data-avatar-action="rotate-left"
+                    data-avatar-3d-action="rotate-left"
                     onClick={() => handleRotateBy(-45)}
                     className="px-2 py-1 rounded-lg border border-border/70 bg-card hover:border-emerald-500/50 text-[10px] font-bold text-foreground cursor-pointer"
                     title="Girar personagem para a esquerda (-45°)"
@@ -482,14 +483,15 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                   </button>
                   <div className="flex items-center gap-1">
                     {[
-                      { angle: 0, label: "Frente" },
-                      { angle: 90, label: "Perfil" },
-                      { angle: 180, label: "Costas" },
+                      { angle: 0, label: "Frente", action: "rotate-front" },
+                      { angle: 90, label: "Perfil", action: "rotate-profile" },
+                      { angle: 180, label: "Costas", action: "rotate-back" },
                     ].map((preset) => (
                       <button
                         key={preset.angle}
                         type="button"
                         data-avatar-angle={preset.angle}
+                        data-avatar-3d-action={preset.action}
                         onClick={() => handleSetAngle(preset.angle)}
                         className={cn(
                           "px-1.5 py-0.5 rounded text-[9px] font-mono transition-all cursor-pointer",
@@ -505,6 +507,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                   <button
                     type="button"
                     data-avatar-action="rotate-right"
+                    data-avatar-3d-action="rotate-right"
                     onClick={() => handleRotateBy(45)}
                     className="px-2 py-1 rounded-lg border border-border/70 bg-card hover:border-emerald-500/50 text-[10px] font-bold text-foreground cursor-pointer"
                     title="Girar personagem para a direita (+45°)"
@@ -525,6 +528,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                       key={mv.id}
                       type="button"
                       data-avatar-movement-btn={mv.id}
+                      data-avatar-3d-movement={mv.id}
                       onClick={() => handleSetMovement3D(mv.id)}
                       className={cn(
                         "py-1 px-1 rounded-md text-[9px] font-bold transition-all cursor-pointer text-center",
@@ -725,7 +729,13 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         key={f.id}
                         data-avatar-item={f.id}
                         type="button"
-                        onClick={() => setAvatar((prev) => ({ ...prev, face: f.id }))}
+                        onClick={() =>
+                          setAvatar((prev) => ({
+                            ...prev,
+                            face: f.id,
+                            catalogSpriteId: resolveItemSpriteForGender(f, prev.body) || prev.catalogSpriteId,
+                          }))
+                        }
                         className={cn(
                           "p-2.5 rounded-xl border text-left transition-all",
                           (avatar.face === f.id || (!avatar.face && f.id === "face_01"))
@@ -876,7 +886,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                                 : "border-border hover:border-border/80 text-muted-foreground"
                             )}
                           >
-                            <AvatarItemPreview spriteRef={acc.spriteRef} focus="accessory-head" title={acc.name} size="sm" />
+                            <AvatarItemPreview spriteRef={resolveItemSpriteForGender(acc, avatar.body)} focus="accessory-head" title={acc.name} size="sm" />
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-foreground truncate">{acc.name}</div>
                               <div className="text-[9px] text-muted-foreground mt-0.5">{isEquipped ? "Equipado ✓" : "Equipar"}</div>
@@ -908,7 +918,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                                 : "border-border hover:border-border/80 text-muted-foreground"
                             )}
                           >
-                            <AvatarItemPreview spriteRef={acc.spriteRef} focus="accessory-head" title={acc.name} size="sm" />
+                            <AvatarItemPreview spriteRef={resolveItemSpriteForGender(acc, avatar.body)} focus="accessory-head" title={acc.name} size="sm" />
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-foreground truncate">{acc.name}</div>
                               <div className="text-[9px] text-muted-foreground mt-0.5">{isEquipped ? "Equipado ✓" : "Equipar"}</div>
@@ -938,7 +948,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           )}
                         >
                           <div className="flex items-center gap-2.5">
-                            <AvatarItemPreview spriteRef={obj.spriteRef} focus="accessory-body" title={obj.name} />
+                            <AvatarItemPreview spriteRef={resolveItemSpriteForGender(obj, avatar.body)} focus="accessory-body" title={obj.name} />
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-foreground truncate">{obj.name}</div>
                               <div className="text-[10px] text-muted-foreground line-clamp-2">{obj.description}</div>
@@ -1005,7 +1015,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           >
                             <div className="flex items-center gap-2.5">
                               <AvatarItemPreview
-                                spriteRef={a.spriteRef}
+                                spriteRef={resolveItemSpriteForGender(a, avatar.body)}
                                 focus={a.id === "acc_02" || a.id === "acc_04" ? "accessory-head" : "accessory-body"}
                                 title={a.title}
                               />
@@ -1044,7 +1054,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                       >
                         <div className="flex items-center gap-2.5">
                           <AvatarItemPreview
-                            spriteRef={s.spriteRef}
+                            spriteRef={resolveItemSpriteForGender(s, avatar.body)}
                             focus="full"
                             title={s.title}
                             accentColor={s.preset?.color}

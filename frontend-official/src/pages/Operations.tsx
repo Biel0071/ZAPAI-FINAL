@@ -86,15 +86,17 @@ export default function Operations() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Fila de Espera</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-amber-400">{data?.metrics.waitingConversations ?? 0}</span>
-              <Badge variant="outline" className="border-amber-500/30 text-amber-400 text-[10px]">Ao Vivo</Badge>
+              <span className="text-2xl font-black text-amber-400">{data?.metrics?.waitingConversations ?? "—"}</span>
+              <Badge variant="outline" className="border-amber-500/30 text-amber-400 text-[10px]">
+                {data?.metrics ? "Ao Vivo" : "Indisponível"}
+              </Badge>
             </div>
           </Card>
 
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Conversas Abertas</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-emerald-400">{data?.metrics.openConversations ?? 0}</span>
+              <span className="text-2xl font-black text-emerald-400">{data?.metrics?.openConversations ?? "—"}</span>
               <Users className="h-4 w-4 text-emerald-400" />
             </div>
           </Card>
@@ -102,7 +104,7 @@ export default function Operations() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Atendimentos Encerrados</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-foreground">{data?.metrics.closedConversations ?? 0}</span>
+              <span className="text-2xl font-black text-foreground">{data?.metrics?.closedConversations ?? "—"}</span>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </div>
           </Card>
@@ -110,7 +112,9 @@ export default function Operations() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Tempo Médio Resposta</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-cyan-400">{data?.metrics.avgResponseTimeSeconds ?? 0}s</span>
+              <span className="text-2xl font-black text-cyan-400">
+                {data?.metrics?.avgResponseTimeSeconds != null ? `${data.metrics.avgResponseTimeSeconds}s` : "—"}
+              </span>
               <Clock className="h-4 w-4 text-cyan-400" />
             </div>
           </Card>
@@ -118,7 +122,9 @@ export default function Operations() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Nível de SLA</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-emerald-400">{data?.metrics.slaCompliancePercent ?? 100}%</span>
+              <span className="text-2xl font-black text-emerald-400">
+                {data?.metrics?.slaCompliancePercent != null ? `${data.metrics.slaCompliancePercent}%` : "—"}
+              </span>
               <ShieldAlert className="h-4 w-4 text-emerald-400" />
             </div>
           </Card>
@@ -126,7 +132,9 @@ export default function Operations() {
           <Card className="bg-card border-border/60 p-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider block">Índice de Produtividade</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-2xl font-black text-purple-400">{data?.metrics.productivityIndex ?? 95}%</span>
+              <span className="text-2xl font-black text-purple-400">
+                {data?.metrics?.productivityIndex != null ? `${data.metrics.productivityIndex}%` : "—"}
+              </span>
               <TrendingUp className="h-4 w-4 text-purple-400" />
             </div>
           </Card>
@@ -145,30 +153,42 @@ export default function Operations() {
                 </CardDescription>
               </div>
               <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px] uppercase font-bold tracking-wider">
-                Sync Engine Online
+                {data ? "Sync Engine Online" : "Aguardando Telemetria"}
               </Badge>
             </div>
           </CardHeader>
           <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
             <div className="p-3 bg-muted/20 rounded-lg border border-border/40">
               <span className="text-[10px] text-muted-foreground uppercase font-bold block">Event Bus</span>
-              <span className="text-lg font-black text-emerald-400">ONLINE</span>
-              <span className="text-[10px] text-muted-foreground block mt-1">Status: Normal</span>
+              <span className="text-lg font-black text-emerald-400">{data ? "ONLINE" : "—"}</span>
+              <span className="text-[10px] text-muted-foreground block mt-1">
+                Status: {data ? "Operacional" : "Sem telemetria"}
+              </span>
             </div>
             <div className="p-3 bg-muted/20 rounded-lg border border-border/40">
-              <span className="text-[10px] text-muted-foreground uppercase font-bold block">Vazão (Eventos/s)</span>
-              <span className="text-lg font-black text-cyan-400">124.5 ops/s</span>
-              <span className="text-[10px] text-muted-foreground block mt-1">Latência Médio: 12ms</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold block">Atendimentos Ativos</span>
+              <span className="text-lg font-black text-cyan-400">
+                {data?.metrics?.openConversations != null ? `${data.metrics.openConversations} ativos` : "—"}
+              </span>
+              <span className="text-[10px] text-muted-foreground block mt-1">
+                Tempo Médio: {data?.metrics?.avgResponseTimeSeconds != null ? `${data.metrics.avgResponseTimeSeconds}s` : "—"}
+              </span>
             </div>
             <div className="p-3 bg-muted/20 rounded-lg border border-border/40">
               <span className="text-[10px] text-muted-foreground uppercase font-bold block">Filas & Workers</span>
-              <span className="text-lg font-black text-amber-400">0 pendentes</span>
-              <span className="text-[10px] text-muted-foreground block mt-1">DLQ: 0 falhas</span>
+              <span className="text-lg font-black text-amber-400">
+                {data?.metrics?.waitingConversations != null ? `${data.metrics.waitingConversations} pendentes` : "—"}
+              </span>
+              <span className="text-[10px] text-muted-foreground block mt-1">
+                Encerrados: {data?.metrics?.closedConversations ?? "—"}
+              </span>
             </div>
             <div className="p-3 bg-muted/20 rounded-lg border border-border/40">
-              <span className="text-[10px] text-muted-foreground uppercase font-bold block">Tracing & Multi-tenant</span>
-              <span className="text-lg font-black text-purple-400">Correlation Active</span>
-              <span className="text-[10px] text-muted-foreground block mt-1">100% Isolado</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold block">Operadores Online</span>
+              <span className="text-lg font-black text-purple-400">
+                {data?.operators ? `${data.operators.filter((op) => op.status === "online").length} / ${data.operators.length}` : "—"}
+              </span>
+              <span className="text-[10px] text-muted-foreground block mt-1">Isolamento Multi-tenant</span>
             </div>
           </CardContent>
         </Card>

@@ -29,11 +29,9 @@ function trendData(node: NodeControlPlane) {
   const ram = node.metrics?.ramPercent ?? 0;
   const disk = node.metrics?.diskPercent ?? 0;
   return [
-    { t: "-4", value: Math.max(cpu - 8, 0) },
-    { t: "-3", value: Math.max(ram - 5, 0) },
-    { t: "-2", value: Math.max(cpu - 2, 0) },
-    { t: "-1", value: Math.max(disk - 3, 0) },
-    { t: "0", value: cpu },
+    { t: "CPU", value: Math.max(cpu, 0) },
+    { t: "RAM", value: Math.max(ram, 0) },
+    { t: "Disco", value: Math.max(disk, 0) },
   ];
 }
 

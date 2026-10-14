@@ -583,13 +583,21 @@ describe("Avatar operational state regressions", () => {
     const maleWithFemaleRawHair = resolveSpriteForAvatar({ ...maleBase, hair: "hair_01", catalogSpriteId: undefined }, true);
     expect(maleWithFemaleRawHair).toMatch(/^sprite_r1_/);
 
-    // Style preset on female must resolve to female sprite
-    const femaleExec = applyStylePreset(femaleBase, "style_executivo");
-    expect(femaleExec.catalogSpriteId).toMatch(/^sprite_r2_/);
+    // Style preset on female must resolve to female corporate sprite (sprite_r2_c8)
+    const femaleCorp = applyStylePreset(femaleBase, "style_corporativo");
+    expect(femaleCorp.style).toBe("style_corporativo");
+    expect(femaleCorp.catalogSpriteId).toBe("sprite_r2_c8");
 
-    // Style preset on male must resolve to male sprite
+    // Style preset on male must resolve to male corporate sprite (sprite_r1_c8)
+    const maleCorp = applyStylePreset(maleBase, "style_corporativo");
+    expect(maleCorp.style).toBe("style_corporativo");
+    expect(maleCorp.catalogSpriteId).toBe("sprite_r1_c8");
+
+    // Alias "style_executivo" also maps cleanly
+    const femaleExec = applyStylePreset(femaleBase, "style_executivo");
+    expect(femaleExec.catalogSpriteId).toBe("sprite_r2_c8");
     const maleExec = applyStylePreset(maleBase, "style_executivo");
-    expect(maleExec.catalogSpriteId).toMatch(/^sprite_r1_/);
+    expect(maleExec.catalogSpriteId).toBe("sprite_r1_c8");
   });
 
   it("supports 3D character rotation (0°, 90°, 180°) and 3D movement (walk, wave, spin360) in ZaiAvatarRenderer and AvatarEditorModal", async () => {
@@ -629,6 +637,7 @@ describe("Avatar operational state regressions", () => {
       name: "Carlos",
       avatarConfig: createAgentAvatar({ agentId: "carlos", name: "Carlos", gender: "male" }),
     };
+    const saveAvatar = vi.spyOn(apiService, "updateAgentAvatar").mockResolvedValue({ success: true, agent: {} } as any);
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -654,14 +663,33 @@ describe("Avatar operational state regressions", () => {
         rotateBackBtn?.click();
       });
       expect(document.querySelector('[data-avatar-rotation="180"]')).toBeTruthy();
+      expect(document.querySelector("#outfit-back-emblem")).toBeTruthy();
 
       await act(async () => {
         walkBtn?.click();
       });
       expect(document.querySelector('[data-avatar-movement="walk"]')).toBeTruthy();
+
+      const saveBtn = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((btn) =>
+        btn.textContent?.includes("Salvar Avatar")
+      );
+      await act(async () => {
+        saveBtn?.click();
+      });
+
+      expect(saveAvatar).toHaveBeenCalledWith(
+        "carlos",
+        expect.objectContaining({
+          avatarConfig: expect.objectContaining({
+            rotationY: 180,
+            movement3D: "walk",
+          }),
+        })
+      );
     } finally {
       await act(async () => root.unmount());
       container.remove();
+      saveAvatar.mockRestore();
     }
   });
 });

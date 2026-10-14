@@ -294,6 +294,19 @@ export default function AttendantsPage() {
   const [studioMovement3D, setStudioMovement3D] = useState<"idle" | "walk" | "wave" | "spin360">("idle");
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
 
+  useEffect(() => {
+    setStudioRotationY(typeof previewAgent?.avatarConfig?.rotationY === "number" ? previewAgent.avatarConfig.rotationY : 0);
+    setStudioMovement3D(previewAgent?.avatarConfig?.movement3D || "idle");
+  }, [previewAgent?.key]);
+
+  useEffect(() => {
+    if (studioMovement3D !== "spin360") return;
+    const timer = window.setInterval(() => {
+      setStudioRotationY((prev) => (prev + 45) % 360);
+    }, 420);
+    return () => window.clearInterval(timer);
+  }, [studioMovement3D]);
+
   const handleUpdateAvatar = useCallback((overrides: Partial<AgentAvatarConfig>) => {
     if (!previewAgent) return;
     const baseConfig: AgentAvatarConfig = previewAgent.avatarConfig || createAgentAvatar({
@@ -311,7 +324,8 @@ export default function AttendantsPage() {
     if (overrides.body) updatedConfig.base = overrides.body === "male" ? "male" : "female";
     if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "female";
 
-    const updatedSprite = resolveSpriteForAvatar(updatedConfig, true);
+    const forceRecompute = Boolean((overrides.body || overrides.base) && !overrides.catalogSpriteId);
+    const updatedSprite = overrides.catalogSpriteId || resolveSpriteForAvatar(updatedConfig, forceRecompute);
     updatedConfig.catalogSpriteId = updatedSprite;
     const avatarUrl = `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`;
 
@@ -350,7 +364,7 @@ export default function AttendantsPage() {
         gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
       });
       const spriteId = configToSave.catalogSpriteId || resolveSpriteForAvatar(configToSave, true);
-      const fullConfig = {
+      const fullConfig: AgentAvatarConfig = {
         ...configToSave,
         hair: previewAgent.avatarConfig?.hair || configToSave.hair,
         face: previewAgent.avatarConfig?.face || configToSave.face || "face_01",
@@ -358,6 +372,8 @@ export default function AttendantsPage() {
         clothing: previewAgent.avatarConfig?.outfit || previewAgent.avatarConfig?.clothing || configToSave.clothing,
         accessories: previewAgent.avatarConfig?.accessories || configToSave.accessories,
         style: previewAgent.avatarConfig?.style || configToSave.style || "style_vendas",
+        rotationY: previewAgent.avatarConfig?.rotationY ?? studioRotationY,
+        movement3D: previewAgent.avatarConfig?.movement3D ?? studioMovement3D,
         catalogSpriteId: spriteId,
       };
       const avatarUrl = `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
@@ -375,7 +391,7 @@ export default function AttendantsPage() {
     } finally {
       setIsSavingAvatar(false);
     }
-  }, [previewAgent, previewStore, fetchData]);
+  }, [previewAgent, previewStore, studioRotationY, studioMovement3D, fetchData]);
 
   const activeHairItem = useMemo(() => {
     const hair = previewAgent?.avatarConfig?.hair;
@@ -927,9 +943,13 @@ export default function AttendantsPage() {
             <button
               type="button"
               data-studio-3d="rotate-left"
+              data-avatar-3d-action="rotate-left"
               onClick={() => {
-                setStudioMovement3D((m) => (m === "spin360" ? "idle" : m));
-                setStudioRotationY((prev) => (prev - 45 + 360) % 360);
+                const nextMovement = studioMovement3D === "spin360" ? "idle" : studioMovement3D;
+                const nextRot = (studioRotationY - 45 + 360) % 360;
+                setStudioMovement3D(nextMovement);
+                setStudioRotationY(nextRot);
+                handleUpdateAvatar({ rotationY: nextRot, movement3D: nextMovement });
               }}
               className="py-1 px-1.5 rounded-lg bg-card/80 hover:bg-emerald-500/15 border border-border/60 text-[10px] font-mono text-muted-foreground hover:text-emerald-300 transition-all cursor-pointer"
               title="Girar personagem para a esquerda (-45°)"
@@ -939,9 +959,11 @@ export default function AttendantsPage() {
             <button
               type="button"
               data-studio-3d="front"
+              data-avatar-3d-action="rotate-front"
               onClick={() => {
                 setStudioMovement3D("idle");
                 setStudioRotationY(0);
+                handleUpdateAvatar({ rotationY: 0, movement3D: "idle" });
               }}
               className={cn(
                 "py-1 px-1.5 rounded-lg border text-[10px] font-mono transition-all cursor-pointer",
@@ -956,9 +978,12 @@ export default function AttendantsPage() {
             <button
               type="button"
               data-studio-3d="back"
+              data-avatar-3d-action="rotate-back"
               onClick={() => {
-                setStudioMovement3D((m) => (m === "spin360" ? "idle" : m));
+                const nextMovement = studioMovement3D === "spin360" ? "idle" : studioMovement3D;
+                setStudioMovement3D(nextMovement);
                 setStudioRotationY(180);
+                handleUpdateAvatar({ rotationY: 180, movement3D: nextMovement });
               }}
               className={cn(
                 "py-1 px-1.5 rounded-lg border text-[10px] font-mono transition-all cursor-pointer",
@@ -973,9 +998,13 @@ export default function AttendantsPage() {
             <button
               type="button"
               data-studio-3d="rotate-right"
+              data-avatar-3d-action="rotate-right"
               onClick={() => {
-                setStudioMovement3D((m) => (m === "spin360" ? "idle" : m));
-                setStudioRotationY((prev) => (prev + 45) % 360);
+                const nextMovement = studioMovement3D === "spin360" ? "idle" : studioMovement3D;
+                const nextRot = (studioRotationY + 45) % 360;
+                setStudioMovement3D(nextMovement);
+                setStudioRotationY(nextRot);
+                handleUpdateAvatar({ rotationY: nextRot, movement3D: nextMovement });
               }}
               className="py-1 px-1.5 rounded-lg bg-card/80 hover:bg-emerald-500/15 border border-border/60 text-[10px] font-mono text-muted-foreground hover:text-emerald-300 transition-all cursor-pointer"
               title="Girar personagem para a direita (+45°)"
@@ -993,11 +1022,13 @@ export default function AttendantsPage() {
                 key={mv.id}
                 type="button"
                 data-studio-movement={mv.id}
+                data-avatar-3d-movement={mv.id}
                 onClick={() => {
-                  setStudioMovement3D((prev) => (prev === mv.id ? "idle" : mv.id));
-                  if (mv.id !== "spin360" && studioRotationY === 0) {
-                    setStudioRotationY(45);
-                  }
+                  const nextMovement = studioMovement3D === mv.id ? "idle" : mv.id;
+                  const nextRot = mv.id !== "spin360" && nextMovement !== "idle" && studioRotationY === 0 ? 45 : studioRotationY;
+                  setStudioMovement3D(nextMovement);
+                  setStudioRotationY(nextRot);
+                  handleUpdateAvatar({ rotationY: nextRot, movement3D: nextMovement });
                 }}
                 className={cn(
                   "py-1 px-1.5 rounded-lg border text-[10px] font-mono transition-all cursor-pointer",
@@ -1129,7 +1160,7 @@ export default function AttendantsPage() {
                       key={f.id}
                       type="button"
                       data-avatar-item={f.id}
-                      onClick={() => handleUpdateAvatar({ face: f.id })}
+                      onClick={() => handleUpdateAvatar({ face: f.id, catalogSpriteId: resolvedFaceSprite || undefined })}
                       className={cn(
                         "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isSelected
