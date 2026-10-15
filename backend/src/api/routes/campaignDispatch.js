@@ -154,11 +154,11 @@ router.get('/campaigns/maturation', async (req, res) => {
 });
 
 // Get campaign dispatch status
-router.get('/campaigns/:id/status', (req, res) => {
+router.get('/campaigns/:id/status', (req, res, next) => {
   try {
     const result = campaignDispatchEngine.getStatus(req.params.id, req.authTenantId);
     if (!result) {
-      return safeJson(res, { success: false, error: 'Campaign not active' }, 404);
+      return next();
     }
     return safeJson(res, { success: true, data: result });
   } catch (error) {
