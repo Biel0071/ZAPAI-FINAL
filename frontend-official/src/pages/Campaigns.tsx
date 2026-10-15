@@ -430,10 +430,8 @@ export default function Campaigns() {
   const loadPageData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
     try {
-      const [campaignList, contactList, conversationsData, quickRepliesData, agentsData] = await Promise.all([
+      const [campaignList, quickRepliesData, agentsData] = await Promise.all([
         apiService.getCampaigns(),
-        apiService.getContacts(true),
-        apiService.getConversations(true, { limit: 500 }).catch(() => []),
         apiService.getQuickReplies().catch(() => []),
         apiService.getAIAgents().catch(() => ({ success: false, agents: [] })),
       ]);
@@ -450,6 +448,12 @@ export default function Campaigns() {
           ""
         )
       );
+      if (!options?.silent) setLoading(false);
+
+      const [contactList, conversationsData] = await Promise.all([
+        apiService.getContacts(false).catch(() => []),
+        apiService.getConversations(false, { limit: 250 }).catch(() => []),
+      ]);
 
       setMaturationLoading(true);
       apiService.getCampaignMaturationStats()
