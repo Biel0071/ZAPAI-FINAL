@@ -1050,16 +1050,19 @@ async function createStableSession({
   const fetchLatestWaWebVersion = baileys.fetchLatestWaWebVersion;
   const useMultiFileAuthState = baileys.useMultiFileAuthState;
 
-  // Self-healing: Purge any corrupted oversized Signal ratchet session files (> 8KB)
-  // preventing libsignal 'Over 2000 messages into the future!' and 'Bad MAC' desync deadlocks
+  // Self-healing: Purge only truly empty (0-byte) or anomalous (>5MB) session files,
+  // preserving valid Signal ratchet session keys which naturally grow to 15KB-300KB
   try {
     const sessionFiles = await fs.readdir(sessionPath);
     for (const file of sessionFiles) {
       if (file.startsWith('session-') && file.endsWith('.json')) {
         const filePath = path.join(sessionPath, file);
         const fileStat = await fs.stat(filePath).catch(() => null);
-        if (fileStat && fileStat.size > 8000) {
-          console.warn(`[WHATSAPP-STABLE-CONN] Purging oversized corrupted session file: ${file} (${fileStat.size} bytes)`);
+        if (fileStat && fileStat.size === 0) {
+          console.warn(`[WHATSAPP-STABLE-CONN] Purging empty corrupted session file: ${file}`);
+          await fs.unlink(filePath).catch(() => {});
+        } else if (fileStat && fileStat.size > 5_000_000) {
+          console.warn(`[WHATSAPP-STABLE-CONN] Purging anomalous >5MB session file: ${file} (${fileStat.size} bytes)`);
           await fs.unlink(filePath).catch(() => {});
         }
       }

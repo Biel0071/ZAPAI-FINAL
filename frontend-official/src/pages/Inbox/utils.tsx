@@ -508,6 +508,30 @@ export function parseJsonStorage<T>(key: string, fallback: T): T {
   }
 }
 
+export function safeLocalStorageSetItem(key: string, value: string): void {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`[STORAGE] Quota exceeded or failed to persist ${key}:`, err);
+    try {
+      const keysToEvict: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const storageKey = localStorage.key(i);
+        if (storageKey && storageKey.startsWith("zapai_inbox_messages:") && storageKey !== key) {
+          keysToEvict.push(storageKey);
+        }
+      }
+      for (let i = 0; i < Math.min(keysToEvict.length, 10); i++) {
+        localStorage.removeItem(keysToEvict[i]);
+      }
+      localStorage.setItem(key, value);
+    } catch {
+      // Safe fallback: ignore quota errors to prevent UI freezing
+    }
+  }
+}
+
 export function loadContactDirectory(): ContactDirectory {
   const parsed = parseJsonStorage<ContactDirectory>("zapai_inbox_contact_directory", {});
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
@@ -515,7 +539,7 @@ export function loadContactDirectory(): ContactDirectory {
 }
 
 export function persistContactDirectory(directory: ContactDirectory) {
-  localStorage.setItem("zapai_inbox_contact_directory", JSON.stringify(directory));
+  safeLocalStorageSetItem("zapai_inbox_contact_directory", JSON.stringify(directory));
 }
 
 export function isMeaningfulContactName(name: string, phone: string): boolean {
@@ -605,7 +629,7 @@ export function loadPersistedConversations(): Conversation[] {
 }
 
 export function persistConversations(conversations: Conversation[]) {
-  localStorage.setItem("zapai_inbox_conversations", JSON.stringify(conversations));
+  safeLocalStorageSetItem("zapai_inbox_conversations", JSON.stringify(conversations));
 }
 
 export function loadPersistedConversationMessages(params: { conversationId: string; sessionId?: string; phone?: string }): ChatMessage[] {
@@ -631,7 +655,7 @@ export function persistConversationMessages(params: {
 }) {
   const key = getConversationMessageStorageKey(params);
   const payload = params.messages.slice(-200);
-  localStorage.setItem(key, JSON.stringify(payload));
+  safeLocalStorageSetItem(key, JSON.stringify(payload));
 }
 
 export function buildFallbackConversationId(params: { phone?: string; sessionId?: string }): string {

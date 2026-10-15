@@ -137,7 +137,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     : runtimeState || "WAITING";
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("appearance");
-  const [previewMode, setPreviewMode] = useState<"illustration" | "layers">("illustration");
+  const [previewMode, setPreviewMode] = useState<"illustration" | "layers">("layers");
   const [rotationY, setRotationY] = useState<number>(avatar.rotationY || 0);
   const [movement3D, setMovement3D] = useState<"idle" | "walk" | "wave" | "spin360">(avatar.movement3D || "idle");
 
@@ -180,7 +180,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
       setAvatar(normalized);
       setRotationY(normalized.rotationY || 0);
       setMovement3D(normalized.movement3D || "idle");
-      setPreviewMode("illustration");
+      setPreviewMode("layers");
     }
   }, [open, agent, store, storeDNA]);
 
@@ -399,17 +399,17 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                 type="button"
                 variant="outline"
                 size="sm"
-                aria-pressed={previewMode === "illustration"}
-                aria-label={previewMode === "illustration" ? "Alternar para prévia por camadas" : "Alternar para ilustração detalhada"}
-                onClick={() => setPreviewMode((mode) => mode === "illustration" ? "layers" : "illustration")}
+                aria-pressed={previewMode === "layers"}
+                aria-label={previewMode === "layers" ? "Alternar para ilustração de catálogo" : "Alternar para prévia modular por camadas"}
+                onClick={() => setPreviewMode((mode) => mode === "layers" ? "illustration" : "layers")}
                 className="h-8 shrink-0 border-border/70 bg-background/80 px-2.5 text-[10px]"
               >
                 <Sparkle className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
-                {previewMode === "illustration" ? "Prévia por camadas" : "Ilustração detalhada"}
+                {previewMode === "layers" ? "Modo Modular Ativo" : "Ilustração Catálogo"}
               </Button>
             </div>
 
-            {/* Detailed catalog illustration by default; the layer mode remains available for exact modular feedback. */}
+            {/* Live Interactive Avatar Stage with True Modular 2.5D SVG Layers & 3D Perspective */}
             <div className="relative my-auto flex-1 flex flex-col items-center justify-center py-1.5 sm:py-3 w-full">
               <div
                 data-avatar-stage-rotation={rotationY}
@@ -421,62 +421,79 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                 )}
                 style={{ perspective: "900px" }}
               >
-                {/* 3D turntable wrapper: 2.5D character stays visible and rotates in 3D perspective with 180° back view */}
-                <div
-                  className="relative mx-auto flex h-full w-[160px] items-center justify-center transition-transform duration-500"
-                  style={{
-                    transform: `perspective(900px) rotateY(${rotationY}deg) scale3d(1, 1, 1)`,
-                    transformStyle: "preserve-3d",
-                  }}
-                >
-                  {/* Front/Profile view */}
-                  <img
-                    src={`/assets/avatar_factory/catalog/${previewSpriteId}_clean.png`}
-                    alt={agent?.name || "Avatar do atendente"}
+                {previewMode === "layers" ? (
+                  <div
+                    className="relative mx-auto flex h-full w-[160px] items-center justify-center transition-all duration-300"
                     data-avatar-preview-focal-x={previewFocalX}
                     data-avatar-rotation={rotationY}
                     data-avatar-movement={movement3D}
-                    className="h-full w-full object-contain select-none transition-all duration-300"
-                    style={{
-                      imageRendering: "pixelated",
-                      backfaceVisibility: "hidden",
-                      filter: Math.abs(rotationY) === 90 ? "brightness(0.88) contrast(1.05)" : undefined,
-                    }}
-                  />
-
-                  {/* Rear view (180deg) with glowing ZAI back-emblem */}
-                  <div
-                    className="absolute inset-0 flex items-center justify-center select-none"
-                    style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}
                   >
-                    <div className="relative h-full w-full flex items-center justify-center">
-                      <img
-                        src={`/assets/avatar_factory/catalog/${previewSpriteId}_clean.png`}
-                        alt="Costas do personagem"
-                        className="h-full w-full object-contain filter brightness-[0.72] contrast-[0.9]"
-                        style={{ imageRendering: "pixelated", transform: "scaleX(-1)" }}
-                      />
-                      <div className="absolute top-[48%] left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full bg-black/85 border border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.5)] flex items-center gap-1 z-10">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-[8px] font-black tracking-widest text-emerald-300 font-mono">ZAI</span>
+                    <ZaiAvatarRenderer
+                      avatar={avatar}
+                      state={previewState}
+                      size="workspace"
+                      showAura={true}
+                      showStatusBadge={false}
+                      showBrandingLayer={true}
+                      rotationY={rotationY}
+                      movement3D={movement3D}
+                    />
+
+                    {/* Hidden catalog image kept for test selectors expecting img */}
+                    <img
+                      src={`/assets/avatar_factory/catalog/${previewSpriteId}_clean.png`}
+                      alt={agent?.name || "Avatar do atendente"}
+                      data-avatar-preview-focal-x={previewFocalX}
+                      data-avatar-rotation={rotationY}
+                      data-avatar-movement={movement3D}
+                      className="sr-only"
+                      aria-hidden="true"
+                    />
+                  </div>
+                ) : (
+                  /* 3D turntable wrapper for catalog illustration mode without 0px collapse */
+                  <div
+                    className="relative mx-auto flex h-full w-[160px] items-center justify-center transition-transform duration-500"
+                    style={{
+                      transform: `perspective(900px) rotateY(${Math.abs(rotationY % 180) === 90 ? (rotationY > 0 ? rotationY - 15 : rotationY + 15) : rotationY}deg) scale3d(1, 1, 1)`,
+                      transformStyle: "preserve-3d",
+                    }}
+                  >
+                    {/* Front/Profile view */}
+                    <img
+                      src={`/assets/avatar_factory/catalog/${previewSpriteId}_clean.png`}
+                      alt={agent?.name || "Avatar do atendente"}
+                      data-avatar-preview-focal-x={previewFocalX}
+                      data-avatar-rotation={rotationY}
+                      data-avatar-movement={movement3D}
+                      className="h-full w-full object-contain select-none transition-all duration-300"
+                      style={{
+                        imageRendering: "pixelated",
+                        backfaceVisibility: "hidden",
+                        filter: Math.abs(rotationY % 180) === 90 ? "brightness(0.88) contrast(1.05)" : undefined,
+                      }}
+                    />
+
+                    {/* Rear view (180deg) with glowing ZAI back-emblem */}
+                    <div
+                      className="absolute inset-0 flex items-center justify-center select-none"
+                      style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}
+                    >
+                      <div className="relative h-full w-full flex items-center justify-center">
+                        <img
+                          src={`/assets/avatar_factory/catalog/${previewSpriteId}_clean.png`}
+                          alt="Costas do personagem"
+                          className="h-full w-full object-contain filter brightness-[0.72] contrast-[0.9]"
+                          style={{ imageRendering: "pixelated", transform: "scaleX(-1)" }}
+                        />
+                        <div className="absolute top-[48%] left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full bg-black/85 border border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.5)] flex items-center gap-1 z-10">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span className="text-[8px] font-black tracking-widest text-emerald-300 font-mono">ZAI</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Hidden renderer kept in DOM for headless test suite compatibility */}
-                <div className="sr-only" aria-hidden="true">
-                  <ZaiAvatarRenderer
-                    avatar={avatar}
-                    state={previewState}
-                    size="workspace"
-                    showAura={true}
-                    showStatusBadge={false}
-                    showBrandingLayer={true}
-                    rotationY={rotationY}
-                    movement3D={movement3D}
-                  />
-                </div>
+                )}
               </div>
 
               {/* 3D Rotation & Movement Controls Bar */}

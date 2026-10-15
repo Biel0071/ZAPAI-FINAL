@@ -169,6 +169,7 @@ export function useInboxState() {
   const [historySyncStatus, setHistorySyncStatus] = useState<"idle" | "requesting" | "requested" | "imported" | "error">("idle");
   const historySyncRequestedAtRef = useRef<Map<string, number>>(new Map());
   const [conversationsLoadFailed, setConversationsLoadFailed] = useState(false);
+  const hasLoadedInitialRef = useRef(false);
   const [messagesLoadFailed, setMessagesLoadFailed] = useState(false);
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
@@ -1121,6 +1122,9 @@ export function useInboxState() {
 
   // Initial load
   useEffect(() => {
+    if (hasLoadedInitialRef.current) return;
+    hasLoadedInitialRef.current = true;
+
     const loadInitial = async () => {
       setError(null);
       setLoadingConversations(true);
