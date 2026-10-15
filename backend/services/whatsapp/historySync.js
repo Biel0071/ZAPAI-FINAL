@@ -31,6 +31,8 @@ class HistorySync {
     this.repository = repository; this.learning = learning; this.decode = decode;
     this.extract = extract; this.media = media; this.transcribe = transcribe; this.describe = describe;
     this.pendingRequests = new Map();
+    this.activeProcess = new Set();
+    this.pendingRerun = new Map();
   }
 
   async correlateHistoryResponse(companyId, sessionId, { peerDataRequestSessionId } = {}) {
@@ -120,6 +122,29 @@ class HistorySync {
   }
 
   async process(companyId, sessionId, syncMetadata = {}) {
+    const lockKey = `${companyId}:${sessionId}`;
+    if (this.activeProcess.has(lockKey)) {
+      this.pendingRerun.set(lockKey, syncMetadata);
+      return [];
+    }
+    this.activeProcess.add(lockKey);
+    try {
+      let result = await this._processInternal(companyId, sessionId, syncMetadata);
+      while (this.pendingRerun.has(lockKey)) {
+        const nextMeta = this.pendingRerun.get(lockKey);
+        this.pendingRerun.delete(lockKey);
+        const nextResult = await this._processInternal(companyId, sessionId, nextMeta);
+        if (Array.isArray(nextResult) && nextResult.length) {
+          result = [...new Set([...(Array.isArray(result) ? result : []), ...nextResult])];
+        }
+      }
+      return result;
+    } finally {
+      this.activeProcess.delete(lockKey);
+    }
+  }
+
+  async _processInternal(companyId, sessionId, syncMetadata = {}) {
     await this.repository.importChats(companyId, sessionId);
 
     // Process pending history items first (in batches of 50, up to 10 batches = 500 items per call)
