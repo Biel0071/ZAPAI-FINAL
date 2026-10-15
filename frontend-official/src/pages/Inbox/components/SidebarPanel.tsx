@@ -568,11 +568,22 @@ export function SidebarPanel({
 
   // Clean contact name without @lid
   const cleanName = useMemo(() => {
-    let name = (selectedConversation?.contactName || "").trim();
-    if (name.includes("@lid")) name = name.replace(/@lid.*/, "").trim();
+    const rawName = (selectedConversation?.contactName || "").trim();
+    const rawPhone = (selectedConversation?.phone || "").trim();
+    const isLidName =
+      rawName.includes("@lid") ||
+      (/^\d{14,16}$/.test(rawName.replace(/@.*$/, "")) && !rawName.startsWith("55"));
+    if (isLidName) {
+      const cleanPhoneDigits = rawPhone.replace(/@.*$/, "").replace(/\D/g, "");
+      if (rawPhone && !rawPhone.includes("@lid") && cleanPhoneDigits.length >= 10 && cleanPhoneDigits.length <= 13) {
+        return formatPhoneNumber(rawPhone);
+      }
+      return formatPhoneNumber(rawName);
+    }
+    let name = rawName;
     if (name.includes("@s.whatsapp.net")) name = name.replace(/@s\.whatsapp\.net.*/, "").trim();
-    return name || "Contato";
-  }, [selectedConversation?.contactName]);
+    return name || (rawPhone ? formatPhoneNumber(rawPhone) : "Contato");
+  }, [selectedConversation?.contactName, selectedConversation?.phone]);
 
   const panelContent = selectedConversation ? (
     <Tabs

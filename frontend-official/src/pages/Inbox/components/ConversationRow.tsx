@@ -96,10 +96,21 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
   const { avatar: resolvedAvatar } = useResolvedAvatar(conversation.id, conversation.avatar);
 
   const cleanDisplayName = useMemo(() => {
-    let name = (conversation.contactName || "").trim();
-    if (name.includes("@lid")) {
-      name = name.replace(/@lid.*/, "").trim();
+    const rawName = (conversation.contactName || "").trim();
+    const rawPhone = (conversation.phone || "").trim();
+    const isLidName =
+      rawName.includes("@lid") ||
+      (/^\d{14,16}$/.test(rawName.replace(/@.*$/, "")) && !rawName.startsWith("55"));
+
+    if (isLidName) {
+      const cleanPhoneDigits = rawPhone.replace(/@.*$/, "").replace(/\D/g, "");
+      if (rawPhone && !rawPhone.includes("@lid") && cleanPhoneDigits.length >= 10 && cleanPhoneDigits.length <= 13) {
+        return formatPhoneNumber(rawPhone);
+      }
+      return formatPhoneNumber(rawName);
     }
+
+    let name = rawName;
     if (name.includes("@s.whatsapp.net")) {
       name = name.replace(/@s\.whatsapp\.net.*/, "").trim();
     }
@@ -107,8 +118,8 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
     if (digitsOnly.length >= 10 && (digitsOnly === name || name.startsWith("+") || name.startsWith("55"))) {
       return formatPhoneNumber(name);
     }
-    if (!name && conversation.phone) {
-      return formatPhoneNumber(conversation.phone);
+    if (!name && rawPhone) {
+      return formatPhoneNumber(rawPhone);
     }
     return name || "Contato";
   }, [conversation.contactName, conversation.phone]);

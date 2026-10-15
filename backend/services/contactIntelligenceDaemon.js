@@ -256,19 +256,16 @@ function buildExecutiveNotes(existingNotes = '', signals = {}, phone = '') {
     noteParts.push(cleanExisting);
   }
 
-  const dateStr = new Date().toLocaleDateString('pt-BR');
-  const timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
   if (signals.deliveryIssue) {
-    noteParts.push(`[Detect Automático]: ⚠️ Pedido não entregue / Atraso relatado pelo cliente em ${dateStr} às ${timeStr}. Mensagem: "${signals.lastClientMessage}". Requer acionamento urgente da logística/expedição.`);
+    noteParts.push(`[Detect Automático]: ⚠️ Pedido não entregue / Atraso relatado pelo cliente. Mensagem: "${signals.lastClientMessage}". Requer acionamento urgente da logística/expedição.`);
   } else if (signals.scheduled && !signals.deliveryIssue) {
     noteParts.push(`[Detect Automático]: 📅 Pedido/Atendimento já agendado. Mensagem do cliente: "${signals.lastClientMessage}".`);
   } else if (signals.paymentConfirmed) {
-    noteParts.push(`[Detect Automático]: 💰 Pagamento/PIX informado pelo cliente em ${dateStr} às ${timeStr}.`);
+    noteParts.push(`[Detect Automático]: 💰 Pagamento/PIX informado pelo cliente.`);
   } else if (signals.paymentPending) {
-    noteParts.push(`[Detect Automático]: 💳 Cliente solicitou dados para pagamento/PIX em ${dateStr}.`);
+    noteParts.push(`[Detect Automático]: 💳 Cliente solicitou dados para pagamento/PIX.`);
   } else if (signals.delivered) {
-    noteParts.push(`[Detect Automático]: ✅ Entrega confirmada com sucesso em ${dateStr}.`);
+    noteParts.push(`[Detect Automático]: ✅ Entrega confirmada com sucesso.`);
   } else if (signals.cancellation) {
     noteParts.push(`[Detect Automático]: ❌ Cliente solicitou cancelamento/desistência.`);
   }
@@ -276,11 +273,21 @@ function buildExecutiveNotes(existingNotes = '', signals = {}, phone = '') {
   return noteParts.join('\n\n').trim();
 }
 
+function areStringArraysEqual(a = [], b = []) {
+  const normA = Array.isArray(a) ? a.map((x) => String(x).trim().toLowerCase()).filter(Boolean).sort() : [];
+  const normB = Array.isArray(b) ? b.map((x) => String(x).trim().toLowerCase()).filter(Boolean).sort() : [];
+  if (normA.length !== normB.length) return false;
+  for (let i = 0; i < normA.length; i += 1) {
+    if (normA[i] !== normB[i]) return false;
+  }
+  return true;
+}
+
 /**
  * Executa o diagnóstico e atualização inteligente de um contato/conversa específico.
  */
 async function detectConversationIntelligence(conversationId, options = {}) {
-  if (!conversationId) return null;
+  if (!conversationId || isNaN(Number(conversationId))) return null;
 
   try {
     const convResult = await query(
@@ -310,6 +317,26 @@ async function detectConversationIntelligence(conversationId, options = {}) {
     const { funnel, temp } = determineFunnelAndTemperature(signals, conv.funnel_stage, conv.lead_temperature);
     const newNotes = buildExecutiveNotes(conv.notes, signals, conv.remote_jid || conv.lead_phone);
 
+    const hasChanges =
+      !areStringArraysEqual(conv.tags, newTags) ||
+      String(conv.funnel_stage || '') !== String(funnel || '') ||
+      String(conv.lead_temperature || '') !== String(temp || '') ||
+      String(conv.notes || '').trim() !== String(newNotes || '').trim() ||
+      String(conv.lead_intent || '') !== String(signals.orderStatus || '');
+
+    if (!hasChanges) {
+      return {
+        success: true,
+        unchanged: true,
+        conversationId,
+        signals,
+        tags: newTags,
+        funnel,
+        temp,
+        notes: newNotes,
+      };
+    }
+
     const updates = {
       tags: newTags,
       funnel_stage: funnel,
@@ -318,12 +345,20 @@ async function detectConversationIntelligence(conversationId, options = {}) {
       lead_intent: signals.orderStatus,
     };
 
-    // Atualiza estado no banco
-    const updatedConv = await conversationRepository.updateConversationState(conversationId, updates);
+    // Atualiza estado no banco (preservando updated_at em varreduras periódicas)
+    const updatedConv = await conversationRepository.updateConversationState(
+      conversationId,
+      updates,
+      conv.company_id,
+      {
+        preserveUpdatedAt: Boolean(options.preserveUpdatedAt),
+        skipCacheInvalidation: Boolean(options.skipCacheInvalidation),
+      }
+    );
 
-    // Emissão via Socket.io para atualização instantânea na tela
+    // Emissão via Socket.io apenas para eventos em tempo real (não em lote de 500 conversas)
     const io = global.io || options.io;
-    if (io && updatedConv) {
+    if (io && updatedConv && !options.silentSocket) {
       io.emit('conversation_updated', {
         ...updatedConv,
         tags: newTags,
@@ -344,6 +379,7 @@ async function detectConversationIntelligence(conversationId, options = {}) {
 
     return {
       success: true,
+      unchanged: false,
       conversationId,
       signals,
       tags: newTags,
@@ -364,7 +400,7 @@ async function detectConversationIntelligence(conversationId, options = {}) {
 async function runDailyContactDetection(options = {}) {
   const hoursBack = options.hoursBack || 48;
   const companyId = options.companyId || 'default';
-  const limit = options.limit || 500;
+  const limit = options.limit || 200;
 
   console.log(`[CONTACT-INTELLIGENCE] Starting daily detection sweep for company=${companyId} (last ${hoursBack}h, limit=${limit})...`);
 
@@ -372,8 +408,8 @@ async function runDailyContactDetection(options = {}) {
     const res = await query(
       `SELECT id FROM conversations
        WHERE (company_id = $1 OR $1 = 'default')
-         AND (updated_at >= NOW() - INTERVAL '${hoursBack} hours' OR status = 'open')
-       ORDER BY updated_at DESC
+         AND COALESCE(last_message_at, created_at) >= NOW() - INTERVAL '${hoursBack} hours'
+       ORDER BY COALESCE(last_message_at, created_at) DESC
        LIMIT $2`,
       [companyId, limit]
     );
@@ -382,6 +418,7 @@ async function runDailyContactDetection(options = {}) {
     console.log(`[CONTACT-INTELLIGENCE] Found ${conversations.length} conversations to evaluate.`);
 
     let processed = 0;
+    let updatedCount = 0;
     let categoryCounts = {
       deliveryIssue: 0,
       scheduled: 0,
@@ -393,9 +430,15 @@ async function runDailyContactDetection(options = {}) {
     };
 
     for (const row of conversations) {
-      const result = await detectConversationIntelligence(row.id, options);
+      const result = await detectConversationIntelligence(row.id, {
+        ...options,
+        preserveUpdatedAt: true,
+        skipCacheInvalidation: true,
+        silentSocket: true,
+      });
       if (result?.signals) {
         processed += 1;
+        if (!result.unchanged) updatedCount += 1;
         if (result.signals.deliveryIssue) categoryCounts.deliveryIssue += 1;
         if (result.signals.scheduled) categoryCounts.scheduled += 1;
         if (result.signals.paymentConfirmed) categoryCounts.paymentConfirmed += 1;
@@ -406,11 +449,16 @@ async function runDailyContactDetection(options = {}) {
       }
     }
 
-    console.log(`[CONTACT-INTELLIGENCE] Sweep completed. Processed ${processed}/${conversations.length} conversations. Summary:`, categoryCounts);
+    if (updatedCount > 0) {
+      conversationRepository.invalidateConversationCache(companyId);
+    }
+
+    console.log(`[CONTACT-INTELLIGENCE] Sweep completed. Evaluated ${processed}/${conversations.length} (${updatedCount} updated). Summary:`, categoryCounts);
     return {
       success: true,
       totalEvaluated: conversations.length,
       totalProcessed: processed,
+      totalUpdated: updatedCount,
       categoryCounts,
     };
   } catch (err) {

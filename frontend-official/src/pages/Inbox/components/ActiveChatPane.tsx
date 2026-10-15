@@ -69,6 +69,7 @@ import {
   getMediaTypeLabel,
   getQuickReplyPreviewText,
   formatPhoneNumber,
+  getInitials,
 } from "../utils";
 
 interface ActiveChatPaneProps {
@@ -600,23 +601,46 @@ export function ActiveChatPane({
       {selectedConversation ? (
         <div className="flex flex-1 flex-col h-full min-w-0 overflow-hidden">
           <ChatHeaderBar
-            contactName={
-              (selectedConversation.contactName || "").replace(/@lid.*/, "").replace(/@s\.whatsapp\.net.*/, "").trim() ||
-              (selectedConversation.phone ? formatPhoneNumber(selectedConversation.phone) : "Contato")
-            }
+            contactName={(() => {
+              const rawName = (selectedConversation.contactName || "").trim();
+              const rawPhone = (selectedConversation.phone || "").trim();
+              const isLidName =
+                rawName.includes("@lid") ||
+                (/^\d{14,16}$/.test(rawName.replace(/@.*$/, "")) && !rawName.startsWith("55"));
+              if (isLidName) {
+                const cleanPhoneDigits = rawPhone.replace(/@.*$/, "").replace(/\D/g, "");
+                if (rawPhone && !rawPhone.includes("@lid") && cleanPhoneDigits.length >= 10 && cleanPhoneDigits.length <= 13) {
+                  return formatPhoneNumber(rawPhone);
+                }
+                return formatPhoneNumber(rawName);
+              }
+              const cleaned = rawName.replace(/@s\.whatsapp\.net.*/, "").trim();
+              const digitsOnly = cleaned.replace(/\D/g, "");
+              if (digitsOnly.length >= 10 && (digitsOnly === cleaned || cleaned.startsWith("+") || cleaned.startsWith("55"))) {
+                return formatPhoneNumber(cleaned);
+              }
+              return cleaned || (rawPhone ? formatPhoneNumber(rawPhone) : "Contato");
+            })()}
             avatar={activeChatAvatar || ""}
             tags={selectedConversation.tags ?? []}
-            initials={(selectedConversation.contactName || "C").slice(0, 2).toUpperCase()}
+            initials={getInitials(selectedConversation.contactName || "C")}
             isMobile={isMobile}
             onBack={onBack ?? (() => setShowLeadPanel(false))}
             onContactClick={() => {
               if (isTabletLayout || isMobile) setShowLeadPanel(true);
             }}
-            phoneLabel={
-              selectedConversation.phone && !selectedConversation.phone.includes("@lid")
-                ? formatPhoneNumber(selectedConversation.phone)
-                : undefined
-            }
+            phoneLabel={(() => {
+              const rawPhone = (selectedConversation.phone || "").trim();
+              const cleanPhoneDigits = rawPhone.replace(/@.*$/, "").replace(/\D/g, "");
+              if (
+                rawPhone &&
+                !rawPhone.includes("@lid") &&
+                !(cleanPhoneDigits.length >= 14 && cleanPhoneDigits.length <= 16 && !cleanPhoneDigits.startsWith("55"))
+              ) {
+                return formatPhoneNumber(rawPhone);
+              }
+              return undefined;
+            })()}
             statusLabel={
               isTyping === "recording"
                 ? "gravando áudio..."
@@ -627,19 +651,19 @@ export function ActiveChatPane({
                     : "offline"
             }
             rightActions={
-              <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">
+              <div className="flex min-w-0 items-center gap-1">
                 {/* 1. Buscar */}
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-2 sm:px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
+                  className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
                   onClick={() => setConversationSearchOpen(true)}
                   title="Buscar na conversa"
                   aria-label="Buscar na conversa"
                 >
                   <MagnifyingGlass className="h-3.5 w-3.5 shrink-0" />
-                  <span className="hidden sm:inline">Buscar</span>
+                  <span className="hidden 2xl:inline">Buscar</span>
                 </Button>
 
                 {/* 2. Gerar Ficha */}
@@ -648,13 +672,13 @@ export function ActiveChatPane({
                   variant="ghost"
                   size="sm"
                   disabled={generatingSheet}
-                  className="h-8 px-2 sm:px-2.5 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/30 shrink-0"
+                  className="h-8 px-2 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/30 shrink-0"
                   onClick={handleGenerateSheet}
                   title="Gerar ficha de atendimento com IA"
                   aria-label="Gerar Ficha"
                 >
                   <FileIcon className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="bold" />
-                  <span className="hidden sm:inline">{generatingSheet ? "Gerando..." : "Gerar Ficha"}</span>
+                  <span className="hidden xl:inline">{generatingSheet ? "Gerando..." : "Gerar Ficha"}</span>
                 </Button>
 
                 {/* 3. Transferir */}
@@ -665,12 +689,12 @@ export function ActiveChatPane({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-8 px-2 sm:px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
+                        className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
                         title="Transferir atendimento para outro atendente"
                         aria-label="Transferir atendimento"
                       >
                         <UserSwitch className="h-3.5 w-3.5 shrink-0" />
-                        <span className="hidden md:inline">Transferir</span>
+                        <span className="hidden 2xl:inline">Transferir</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 bg-popover/95 border-border/80 text-popover-foreground">
@@ -703,7 +727,7 @@ export function ActiveChatPane({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-2 sm:px-2.5 text-xs font-medium text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
+                  className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
                   onClick={() => {
                     handleArchiveSelectedConversation();
                   }}
@@ -711,7 +735,7 @@ export function ActiveChatPane({
                   aria-label="Finalizar atendimento"
                 >
                   <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="bold" />
-                  <span className="hidden md:inline">Finalizar</span>
+                  <span className="hidden 2xl:inline">Finalizar</span>
                 </Button>
 
                 {/* 5. Menu adicional (...) */}

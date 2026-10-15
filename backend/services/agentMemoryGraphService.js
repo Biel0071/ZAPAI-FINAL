@@ -70,6 +70,22 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
   const normalizedAgent = normalizeKey(agentKey || agentName, 'agent');
   const scope = `${cleanCompany}:${normalizedAgent}`;
   if (bootstrappedScopes.has(scope) && !force) return;
+
+  if (!force) {
+    try {
+      const existingCheck = await query(
+        'SELECT COUNT(*)::int AS total FROM agent_memory_nodes WHERE company_id = $1 AND agent_key = $2',
+        [cleanCompany, normalizedAgent]
+      );
+      if (Number(existingCheck.rows?.[0]?.total) >= 20) {
+        bootstrappedScopes.add(scope);
+        return;
+      }
+    } catch {
+      // Proceed with bootstrap if check fails
+    }
+  }
+
   const params = [cleanCompany, normalizedAgent, agentName || agentKey || normalizedAgent];
 
   // 1. Garante a existência do nó raiz do atendente (hub central)
@@ -81,53 +97,68 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
       SET label = EXCLUDED.label, last_seen_at = EXCLUDED.last_seen_at
   `, params);
 
-  // 2. Nós de Contatos a partir das conversas
+  // 2. Nós de Contatos a partir das conversas recentes
   await query(`
+    WITH recent_convs AS (
+      SELECT id, lead_id, created_at, updated_at
+      FROM conversations
+      WHERE company_id = $1
+        AND (agent_name IS NULL OR agent_name = '' OR LOWER(agent_name) = LOWER($3) OR LOWER(agent_name) IN ('atendente', 'atendente padrão', 'ia', 'bot', 'default'))
+      ORDER BY COALESCE(last_message_at, updated_at) DESC
+      LIMIT 500
+    )
     INSERT INTO agent_memory_nodes (company_id, agent_key, node_key, node_type, label, searchable_text, properties, weight, created_at, last_seen_at)
     SELECT $1::varchar, $2::varchar, 'contact:' || l.id, 'contact', COALESCE(NULLIF(l.name, ''), l.phone),
            CONCAT_WS(' ', l.name, l.phone), jsonb_build_object('contactPhone', l.phone, 'contactName', l.name),
            GREATEST(1, COUNT(DISTINCT conv.id)), MIN(conv.created_at), MAX(conv.updated_at)
-    FROM conversations conv
+    FROM recent_convs conv
     JOIN leads l ON l.id = conv.lead_id
-    WHERE conv.company_id = $1 AND (conv.agent_name IS NULL OR conv.agent_name = '' OR LOWER(conv.agent_name) = LOWER($3) OR LOWER(conv.agent_name) IN ('atendente', 'atendente padrão', 'ia', 'bot', 'default'))
     GROUP BY l.id, l.name, l.phone
-    ON CONFLICT (company_id, agent_key, node_key) DO UPDATE
-      SET weight = GREATEST(agent_memory_nodes.weight, EXCLUDED.weight),
-          last_seen_at = GREATEST(agent_memory_nodes.last_seen_at, EXCLUDED.last_seen_at)
+    ON CONFLICT (company_id, agent_key, node_key) DO NOTHING
   `, params);
 
-  // 3. Nós de Conversas
+  // 3. Nós de Conversas recentes
   await query(`
+    WITH recent_convs AS (
+      SELECT id, lead_id, summary, last_message, created_at, updated_at
+      FROM conversations
+      WHERE company_id = $1
+        AND (agent_name IS NULL OR agent_name = '' OR LOWER(agent_name) = LOWER($3) OR LOWER(agent_name) IN ('atendente', 'atendente padrão', 'ia', 'bot', 'default'))
+      ORDER BY COALESCE(last_message_at, updated_at) DESC
+      LIMIT 500
+    )
     INSERT INTO agent_memory_nodes (company_id, agent_key, node_key, node_type, label, searchable_text, properties, weight, created_at, last_seen_at)
     SELECT $1::varchar, $2::varchar, 'conversation:' || conv.id, 'conversation', COALESCE(NULLIF(l.name, ''), l.phone),
            CONCAT_WS(' ', l.name, l.phone, conv.summary, conv.last_message),
            jsonb_build_object('conversationId', conv.id, 'contactPhone', l.phone, 'contactKey', 'contact:' || l.id),
            1, conv.created_at, conv.updated_at
-    FROM conversations conv
+    FROM recent_convs conv
     JOIN leads l ON l.id = conv.lead_id
-    WHERE conv.company_id = $1 AND (conv.agent_name IS NULL OR conv.agent_name = '' OR LOWER(conv.agent_name) = LOWER($3) OR LOWER(conv.agent_name) IN ('atendente', 'atendente padrão', 'ia', 'bot', 'default'))
-    ON CONFLICT (company_id, agent_key, node_key) DO UPDATE
-      SET content = EXCLUDED.content, searchable_text = EXCLUDED.searchable_text,
-          properties = EXCLUDED.properties, last_seen_at = GREATEST(agent_memory_nodes.last_seen_at, EXCLUDED.last_seen_at)
+    ON CONFLICT (company_id, agent_key, node_key) DO NOTHING
   `, params);
 
-  // 4. Episódios de pergunta de cliente seguida de resposta do atendente (m.from_me = TRUE e anterior = FALSE)
+  // 4. Episódios de pergunta de cliente seguida de resposta do atendente nas conversas recentes
   await query(`
-    WITH ordered AS (
+    WITH recent_convs AS (
+      SELECT id, lead_id
+      FROM conversations
+      WHERE company_id = $1
+        AND (agent_name IS NULL OR agent_name = '' OR LOWER(agent_name) = LOWER($3) OR LOWER(agent_name) IN ('atendente', 'atendente padrão', 'ia', 'bot', 'default'))
+      ORDER BY COALESCE(last_message_at, updated_at) DESC
+      LIMIT 300
+    ), ordered AS (
       SELECT m.id, m.conversation_id, COALESCE(m.content, m.text) AS response, m.timestamp, m.from_me,
              LAG(COALESCE(m.content, m.text)) OVER (PARTITION BY m.conversation_id ORDER BY m.timestamp, m.id) AS question,
              LAG(m.from_me) OVER (PARTITION BY m.conversation_id ORDER BY m.timestamp, m.id) AS previous_from_me,
              l.id AS lead_id, l.phone, l.name
-      FROM messages m
-      JOIN conversations conv ON conv.id = m.conversation_id
+      FROM recent_convs conv
+      JOIN messages m ON m.conversation_id = conv.id
       JOIN leads l ON l.id = conv.lead_id
-      WHERE conv.company_id = $1
-        AND (conv.agent_name IS NULL OR conv.agent_name = '' OR LOWER(conv.agent_name) = LOWER($3) OR LOWER(conv.agent_name) IN ('atendente', 'atendente padrão', 'ia', 'bot', 'default'))
     ), pairs AS (
       SELECT * FROM ordered
       WHERE from_me = TRUE AND previous_from_me = FALSE AND response IS NOT NULL AND question IS NOT NULL
       ORDER BY timestamp DESC
-      LIMIT 1000
+      LIMIT 500
     )
     INSERT INTO agent_memory_nodes (company_id, agent_key, node_key, node_type, label, content, searchable_text, properties, weight, created_at, last_seen_at)
     SELECT $1::varchar, $2::varchar, 'episode:' || id, 'episode', LEFT(question, 160),
@@ -147,8 +178,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
     FROM agent_memory_nodes
     WHERE company_id = $1 AND agent_key = $2 AND node_type = 'conversation'
       AND properties ? 'contactKey'
-    ON CONFLICT (company_id, agent_key, source_key, target_key, relation) DO UPDATE
-      SET weight = agent_memory_edges.weight + 0.1, last_seen_at = EXCLUDED.last_seen_at
+    ON CONFLICT (company_id, agent_key, source_key, target_key, relation) DO NOTHING
   `, [cleanCompany, normalizedAgent]);
 
   await query(`
@@ -166,8 +196,7 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
     SELECT $1::varchar, $2::varchar, 'agent:' || $2::varchar, node_key, 'atendeu', 1, last_seen_at
     FROM agent_memory_nodes
     WHERE company_id = $1 AND agent_key = $2 AND node_type = 'contact'
-    ON CONFLICT (company_id, agent_key, source_key, target_key, relation) DO UPDATE
-      SET weight = LEAST(100, agent_memory_edges.weight + 0.5), last_seen_at = EXCLUDED.last_seen_at
+    ON CONFLICT (company_id, agent_key, source_key, target_key, relation) DO NOTHING
   `, [cleanCompany, normalizedAgent]);
 
   // 7. Extrai nós semânticos (tópicos, produtos, objeções, preferências) dos episódios existentes

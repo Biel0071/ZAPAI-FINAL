@@ -417,9 +417,8 @@ class HistorySync {
         acquired = Boolean(result.rows[0].acquired);
         if (!acquired) continue;
         await this.process(companyId, sessionId);
-        // Older-history requests are expensive and only useful after the received
-        // backlog has reached the Inbox. Keep the import worker moving first.
-        if (!(await this.repository.pending(companyId, sessionId)).length) {
+        // Older-history PDO requests are on-demand via requestOlderForChat unless explicitly enabled via env
+        if (process.env.WHATSAPP_AUTO_FETCH_OLDER_HISTORY === 'true' && !(await this.repository.pending(companyId, sessionId)).length) {
           await this.requestOlder(companyId, sessionId);
         }
         await db.query(`UPDATE whatsapp_history_sync SET last_error=NULL WHERE company_id=$1 AND session_id=$2 AND last_error IS NOT NULL`, [companyId, sessionId]);

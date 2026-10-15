@@ -65,12 +65,17 @@ export const HighlightedMessageText = memo(function HighlightedMessageText({
 
 export function getInitials(name?: string | null): string {
   if (!name || typeof name !== "string") return "C";
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? "")
-    .join("");
+  const trimmed = name.trim();
+  if (trimmed.startsWith("Cliente WhatsApp")) return "CW";
+  if (/^[+\d\s().-]+$/.test(trimmed)) return "WA";
+  return (
+    trimmed
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase() ?? "")
+      .join("") || "C"
+  );
 }
 
 export function formatTime(value?: string | number): string {
@@ -146,8 +151,12 @@ export function formatConversationTimestamp(value?: string | number): string {
 }
 
 export function formatPhoneNumber(phone: string): string {
-  const clean = String(phone || "").replace(/\D/g, "");
-  if (!clean) return phone || "Sem número";
+  const raw = String(phone || "").trim();
+  const clean = raw.replace(/@.*$/, "").replace(/\D/g, "");
+  if (!clean) return raw || "Sem número";
+  if (raw.includes("@lid") || (clean.length >= 14 && clean.length <= 16 && !clean.startsWith("55"))) {
+    return `Cliente WhatsApp #${clean.slice(-4)}`;
+  }
   if (clean.length === 13 && clean.startsWith("55")) {
     return `+${clean.slice(0, 2)} (${clean.slice(2, 4)}) ${clean.slice(4, 9)}-${clean.slice(9)}`;
   }
@@ -160,7 +169,7 @@ export function formatPhoneNumber(phone: string): string {
   if (clean.length === 10) {
     return `+55 (${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
   }
-  return phone;
+  return raw.replace(/@s\.whatsapp\.net$/i, "");
 }
 
 export function formatPlaybackTime(seconds: number): string {

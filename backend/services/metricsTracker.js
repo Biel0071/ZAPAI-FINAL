@@ -73,11 +73,16 @@ function emitMetrics(store, snapshot) {
   io.emit('dashboard_update', snapshot);
 }
 
+const scopedMetricsCache = new Map();
+const scopedInFlight = new Map();
+
 async function recalcMetricsFromDB(store = {}, options = {}) {
   const sessionId = options.sessionId || null;
-  const isFiltered = sessionId && sessionId !== 'all';
-  const isTenantScoped = Boolean(options.companyId);
-  const companyId = String(options.companyId || store?.activeCompanyId || process.env.DEFAULT_COMPANY_ID || 'default').trim() || 'default';
+  const isFiltered = Boolean(sessionId && sessionId !== 'all');
+  const defaultCompanyId = String(store?.activeCompanyId || process.env.DEFAULT_COMPANY_ID || 'default').trim() || 'default';
+  const companyId = String(options.companyId || defaultCompanyId).trim() || 'default';
+  const isTenantScoped = Boolean(options.companyId && companyId !== defaultCompanyId);
+  const scopeKey = `${companyId}:${isFiltered ? sessionId : 'all'}`;
 
   if (!store?.databaseEnabled) {
     const snapshot = buildMetricsSnapshot(store);
@@ -88,17 +93,22 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
     return snapshot;
   }
 
-  if (!isFiltered && !isTenantScoped && options.force !== true && store.metricsSnapshot) {
+  const now = Date.now();
+  if (!isFiltered && !isTenantScoped && options.force !== true && store.metricsSnapshot && (now - lastDbMetricsAt) < MIN_DB_METRICS_INTERVAL_MS) {
     return store.metricsSnapshot;
   }
 
-  const now = Date.now();
+  const cachedScoped = scopedMetricsCache.get(scopeKey);
+  if (options.force !== true && cachedScoped && (now - cachedScoped.at) < MIN_DB_METRICS_INTERVAL_MS) {
+    return cachedScoped.snapshot;
+  }
+
   if (!isFiltered && !isTenantScoped && metricsRecalcInFlight) {
     return metricsRecalcInFlight;
   }
 
-  if (!isFiltered && !isTenantScoped && store.metricsSnapshot && (now - lastDbMetricsAt) < MIN_DB_METRICS_INTERVAL_MS) {
-    return store.metricsSnapshot;
+  if (scopedInFlight.has(scopeKey)) {
+    return scopedInFlight.get(scopeKey);
   }
 
   const fetchFunc = async () => {
@@ -155,6 +165,8 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
       uptime: Number(process.uptime().toFixed(3)),
     };
 
+    scopedMetricsCache.set(scopeKey, { at: Date.now(), snapshot });
+
     if (!isFiltered && !isTenantScoped) {
       lastDbMetricsAt = Date.now();
       persistMetricsSnapshot(store, snapshot);
@@ -164,15 +176,19 @@ async function recalcMetricsFromDB(store = {}, options = {}) {
     return snapshot;
   };
 
-  if (isFiltered || isTenantScoped) {
-    return fetchFunc();
-  }
-
-  metricsRecalcInFlight = fetchFunc().finally(() => {
-    metricsRecalcInFlight = null;
+  const promise = fetchFunc().finally(() => {
+    scopedInFlight.delete(scopeKey);
+    if (!isFiltered && !isTenantScoped) {
+      metricsRecalcInFlight = null;
+    }
   });
 
-  return metricsRecalcInFlight;
+  scopedInFlight.set(scopeKey, promise);
+  if (!isFiltered && !isTenantScoped) {
+    metricsRecalcInFlight = promise;
+  }
+
+  return promise;
 }
 
 function startMetricsTracking(store, options = {}) {

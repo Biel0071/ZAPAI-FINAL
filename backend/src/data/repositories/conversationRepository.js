@@ -73,16 +73,39 @@ function mapConversation(row) {
     return null;
   }
 
-  let resolvedPhone = row.phone;
+  let resolvedPhone = row.mapped_phone || row.phone;
   let rawLid = null;
-  if (row.phone) {
-    const cleanPhone = String(row.phone).replace(/\D/g, '');
-    if (row.phone.includes('@lid') || cleanPhone.length === 15) {
+  const candidatePhone = String(row.phone || row.remote_jid || '');
+  if (candidatePhone) {
+    const cleanPhone = candidatePhone.replace(/@.*$/, '').replace(/\D/g, '');
+    if (candidatePhone.includes('@lid') || (cleanPhone.length >= 14 && cleanPhone.length <= 16 && !cleanPhone.startsWith('55'))) {
       rawLid = cleanPhone;
-      if (global.lidToPhoneMap && global.lidToPhoneMap.has(cleanPhone)) {
+      if (row.mapped_phone) {
+        resolvedPhone = row.mapped_phone;
+      } else if (global.lidToPhoneMap && global.lidToPhoneMap.has(cleanPhone)) {
         resolvedPhone = global.lidToPhoneMap.get(cleanPhone);
       }
     }
+  }
+
+  let displayName = row.name || 'Contato';
+  const rawName = String(displayName).trim();
+  const nameWithoutDomain = rawName.replace(/@.*$/, '');
+  const nameDigits = nameWithoutDomain.replace(/\D/g, '');
+  const isRawLidName =
+    rawName.includes('@lid') ||
+    (/^\d{14,16}$/.test(nameWithoutDomain) && !nameWithoutDomain.startsWith('55'));
+
+  if (isRawLidName) {
+    const cleanResolved = String(resolvedPhone || '').replace(/@.*$/, '').replace(/\D/g, '');
+    if (cleanResolved && (cleanResolved.length <= 13 || cleanResolved.startsWith('55')) && cleanResolved !== rawLid) {
+      displayName = cleanResolved;
+    } else {
+      const shortId = (rawLid || nameDigits || String(row.id || '0000')).slice(-4);
+      displayName = `Cliente WhatsApp #${shortId}`;
+    }
+  } else if (rawName.includes('@s.whatsapp.net') || rawName.includes('@c.us')) {
+    displayName = nameWithoutDomain;
   }
 
   return {
@@ -102,7 +125,7 @@ function mapConversation(row) {
     lead_confidence: Number(row.lead_confidence) || 0,
     lead_intent: row.lead_intent || 'information',
     lead_temperature: row.lead_temperature || 'cold',
-    name: row.name || 'Unknown',
+    name: displayName,
     next_action: row.next_action || 'educate',
     notes: row.notes || '',
     phone: resolvedPhone,
@@ -147,11 +170,13 @@ function getBaseSelect() {
         (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
         conv.created_at AT TIME ZONE 'UTC'
       ) as last_message_at,
-      COALESCE(l.phone, conv.remote_jid) as phone,
-      COALESCE(NULLIF(l.name, ''), conv.remote_jid, 'Contato') as name,
+      COALESCE(lid_map.phone, l.phone, conv.remote_jid) as phone,
+      lid_map.phone as mapped_phone,
+      COALESCE(NULLIF(l.name, ''), lid_map.phone, conv.remote_jid, 'Contato') as name,
       l.is_blocked
     FROM conversations conv
     LEFT JOIN leads l ON l.id = conv.lead_id
+    LEFT JOIN whatsapp_lid_mappings lid_map ON lid_map.lid = regexp_replace(COALESCE(conv.remote_jid, l.phone, ''), '@.*$', '')
   `;
 }
 
@@ -393,7 +418,7 @@ async function updateLeadTemperature(conversationId, leadTemperature) {
   return updatedConversation;
 }
 
-async function updateConversationState(conversationId, fields = {}, companyId) {
+async function updateConversationState(conversationId, fields = {}, companyId, options = {}) {
   let targetId = conversationId;
   if (typeof conversationId === 'string' && (conversationId.includes('@') || conversationId.length >= 10)) {
     const cleanPhone = conversationId.replace(/@.*$/, '').replace(/\D/g, '');
@@ -453,7 +478,7 @@ async function updateConversationState(conversationId, fields = {}, companyId) {
     updates.push(`${column} = $${values.length}`);
   }
 
-  if (!updates.find((entry) => entry.startsWith('updated_at'))) {
+  if (!options.preserveUpdatedAt && !updates.find((entry) => entry.startsWith('updated_at'))) {
     updates.push('updated_at = NOW()');
   }
 
@@ -489,9 +514,13 @@ async function updateConversationState(conversationId, fields = {}, companyId) {
   }
 
   const updatedConversation = await getConversationById(result.rows[0].id, companyId);
-  invalidateConversationCache(updatedConversation.company_id);
+  if (!options.skipCacheInvalidation) {
+    invalidateConversationCache(updatedConversation.company_id);
+  }
 
-  console.log(`[TEMP_LOG] conversation.updated - CONVERSATION_ID: "${updatedConversation.id}", PHONE: "${updatedConversation.phone || ''}", REMOTE_JID: "${updatedConversation.remoteJid || updatedConversation.remote_jid || ''}", SESSION_ID: "${updatedConversation.sessionId || updatedConversation.session_id || ''}", MESSAGE_ID: "N/A", SOURCE: "conversationRepository.updateConversationState"`);
+  if (!options.preserveUpdatedAt) {
+    console.log(`[TEMP_LOG] conversation.updated - CONVERSATION_ID: "${updatedConversation.id}", PHONE: "${updatedConversation.phone || ''}", REMOTE_JID: "${updatedConversation.remoteJid || updatedConversation.remote_jid || ''}", SESSION_ID: "${updatedConversation.sessionId || updatedConversation.session_id || ''}", MESSAGE_ID: "N/A", SOURCE: "conversationRepository.updateConversationState"`);
+  }
 
   return updatedConversation;
 }
@@ -622,14 +651,15 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.updated_at,
           COALESCE(
             conv.last_message_at,
-            (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
             conv.created_at AT TIME ZONE 'UTC'
           ) as last_message_at,
-          COALESCE(l.phone, conv.remote_jid) as phone,
-          COALESCE(NULLIF(l.name, ''), conv.remote_jid, 'Contato') as name,
+          COALESCE(lid_map.phone, l.phone, conv.remote_jid) as phone,
+          lid_map.phone as mapped_phone,
+          COALESCE(NULLIF(l.name, ''), lid_map.phone, conv.remote_jid, 'Contato') as name,
           l.is_blocked
         FROM conversations conv
         LEFT JOIN leads l ON l.id = conv.lead_id
+        LEFT JOIN whatsapp_lid_mappings lid_map ON lid_map.lid = regexp_replace(COALESCE(conv.remote_jid, l.phone, ''), '@.*$', '')
         ${whereClause}
         ORDER BY
           conv.company_id,
