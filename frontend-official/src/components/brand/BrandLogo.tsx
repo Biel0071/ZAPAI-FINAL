@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTheme } from "next-themes";
 import { cn } from "@/core/lib/utils";
 
@@ -16,6 +16,14 @@ export interface BrandLogoProps {
   forceZColor?: "black" | "white";
   /** Alias for forceZColor using theme terminology ("dark" = white Z, "light" = black Z). */
   variant?: "auto" | "dark" | "light";
+}
+
+function getDomThemeClass(): "light" | "dark" | null {
+  if (typeof document === "undefined") return null;
+  const cl = document.documentElement.classList;
+  if (cl.contains("light")) return "light";
+  if (cl.contains("dark")) return "dark";
+  return null;
 }
 
 /**
@@ -37,16 +45,32 @@ export function BrandLogo({
 }: BrandLogoProps) {
   const uid = useId().replace(/:/g, "");
   const { resolvedTheme, theme } = useTheme();
-  const activeTheme = resolvedTheme || theme;
+  const [domTheme, setDomTheme] = useState<"light" | "dark" | null>(() => getDomThemeClass());
+
+  useEffect(() => {
+    if (typeof document === "undefined" || typeof MutationObserver === "undefined") return;
+    setDomTheme(getDomThemeClass());
+    const observer = new MutationObserver(() => {
+      setDomTheme(getDomThemeClass());
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  const nextTheme = resolvedTheme || theme;
+  const effectiveTheme = domTheme || (nextTheme === "light" ? "light" : nextTheme === "dark" ? "dark" : null);
 
   const resolvedZMode: "white" | "black" | "css" =
     forceZColor === "white" || variant === "dark"
       ? "white"
       : forceZColor === "black" || variant === "light"
         ? "black"
-        : activeTheme === "light"
+        : effectiveTheme === "light"
           ? "black"
-          : activeTheme === "dark"
+          : effectiveTheme === "dark"
             ? "white"
             : "css";
 
