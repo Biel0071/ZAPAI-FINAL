@@ -485,10 +485,14 @@ export default function Campaigns() {
         };
       });
 
+      const normalizedContactKeys = new Set(
+        normalizedContacts.map((contact) => normalizePhone(contact.phone) || String(contact.id || "").trim())
+      );
+
       const orphanConversations = (Array.isArray(conversationsData) ? conversationsData : [])
         .filter((conversation) => {
           const conversationPhone = normalizePhone(conversation.phone) || String(conversation.id || "").trim();
-          return !normalizedContacts.some((contact) => (normalizePhone(contact.phone) || String(contact.id || "").trim()) === conversationPhone);
+          return !normalizedContactKeys.has(conversationPhone);
         })
         .map((conv) => ({
           id: conv.id,

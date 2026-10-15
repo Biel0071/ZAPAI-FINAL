@@ -31,11 +31,12 @@ async function listContacts(req, res) {
     if (hasDatabaseEnabled(req)) {
       try {
         const companyId = req.query?.companyId || req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default';
-        const requestedLimit = Number(req.query?.limit) || 5000;
+        const requestedLimit = Number(req.query?.limit) || 2000;
         const limit = Math.min(Math.max(requestedLimit, 1), 10000);
+        const forceRefresh = req.query?.refresh === 'true' || req.query?.force === 'true';
         const conversations = await conversationRepository.listConversations(companyId, limit, {
           requireMessages: true,
-          useCache: false,
+          useCache: !forceRefresh,
         });
         // Contacts are a projection of real system conversations. Imported or
         // orphan leads stay out of this screen until a conversation exists.
