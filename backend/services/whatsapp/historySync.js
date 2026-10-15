@@ -145,6 +145,10 @@ class HistorySync {
     }
     this.notifyImported(companyId, sessionId, importedConversationIds, syncMetadata);
 
+    if (syncMetadata?.fastAppendOnly) {
+      return [...importedConversationIds];
+    }
+
     if (!processedAny) {
       if (await this.seedStoredMessages(companyId, sessionId)) return;
     }

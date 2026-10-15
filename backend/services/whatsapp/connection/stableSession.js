@@ -1728,7 +1728,7 @@ async function createStableSession({
       await hSync.receive(normalizedSessionName, messages || [])
         .then(async () => {
           try {
-            await hSync.process(session.companyId || 'default', normalizedSessionName);
+            await hSync.process(session.companyId || 'default', normalizedSessionName, { fastAppendOnly: true });
             const activeIo = io || session.io || global.io;
             if (activeIo) {
               activeIo.emit('conversation:update', { sessionId: normalizedSessionName });
