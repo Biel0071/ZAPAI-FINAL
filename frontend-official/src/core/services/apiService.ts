@@ -954,7 +954,11 @@ function normalizeConversation(item: RawConversation, index: number): Conversati
     sessionId,
     contactName: item.contactName ?? item.name ?? item.pushName ?? resolvedPhone ?? "Contato",
     avatar: item.avatar ?? item.profilePictureUrl ?? item.profile_picture_url,
-    isGroup: item.isGroup ?? resolvedPhone.includes("@g.us"),
+    isGroup: Boolean(
+      item.isGroup ||
+      resolvedPhone.includes("@g.us") ||
+      String(item.remoteJid ?? item.remote_jid ?? item.chatId ?? item.chat_id ?? item.jid ?? "").toLowerCase().includes("@g.us")
+    ),
     lastMessage: sanitizeLegacyPlaceholder(item.lastMessage ?? item.last_message ?? "", String(normalizedType)),
     lastMessageAt: lastMessageAt == null ? null : String(lastMessageAt),
     updatedAt: item.updatedAt ?? item.updated_at ?? new Date().toISOString(),

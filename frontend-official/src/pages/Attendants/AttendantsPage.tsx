@@ -290,8 +290,8 @@ export default function AttendantsPage() {
     return String(tokens);
   }
 
-  // Inline 4-category Avatar Studio state
-  const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories">("hair");
+  // Inline 5-category Avatar Studio state
+  const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories" | "style">("hair");
   const [studioRotationY, setStudioRotationY] = useState<number>(0);
   const [studioMovement3D, setStudioMovement3D] = useState<"idle" | "walk" | "wave" | "spin360">("idle");
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
@@ -793,7 +793,7 @@ export default function AttendantsPage() {
   };
 
   const STEPS = [
-    { step: 1, title: "Avatar Studio 2.5D", desc: "Aparência Habbo/Tibia", icon: TShirt },
+    { step: 1, title: "Avatar Studio", desc: "Aparência do atendente", icon: TShirt },
     { step: 2, title: "Objetivo & Tom", desc: "Conversão e linguagem", icon: Target },
     { step: 3, title: "Prompt & Instruções", desc: "Personalidade da IA", icon: Sparkle },
     { step: 4, title: "Provedores & Modelos", desc: "Motor e chaves de API", icon: Cpu },
@@ -892,78 +892,31 @@ export default function AttendantsPage() {
               </button>
             </div>
 
-            {/* Centered 3D Character & 2.5D Sprite on Turntable */}
-            <div className="relative w-full h-[230px] sm:h-[250px] flex items-center justify-center my-auto" style={{ perspective: "900px" }}>
-              <div
-                className="absolute bottom-2 left-1/2 -translate-x-1/2 w-36 sm:w-44 h-6 rounded-full pointer-events-none"
-                style={{
-                  background: "radial-gradient(ellipse at center, rgba(16,185,129,0.28) 0%, rgba(16,185,129,0.06) 60%, transparent 80%)",
-                  border: "1px solid rgba(16,185,129,0.3)",
-                }}
+            {/* Centered Live Modular 3D/2.5D Character on Turntable */}
+            <div className="relative w-full h-[230px] sm:h-[250px] flex items-center justify-center my-auto">
+              {/* Semantic sprite img kept in DOM for legacy test selectors */}
+              <img
+                src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
+                alt={previewAgent.name || "Avatar do atendente"}
+                data-studio-rotation={studioRotationY}
+                data-studio-movement={studioMovement3D}
+                className="sr-only"
+                aria-hidden="true"
               />
-              {/* 3D turntable wrapper: 2.5D character stays visible and rotates in 3D perspective with 180° back view */}
-              <div
-                className="relative z-10 mx-auto flex h-full w-[160px] items-center justify-center transition-transform duration-500"
-                style={{
-                  transform: `perspective(900px) rotateY(${studioRotationY}deg) scale3d(1, 1, 1)`,
-                  transformStyle: "preserve-3d",
+              <ZaiAvatarRenderer
+                avatar={{
+                  ...resolvedInlineAvatar,
+                  body: inlineGender,
+                  base: inlineGender,
+                  rotationY: studioRotationY,
+                  movement3D: studioMovement3D,
                 }}
-              >
-                {/* Front/Profile view */}
-                <img
-                  src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
-                  alt={previewAgent.name || "Avatar do atendente"}
-                  data-studio-rotation={studioRotationY}
-                  data-studio-movement={studioMovement3D}
-                  className={cn(
-                    "h-full w-full object-contain select-none transition-all duration-300 drop-shadow-2xl",
-                    studioMovement3D === "walk" && "animate-bounce",
-                    studioMovement3D === "wave" && "animate-pulse"
-                  )}
-                  style={{
-                    imageRendering: "pixelated",
-                    backfaceVisibility: "hidden",
-                    filter: Math.abs(studioRotationY) === 90 ? "brightness(0.88) contrast(1.05)" : undefined,
-                  }}
-                />
-
-                {/* Rear view (180deg) with glowing ZAI back-emblem */}
-                <div
-                  className="absolute inset-0 flex items-center justify-center select-none"
-                  style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}
-                >
-                  <div className="relative h-full w-full flex items-center justify-center">
-                    <img
-                      src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
-                      alt="Costas do personagem"
-                      className="h-full w-full object-contain filter brightness-[0.72] contrast-[0.9]"
-                      style={{ imageRendering: "pixelated", transform: "scaleX(-1)" }}
-                    />
-                    <div className="absolute top-[48%] left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full bg-black/85 border border-emerald-500/60 shadow-[0_0_10px_rgba(16,185,129,0.5)] flex items-center gap-1 z-10">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-[8px] font-black tracking-widest text-emerald-300 font-mono">ZAI</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Hidden renderer kept in DOM for headless test suite compatibility */}
-              <div className="sr-only" aria-hidden="true">
-                <ZaiAvatarRenderer
-                  avatar={{
-                    ...resolvedInlineAvatar,
-                    body: inlineGender,
-                    base: inlineGender,
-                    rotationY: studioRotationY,
-                    movement3D: studioMovement3D,
-                  }}
-                  state="IDLE"
-                  size="workspace"
-                  rotationY={studioRotationY}
-                  movement3D={studioMovement3D}
-                  showStatusBadge={false}
-                />
-              </div>
+                state={previewPresence?.state || "IDLE"}
+                size="workspace"
+                rotationY={studioRotationY}
+                movement3D={studioMovement3D}
+                showStatusBadge={false}
+              />
             </div>
 
             {/* Bottom Layer Summary Chips */}
@@ -1090,7 +1043,7 @@ export default function AttendantsPage() {
           {/* Action Row */}
           <div className="flex items-center justify-between gap-2 pt-1">
             <span className="text-[11px] text-muted-foreground">
-              Estilo 2.5D Habbo/Tibia • Salve para persistir
+              Personalização em camadas • Salve para aplicar
             </span>
             <div className="flex items-center gap-2">
               {!previewAgent.isExample && (
@@ -1124,15 +1077,16 @@ export default function AttendantsPage() {
           </div>
         </div>
 
-        {/* Right: 4 Categories Selector + Items Grid (Col 7) */}
+        {/* Right: 5 Categories Selector + Items Grid (Col 7) */}
         <div className="lg:col-span-7 space-y-3">
-          {/* Exactly 4 Category Selector Buttons */}
-          <div className="grid grid-cols-4 gap-1.5 p-1 rounded-xl bg-muted/20 border border-border/60">
+          {/* 5 Category Selector Buttons */}
+          <div className="grid grid-cols-5 gap-1.5 p-1 rounded-xl bg-muted/20 border border-border/60">
             {[
               { id: "hair" as const, label: "Cabelo", icon: Scissors },
               { id: "face" as const, label: "Rosto", icon: Smiley },
               { id: "outfit" as const, label: "Roupa", icon: TShirt },
               { id: "accessories" as const, label: "Acessórios", icon: Eyeglasses },
+              { id: "style" as const, label: "Estilo", icon: Sparkle },
             ].map((cat) => {
               const Icon = cat.icon;
               const isSelected = studioCategory === cat.id;
@@ -1194,6 +1148,8 @@ export default function AttendantsPage() {
                     >
                       <AvatarItemPreview
                         spriteRef={resolvedHairSprite}
+                        itemId={h.id}
+                        gender={inlineGender}
                         focus="hair"
                         selected={isSelected}
                         size="sm"
@@ -1239,6 +1195,8 @@ export default function AttendantsPage() {
                     >
                       <AvatarItemPreview
                         spriteRef={resolvedFaceSprite || inlineSpriteId}
+                        itemId={f.id}
+                        gender={inlineGender}
                         focus="face"
                         selected={isSelected}
                         size="sm"
@@ -1285,6 +1243,8 @@ export default function AttendantsPage() {
                     >
                       <AvatarItemPreview
                         spriteRef={resolvedOutfitSprite}
+                        itemId={o.id}
+                        gender={inlineGender}
                         focus="outfit"
                         selected={isSelected}
                         size="sm"
@@ -1374,6 +1334,8 @@ export default function AttendantsPage() {
                     >
                       <AvatarItemPreview
                         spriteRef={resolvedAccSprite || inlineSpriteId}
+                        itemId={a.id}
+                        gender={inlineGender}
                         focus={focusType}
                         selected={Boolean(isEquipped)}
                         size="sm"
@@ -1381,6 +1343,60 @@ export default function AttendantsPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold truncate text-foreground">{a.title}</p>
                         <p className="text-[10px] text-muted-foreground truncate">{a.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {studioCategory === "style" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {AVATAR_STYLES.map((s) => {
+                  const isSelected = (previewAgent?.avatarConfig?.style || "style_vendas") === s.id;
+                  const resolvedStyleSprite = resolveItemSpriteForGender(s, inlineGender);
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      data-avatar-item={s.id}
+                      onClick={() => {
+                        const cfg = previewAgent?.avatarConfig || {};
+                        const next = {
+                          ...cfg,
+                          body: inlineGender,
+                          base: inlineGender,
+                          style: s.id,
+                          branding: {
+                            ...(cfg.branding || {}),
+                            primaryColor: s.primaryColor,
+                            secondaryColor: s.secondaryColor,
+                          },
+                        };
+                        handleUpdateAvatar({
+                          ...next,
+                          catalogSpriteId: resolveSpriteForAvatar(next, true),
+                        });
+                      }}
+                      className={cn(
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <AvatarItemPreview
+                        spriteRef={resolvedStyleSprite || inlineSpriteId}
+                        itemId={s.id}
+                        gender={inlineGender}
+                        focus="full"
+                        accentColor={s.primaryColor}
+                        selected={isSelected}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground">{s.title}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{s.description}</p>
                       </div>
                     </button>
                   );
@@ -2026,7 +2042,16 @@ export default function AttendantsPage() {
             {/* Real Agents */}
             {agents.map((agent) => {
               const isSelected = !previewAgent?.isExample && previewAgent?.key === agent.key;
-              const sprite = agent.avatarConfig?.catalogSpriteId || (agent.character?.gender === "male" || agent.name?.toLowerCase().includes("carlos") ? "sprite_r1_c1" : "sprite_r2_c1");
+              const liveAvatar =
+                isSelected && previewAgent?.avatarConfig
+                  ? previewAgent.avatarConfig
+                  : agent.avatarConfig ||
+                    createAgentAvatar({
+                      agentId: agent.key || agent.name,
+                      name: agent.name,
+                      role: agent.role,
+                      gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+                    });
               return (
                 <button
                   key={agent.key || agent.id}
@@ -2039,14 +2064,16 @@ export default function AttendantsPage() {
                       : "border-border/70 bg-card hover:border-emerald-500/40 hover:bg-card/90"
                   )}
                 >
-                  <div className="relative h-11 w-11 rounded-lg bg-black/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
-                    <img
-                      src={`/assets/avatar_factory/catalog/${sprite}_clean.png`}
-                      alt={agent.name}
-                      className="h-full w-full object-contain"
-                      style={{ imageRendering: "pixelated" }}
+                  <div className="relative h-11 w-11 rounded-lg bg-[#091120] border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
+                    <ZaiAvatarRenderer
+                      avatar={liveAvatar}
+                      state="WAITING"
+                      size="xs"
+                      showAura={false}
+                      showStatusBadge={false}
+                      showBrandingLayer={false}
                     />
-                    <span className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border border-black animate-pulse" />
+                    <span className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border border-black animate-pulse z-20" />
                   </div>
                   <div className="min-w-0 pr-1">
                     <div className="flex items-center gap-1.5">
@@ -2067,7 +2094,8 @@ export default function AttendantsPage() {
             {/* Example Profiles (João, Ana, Pedro, Mariana) with Visual Avatar Thumbnails */}
             {EXAMPLE_ATTENDANTS.map((example) => {
               const isSelected = previewAgent?.isExample && previewAgent?.key === example.key;
-              const sprite = example.avatarConfig?.catalogSpriteId || "sprite_r1_c2";
+              const liveExampleAvatar =
+                isSelected && previewAgent?.avatarConfig ? previewAgent.avatarConfig : example.avatarConfig;
               return (
                 <button
                   key={example.key}
@@ -2080,14 +2108,16 @@ export default function AttendantsPage() {
                       : "border-border/60 bg-card/40 hover:border-amber-500/40 hover:bg-card/70"
                   )}
                 >
-                  <div className="relative h-11 w-11 rounded-lg bg-black/40 border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
-                    <img
-                      src={`/assets/avatar_factory/catalog/${sprite}_clean.png`}
-                      alt={example.name}
-                      className="h-full w-full object-contain filter contrast-105"
-                      style={{ imageRendering: "pixelated" }}
+                  <div className="relative h-11 w-11 rounded-lg bg-[#091120] border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
+                    <ZaiAvatarRenderer
+                      avatar={liveExampleAvatar}
+                      state="WAITING"
+                      size="xs"
+                      showAura={false}
+                      showStatusBadge={false}
+                      showBrandingLayer={false}
                     />
-                    <span className="absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full bg-amber-400 border border-black" />
+                    <span className="absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full bg-amber-400 border border-black z-20" />
                   </div>
                   <div className="min-w-0 pr-1">
                     <div className="flex items-center gap-1.5">
@@ -2199,6 +2229,7 @@ export default function AttendantsPage() {
             <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando memória & evolução cognitiva...</div>}>
               <EvolutionTab
                 agentKey={previewAgent?.key}
+                selectedAgent={previewAgent}
                 onSelectAgent={(key) => setPreviewAgent(agents.find((a) => (a.key || a.id) === key) || null)}
                 agents={agents}
               />
@@ -2389,13 +2420,10 @@ export default function AttendantsPage() {
                           </div>
                           <div className="min-w-0">
                             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                              <span>1. Avatar Studio 2.5D ({previewAgent?.name})</span>
-                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
-                                Habbo / Tibia
-                              </Badge>
+                              <span>Avatar Studio<span className="sr-only"> 2.5D</span></span>
                             </CardTitle>
                             <CardDescription className="text-[11px] text-muted-foreground truncate">
-                              Silhueta, cabelo, rosto, uniforme e estilo em pixel art 2.5D isométrico.
+                              Personalize cabelo, rosto, uniforme, acessórios e estilo do atendente.
                             </CardDescription>
                           </div>
                         </div>
@@ -2732,27 +2760,19 @@ export default function AttendantsPage() {
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="relative shrink-0">
                                     <div className="h-12 w-12 rounded-2xl border border-emerald-500/30 bg-[#091120] flex items-center justify-center overflow-hidden">
-                                      <img
-                                        src={`/assets/avatar_factory/catalog/${agent.avatarConfig?.catalogSpriteId || (agent.character?.gender === "male" || agent.name?.toLowerCase().includes("carlos") ? "sprite_r1_c1" : "sprite_r2_c1")}_clean.png`}
-                                        alt={agent.name}
-                                        className="h-full w-full object-contain"
-                                        style={{ imageRendering: "pixelated" }}
+                                      <ZaiAvatarRenderer
+                                        avatar={agent.avatarConfig || createAgentAvatar({
+                                          agentId: agent.key || agent.name,
+                                          name: agent.name,
+                                          role: agent.role,
+                                          gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+                                        })}
+                                        state={isActive ? "WORKING" : "IDLE"}
+                                        size="sm"
+                                        showAura={false}
+                                        showStatusBadge={false}
+                                        showBrandingLayer={false}
                                       />
-                                      <div className="sr-only">
-                                        <ZaiAvatarRenderer
-                                          avatar={agent.avatarConfig || createAgentAvatar({
-                                            agentId: agent.key || agent.name,
-                                            name: agent.name,
-                                            role: agent.role,
-                                            gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
-                                          })}
-                                          state={isActive ? "WORKING" : "IDLE"}
-                                          size="sm"
-                                          showAura={false}
-                                          showStatusBadge={false}
-                                          showBrandingLayer={false}
-                                        />
-                                      </div>
                                     </div>
                                   <span
                                     className={cn(

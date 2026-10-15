@@ -73,10 +73,19 @@ function mapConversation(row) {
     return null;
   }
 
-  let resolvedPhone = row.mapped_phone || row.phone;
+  const isGroup =
+    Boolean(row.is_group) ||
+    String(row.remote_jid || '').toLowerCase().endsWith('@g.us') ||
+    String(row.phone || '').toLowerCase().endsWith('@g.us');
+
+  let resolvedPhone = isGroup
+    ? (String(row.remote_jid || row.phone || '').endsWith('@g.us')
+        ? String(row.remote_jid || row.phone)
+        : `${String(row.remote_jid || row.phone || '').replace(/@.*$/, '')}@g.us`)
+    : (row.mapped_phone || row.phone);
   let rawLid = null;
   const candidatePhone = String(row.phone || row.remote_jid || '');
-  if (candidatePhone) {
+  if (candidatePhone && !isGroup) {
     const cleanPhone = candidatePhone.replace(/@.*$/, '').replace(/\D/g, '');
     if (candidatePhone.includes('@lid') || (cleanPhone.length >= 14 && cleanPhone.length <= 16 && !cleanPhone.startsWith('55'))) {
       rawLid = cleanPhone;
@@ -88,15 +97,19 @@ function mapConversation(row) {
     }
   }
 
-  let displayName = row.name || 'Contato';
+  let displayName = row.name || (isGroup ? 'Grupo WhatsApp' : 'Contato');
   const rawName = String(displayName).trim();
   const nameWithoutDomain = rawName.replace(/@.*$/, '');
   const nameDigits = nameWithoutDomain.replace(/\D/g, '');
   const isRawLidName =
-    rawName.includes('@lid') ||
-    (/^\d{14,16}$/.test(nameWithoutDomain) && !nameWithoutDomain.startsWith('55'));
+    !isGroup &&
+    (rawName.includes('@lid') ||
+      (/^\d{14,16}$/.test(nameWithoutDomain) && !nameWithoutDomain.startsWith('55')));
 
-  if (isRawLidName) {
+  if (isGroup && (rawName.endsWith('@g.us') || /^\d{10,22}(-\d+)?$/.test(nameWithoutDomain))) {
+    const shortGroup = (nameDigits || String(row.id || '0000')).slice(-4);
+    displayName = `Grupo WhatsApp #${shortGroup}`;
+  } else if (isRawLidName) {
     const cleanResolved = String(resolvedPhone || '').replace(/@.*$/, '').replace(/\D/g, '');
     if (cleanResolved && (cleanResolved.length <= 13 || cleanResolved.startsWith('55')) && cleanResolved !== rawLid) {
       displayName = cleanResolved;
@@ -117,6 +130,7 @@ function mapConversation(row) {
     funnel_stage: row.funnel_stage || 'new_lead',
     id: row.id,
     chatId: row.remote_jid,
+    isGroup,
     lastMessage: row.last_message || '',
     lastMessageType: row.last_message_type || 'text',
     lead_id: row.lead_id,
@@ -136,7 +150,7 @@ function mapConversation(row) {
     tags: Array.isArray(row.tags) ? row.tags : [],
     unreadCount: Number(row.unread_count) || 0,
     updatedAt: row.updated_at,
-    lastMessageAt: row.last_message_at || row.created_at,
+    lastMessageAt: row.last_message_at || row.updated_at || row.created_at,
     isBlocked: !!row.is_blocked,
   };
 }
@@ -557,6 +571,7 @@ async function updateConversationAfterMessage(conversationId, content, type = 't
       SET last_message = $1,
           last_message_type = $2,
           last_message_at = $3,
+          status = CASE WHEN status = 'archived' AND remote_jid LIKE '%@g.us' THEN 'open' ELSE status END,
           updated_at = NOW()
       WHERE id = $4
       RETURNING id
@@ -625,8 +640,7 @@ async function listConversations(companyId, limit = 50, options = {}) {
 
   const result = await query(
     `
-      SELECT *
-      FROM (
+      WITH deduplicated AS (
         SELECT DISTINCT ON (conv.company_id, COALESCE(conv.remote_jid, l.phone, conv.id::text), COALESCE(NULLIF(conv.session_id, ''), 'main'))
           conv.id,
           conv.company_id,
@@ -649,8 +663,9 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.unread_count,
           conv.created_at,
           conv.updated_at,
-          COALESCE(
+          GREATEST(
             conv.last_message_at,
+            conv.updated_at AT TIME ZONE 'UTC',
             conv.created_at AT TIME ZONE 'UTC'
           ) as last_message_at,
           COALESCE(lid_map.phone, l.phone, conv.remote_jid) as phone,
@@ -665,12 +680,21 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.company_id,
           COALESCE(conv.remote_jid, l.phone, conv.id::text),
           COALESCE(NULLIF(conv.session_id, ''), 'main'),
-          COALESCE(conv.last_message_at, conv.created_at AT TIME ZONE 'UTC') DESC,
+          GREATEST(conv.last_message_at, conv.updated_at AT TIME ZONE 'UTC', conv.created_at AT TIME ZONE 'UTC') DESC,
           conv.id DESC
-      ) deduplicated
-      ${searchClause}
+      ),
+      filtered AS (
+        SELECT *
+        FROM deduplicated
+        ${searchClause}
+      )
+      SELECT *
+      FROM (
+        (SELECT * FROM filtered ORDER BY last_message_at DESC LIMIT $${values.length})
+        UNION
+        (SELECT * FROM filtered WHERE remote_jid LIKE '%@g.us' OR phone LIKE '%@g.us' ORDER BY last_message_at DESC LIMIT 30)
+      ) combined
       ORDER BY last_message_at DESC
-      LIMIT $${values.length}
     `,
     values
   );

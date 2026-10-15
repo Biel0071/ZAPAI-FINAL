@@ -139,9 +139,12 @@ export default function Inbox() {
           return false;
         }
 
-        const isArchived = archivedSet.has(conversationId) || String(conversation.status).toLowerCase() === "archived";
+        const isArchived =
+          archivedSet.has(conversationId) ||
+          (!conversation.isGroup && String(conversation.status).toLowerCase() === "archived");
         if (state.filter === "archived") {
-          if (!isArchived) return false;
+          const isGroupArchived = conversation.isGroup && String(conversation.status).toLowerCase() === "archived";
+          if (!isArchived && !isGroupArchived) return false;
         } else if (isArchived) return false;
         if (state.filter === "unread" && (Number(conversation.unread) || 0) <= 0 && (Number(conversation.unreadCount) || 0) <= 0) return false;
         if (state.filter === "ai") {
@@ -171,6 +174,11 @@ export default function Inbox() {
         const bPinned = pinnedSet.has(String(b.id));
         if (aPinned && !bPinned) return -1;
         if (!aPinned && bPinned) return 1;
+
+        if (showGroups) {
+          if (a.isGroup && !b.isGroup) return -1;
+          if (!a.isGroup && b.isGroup) return 1;
+        }
 
         const aDraftTime = state.draftsByConversationId[a.id]?.timestamp ?? 0;
         const bDraftTime = state.draftsByConversationId[b.id]?.timestamp ?? 0;

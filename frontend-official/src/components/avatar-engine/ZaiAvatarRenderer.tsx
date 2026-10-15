@@ -131,10 +131,12 @@ function ModularLayerAvatar({
   const rad = (angle * Math.PI) / 180;
   const sinA = Math.sin(rad);
   const cosA = Math.cos(rad);
-  const isBackView = cosA < -0.25; // ~105° to 255° is looking at the character's back
-  const faceShiftX = Math.round(sinA * 6.5 * 10) / 10; // Shifts head/facial features horizontally as character turns
-  const torsoShiftX = Math.round(sinA * 3 * 10) / 10;
-  const bodyScaleX = Math.round((0.82 + 0.18 * Math.abs(cosA)) * 100) / 100; // Narrower profile silhouette at 90°/270°
+  const isBackView = cosA < -0.35; // 135°, 180°, 225° -> true back view
+  const isProfileView = Math.abs(cosA) <= 0.35; // 90°, 270° -> true side profile view
+  const profileDir = sinA >= 0 ? 1 : -1; // +1 facing right (90°), -1 facing left (270°)
+  const faceShiftX = isProfileView ? profileDir * 2.2 : Math.round(sinA * 3.2 * 10) / 10;
+  const torsoShiftX = Math.round(sinA * 2.4 * 10) / 10;
+  const bodyScaleX = isProfileView ? 0.88 : Math.round((0.88 + 0.12 * Math.abs(cosA)) * 100) / 100;
 
   // Resolve Hair Style & Palette
   const hairId = avatar.hair || (isFemale ? "hair_01" : "hair_05");
@@ -204,6 +206,18 @@ function ModularLayerAvatar({
           <stop offset="70%" stopColor={primaryBrandColor} stopOpacity="0.12" />
           <stop offset="100%" stopColor="transparent" stopOpacity="0" />
         </radialGradient>
+        {/* 3D Volumetric Skin Shading */}
+        <linearGradient id={`skinGrad-${skinKey}`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={skin.highlight} />
+          <stop offset="55%" stopColor={skin.base} />
+          <stop offset="100%" stopColor={skin.shadow} />
+        </linearGradient>
+        {/* 3D Volumetric Hair Shading */}
+        <linearGradient id={`hairGrad-${hairColorKey}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={hairColor.highlight} />
+          <stop offset="35%" stopColor={hairColor.base} />
+          <stop offset="100%" stopColor={hairColor.shadow} />
+        </linearGradient>
         {/* Chest Logo Pattern */}
         <clipPath id="headClip">
           <rect x="34" y="24" width="32" height="42" rx="14" />
@@ -299,7 +313,9 @@ function ModularLayerAvatar({
             width={isFemale ? "29" : "31"}
             height="38"
             rx={isFemale ? "14" : "10"}
-            fill={skin.base}
+            fill={`url(#skinGrad-${skinKey})`}
+            stroke="#090d16"
+            strokeWidth="0.8"
           />
           {/* Jaw & Chin highlight / shadow */}
           <rect
@@ -308,18 +324,37 @@ function ModularLayerAvatar({
             width={isFemale ? "22" : "26"}
             height="12"
             rx={isFemale ? "7" : "4"}
-            fill={skin.base}
+            fill={`url(#skinGrad-${skinKey})`}
           />
-          <rect x="42" y="60" width="16" height="4" rx="2" fill={skin.shadow} fillOpacity="0.4" />
+          <rect x="42" y="60" width="16" height="4" rx="2" fill={skin.shadow} fillOpacity="0.45" />
 
-          {/* Ears */}
-          <rect x="33" y="44" width="3" height="7" rx="1.5" fill={skin.shadow} />
-          <rect x="64" y="44" width="3" height="7" rx="1.5" fill={skin.shadow} />
+          {/* 3D Side Profile Nose Bridge when at 90° / 270° */}
+          {isProfileView && (
+            <polygon
+              points={
+                profileDir > 0
+                  ? "63,44 68.5,50 63,52.5"
+                  : "37,44 31.5,50 37,52.5"
+              }
+              fill={skin.base}
+              stroke={skin.shadow}
+              strokeWidth="0.7"
+            />
+          )}
+
+          {/* Ears (occluded on far side when turned) */}
+          {(!isProfileView ? sinA > -0.65 : profileDir < 0) && (
+            <rect x={isProfileView ? "47" : "33"} y="44" width="3.2" height="7" rx="1.5" fill={skin.shadow} />
+          )}
+          {(!isProfileView && sinA < 0.65) && (
+            <rect x="64" y="44" width="3.2" height="7" rx="1.5" fill={skin.shadow} />
+          )}
         </g>
 
         {/* Arms / Hands */}
         {/* Left Arm (holds tablet if equipped) */}
-        <g id="limb-arm-left">
+        {(!isProfileView || profileDir < 0) && (
+        <g id="limb-arm-left" transform={isProfileView ? "translate(16, 0)" : undefined}>
           {isWalking && (
             <animateTransform
               attributeName="transform"
@@ -332,9 +367,11 @@ function ModularLayerAvatar({
           <rect x={isFemale ? "28" : "24"} y="72" width={isFemale ? "6.5" : "8"} height="24" rx="3.5" fill={skin.shadow} />
           <circle cx={isFemale ? "31" : "28"} cy="97" r={isFemale ? "3.2" : "3.8"} fill={skin.base} />
         </g>
+        )}
 
         {/* Right Arm (waves when movement3D === "wave") */}
-        <g id="limb-arm-right">
+        {(!isProfileView || profileDir > 0) && (
+        <g id="limb-arm-right" transform={isProfileView ? "translate(-16, 0)" : undefined}>
           {isWaving && (
             <animateTransform
               attributeName="transform"
@@ -356,10 +393,53 @@ function ModularLayerAvatar({
           <rect x={isFemale ? "65.5" : "68"} y="72" width={isFemale ? "6.5" : "8"} height="24" rx="3.5" fill={skin.shadow} />
           <circle cx={isFemale ? "68.5" : "72"} cy="97" r={isFemale ? "3.2" : "3.8"} fill={skin.base} />
         </g>
+        )}
       </g>
 
       {/* ── LAYER 3: ROSTO (5ª Categoria oficial: Olhos, Boca, Expressão) ─ */}
-      {!isBackView && (
+      {!isBackView && isProfileView && (
+        <g id="layer-face-profile">
+          {/* Single Side-Profile Eye + Brow + Smile */}
+          <rect
+            x={profileDir > 0 ? "55" : "40"}
+            y="42"
+            width="5.5"
+            height="1.6"
+            rx="0.6"
+            fill={hairColor.shadow}
+          />
+          <rect
+            x={profileDir > 0 ? "56" : "40"}
+            y="45"
+            width="4.2"
+            height="5"
+            rx="1.2"
+            fill="#18181b"
+          />
+          <rect
+            x={profileDir > 0 ? "58" : "40.5"}
+            y="46"
+            width="1.6"
+            height="2"
+            fill={faceId === "face_02" || faceId === "face_05" ? "#38bdf8" : faceId === "face_04" || faceId === "face_06" ? "#10b981" : "#ffffff"}
+          />
+          <circle
+            cx={profileDir > 0 ? "55" : "45"}
+            cy="53"
+            r="2.4"
+            fill={skin.blush}
+            fillOpacity="0.55"
+          />
+          <path
+            d={profileDir > 0 ? "M 55 56 Q 59 58 62 55.5" : "M 45 56 Q 41 58 38 55.5"}
+            stroke="#991b1b"
+            strokeWidth="1.6"
+            fill="none"
+            strokeLinecap="round"
+          />
+        </g>
+      )}
+      {!isBackView && !isProfileView && (
       <g id="layer-face" transform={`translate(${faceShiftX}, 0)`}>
         {/* Female Eyelashes Accent vs Male Stronger Brow Ridge */}
         {isFemale ? (
@@ -809,15 +889,41 @@ function ModularLayerAvatar({
           <g id="acc-headset" transform={`translate(${faceShiftX * 0.45}, 0)`}>
             {/* Headband over crown */}
             <path d="M 33 38 Q 50 19 67 38" stroke="#0f172a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-            {/* Left Ear Cushion */}
-            <rect x="31" y="38" width="4.5" height="10" rx="2" fill="#1e293b" stroke="#00f090" strokeWidth="0.8" />
+            {/* Ear Cushion (centered on ear in profile view) */}
+            <rect
+              x={isProfileView ? (profileDir > 0 ? "46" : "49") : "31"}
+              y="38"
+              width="5"
+              height="10"
+              rx="2"
+              fill="#1e293b"
+              stroke="#00f090"
+              strokeWidth="0.8"
+            />
             {!isBackView && (
               <>
                 {/* Curved Microphone Boom */}
-                <path d="M 33 46 Q 36 57 44 56" stroke="#0f172a" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+                <path
+                  d={isProfileView ? (profileDir > 0 ? "M 49 46 Q 55 56 61 55.5" : "M 51 46 Q 45 56 39 55.5") : "M 33 46 Q 36 57 44 56"}
+                  stroke="#0f172a"
+                  strokeWidth="1.8"
+                  fill="none"
+                  strokeLinecap="round"
+                />
                 {/* Glowing Emerald Microphone LED */}
-                <circle cx="44.5" cy="56" r="1.8" fill="#00f090" className={isTalking ? "animate-ping" : ""} />
-                <circle cx="44.5" cy="56" r="1.2" fill="#ffffff" />
+                <circle
+                  cx={isProfileView ? (profileDir > 0 ? "61.5" : "38.5") : "44.5"}
+                  cy="56"
+                  r="1.8"
+                  fill="#00f090"
+                  className={isTalking ? "animate-ping" : ""}
+                />
+                <circle
+                  cx={isProfileView ? (profileDir > 0 ? "61.5" : "38.5") : "44.5"}
+                  cy="56"
+                  r="1.2"
+                  fill="#ffffff"
+                />
               </>
             )}
           </g>
@@ -826,12 +932,21 @@ function ModularLayerAvatar({
         {/* Executive Glasses */}
         {hasGlasses && !isBackView && (
           <g id="acc-glasses" transform={`translate(${faceShiftX}, 0)`}>
-            <rect x="39" y="44" width="9" height="6.5" rx="1.5" fill="none" stroke="#0f172a" strokeWidth="1.5" />
-            <rect x="52" y="44" width="9" height="6.5" rx="1.5" fill="none" stroke="#0f172a" strokeWidth="1.5" />
-            <line x1="48" y1="47" x2="52" y2="47" stroke="#0f172a" strokeWidth="1.5" />
-            {/* Diagonal Lens Sheen */}
-            <line x1="41" y1="49" x2="45" y2="45" stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.8" />
-            <line x1="54" y1="49" x2="58" y2="45" stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.8" />
+            {isProfileView ? (
+              <>
+                <rect x={profileDir > 0 ? "54" : "38.5"} y="44" width="7.5" height="6.5" rx="1.5" fill="none" stroke="#0f172a" strokeWidth="1.5" />
+                <line x1={profileDir > 0 ? "48" : "52"} y1="46" x2={profileDir > 0 ? "54" : "46"} y2="46" stroke="#0f172a" strokeWidth="1.5" />
+              </>
+            ) : (
+              <>
+                <rect x="39" y="44" width="9" height="6.5" rx="1.5" fill="none" stroke="#0f172a" strokeWidth="1.5" />
+                <rect x="52" y="44" width="9" height="6.5" rx="1.5" fill="none" stroke="#0f172a" strokeWidth="1.5" />
+                <line x1="48" y1="47" x2="52" y2="47" stroke="#0f172a" strokeWidth="1.5" />
+                {/* Diagonal Lens Sheen */}
+                <line x1="41" y1="49" x2="45" y2="45" stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.8" />
+                <line x1="54" y1="49" x2="58" y2="45" stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.8" />
+              </>
+            )}
           </g>
         )}
 

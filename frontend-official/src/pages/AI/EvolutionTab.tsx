@@ -38,6 +38,7 @@ import {
   Check,
   X,
   FileCheck,
+  Calendar,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiService, requestApiEndpoint } from "@/core/services/apiService";
@@ -45,6 +46,8 @@ import { useToast } from "@/state/hooks/use-toast";
 import { cn } from "@/core/lib/utils";
 import { ActiveBrainGraph } from "@/components/evolution/ActiveBrainGraph";
 import { MemoryDetailDrawer, type MemoryNodeData } from "@/components/evolution/MemoryDetailDrawer";
+import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
+import { createAgentAvatar } from "@/components/avatar-engine/CharacterFactory";
 
 interface EvolutionOverview {
   score: number | null;
@@ -103,6 +106,7 @@ export interface EvolutionTabProps {
   agentKey?: string;
   onSelectAgent?: (key: string) => void;
   agents?: any[];
+  selectedAgent?: any;
 }
 
 const KNOWN_MEMORY_CATEGORIES = [
@@ -115,7 +119,7 @@ const KNOWN_MEMORY_CATEGORIES = [
   { id: "objection", label: "Objeções Resolvidas", color: "#8b5cf6" },
 ];
 
-export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }: EvolutionTabProps = {}) {
+export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, selectedAgent }: EvolutionTabProps = {}) {
   const { toast } = useToast();
   const onSelectAgentRef = useRef(onSelectAgent);
   onSelectAgentRef.current = onSelectAgent;
@@ -160,6 +164,29 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
   };
 
   const navigate = useNavigate();
+
+  const currentAgent = React.useMemo(() => {
+    if (selectedAgent && (!selectedAgentKey || (selectedAgent.key || selectedAgent.id) === selectedAgentKey)) {
+      return selectedAgent;
+    }
+    return agentsList.find((a) => (a.key || a.id) === selectedAgentKey) || selectedAgent || null;
+  }, [selectedAgent, agentsList, selectedAgentKey]);
+
+  const currentAvatarConfig = React.useMemo(() => {
+    if (currentAgent?.avatarConfig) return currentAgent.avatarConfig;
+    const name = currentAgent?.name || selectedAgentKey || "Atendente";
+    return createAgentAvatar({
+      agentId: currentAgent?.key || currentAgent?.id || selectedAgentKey || "default",
+      name,
+      role: currentAgent?.role || "Atendente",
+      gender: currentAgent?.character?.gender || (name.toLowerCase().includes("carlos") ? "male" : "female"),
+    });
+  }, [currentAgent, selectedAgentKey]);
+
+  // Date filter state ("all" | "today" | "7d" | "30d" | "custom")
+  const [dateFilter, setDateFilter] = useState<"all" | "today" | "7d" | "30d" | "custom">("all");
+  const [customDateStart, setCustomDateStart] = useState<string>("");
+  const [customDateEnd, setCustomDateEnd] = useState<string>("");
 
   // View sub-tabs & Active Brain Graph state
   const [evolutionSubTab, setEvolutionSubTab] = useState<"graph" | "list" | "timeline" | "cognitive">("graph");
@@ -376,8 +403,67 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
     }
   }, [selectedAgentKey, loadAgentData, loadAgentMemories]);
 
+  const matchesDateFilter = useCallback(
+    (rawDate?: string | number | null) => {
+      if (dateFilter === "all") return true;
+      if (!rawDate) return false;
+      const parsed = new Date(rawDate).getTime();
+      if (!Number.isFinite(parsed)) return false;
+
+      const now = new Date();
+      if (dateFilter === "today") {
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        return parsed >= startOfDay;
+      }
+      if (dateFilter === "7d") {
+        return parsed >= Date.now() - 7 * 24 * 60 * 60 * 1000;
+      }
+      if (dateFilter === "30d") {
+        return parsed >= Date.now() - 30 * 24 * 60 * 60 * 1000;
+      }
+      if (dateFilter === "custom") {
+        if (customDateStart) {
+          const startMs = new Date(`${customDateStart}T00:00:00`).getTime();
+          if (Number.isFinite(startMs) && parsed < startMs) return false;
+        }
+        if (customDateEnd) {
+          const endMs = new Date(`${customDateEnd}T23:59:59.999`).getTime();
+          if (Number.isFinite(endMs) && parsed > endMs) return false;
+        }
+        return true;
+      }
+      return true;
+    },
+    [dateFilter, customDateStart, customDateEnd]
+  );
+
+  const dateFilteredMemoryItems = React.useMemo(
+    () => memoryItems.filter((item) => matchesDateFilter(item.createdAt)),
+    [memoryItems, matchesDateFilter]
+  );
+
+  const dateFilteredLearnedPatterns = React.useMemo(
+    () => learnedPatterns.filter((p) => matchesDateFilter(p.learnedAt)),
+    [learnedPatterns, matchesDateFilter]
+  );
+
+  const dateFilteredCandidateSuggestions = React.useMemo(
+    () => candidateSuggestions.filter((s) => matchesDateFilter(s.created_at || s.createdAt || s.updated_at)),
+    [candidateSuggestions, matchesDateFilter]
+  );
+
+  const dateFilteredLearningEvents = React.useMemo(
+    () => learningEvents.filter((e) => matchesDateFilter(e.createdAt)),
+    [learningEvents, matchesDateFilter]
+  );
+
+  const dateFilteredHistoryLogs = React.useMemo(
+    () => historyLogs.filter((h) => matchesDateFilter(h.createdAt)),
+    [historyLogs, matchesDateFilter]
+  );
+
   const filteredMemories = React.useMemo(() => {
-    let items = memoryItems;
+    let items = dateFilteredMemoryItems;
     if (memoryCategory !== "todos") {
       items = items.filter((n) => n.type === memoryCategory);
     }
@@ -386,16 +472,16 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
       items = items.filter((n) => (n.label || "").toLowerCase().includes(q) || (n.desc || "").toLowerCase().includes(q));
     }
     return items;
-  }, [memoryItems, memoryCategory, memorySearch]);
+  }, [dateFilteredMemoryItems, memoryCategory, memorySearch]);
 
   const memoryCategories = React.useMemo(() => {
-    const presentTypes = new Set(memoryItems.map((memory) => memory.type || memory.category || "unknown"));
+    const presentTypes = new Set(dateFilteredMemoryItems.map((memory) => memory.type || memory.category || "unknown"));
     const knownIds = new Set(KNOWN_MEMORY_CATEGORIES.map((category) => category.id));
     const known = KNOWN_MEMORY_CATEGORIES
       .filter((category) => presentTypes.has(category.id))
       .map((category) => ({
         ...category,
-        count: memoryItems.filter((memory) => (memory.type || memory.category) === category.id).length,
+        count: dateFilteredMemoryItems.filter((memory) => (memory.type || memory.category) === category.id).length,
       }));
     const additional = [...presentTypes]
       .filter((type) => !knownIds.has(type))
@@ -403,14 +489,14 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         id: type,
         label: type === "unknown" ? "Sem categoria" : type.replace(/[_-]/g, " ").replace(/^\w/, (letter) => letter.toLocaleUpperCase("pt-BR")),
         color: ["#14b8a6", "#f97316", "#a855f7", "#84cc16"][index % 4],
-        count: memoryItems.filter((memory) => (memory.type || memory.category || "unknown") === type).length,
+        count: dateFilteredMemoryItems.filter((memory) => (memory.type || memory.category || "unknown") === type).length,
       }));
     return [...known, ...additional];
-  }, [memoryItems]);
+  }, [dateFilteredMemoryItems]);
 
   useEffect(() => {
     setMemoryPage(1);
-  }, [memoryCategory, memorySearch]);
+  }, [memoryCategory, memorySearch, dateFilter, customDateStart, customDateEnd]);
 
   useEffect(() => {
     if (
@@ -613,14 +699,27 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
       {/* TOP HEADER: AGENT SELECTION & ACTIONS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-border/80 bg-card shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
-            <GraduationCap className="h-5 w-5" />
-          </div>
+          {selectedAgentKey ? (
+            <div className="h-12 w-12 rounded-2xl bg-[#091120] border border-purple-500/40 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+              <ZaiAvatarRenderer
+                avatar={currentAvatarConfig}
+                state={currentAgent?.active === false ? "IDLE" : "WORKING"}
+                size="sm"
+                showAura={false}
+                showStatusBadge={false}
+                showBrandingLayer={false}
+              />
+            </div>
+          ) : (
+            <div className="h-10 w-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <GraduationCap className="h-5 w-5" />
+            </div>
+          )}
           <div>
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
               Evolução & Memória do Atendente
               {selectedAgentKey && <Badge variant="outline" className="text-[10px] border-purple-500/40 text-purple-300 bg-purple-500/10 capitalize">
-                {agentsList.find((a) => (a.key || a.id) === selectedAgentKey)?.name || selectedAgentKey}
+                {currentAgent?.name || selectedAgentKey}
               </Badge>}
             </h3>
             <p className="text-xs text-muted-foreground">
@@ -698,7 +797,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {memoryLoading ? "…" : memoryError ? "—" : memoryItems.length}
+                {memoryLoading ? "…" : memoryError ? "—" : dateFilteredMemoryItems.length}
               </strong>
             </div>
           </div>
@@ -714,7 +813,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {isLoading ? "…" : loadError ? "—" : learnedPatterns.length}
+                {isLoading ? "…" : loadError ? "—" : dateFilteredLearnedPatterns.length}
               </strong>
             </div>
           </div>
@@ -756,63 +855,115 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         </div>
       </div>
 
-      {/* SUB-TABS: CÉREBRO ATIVO / MEMÓRIAS RELEVANTES / LINHA DO TEMPO / EVOLUÇÃO COGNITIVA */}
-      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/80 border border-border/70 w-fit flex-wrap">
-        <button
-          type="button"
-          onClick={() => setEvolutionSubTab("graph")}
-          className={cn(
-            "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
-            evolutionSubTab === "graph"
-              ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-          )}
-        >
-          <Brain className="h-4 w-4 text-purple-400" />
-          <span>Cérebro Ativo</span>
-        </button>
+      {/* SUB-TABS & DATE FILTER BAR */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/80 border border-border/70 w-fit flex-wrap">
+          <button
+            type="button"
+            onClick={() => setEvolutionSubTab("graph")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
+              evolutionSubTab === "graph"
+                ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+            )}
+          >
+            <Brain className="h-4 w-4 text-purple-400" />
+            <span>Cérebro Ativo</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setEvolutionSubTab("list")}
-          className={cn(
-            "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
-            evolutionSubTab === "list"
-              ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-          )}
-        >
-          <BookOpen className="h-4 w-4 text-purple-400" />
-          <span>Memórias Relevantes</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setEvolutionSubTab("list")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
+              evolutionSubTab === "list"
+                ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+            )}
+          >
+            <BookOpen className="h-4 w-4 text-purple-400" />
+            <span>Memórias Relevantes</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setEvolutionSubTab("timeline")}
-          className={cn(
-            "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
-            evolutionSubTab === "timeline"
-              ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-          )}
-        >
-          <History className="h-4 w-4 text-purple-400" />
-          <span>Linha do Tempo</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setEvolutionSubTab("timeline")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
+              evolutionSubTab === "timeline"
+                ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+            )}
+          >
+            <History className="h-4 w-4 text-purple-400" />
+            <span>Linha do Tempo</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setEvolutionSubTab("cognitive")}
-          className={cn(
-            "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
-            evolutionSubTab === "cognitive"
-              ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+          <button
+            type="button"
+            onClick={() => setEvolutionSubTab("cognitive")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
+              evolutionSubTab === "cognitive"
+                ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+            )}
+          >
+            <Sparkles className="h-4 w-4 text-purple-400" />
+            <span>Evolução Cognitiva</span>
+          </button>
+        </div>
+
+        {/* Date Filter Bar */}
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-card/80 border border-border/70 w-fit" data-testid="evolution-date-filter">
+          <span className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+            <Calendar className="h-3.5 w-3.5 text-purple-400" />
+            <span>Período:</span>
+          </span>
+          {(
+            [
+              { id: "all", label: "Geral" },
+              { id: "today", label: "Hoje" },
+              { id: "7d", label: "7D" },
+              { id: "30d", label: "30D" },
+              { id: "custom", label: "Personalizado" },
+            ] as const
+          ).map((period) => (
+            <button
+              key={period.id}
+              type="button"
+              onClick={() => setDateFilter(period.id)}
+              className={cn(
+                "px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all select-none cursor-pointer",
+                dateFilter === period.id
+                  ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+              )}
+            >
+              {period.label}
+            </button>
+          ))}
+          {dateFilter === "custom" && (
+            <div className="flex items-center gap-1.5 px-2 py-0.5">
+              <input
+                type="date"
+                aria-label="Data inicial"
+                value={customDateStart}
+                onChange={(e) => setCustomDateStart(e.target.value)}
+                className="h-7 px-2 rounded-lg bg-muted/40 border border-border/70 text-[11px] text-foreground outline-none focus:border-purple-500/50"
+              />
+              <span className="text-[10px] text-muted-foreground">até</span>
+              <input
+                type="date"
+                aria-label="Data final"
+                value={customDateEnd}
+                onChange={(e) => setCustomDateEnd(e.target.value)}
+                className="h-7 px-2 rounded-lg bg-muted/40 border border-border/70 text-[11px] text-foreground outline-none focus:border-purple-500/50"
+              />
+            </div>
           )}
-        >
-          <Sparkles className="h-4 w-4 text-purple-400" />
-          <span>Evolução Cognitiva</span>
-        </button>
+        </div>
       </div>
 
       {/* MODE 1: CÉREBRO ATIVO (GRAFO) */}
@@ -831,13 +982,13 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                 Categorias do Cérebro
               </span>
               <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300">
-                {memoryLoading ? "…" : memoryError ? "—" : memoryItems.length} Nós
+                {memoryLoading ? "…" : memoryError ? "—" : dateFilteredMemoryItems.length} Nós
               </Badge>
             </div>
 
             <div className="space-y-1 pt-1">
               {[
-                { id: "todos", label: "Todos os Nós", color: "#8b5cf6", count: memoryItems.length },
+                { id: "todos", label: "Todos os Nós", color: "#8b5cf6", count: dateFilteredMemoryItems.length },
                 ...memoryCategories,
               ].map((cat) => (
                 <button
@@ -872,16 +1023,18 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                 <p className="text-sm text-destructive">Não foi possível carregar as memórias: {memoryError}</p>
                 <Button type="button" variant="outline" size="sm" onClick={() => void loadAgentMemories(selectedAgentKey)}><RefreshCw className="mr-2 h-4 w-4" />Tentar novamente</Button>
               </div>
-            ) : memoryItems.length === 0 ? (
+            ) : dateFilteredMemoryItems.length === 0 ? (
               <div role="status" className="min-h-[220px] rounded-2xl border border-dashed border-border/70 bg-card/40 p-5 flex flex-col items-center justify-center gap-2 text-center">
                 <Brain className="h-8 w-8 text-muted-foreground" />
                 <p className="text-sm font-semibold text-foreground">Nenhuma memória registrada</p>
-                <p className="text-xs text-muted-foreground">As memórias aparecerão aqui quando forem registradas pelo sistema.</p>
+                <p className="text-xs text-muted-foreground">
+                  {memoryItems.length > 0 ? "Nenhuma memória encontrada para o período selecionado." : "As memórias aparecerão aqui quando forem registradas pelo sistema."}
+                </p>
               </div>
             ) : <ActiveBrainGraph
-              attendantName={agentsList.find((a) => (a.key || a.id) === selectedAgentKey)?.name || selectedAgentKey}
-              avatarConfig={agentsList.find((a) => (a.key || a.id) === selectedAgentKey)?.avatarConfig}
-              memories={memoryItems}
+              attendantName={currentAgent?.name || selectedAgentKey}
+              avatarConfig={currentAvatarConfig}
+              memories={dateFilteredMemoryItems}
               centralConnectionIds={centralConnectionIds}
               selectedCategory={graphCategoryFilter}
               selectedMemoryId={selectedMemoryNode?.id || null}
@@ -926,9 +1079,19 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
               </CardHeader>
 
               <CardContent className="p-5 flex flex-col items-center justify-center space-y-4 my-auto">
-                <div className="relative flex items-center justify-center">
-                  <div className="h-28 w-28 rounded-full border-4 border-purple-500/20 flex flex-col items-center justify-center bg-purple-500/5 shadow-inner">
-                    <span className="text-3xl font-black text-purple-400 font-display">
+                <div className="relative flex items-center justify-center gap-4">
+                  <div className="h-24 w-24 rounded-2xl bg-[#091120] border border-purple-500/30 flex items-center justify-center overflow-hidden shadow-inner">
+                    <ZaiAvatarRenderer
+                      avatar={currentAvatarConfig}
+                      state={currentAgent?.active === false ? "IDLE" : "WORKING"}
+                      size="md"
+                      showAura={false}
+                      showStatusBadge={false}
+                      showBrandingLayer={false}
+                    />
+                  </div>
+                  <div className="h-24 w-24 rounded-full border-4 border-purple-500/20 flex flex-col items-center justify-center bg-purple-500/5 shadow-inner">
+                    <span className="text-2xl font-black text-purple-400 font-display">
                       {humanStats.evolutionScore ?? overview.score ?? "—"}
                     </span>
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
@@ -1253,9 +1416,19 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
           </CardHeader>
 
           <CardContent className="p-5 flex flex-col items-center justify-center space-y-4 my-auto">
-            <div className="relative flex items-center justify-center">
-              <div className="h-32 w-32 rounded-full border-4 border-purple-500/20 flex flex-col items-center justify-center bg-purple-500/5 shadow-inner">
-                <span className="text-4xl font-black text-purple-400 font-display">
+            <div className="relative flex items-center justify-center gap-4">
+              <div className="h-28 w-28 rounded-2xl bg-[#091120] border border-purple-500/30 flex items-center justify-center overflow-hidden shadow-inner">
+                <ZaiAvatarRenderer
+                  avatar={currentAvatarConfig}
+                  state={currentAgent?.active === false ? "IDLE" : "WORKING"}
+                  size="md"
+                  showAura={false}
+                  showStatusBadge={false}
+                  showBrandingLayer={false}
+                />
+              </div>
+              <div className="h-28 w-28 rounded-full border-4 border-purple-500/20 flex flex-col items-center justify-center bg-purple-500/5 shadow-inner">
+                <span className="text-3xl font-black text-purple-400 font-display">
                   {humanStats.evolutionScore ?? overview.score ?? "—"}
                 </span>
                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
@@ -1376,20 +1549,20 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                 "text-xs px-2.5 py-0.5 font-bold",
                 isLoading || loadError
                   ? "border-border/60 text-muted-foreground bg-muted/10"
-                  : candidateSuggestions.length > 0
+                  : dateFilteredCandidateSuggestions.length > 0
                   ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
                   : "border-border/60 text-muted-foreground bg-muted/10"
               )}
             >
-              {isLoading ? "…" : loadError ? "—" : candidateSuggestions.length > 0
-                ? `${candidateSuggestions.length} candidatos pendentes`
+              {isLoading ? "…" : loadError ? "—" : dateFilteredCandidateSuggestions.length > 0
+                ? `${dateFilteredCandidateSuggestions.length} candidatos pendentes`
                 : "Sem candidatos pendentes"}
             </Badge>
           </div>
         </CardHeader>
 
         <CardContent className="p-4 sm:p-5">
-          {candidateSuggestions.length === 0 ? (
+          {dateFilteredCandidateSuggestions.length === 0 ? (
             <div className="py-8 text-center space-y-2 border border-dashed border-border/60 rounded-xl bg-muted/10">
               {!loadError && !isLoading && <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-400" />}
               <p className="text-xs font-semibold text-foreground">
@@ -1401,7 +1574,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {candidateSuggestions.map((sug) => {
+              {dateFilteredCandidateSuggestions.map((sug) => {
                 const isProcessing = processingSuggestionId === sug.id;
                 const confidence = typeof sug.confidence_score === "number" && Number.isFinite(sug.confidence_score)
                   ? `${Math.round(sug.confidence_score * 100)}% confiança`
@@ -1512,11 +1685,11 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         </CardHeader>
 
         <CardContent className="p-4 sm:p-5">
-          {learnedPatterns.length === 0 ? (
+          {dateFilteredLearnedPatterns.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">{isLoading ? "Carregando padrões…" : loadError ? "Não foi possível carregar os padrões deste atendente." : "Nenhum padrão aprendido registrado para este atendente."}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {learnedPatterns.map(pattern => (
+              {dateFilteredLearnedPatterns.map(pattern => (
                 <article key={pattern.id} className="space-y-2.5 rounded-xl border border-border/70 bg-muted/5 p-4">
                   <Badge variant="outline">{pattern.topicLabel || pattern.topic}</Badge>
                   <div className="space-y-1"><span className="text-[10px] font-bold uppercase text-muted-foreground">Pergunta aprendida</span><p className="text-xs text-foreground">{pattern.customerUtterance}</p></div>
@@ -1548,18 +1721,18 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
                 "text-xs px-2.5 py-0.5 font-bold",
                 isLoading || loadError
                   ? "border-border/60 text-muted-foreground bg-muted/10"
-                  : learningEvents.length > 0
+                  : dateFilteredLearningEvents.length > 0
                   ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
                   : "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
               )}
             >
-              {isLoading ? "…" : loadError ? "—" : learningEvents.length > 0 ? `${learningEvents.length} pendentes` : "Sem pendências"}
+              {isLoading ? "…" : loadError ? "—" : dateFilteredLearningEvents.length > 0 ? `${dateFilteredLearningEvents.length} pendentes` : "Sem pendências"}
             </Badge>
           </div>
         </CardHeader>
 
         <CardContent className="p-4 sm:p-5">
-          {learningEvents.length === 0 ? (
+          {dateFilteredLearningEvents.length === 0 ? (
             <div className="py-8 text-center space-y-2 border border-dashed border-border/60 rounded-xl bg-muted/10">
               {!loadError && !isLoading && <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-400" />}
               <p className="text-xs font-semibold text-foreground">{isLoading ? "Carregando lacunas…" : loadError ? "Não foi possível consultar as lacunas." : "Nenhuma lacuna pendente registrada."}</p>
@@ -1569,7 +1742,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
             </div>
           ) : (
             <div className="space-y-3.5">
-              {learningEvents.map((evt) => (
+              {dateFilteredLearningEvents.map((evt) => (
                 <div
                   key={evt.id}
                   className="p-3.5 rounded-xl border border-border/70 bg-card hover:border-amber-500/40 transition-all space-y-3 shadow-xs"
@@ -1641,13 +1814,13 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents }:
         </CardHeader>
 
         <CardContent className="p-4 sm:p-5">
-          {historyLogs.length === 0 ? (
+          {dateFilteredHistoryLogs.length === 0 ? (
             <div className="py-6 text-center text-xs text-muted-foreground">
               {isLoading ? "Carregando histórico…" : loadError ? "Não foi possível carregar o histórico deste atendente." : "Nenhuma atualização de evolução registrada para este atendente."}
             </div>
           ) : (
             <div className="space-y-3 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-[1px] before:bg-border/60">
-              {historyLogs.slice(0, 8).map((log, idx) => (
+              {dateFilteredHistoryLogs.slice(0, 8).map((log, idx) => (
                 <div key={log.id || idx} className="flex items-start gap-3 relative pl-6">
                   <span className="absolute left-2.5 top-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400 ring-2 ring-background" />
                   <div className="flex-1 text-xs space-y-0.5">

@@ -1045,6 +1045,9 @@ async function createStableSession({
     delete activeSessions[normalizedSessionName];
   }
 
+  const { applyBaileysRuntimePatches } = require('./baileysRuntimePatch');
+  await applyBaileysRuntimePatches();
+
   const baileys = await import('@whiskeysockets/baileys');
   const makeWASocket = baileys.default || baileys;
   const fetchLatestWaWebVersion = baileys.fetchLatestWaWebVersion;
@@ -1101,6 +1104,7 @@ async function createStableSession({
     version,
     syncFullHistory: true,
     shouldSyncHistoryMessage: () => true,
+    fireInitQueries: false,
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: 60000,
     keepAliveIntervalMs: 30000,
@@ -1406,8 +1410,23 @@ async function createStableSession({
       sessionRegistry.persistSession(normalizedSessionName).catch(() => {});
       runtimeEngine.recordSessionHeartbeat(normalizedSessionName);
 
-      // Socket.IO has built-in ping/pong (default 25s), custom heartbeat not needed
-      // Removed redundant 5s interval that was emitting 'ping' to all clients
+      if (session.bufferFlushInterval) {
+        clearInterval(session.bufferFlushInterval);
+      }
+      session.bufferFlushInterval = setInterval(() => {
+        if (session.isDisposed || session.isClosing) {
+          clearInterval(session.bufferFlushInterval);
+          session.bufferFlushInterval = null;
+          return;
+        }
+        try {
+          if (sock?.ev?.isBuffering?.()) {
+            sock.ev.flush();
+          }
+        } catch {
+          // ignore flush errors
+        }
+      }, 2500);
 
       try {
         await loadRealtimeHistory({
@@ -1425,44 +1444,51 @@ async function createStableSession({
 
       await onSessionConnected(session);
 
-      // Sync Blocklist on Connected (BUG 1 & 10)
-      try {
-        if (typeof sock.fetchBlocklist === 'function') {
-          const blockedJids = await sock.fetchBlocklist();
-          const blockedPhones = (blockedJids || [])
-            .map((jid) => String(jid).split('@')[0])
-            .filter(Boolean);
+      // Sync Blocklist asynchronously after initial offline sync settles
+      setTimeout(async () => {
+        if (session.isDisposed || session.isClosing || session.status !== 'connected') return;
+        try {
+          if (typeof sock.fetchBlocklist === 'function') {
+            const blockedJids = await sock.fetchBlocklist();
+            const blockedPhones = (blockedJids || [])
+              .map((jid) => String(jid).split('@')[0])
+              .filter(Boolean);
 
-          const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
-          const database = require('../../../src/infrastructure/config/database');
-          await database.query(
-            `UPDATE leads SET is_blocked = FALSE WHERE company_id = $1 AND is_blocked = TRUE`,
-            [companyId]
-          );
-
-          if (blockedPhones.length > 0) {
+            const companyId = process.env.DEFAULT_COMPANY_ID || 'default';
+            const database = require('../../../src/infrastructure/config/database');
             await database.query(
-              `UPDATE leads SET is_blocked = TRUE WHERE phone = ANY($1) AND company_id = $2`,
-              [blockedPhones, companyId]
+              `UPDATE leads SET is_blocked = FALSE WHERE company_id = $1 AND is_blocked = TRUE`,
+              [companyId]
             );
-          }
 
-          const conversationRepository = require('../../../src/data/repositories/conversationRepository');
-          conversationRepository.invalidateConversationCache(companyId);
+            if (blockedPhones.length > 0) {
+              await database.query(
+                `UPDATE leads SET is_blocked = TRUE WHERE phone = ANY($1) AND company_id = $2`,
+                [blockedPhones, companyId]
+              );
+            }
 
-          const ioServer = io || global.io;
-          if (ioServer) {
-            ioServer.emit('conversation:revalidated', { sessionId: normalizedSessionName });
+            const conversationRepository = require('../../../src/data/repositories/conversationRepository');
+            conversationRepository.invalidateConversationCache(companyId);
+
+            const ioServer = io || global.io;
+            if (ioServer) {
+              ioServer.emit('conversation:revalidated', { sessionId: normalizedSessionName });
+            }
           }
+        } catch (blocklistError) {
+          console.warn('[BLOCKLIST] Failed to sync blocklist on connection open:', blocklistError?.message || blocklistError);
         }
-      } catch (blocklistError) {
-        console.warn('[BLOCKLIST] Failed to sync blocklist on connection open:', blocklistError?.message || blocklistError);
-      }
+      }, 15000);
 
       return;
     }
 
     if (connection === 'close') {
+      if (session.bufferFlushInterval) {
+        clearInterval(session.bufferFlushInterval);
+        session.bufferFlushInterval = null;
+      }
       // Only set global tenant status to DISCONNECTED if no other session is connected
       const anyConnected = Object.values(activeSessions).some(
         (s) => s && s.sessionName !== session.sessionName && (s.status === 'connected' || s.connected === true)
