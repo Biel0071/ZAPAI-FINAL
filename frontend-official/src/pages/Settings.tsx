@@ -38,6 +38,7 @@ import { notify } from "@/core/services/notifyService";
 import { UnderConstruction } from "@/components/layout/UnderConstruction";
 import { useTheme } from "next-themes";
 import { cn } from "@/core/lib/utils";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 // Lazy load admin pages
 const QueuePage = React.lazy(() => import("./Queue"));
@@ -407,8 +408,49 @@ export default function Settings() {
                         ))}
                       </div>
                       <p className="mt-2 text-xs text-muted-foreground">
-                        A logo e as cores se ajustam automaticamente ao tema escolhido.
+                        A logo oficial em SVG vetorial e as cores se ajustam automaticamente ao tema escolhido.
                       </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-border/60">
+                      <Label className="mb-3 block text-xs uppercase tracking-wider text-muted-foreground">
+                        Identidade Visual ZAI — Variantes Vetoriais (SVG)
+                      </Label>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="flex items-center gap-3.5 rounded-xl border border-emerald-500/25 bg-[#090d14] p-3.5 text-white shadow-sm">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-1.5">
+                            <BrandLogo size={44} variant="dark" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-white">Tema Escuro</span>
+                              <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-400">
+                                Z Branco
+                              </Badge>
+                            </div>
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              SVG vetorial com letra Z branca e circuito verde neon.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3.5 rounded-xl border border-slate-200 bg-[#f8fafc] p-3.5 text-slate-900 shadow-sm">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-emerald-600/25 bg-emerald-500/10 p-1.5">
+                            <BrandLogo size={44} variant="light" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-slate-900">Tema Claro</span>
+                              <Badge variant="outline" className="border-emerald-600/30 bg-emerald-500/10 text-[10px] text-emerald-700">
+                                Z Carbono
+                              </Badge>
+                            </div>
+                            <p className="mt-0.5 text-xs text-slate-600">
+                              SVG vetorial com letra Z preta carbono (#0F1412) e circuito verde.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

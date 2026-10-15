@@ -46,7 +46,7 @@ export function ConnectionLostOverlay() {
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm p-6 text-center select-none animate-fade-in">
       <div className="flex flex-col items-center max-w-md">
         <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-destructive/10 border border-destructive/30 shadow-[0_0_50px_rgba(239,68,68,0.2)]">
-          <BrandLogo size={58} />
+          <BrandLogo size={60} />
           <span className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-lg">
             <WifiSlash weight="bold" className="h-5 w-5" />
           </span>
@@ -56,7 +56,7 @@ export function ConnectionLostOverlay() {
           Sem conexão com o servidor
         </h2>
         <p className="text-sm text-muted-foreground mb-1">
-          Não estamos conseguindo falar com o backend do ZAPFLOW AI.
+          Não estamos conseguindo falar com o backend do ZAI CRM Enterprise.
         </p>
         <p className="text-xs text-muted-foreground/80 mb-6">
           Tentando reconectar automaticamente em segundo plano. Verifique se o serviço está no ar e sua

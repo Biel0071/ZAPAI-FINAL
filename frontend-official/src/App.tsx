@@ -19,18 +19,18 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 
 function AppSplash() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0b0f17] p-6 text-center select-none animate-fade-in">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center select-none animate-fade-in">
       <div className="relative flex flex-col items-center justify-center">
         <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_50px_rgba(16,185,129,0.3)]">
-          <BrandLogo size={62} animated forceZColor="white" />
+          <BrandLogo size={64} animated />
           <span className="absolute -top-1 -right-1 flex h-4 w-4">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500" />
           </span>
         </div>
 
-        <h2 className="font-display text-2xl font-black tracking-tight text-white mb-2">
-          ZAI <span className="text-emerald-400">AI</span>
+        <h2 className="font-display text-2xl font-black tracking-tight text-foreground mb-2">
+          ZAI <span className="text-emerald-500 dark:text-emerald-400">CRM</span>
         </h2>
         <p className="text-xs text-muted-foreground font-medium mb-6">Plataforma de Inteligência & Automação WhatsApp Enterprise</p>
 

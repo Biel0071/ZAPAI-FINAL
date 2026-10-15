@@ -23,6 +23,7 @@ import {
 import { useAppStore } from "@/state/stores/appStore";
 import { useToast } from "@/state/hooks/use-toast";
 import { cn } from "@/core/lib/utils";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 export interface HeaderShellProps {
   title: string;
@@ -110,6 +111,10 @@ export function HeaderShell({
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
       <div className="flex h-header items-center justify-between gap-2 sm:gap-3 px-3 pl-14 md:gap-4 md:px-6 md:pl-6 max-w-full overflow-hidden">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex md:hidden items-center gap-1.5 shrink-0">
+            <BrandLogo size={26} />
+            <span className="font-display text-xs font-bold tracking-tight text-foreground">ZAI</span>
+          </div>
           <div className="relative shrink-0 hidden sm:block">
             <MagnifyingGlass className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Buscar" className="h-8 w-24 sm:w-32 md:w-36 lg:w-52 rounded-xl border-border/60 bg-background/80 pl-9 text-xs sm:text-sm transition-all" />
@@ -139,7 +144,7 @@ export function HeaderShell({
                 </button>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs text-xs bg-card border-border">
-                <p className="font-semibold text-foreground mb-0.5">Status do Sistema ZAPFLOW AI</p>
+                <p className="font-semibold text-foreground mb-0.5">Status do Sistema ZAI CRM Enterprise</p>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   Monitora em tempo real as conexões de WhatsApp Baileys, o banco PostgreSQL e os módulos de automação por IA.
                 </p>
@@ -244,7 +249,7 @@ export function HeaderShell({
 
               <div className="border-t border-border/60 bg-muted/20 px-3 py-2 text-center">
                 <p className="text-[10px] text-muted-foreground">
-                  ZAPFLOW AI • Sistema Operacional e Conectado
+                  ZAI CRM Enterprise • Sistema Operacional e Conectado
                 </p>
               </div>
             </DropdownMenuContent>

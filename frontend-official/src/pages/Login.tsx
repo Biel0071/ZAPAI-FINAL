@@ -56,11 +56,16 @@ export default function Login() {
         className="relative z-10 w-full max-w-md rounded-lg border border-border/80 bg-card/95 p-6 shadow-lg"
       >
         <header className="mb-6 space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 shadow-glow">
-              <BrandLogo size={40} />
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 border border-primary/25 shadow-glow p-1.5">
+              <BrandLogo size={44} />
             </div>
-            <h1 className="text-2xl font-semibold text-foreground">ZAI</h1>
+            <div>
+              <h1 className="font-display text-2xl font-bold tracking-tight text-foreground leading-none">ZAI</h1>
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                CRM Enterprise
+              </span>
+            </div>
           </div>
           <p className="text-sm text-muted-foreground">Plataforma inteligente de atendimento e automação.</p>
         </header>

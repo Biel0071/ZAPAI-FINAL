@@ -348,10 +348,10 @@ export function Sidebar() {
       <div className={cn("border-b border-sidebar-border/60 py-3", compact ? "px-2 flex justify-center" : "px-4")}>
         <div className={cn("flex items-center", compact ? "justify-center w-full" : "gap-3")}>
           <div className={cn(
-            "flex flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 shadow-glow p-1",
+            "flex flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/25 shadow-glow p-1",
             compact ? "h-10 w-10" : "h-11 w-11"
           )}>
-            <BrandLogo size={compact ? 28 : 36} forceZColor="white" />
+            <BrandLogo size={compact ? 30 : 38} />
           </div>
           {!compact && (
             <div className="min-w-0 flex-1">

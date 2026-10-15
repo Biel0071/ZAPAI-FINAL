@@ -1,3 +1,5 @@
+import { useId } from "react";
+import { useTheme } from "next-themes";
 import { cn } from "@/core/lib/utils";
 
 export interface BrandLogoProps {
@@ -7,32 +9,76 @@ export interface BrandLogoProps {
   className?: string;
   /** Subtle pulse (used on loading screens). */
   animated?: boolean;
-  /** Force a variant for the Z letter ("black" or "white"). Default is theme-driven (white on dark, dark on light). */
+  /**
+   * Force a variant for the Z letter ("black" for light surfaces, "white" for dark surfaces).
+   * When omitted, automatically adapts to the active theme (white Z in dark mode, carbon-black Z in light mode).
+   */
   forceZColor?: "black" | "white";
+  /** Alias for forceZColor using theme terminology ("dark" = white Z, "light" = black Z). */
+  variant?: "auto" | "dark" | "light";
 }
 
 /**
- * ZAPFLOW AI Brand Logo Component (Pure Vector SVG).
- * Features 100% transparent background, vibrant emerald green speech bubble + circuit lines,
- * and sharp theme-adaptive "Z" mark.
+ * Official ZAI Brand Logo Component (Pure Vector SVG).
+ *
+ * Modeled 1:1 from the official ZAI Dark & Light brand marks:
+ * - Open-left neon-to-forest emerald speech bubble with tapered top-left needle tip and bottom-left tail
+ * - 3 left circuit trace nodes (hollow rings + 45° angled kinks + tapered needles)
+ * - Two-part stylized "Z":
+ *   - Main body (top bar + diagonal leg): Pure White (#FFFFFF) in Dark Theme, Carbon Black (#0F1412) in Light Theme
+ *   - Detached bottom-right bar: Emerald gradient (#0A641E -> #00C838) with parallel diagonal gap
  */
-export function BrandLogo({ size = 44, className, animated = false, forceZColor }: BrandLogoProps) {
+export function BrandLogo({
+  size = 44,
+  className,
+  animated = false,
+  forceZColor,
+  variant = "auto",
+}: BrandLogoProps) {
+  const uid = useId().replace(/:/g, "");
+  const { resolvedTheme, theme } = useTheme();
+  const activeTheme = resolvedTheme || theme;
+
+  const resolvedZMode: "white" | "black" | "css" =
+    forceZColor === "white" || variant === "dark"
+      ? "white"
+      : forceZColor === "black" || variant === "light"
+        ? "black"
+        : activeTheme === "light"
+          ? "black"
+          : activeTheme === "dark"
+            ? "white"
+            : "css";
+
+  const bubbleGradId = `zai-bubble-grad-${uid}`;
+  const circuitGradId = `zai-circuit-grad-${uid}`;
+  const barGradId = `zai-bar-grad-${uid}`;
+  const zWhiteGradId = `zai-z-white-${uid}`;
+  const zBlackGradId = `zai-z-black-${uid}`;
+  const shadowId = `zai-z-shadow-${uid}`;
+
   const zFill =
-    forceZColor === "black"
-      ? "#0F172A"
-      : forceZColor === "white"
-        ? "#FFFFFF"
+    resolvedZMode === "white"
+      ? `url(#${zWhiteGradId})`
+      : resolvedZMode === "black"
+        ? `url(#${zBlackGradId})`
         : "currentColor";
 
   return (
     <svg
-      viewBox="0 0 500 500"
+      viewBox="135 180 945 855"
       width={size}
       height={size}
       role="img"
-      aria-label="ZAPFLOW AI Logo"
+      aria-label="ZAI Logo"
+      data-theme-variant={resolvedZMode}
       className={cn(
-        forceZColor === "white" ? "text-white" : forceZColor === "black" ? "text-slate-900" : "text-slate-900 dark:text-white",
+        "shrink-0 select-none",
+        resolvedZMode === "white"
+          ? "text-white"
+          : resolvedZMode === "black"
+            ? "text-[#0F1412]"
+            : "text-[#0F1412] dark:text-white",
         animated && "animate-pulse",
         className
       )}
@@ -40,83 +86,153 @@ export function BrandLogo({ size = 44, className, animated = false, forceZColor 
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        {/* Emerald WhatsApp Gradient */}
-        <linearGradient id="zap-green-gradient" x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#00E676" />
-          <stop offset="60%" stopColor="#25D366" />
-          <stop offset="100%" stopColor="#059669" />
+        {/* Outer Speech Bubble Gradient: Deep Forest Left -> Vivid Neon Top-Right -> Deep Emerald Bottom */}
+        <linearGradient id={bubbleGradId} x1="265" y1="880" x2="985" y2="260" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#085A18" />
+          <stop offset="42%" stopColor="#0B7A22" />
+          <stop offset="76%" stopColor="#00C838" />
+          <stop offset="100%" stopColor="#00EB3C" />
         </linearGradient>
-        {/* Accent Green Gradient for Z bottom */}
-        <linearGradient id="zap-accent-green" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#00E676" />
-          <stop offset="100%" stopColor="#047857" />
+
+        {/* Left Circuit Traces Gradient: Deep Emerald Rings -> Bright Emerald Tips */}
+        <linearGradient id={circuitGradId} x1="158" y1="590" x2="585" y2="590" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#075216" />
+          <stop offset="50%" stopColor="#0A8424" />
+          <stop offset="100%" stopColor="#00C436" />
         </linearGradient>
-        {/* Subtle drop shadow */}
-        <filter id="zap-shadow" x="-10%" y="-10%" width="120%" height="120%">
-          <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#000000" floodOpacity="0.3" />
+
+        {/* Detached Z Bottom-Right Bar Gradient */}
+        <linearGradient id={barGradId} x1="588" y1="815" x2="870" y2="795" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#085A18" />
+          <stop offset="55%" stopColor="#0A8E26" />
+          <stop offset="100%" stopColor="#00C838" />
+        </linearGradient>
+
+        {/* Crisp White Z Gradient for Dark Theme */}
+        <linearGradient id={zWhiteGradId} x1="480" y1="424" x2="720" y2="852" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFFFFF" />
+          <stop offset="100%" stopColor="#F1F5F3" />
+        </linearGradient>
+
+        {/* Rich Carbon Black Z Gradient for Light Theme */}
+        <linearGradient id={zBlackGradId} x1="480" y1="424" x2="720" y2="852" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#141A17" />
+          <stop offset="100%" stopColor="#0A0E0C" />
+        </linearGradient>
+
+        {/* Subtle Elevation Shadow for Z Mark */}
+        <filter id={shadowId} x="-8%" y="-8%" width="118%" height="118%">
+          <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#000000" floodOpacity="0.18" />
         </filter>
       </defs>
 
-      {/* Outer Speech Bubble (WhatsApp style) */}
+      {/* 1. Outer Speech Bubble Arc (Tapered Top-Left Needle -> Clockwise Circle -> Bottom-Left Tail -> Rounded Lower-Left Cap) */}
       <path
-        d="M 265,70 
-           C 365,70 445,150 445,250 
-           C 445,350 365,430 265,430 
-           C 230,430 198,420 170,403 
-           L 100,435 
-           L 125,368 
-           C 100,336 85,295 85,250 
-           C 85,150 165,70 265,70 Z"
-        stroke="url(#zap-green-gradient)"
-        strokeWidth="24"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-        filter="url(#zap-shadow)"
+        d="M 317 450
+           C 365 305, 500 212, 660 212
+           C 878 212, 1055 388, 1055 606.5
+           C 1055 824.5, 878 1001, 660 1001
+           C 586 1001, 517 980, 458 944
+           L 282 1004
+           C 268 1009, 259 997, 265 983
+           L 352 752
+           C 356 741, 369 737, 376 743
+           C 382 749, 382 759, 378 769
+           L 304 962
+           L 455 910
+           C 464 907, 472 909, 480 915
+           C 533 952, 595 973, 660 973
+           C 863 973, 1027 809, 1027 606.5
+           C 1027 404, 863 240, 660 240
+           C 507 240, 377 325, 317 450 Z"
+        fill={`url(#${bubbleGradId})`}
       />
 
-      {/* Left Circuit Lines & Nodes */}
-      <g stroke="url(#zap-green-gradient)" strokeWidth="16" strokeLinecap="round">
-        {/* Top Circuit Line */}
-        <line x1="80" y1="195" x2="185" y2="195" />
-        {/* Middle Circuit Line */}
-        <line x1="55" y1="250" x2="235" y2="250" />
-        {/* Bottom Circuit Line */}
-        <line x1="80" y1="305" x2="205" y2="305" />
+      {/* 2. Left Circuit Traces & Hollow Rings */}
+      <g>
+        {/* Top Circuit Ring (cx=245, cy=500, r_out=27, r_in=13) */}
+        <circle
+          cx="245"
+          cy="500"
+          r="20"
+          stroke={`url(#${circuitGradId})`}
+          strokeWidth="14"
+          fill="none"
+        />
+        {/* Top Circuit Trace with 45° Kink */}
+        <path
+          d="M 268 492
+             H 442
+             L 479 530
+             H 457
+             L 434 507
+             H 268 Z"
+          fill={`url(#${circuitGradId})`}
+        />
+
+        {/* Middle Circuit Ring (cx=184, cy=590, r_out=26, r_in=13) */}
+        <circle
+          cx="184"
+          cy="590"
+          r="19.5"
+          stroke={`url(#${circuitGradId})`}
+          strokeWidth="13.5"
+          fill="none"
+        />
+        {/* Middle Circuit Trace with 45° Kink + Long Tapered Needle */}
+        <path
+          d="M 207 583
+             H 395
+             L 411 600
+             L 592 609
+             L 402 613
+             L 386 597
+             H 207 Z"
+          fill={`url(#${circuitGradId})`}
+        />
+
+        {/* Bottom Circuit Ring (cx=256, cy=680, r_out=26, r_in=13) */}
+        <circle
+          cx="256"
+          cy="680"
+          r="19.5"
+          stroke={`url(#${circuitGradId})`}
+          strokeWidth="13.5"
+          fill="none"
+        />
+        {/* Bottom Circuit Straight Tapered Needle */}
+        <path
+          d="M 279 673
+             L 532 681
+             L 279 689 Z"
+          fill={`url(#${circuitGradId})`}
+        />
       </g>
 
-      {/* Circuit End Node Rings */}
-      <g fill="#020617" stroke="url(#zap-green-gradient)" strokeWidth="12">
-        <circle cx="80" cy="195" r="16" />
-        <circle cx="55" cy="250" r="16" />
-        <circle cx="80" cy="305" r="16" />
-      </g>
-
-      {/* Stylized Z Letter Mark */}
+      {/* 3. Stylized Z Letter — Main Body (Top Bar + Diagonal Stem) */}
       <path
-        d="M 195,165 
-           H 360 
-           C 375,165 385,177 378,190 
-           L 245,335 
-           H 355 
-           C 365,335 372,342 372,352 
-           V 362 
-           C 372,368 365,375 355,375 
-           H 190 
-           C 175,375 165,363 172,350 
-           L 305,205 
-           H 195 
-           C 185,205 178,198 178,188 
-           V 178 
-           C 178,171 185,165 195,165 Z"
+        d="M 530 424
+           H 852
+           C 884 424, 901 456, 880 482
+           L 559 852
+           H 485
+           C 461 852, 452 824, 469 804
+           L 720 515
+           H 526
+           C 499 515, 484 494, 484 470
+           C 484 443, 503 424, 530 424 Z"
         fill={zFill}
-        filter="url(#zap-shadow)"
+        filter={`url(#${shadowId})`}
       />
 
-      {/* Z Bottom Accent Bar in Gradient Green */}
+      {/* 4. Stylized Z Letter — Detached Bottom-Right Emerald Bar */}
       <path
-        d="M 235,335 H 355 C 365,335 372,342 372,352 V 362 C 372,368 365,375 355,375 H 225 L 235,335 Z"
-        fill="url(#zap-accent-green)"
+        d="M 671 758
+           H 870
+           C 871 798, 842 852, 795 852
+           H 588
+           L 671 758 Z"
+        fill={`url(#${barGradId})`}
       />
     </svg>
   );
