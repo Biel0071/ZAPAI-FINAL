@@ -76,6 +76,8 @@ function registerRoutes(app, options = {}) {
   app.use('/api', contactsRouter);         // ← contacts under /api prefix
   app.use('/', analyticsRouter);
   app.use('/api', analyticsRouter);        // ← analytics under /api prefix
+  // Campaign dispatch engine (registered before automationRouter so /campaigns/maturation and /campaigns/active are not shadowed by /campaigns/:id)
+  app.use('/api', campaignDispatchRouter);
   app.use('/', automationRouter);
   app.use('/', quickRepliesRouter);
   app.use('/', integrationsRouter);
@@ -91,9 +93,6 @@ function registerRoutes(app, options = {}) {
     app.use('/api', nodeRouter);
     app.use('/api/cluster', clusterRouter);
   }
-
-  // Campaign dispatch engine
-  app.use('/api', campaignDispatchRouter);
 
   // ── NEW: Frontend-compatibility endpoints ────────────────────────────────
 
