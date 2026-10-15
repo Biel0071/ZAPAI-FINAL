@@ -53,7 +53,7 @@ class HistoryRepository {
     let conversation = (await client.query(`SELECT id FROM conversations WHERE company_id=$1 AND session_id=$2 AND remote_jid=$3 LIMIT 1`, [item.company_id, item.session_id, item.chat_jid])).rows[0];
     if (!conversation) {
       conversation = (await client.query(`INSERT INTO conversations(company_id,session_id,lead_id,remote_jid,ai_enabled,unread_count,status,created_at,updated_at,last_message_at)
-        VALUES($1,$2,$3,$4,FALSE,0,$5,$6,$6,$6)
+        VALUES($1,$2,$3,$4,FALSE,0,$5,($6::timestamptz)::timestamp,($6::timestamptz)::timestamp,$6::timestamptz)
         ON CONFLICT(company_id,session_id,remote_jid) DO UPDATE SET lead_id=COALESCE(conversations.lead_id,EXCLUDED.lead_id), remote_jid=EXCLUDED.remote_jid RETURNING id`,
       [item.company_id, item.session_id, lead.rows[0].id, item.chat_jid, item.archived ? 'archived' : 'open', item.occurred_at || new Date(0)])).rows[0];
     } else {
@@ -116,9 +116,9 @@ class HistoryRepository {
       }
       const origin = message.message_origin && message.message_origin !== 'unknown' ? message.message_origin : message.sender === 'ai' || message.sender === 'bot' ? 'ai' : item.origin;
       // Only refresh preview if this really is the newest stored message. Preserve status and unread count.
-      await client.query(`UPDATE conversations c SET last_message=$4,last_message_type=$5,last_message_at=GREATEST(COALESCE(c.last_message_at,$6::timestamptz),$6::timestamptz),updated_at=GREATEST(COALESCE(c.updated_at,$6::timestamp),$6::timestamp)
+      await client.query(`UPDATE conversations c SET last_message=$4,last_message_type=$5,last_message_at=GREATEST(COALESCE(c.last_message_at,$6::timestamptz),$6::timestamptz),updated_at=GREATEST(COALESCE(c.updated_at,($6::timestamptz)::timestamp),($6::timestamptz)::timestamp)
         WHERE c.id=$1 AND c.company_id=$2 AND c.session_id=$3 AND (c.last_message IS NULL OR c.last_message_at IS NULL OR c.last_message_at <= $6::timestamptz)
-        AND NOT EXISTS(SELECT 1 FROM messages m WHERE m.company_id=$2 AND m.session_id=$3 AND m.conversation_id=c.id AND m.timestamp > $6::timestamp)`,
+        AND NOT EXISTS(SELECT 1 FROM messages m WHERE m.company_id=$2 AND m.session_id=$3 AND m.conversation_id=c.id AND m.timestamp > ($6::timestamptz)::timestamp)`,
       [conversation.id, item.company_id, item.session_id, payload.text || `[${payload.mediaType || 'text'}]`, payload.mediaType || 'text', item.occurred_at || new Date()]);
       await client.query(`UPDATE whatsapp_history_items SET import_state='done',message_id=$4,text=$5,media_type=$6,
         media_state=$7,media_path=$8,origin=$9,last_error=NULL,updated_at=NOW() WHERE id=$1 AND company_id=$2 AND session_id=$3`,
