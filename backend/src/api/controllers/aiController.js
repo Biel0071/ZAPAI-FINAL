@@ -173,7 +173,7 @@ async function getAiMetrics(req, res) {
     try {
       const convRes = await dbQuery(
         `SELECT
-           COUNT(*) FILTER (WHERE COALESCE(updated_at, created_at) >= CURRENT_DATE)::int AS conversations_today,
+           COUNT(*) FILTER (WHERE COALESCE(last_message_at, created_at) >= CURRENT_DATE)::int AS conversations_today,
            COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int AS leads_today,
            COUNT(*)::int AS total_conversations
          FROM conversations
