@@ -100,10 +100,130 @@ const STYLE_PALETTES: Record<string, { primary: string; aura: string; title: str
   style_premium: { primary: "#eab308", aura: "rgba(234, 179, 8, 0.35)", title: "Premium" },
 };
 
+// Normalized (neckX, chinY, width) anchors for all 33 catalog chibi sprites (height = 227px), aligned to (70, 96)
+const CHIBI_SPRITE_ANCHORS: Record<string, { neckX: number; chinY: number; width: number }> = {
+  sprite_r2_c1: { neckX: 74, chinY: 96, width: 129 },
+  sprite_r2_c2: { neckX: 63, chinY: 98, width: 112 },
+  sprite_r2_c3: { neckX: 71, chinY: 93, width: 127 },
+  sprite_r2_c4: { neckX: 63, chinY: 98, width: 112 },
+  sprite_r2_c5: { neckX: 62, chinY: 95, width: 112 },
+  sprite_r2_c6: { neckX: 67, chinY: 95, width: 116 },
+  sprite_r2_c7: { neckX: 63, chinY: 95, width: 112 },
+  sprite_r2_c8: { neckX: 65, chinY: 98, width: 117 },
+  sprite_r2_c9: { neckX: 73, chinY: 95, width: 130 },
+  sprite_r2_c10: { neckX: 63, chinY: 95, width: 112 },
+  sprite_r2_c11: { neckX: 63, chinY: 95, width: 112 },
+  sprite_r1_c1: { neckX: 60, chinY: 96, width: 112 },
+  sprite_r1_c2: { neckX: 52, chinY: 95, width: 112 },
+  sprite_r1_c3: { neckX: 58, chinY: 95, width: 112 },
+  sprite_r1_c4: { neckX: 59, chinY: 95, width: 112 },
+  sprite_r1_c5: { neckX: 58, chinY: 97, width: 112 },
+  sprite_r1_c6: { neckX: 58, chinY: 95, width: 112 },
+  sprite_r1_c7: { neckX: 58, chinY: 96, width: 112 },
+  sprite_r1_c8: { neckX: 54, chinY: 95, width: 112 },
+  sprite_r1_c9: { neckX: 60, chinY: 96, width: 112 },
+  sprite_r1_c10: { neckX: 56, chinY: 95, width: 112 },
+  sprite_r1_c11: { neckX: 58, chinY: 95, width: 112 },
+  sprite_r3_c1: { neckX: 50, chinY: 95, width: 112 },
+  sprite_r3_c2: { neckX: 51, chinY: 95, width: 112 },
+  sprite_r3_c3: { neckX: 56, chinY: 96, width: 112 },
+  sprite_r3_c4: { neckX: 51, chinY: 95, width: 112 },
+  sprite_r3_c5: { neckX: 55, chinY: 95, width: 118 },
+  sprite_r3_c6: { neckX: 55, chinY: 95, width: 112 },
+  sprite_r3_c7: { neckX: 55, chinY: 95, width: 112 },
+  sprite_r3_c8: { neckX: 70, chinY: 96, width: 130 },
+  sprite_r3_c9: { neckX: 55, chinY: 95, width: 112 },
+  sprite_r3_c10: { neckX: 68, chinY: 96, width: 126 },
+  sprite_r3_c11: { neckX: 58, chinY: 95, width: 112 },
+};
+
+const CHIBI_HAIR_SPRITES: Record<"female" | "male", Record<string, string>> = {
+  female: {
+    hair_01: "sprite_r2_c1",
+    hair_02: "sprite_r2_c2",
+    hair_03: "sprite_r2_c9",
+    hair_04: "sprite_r2_c4",
+    hair_05: "sprite_r2_c7",
+    hair_06: "sprite_r2_c3",
+    hair_07: "sprite_r2_c8",
+    hair_08: "sprite_r2_c5",
+    hair_09: "sprite_r2_c6",
+    hair_10: "sprite_r2_c10",
+  },
+  male: {
+    hair_01: "sprite_r1_c3",
+    hair_02: "sprite_r1_c8",
+    hair_03: "sprite_r1_c9",
+    hair_04: "sprite_r1_c5",
+    hair_05: "sprite_r1_c1",
+    hair_06: "sprite_r3_c1",
+    hair_07: "sprite_r1_c6",
+    hair_08: "sprite_r1_c2",
+    hair_09: "sprite_r3_c2",
+    hair_10: "sprite_r1_c10",
+  },
+};
+
+const CHIBI_OUTFIT_SPRITES: {
+  default: Record<string, string>;
+  tablet: Record<string, string>;
+} = {
+  default: {
+    outfit_01: "sprite_r1_c1",
+    outfit_02: "sprite_r2_c2",
+    outfit_03: "sprite_r2_c4",
+    outfit_04: "sprite_r3_c3",
+    outfit_05: "sprite_r1_c6",
+    outfit_06: "sprite_r3_c2",
+    outfit_07: "sprite_r1_c7",
+    outfit_08: "sprite_r1_c10",
+  },
+  tablet: {
+    outfit_01: "sprite_r1_c2",
+    outfit_02: "sprite_r1_c8",
+    outfit_03: "sprite_r3_c4",
+    outfit_04: "sprite_r3_c9",
+    outfit_05: "sprite_r3_c10",
+    outfit_06: "sprite_r3_c2",
+    outfit_07: "sprite_r1_c2",
+    outfit_08: "sprite_r3_c10",
+  },
+};
+
+const CHIBI_FACE_SPRITES: Record<"female" | "male", Record<string, string>> = {
+  female: {
+    face_01: "sprite_r2_c1",
+    face_02: "sprite_r2_c4",
+    face_03: "sprite_r2_c8",
+    face_04: "sprite_r2_c7",
+    face_05: "sprite_r2_c10",
+    face_06: "sprite_r2_c11",
+  },
+  male: {
+    face_01: "sprite_r1_c1",
+    face_02: "sprite_r1_c2",
+    face_03: "sprite_r1_c3",
+    face_04: "sprite_r1_c6",
+    face_05: "sprite_r1_c7",
+    face_06: "sprite_r3_c3",
+  },
+};
+
+function getAlignedSpriteCoords(spriteId: string) {
+  const anchor = CHIBI_SPRITE_ANCHORS[spriteId] || CHIBI_SPRITE_ANCHORS.sprite_r2_c1;
+  return {
+    x: 70 - anchor.neckX,
+    y: 96 - anchor.chinY,
+    width: anchor.width,
+    height: 227,
+    href: `/assets/avatar_factory/catalog/${spriteId}_clean.png`,
+  };
+}
+
 /**
- * 2.5D / 3D Modular Layered SVG Character
- * Composes BASE + ROSTO + ROUPA + CABELO + ACESSÓRIOS + ESTILO simultaneously in vector pixel art,
- * with multi-angle 3D rotation (Front, 3/4, Profile, Back) and articulated limb animations.
+ * 2.5D / 3D Modular Layered Chibi Pixel-Art Character Compositor
+ * Composes BackHair + OutfitBody + HeadHair + FaceOval + Accessories + Style simultaneously
+ * from the high-detail 2.5D chibi catalog sprites with zero stray hair or squished rotation.
  */
 function ModularLayerAvatar({
   avatar,
@@ -123,20 +243,20 @@ function ModularLayerAvatar({
   movement3D?: "idle" | "walk" | "wave" | "spin360";
 }) {
   const isFemale = avatar.body !== "male" && avatar.base !== "male";
+  const genderKey: "female" | "male" = isFemale ? "female" : "male";
   const skinKey = avatar.skin || (avatar.face === "face_04" ? "tan" : avatar.face === "face_06" ? "bronze" : "peach");
   const skin = SKIN_PALETTES[skinKey] || SKIN_PALETTES.peach;
 
   // Normalize 3D rotation angle [0..359]
-  const angle = (((rotationY % 360) + 360) % 360);
+  const angle = ((rotationY % 360) + 360) % 360;
   const rad = (angle * Math.PI) / 180;
   const sinA = Math.sin(rad);
   const cosA = Math.cos(rad);
-  const isBackView = cosA < -0.35; // 135°, 180°, 225° -> true back view
-  const isProfileView = Math.abs(cosA) <= 0.35; // 90°, 270° -> true side profile view
-  const profileDir = sinA >= 0 ? 1 : -1; // +1 facing right (90°), -1 facing left (270°)
-  const faceShiftX = isProfileView ? profileDir * 2.2 : Math.round(sinA * 3.2 * 10) / 10;
-  const torsoShiftX = Math.round(sinA * 2.4 * 10) / 10;
-  const bodyScaleX = isProfileView ? 0.88 : Math.round((0.88 + 0.12 * Math.abs(cosA)) * 100) / 100;
+  const isBackView = cosA < -0.35; // 135°, 180°, 225° -> back turnaround view
+  const isProfileView = Math.abs(cosA) <= 0.35; // 90°, 270° -> angled profile view
+  const profileDir = sinA >= 0 ? 1 : -1;
+  const turnShiftX = isProfileView ? profileDir * 3.5 : Math.round(sinA * 4 * 10) / 10;
+  const turnScaleX = isBackView ? 1 : isProfileView ? 0.9 : Math.round((0.92 + 0.08 * Math.abs(cosA)) * 100) / 100;
 
   // Resolve Hair Style & Palette
   const hairId = avatar.hair || (isFemale ? "hair_01" : "hair_05");
@@ -185,9 +305,34 @@ function ModularLayerAvatar({
   const isWaving = movement3D === "wave";
   const isSpinning = movement3D === "spin360";
 
+  // Resolve 4-layer chibi sprite sources
+  const hairSpriteId = CHIBI_HAIR_SPRITES[genderKey][hairId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
+  const isLongHair = isFemale && (hairId === "hair_01" || hairId === "hair_03" || hairId === "hair_06" || hairId === "hair_07" || hairId === "hair_10");
+
+  let bodySpriteId = hasTablet
+    ? CHIBI_OUTFIT_SPRITES.tablet[outfitId] || "sprite_r1_c2"
+    : CHIBI_OUTFIT_SPRITES.default[outfitId] || "sprite_r1_c1";
+
+  if (avatar.workObject === "boxes_delivery") {
+    bodySpriteId = "sprite_r3_c1";
+  } else if (avatar.workObject === "laptop_zai") {
+    bodySpriteId = "sprite_r3_c5";
+  } else if (avatar.workObject === "coffee_cup") {
+    bodySpriteId = "sprite_r2_c5";
+  }
+
+  const faceSpriteId = CHIBI_FACE_SPRITES[genderKey][faceId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
+
+  const hairImg = getAlignedSpriteCoords(hairSpriteId);
+  const bodyImg = getAlignedSpriteCoords(bodySpriteId);
+  const faceImg = getAlignedSpriteCoords(faceSpriteId);
+
+  // Unique clipPath IDs per instance prefix
+  const uid = React.useId().replace(/:/g, "");
+
   return (
     <svg
-      viewBox="0 0 100 160"
+      viewBox="0 0 140 238"
       className={cn(
         "w-full h-full select-none transition-transform duration-300 pointer-events-none",
         isTalking && "animate-bounce-subtle",
@@ -200,838 +345,460 @@ function ModularLayerAvatar({
       }}
     >
       <defs>
-        {/* Pedestal Gradient */}
-        <radialGradient id="pedestalGlow" cx="50%" cy="50%" r="50%">
+        {/* Pedestal Ambient Glow */}
+        <radialGradient id={`pedestalGlow-${uid}`} cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor={primaryBrandColor} stopOpacity="0.45" />
-          <stop offset="70%" stopColor={primaryBrandColor} stopOpacity="0.12" />
+          <stop offset="70%" stopColor={primaryBrandColor} stopOpacity="0.14" />
           <stop offset="100%" stopColor="transparent" stopOpacity="0" />
         </radialGradient>
-        {/* 3D Volumetric Skin Shading */}
-        <linearGradient id={`skinGrad-${skinKey}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor={skin.highlight} />
-          <stop offset="55%" stopColor={skin.base} />
-          <stop offset="100%" stopColor={skin.shadow} />
-        </linearGradient>
-        {/* 3D Volumetric Hair Shading */}
-        <linearGradient id={`hairGrad-${hairColorKey}`} x1="0%" y1="0%" x2="0%" y2="100%">
+
+        {/* Hair Color Gradient */}
+        <linearGradient id={`hairGrad-${uid}-${hairColorKey}`} x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor={hairColor.highlight} />
-          <stop offset="35%" stopColor={hairColor.base} />
+          <stop offset="45%" stopColor={hairColor.base} />
           <stop offset="100%" stopColor={hairColor.shadow} />
         </linearGradient>
-        {/* Chest Logo Pattern */}
-        <clipPath id="headClip">
-          <rect x="34" y="24" width="32" height="42" rx="14" />
+
+        {/* 1. Back Hair Clip (ponytails & long hair flowing behind left shoulder) */}
+        <clipPath id={`clip-back-hair-${uid}`}>
+          <path d="M 2 45 L 86 45 L 86 105 L 58 125 L 58 166 L 2 166 Z" />
+        </clipPath>
+
+        {/* 2. Body & Outfit Clip (clean short-hair torso, arms, legs, shoes) */}
+        <clipPath id={`clip-body-${uid}`}>
+          <path d="M 48 86 L 57 94 L 70 96 L 84 94 L 92 86 L 138 86 L 138 227 L 15 227 L 15 96 L 42 96 Z" />
+        </clipPath>
+
+        {/* 3. Head & Hair Crown Clip */}
+        <clipPath id={`clip-head-${uid}`}>
+          <path
+            d={
+              isLongHair
+                ? "M 0 0 L 140 0 L 140 85 L 94 85 L 94 105 L 83 103 L 83 93 L 70 96 L 56 93 L 43 94 L 41 85 L 0 85 Z"
+                : "M 0 0 L 140 0 L 140 85 L 95 85 L 95 94 L 83 94 L 70 96 L 56 94 L 43 94 L 41 85 L 0 85 Z"
+            }
+          />
+        </clipPath>
+
+        {/* 4. Inner Face Oval Clip (eyes, brows, nose, mouth, cheeks) */}
+        <clipPath id={`clip-face-${uid}`}>
+          <path d="M 57.5 64 C 63 59, 86 59, 90.5 66 C 91.5 74, 90.5 87, 84.5 93 C 77 96, 65 96, 59 91 C 56.5 84, 56.5 71, 57.5 64 Z" />
         </clipPath>
       </defs>
 
-      {/* ── LAYER 1: PEDESTAL & 3D COMPASS RING ─────────────────────── */}
+      {/* ── LAYER 1: ISOMETRIC PEDESTAL & 3D COMPASS RING ───────────── */}
       <g id="layer-pedestal">
-        {/* Floor Ambient Glow */}
-        <ellipse cx="50" cy="143" rx="36" ry="11" fill="url(#pedestalGlow)" />
-        {/* Isometric Pedestal Rim */}
+        <ellipse cx="70" cy="221" rx="48" ry="13" fill={`url(#pedestalGlow-${uid})`} />
         <ellipse
-          cx="50"
-          cy="143"
-          rx="32"
-          ry="9"
+          cx="70"
+          cy="221"
+          rx="42"
+          ry="10.5"
           fill="#091120"
           stroke={primaryBrandColor}
-          strokeWidth="1.5"
-          strokeOpacity="0.6"
+          strokeWidth="1.6"
+          strokeOpacity="0.65"
         />
-        {/* 3D Rotation Direction Indicator Dot on Pedestal Rim */}
+        {/* 3D Rotation Compass Dot */}
         <circle
-          cx={50 + Math.round(sinA * 29 * 10) / 10}
-          cy={143 + Math.round(cosA * 7.5 * 10) / 10}
-          r="2.2"
+          cx={70 + Math.round(sinA * 38 * 10) / 10}
+          cy={221 + Math.round(cosA * 8.8 * 10) / 10}
+          r="2.8"
           fill="#00f090"
         />
-        {/* Soft Floor Shadow beneath feet */}
-        <ellipse cx="50" cy="141" rx="22" ry="5.5" fill="#000000" fillOpacity="0.55" />
+        <ellipse cx="70" cy="219" rx="28" ry="6.5" fill="#000000" fillOpacity="0.5" />
       </g>
 
-      {/* 3D Character Puppet Root Group with Perspective Scaling & Breathing */}
+      {/* ── CHARACTER 2.5D CHIBI RIG WITH BREATHING & TURNTABLE ─────── */}
       <g id="character-3d-breathe">
         {(movement3D === "idle" || isSpinning) && (
           <animateTransform
             attributeName="transform"
             type="translate"
-            values="0,0; 0,-1.8; 0,0"
+            values="0,0; 0,-2.2; 0,0"
             dur="2.8s"
             repeatCount="indefinite"
           />
         )}
-      <g
-        id="character-3d-rig"
-        transform={`translate(${50 - 50 * bodyScaleX + torsoShiftX}, 0) scale(${bodyScaleX}, 1)`}
-      >
+        {isWalking && (
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            values="0,0; -1.5,-3.5; 0,0; 1.5,-3.5; 0,0"
+            dur="0.65s"
+            repeatCount="indefinite"
+          />
+        )}
+        {isWaving && (
+          <animateTransform
+            attributeName="transform"
+            type="rotate"
+            values="0 70 160; -2.5 70 160; 2.5 70 160; 0 70 160"
+            dur="0.7s"
+            repeatCount="indefinite"
+          />
+        )}
 
-      {/* ── LAYER 2: BASE BODY (Silhouette, Skin, Legs, Shoes) ─────── */}
-      <g id="layer-base">
-        {/* Left Leg + Shoe */}
-        <g id="limb-leg-left">
-          {isWalking && (
-            <animateTransform
-              attributeName="transform"
-              type="translate"
-              values="0,0; 0,-4; 0,0; 0,2; 0,0"
-              dur="0.7s"
-              repeatCount="indefinite"
+        <g
+          id="character-3d-rig"
+          transform={`translate(${70 - 70 * turnScaleX + turnShiftX}, 0) scale(${turnScaleX}, 1)`}
+        >
+          {/* ── CHIBI LAYER A: BACK HAIR (behind shoulders) ───────────── */}
+          {isLongHair && (
+            <g id="layer-back-hair" clipPath={`url(#clip-back-hair-${uid})`}>
+              <image
+                href={hairImg.href}
+                x={hairImg.x}
+                y={hairImg.y}
+                width={hairImg.width}
+                height={hairImg.height}
+              />
+            </g>
+          )}
+
+          {/* ── CHIBI LAYER B: OUTFIT & BODY ─────────────────────────── */}
+          <g id="layer-outfit" clipPath={`url(#clip-body-${uid})`}>
+            <image
+              href={bodyImg.href}
+              x={bodyImg.x}
+              y={bodyImg.y}
+              width={bodyImg.width}
+              height={bodyImg.height}
             />
-          )}
-          <rect x={isFemale ? "41" : "39"} y="104" width={isFemale ? "7" : "8.5"} height="30" fill="#1e293b" />
-          <rect x={isFemale ? "41" : "39"} y="130" width={isFemale ? "7" : "8.5"} height="4" fill="#090d16" />
-          <rect x="37" y="133" width="12" height="7" rx="2" fill={primaryBrandColor} />
-          <rect x="37" y="138" width="12" height="3" fill="#ffffff" fillOpacity="0.8" />
-        </g>
 
-        {/* Right Leg + Shoe */}
-        <g id="limb-leg-right">
-          {isWalking && (
-            <animateTransform
-              attributeName="transform"
-              type="translate"
-              values="0,0; 0,2; 0,0; 0,-4; 0,0"
-              dur="0.7s"
-              repeatCount="indefinite"
-            />
-          )}
-          <rect x={isFemale ? "52" : "52.5"} y="104" width={isFemale ? "7" : "8.5"} height="30" fill="#0f172a" />
-          <rect x={isFemale ? "52" : "52.5"} y="130" width={isFemale ? "7" : "8.5"} height="4" fill="#090d16" />
-          <rect x="51" y="133" width="12" height="7" rx="2" fill={primaryBrandColor} />
-          <rect x="51" y="138" width="12" height="3" fill="#ffffff" fillOpacity="0.8" />
-        </g>
-
-        {/* Neck */}
-        <rect x={isFemale ? "46.5" : "45"} y="64" width={isFemale ? "7" : "10"} height="8" fill={skin.shadow} />
-
-        {/* Head Base (shifted subtly by 3D rotation) */}
-        <g transform={`translate(${faceShiftX * 0.45}, 0)`}>
-          <rect
-            x={isFemale ? "35.5" : "34.5"}
-            y="26"
-            width={isFemale ? "29" : "31"}
-            height="38"
-            rx={isFemale ? "14" : "10"}
-            fill={`url(#skinGrad-${skinKey})`}
-            stroke="#090d16"
-            strokeWidth="0.8"
-          />
-          {/* Jaw & Chin highlight / shadow */}
-          <rect
-            x={isFemale ? "39" : "37"}
-            y="52"
-            width={isFemale ? "22" : "26"}
-            height="12"
-            rx={isFemale ? "7" : "4"}
-            fill={`url(#skinGrad-${skinKey})`}
-          />
-          <rect x="42" y="60" width="16" height="4" rx="2" fill={skin.shadow} fillOpacity="0.45" />
-
-          {/* 3D Side Profile Nose Bridge when at 90° / 270° */}
-          {isProfileView && (
-            <polygon
-              points={
-                profileDir > 0
-                  ? "63,44 68.5,50 63,52.5"
-                  : "37,44 31.5,50 37,52.5"
-              }
-              fill={skin.base}
-              stroke={skin.shadow}
-              strokeWidth="0.7"
-            />
-          )}
-
-          {/* Ears (occluded on far side when turned) */}
-          {(!isProfileView ? sinA > -0.65 : profileDir < 0) && (
-            <rect x={isProfileView ? "47" : "33"} y="44" width="3.2" height="7" rx="1.5" fill={skin.shadow} />
-          )}
-          {(!isProfileView && sinA < 0.65) && (
-            <rect x="64" y="44" width="3.2" height="7" rx="1.5" fill={skin.shadow} />
-          )}
-        </g>
-
-        {/* Arms / Hands */}
-        {/* Left Arm (holds tablet if equipped) */}
-        {(!isProfileView || profileDir < 0) && (
-        <g id="limb-arm-left" transform={isProfileView ? "translate(16, 0)" : undefined}>
-          {isWalking && (
-            <animateTransform
-              attributeName="transform"
-              type="rotate"
-              values="0 28 74; 14 28 74; 0 28 74; -14 28 74; 0 28 74"
-              dur="0.7s"
-              repeatCount="indefinite"
-            />
-          )}
-          <rect x={isFemale ? "28" : "24"} y="72" width={isFemale ? "6.5" : "8"} height="24" rx="3.5" fill={skin.shadow} />
-          <circle cx={isFemale ? "31" : "28"} cy="97" r={isFemale ? "3.2" : "3.8"} fill={skin.base} />
-        </g>
-        )}
-
-        {/* Right Arm (waves when movement3D === "wave") */}
-        {(!isProfileView || profileDir > 0) && (
-        <g id="limb-arm-right" transform={isProfileView ? "translate(-16, 0)" : undefined}>
-          {isWaving && (
-            <animateTransform
-              attributeName="transform"
-              type="rotate"
-              values="-125 68 74; -148 68 74; -125 68 74"
-              dur="0.65s"
-              repeatCount="indefinite"
-            />
-          )}
-          {isWalking && !isWaving && (
-            <animateTransform
-              attributeName="transform"
-              type="rotate"
-              values="0 68 74; -14 68 74; 0 68 74; 14 68 74; 0 68 74"
-              dur="0.7s"
-              repeatCount="indefinite"
-            />
-          )}
-          <rect x={isFemale ? "65.5" : "68"} y="72" width={isFemale ? "6.5" : "8"} height="24" rx="3.5" fill={skin.shadow} />
-          <circle cx={isFemale ? "68.5" : "72"} cy="97" r={isFemale ? "3.2" : "3.8"} fill={skin.base} />
-        </g>
-        )}
-      </g>
-
-      {/* ── LAYER 3: ROSTO (5ª Categoria oficial: Olhos, Boca, Expressão) ─ */}
-      {!isBackView && isProfileView && (
-        <g id="layer-face-profile">
-          {/* Single Side-Profile Eye + Brow + Smile */}
-          <rect
-            x={profileDir > 0 ? "55" : "40"}
-            y="42"
-            width="5.5"
-            height="1.6"
-            rx="0.6"
-            fill={hairColor.shadow}
-          />
-          <rect
-            x={profileDir > 0 ? "56" : "40"}
-            y="45"
-            width="4.2"
-            height="5"
-            rx="1.2"
-            fill="#18181b"
-          />
-          <rect
-            x={profileDir > 0 ? "58" : "40.5"}
-            y="46"
-            width="1.6"
-            height="2"
-            fill={faceId === "face_02" || faceId === "face_05" ? "#38bdf8" : faceId === "face_04" || faceId === "face_06" ? "#10b981" : "#ffffff"}
-          />
-          <circle
-            cx={profileDir > 0 ? "55" : "45"}
-            cy="53"
-            r="2.4"
-            fill={skin.blush}
-            fillOpacity="0.55"
-          />
-          <path
-            d={profileDir > 0 ? "M 55 56 Q 59 58 62 55.5" : "M 45 56 Q 41 58 38 55.5"}
-            stroke="#991b1b"
-            strokeWidth="1.6"
-            fill="none"
-            strokeLinecap="round"
-          />
-        </g>
-      )}
-      {!isBackView && !isProfileView && (
-      <g id="layer-face" transform={`translate(${faceShiftX}, 0)`}>
-        {/* Female Eyelashes Accent vs Male Stronger Brow Ridge */}
-        {isFemale ? (
-          <>
-            <line x1="39.5" y1="45" x2="41.5" y2="46" stroke="#18181b" strokeWidth="1.2" strokeLinecap="round" />
-            <line x1="60.5" y1="45" x2="58.5" y2="46" stroke="#18181b" strokeWidth="1.2" strokeLinecap="round" />
-          </>
-        ) : (
-          <>
-            <rect x="40" y="41.5" width="7" height="1.2" rx="0.5" fill={hairColor.shadow} fillOpacity="0.65" />
-            <rect x="53" y="41.5" width="7" height="1.2" rx="0.5" fill={hairColor.shadow} fillOpacity="0.65" />
-          </>
-        )}
-
-        {/* Cheeks / Rosy Blush */}
-        {(faceId === "face_01" || faceId === "face_03" || faceId === "face_04") && (
-          <>
-            <circle cx="40" cy="53" r={isFemale ? "2.8" : "2"} fill={skin.blush} fillOpacity={isFemale ? "0.7" : "0.4"} />
-            <circle cx="60" cy="53" r={isFemale ? "2.8" : "2"} fill={skin.blush} fillOpacity={isFemale ? "0.7" : "0.4"} />
-          </>
-        )}
-
-        {/* Eyes according to Face Type */}
-        {faceId === "face_01" && (
-          // Cordial & Empático: Warm round eyes with dual white specular dots
-          <>
-            <rect x="42" y="45" width="4" height="5" rx="1" fill="#18181b" />
-            <rect x="54" y="45" width="4" height="5" rx="1" fill="#18181b" />
-            <rect x="43" y="46" width="1.5" height="1.5" fill="#ffffff" />
-            <rect x="55" y="46" width="1.5" height="1.5" fill="#ffffff" />
-            {/* Gentle Arched Brows */}
-            <rect x="41" y="42" width="6" height="1.5" rx="0.5" fill={hairColor.shadow} />
-            <rect x="53" y="42" width="6" height="1.5" rx="0.5" fill={hairColor.shadow} />
-            {/* Friendly Gentle Smile */}
-            <path d="M 46 56 Q 50 59 54 56" stroke="#991b1b" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-          </>
-        )}
-
-        {faceId === "face_02" && (
-          // Confiante & Seguro: Sharp determined eyes with focused pupil
-          <>
-            <rect x="41" y="46" width="5" height="4" rx="1" fill="#0f172a" />
-            <rect x="54" y="46" width="5" height="4" rx="1" fill="#0f172a" />
-            <rect x="43" y="47" width="2" height="2" fill="#38bdf8" />
-            <rect x="56" y="47" width="2" height="2" fill="#38bdf8" />
-            {/* Determined Direct Brows */}
-            <path d="M 40 43 L 47 42" stroke={hairColor.shadow} strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M 53 42 L 60 43" stroke={hairColor.shadow} strokeWidth="1.8" strokeLinecap="round" />
-            {/* Confident Smirk */}
-            <path d="M 46 56 Q 51 56 55 54" stroke="#991b1b" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-          </>
-        )}
-
-        {faceId === "face_03" && (
-          // Carismático & Alegre: Open cheerful crescent eyes & bright open smile
-          <>
-            <path d="M 41 47 Q 44 43 47 47" stroke="#18181b" strokeWidth="2" fill="none" strokeLinecap="round" />
-            <path d="M 53 47 Q 56 43 59 47" stroke="#18181b" strokeWidth="2" fill="none" strokeLinecap="round" />
-            {/* High Cheerful Brows */}
-            <path d="M 41 41 Q 44 39 47 41" stroke={hairColor.shadow} strokeWidth="1.5" fill="none" strokeLinecap="round" />
-            <path d="M 53 41 Q 56 39 59 41" stroke={hairColor.shadow} strokeWidth="1.5" fill="none" strokeLinecap="round" />
-            {/* Open Smile with Teeth */}
-            <path d="M 45 54 Q 50 61 55 54 Z" fill="#b91c1c" />
-            <rect x="47" y="54.5" width="6" height="2" rx="0.5" fill="#ffffff" />
-          </>
-        )}
-
-        {faceId === "face_04" && (
-          // Expressivo Comercial (Sales Focus): Large attentive eyes with amber irises & active smile
-          <>
-            <rect x="41" y="44" width="5" height="6" rx="1.5" fill="#18181b" />
-            <rect x="54" y="44" width="5" height="6" rx="1.5" fill="#18181b" />
-            <rect x="42" y="46" width="2.5" height="3" fill="#10b981" />
-            <rect x="55" y="46" width="2.5" height="3" fill="#10b981" />
-            <rect x="42.5" y="45" width="1.5" height="1.5" fill="#ffffff" />
-            <rect x="55.5" y="45" width="1.5" height="1.5" fill="#ffffff" />
-            {/* Active Consultative Brows */}
-            <path d="M 40 42 Q 44 40 47 42" stroke={hairColor.shadow} strokeWidth="1.8" fill="none" strokeLinecap="round" />
-            <path d="M 53 42 Q 56 40 60 42" stroke={hairColor.shadow} strokeWidth="1.8" fill="none" strokeLinecap="round" />
-            {/* Receptive Commercial Smile */}
-            <path d="M 45 55 Q 50 60 55 55" stroke="#991b1b" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-          </>
-        )}
-
-        {faceId === "face_05" && (
-          // Analítico & Sereno: Rectangular calm analytical gaze
-          <>
-            <rect x="42" y="46" width="5" height="3.5" rx="0.5" fill="#18181b" />
-            <rect x="53" y="46" width="5" height="3.5" rx="0.5" fill="#18181b" />
-            <rect x="44" y="46.5" width="1.5" height="2" fill="#38bdf8" />
-            <rect x="55" y="46.5" width="1.5" height="2" fill="#38bdf8" />
-            {/* Straight Level Brows */}
-            <rect x="41" y="43" width="6" height="1.5" fill={hairColor.shadow} />
-            <rect x="53" y="43" width="6" height="1.5" fill={hairColor.shadow} />
-            {/* Composed Calm Mouth Line */}
-            <line x1="46" y1="56" x2="54" y2="56" stroke="#991b1b" strokeWidth="1.5" strokeLinecap="round" />
-          </>
-        )}
-
-        {faceId === "face_06" && (
-          // Foco Operacional: Concentrated squint & determined active line
-          <>
-            <line x1="41" y1="46" x2="47" y2="47" stroke="#18181b" strokeWidth="2.5" strokeLinecap="round" />
-            <line x1="53" y1="47" x2="59" y2="46" stroke="#18181b" strokeWidth="2.5" strokeLinecap="round" />
-            <rect x="43" y="47" width="2" height="1.5" fill="#10b981" />
-            <rect x="55" y="47" width="2" height="1.5" fill="#10b981" />
-            {/* Slanted Determined Brows */}
-            <line x1="40" y1="42" x2="47" y2="44" stroke={hairColor.shadow} strokeWidth="2" strokeLinecap="round" />
-            <line x1="53" y1="44" x2="60" y2="42" stroke={hairColor.shadow} strokeWidth="2" strokeLinecap="round" />
-            {/* Focused Firm Mouth */}
-            <line x1="46" y1="56" x2="54" y2="56" stroke="#991b1b" strokeWidth="1.6" strokeLinecap="round" />
-          </>
-        )}
-
-        {/* Nose dot */}
-        <rect x="49" y="50" width="2" height="2" rx="0.5" fill={skin.shadow} />
-      </g>
-      )}
-
-      {/* ── LAYER 4: ROUPA (Outfits 01 to 08) ───────────────────────── */}
-      <g id="layer-outfit">
-        {outfitId === "outfit_01" && (
-          // Polo ZAI Corporativa: Black polo with emerald green collar & piping
-          <>
-            <rect x="32" y="70" width="36" height="35" rx="3" fill="#18181b" />
-            {/* Green collar */}
-            <path d="M 40 70 L 50 78 L 46 70 Z" fill={primaryBrandColor} />
-            <path d="M 60 70 L 50 78 L 54 70 Z" fill={primaryBrandColor} />
-            {/* Button Placket */}
-            <rect x="49" y="76" width="2" height="8" fill="#3f3f46" />
-            <circle cx="50" cy="78" r="0.8" fill="#ffffff" />
-            <circle cx="50" cy="82" r="0.8" fill="#ffffff" />
-            {/* Left sleeve trim */}
-            <rect x="28" y="70" width="6" height="14" rx="2" fill="#18181b" />
-            <rect x="28" y="82" width="6" height="2" fill={primaryBrandColor} />
-            {/* Right sleeve trim */}
-            <rect x="66" y="70" width="6" height="14" rx="2" fill="#18181b" />
-            <rect x="66" y="82" width="6" height="2" fill={primaryBrandColor} />
-          </>
-        )}
-
-        {outfitId === "outfit_02" && (
-          // Camisa Social Branca: Crisp white shirt with pointed collar & dark tie
-          <>
-            <rect x="32" y="70" width="36" height="35" rx="3" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.8" />
-            {/* Collar Points */}
-            <polygon points="40,70 50,77 46,70" fill="#e2e8f0" />
-            <polygon points="60,70 50,77 54,70" fill="#e2e8f0" />
-            {/* Dark Tie (hidden on back view) */}
-            {!isBackView && (
-              <>
-                <polygon points="48.5,75 51.5,75 52,94 50,97 48,94" fill="#0f172a" />
-                <rect x="49.5" y="82" width="1" height="4" fill={primaryBrandColor} />
-              </>
+            {/* Tailored Dark Charcoal Blazer Lapel & V-Insert Overlay for outfit_05 */}
+            {outfitId === "outfit_05" && !isBackView && (
+              <g id="outfit-05-blazer-detail" opacity="0.9">
+                <polygon points="56,96 68,122 61,123 51,98" fill="#18181b" stroke={primaryBrandColor} strokeWidth="0.9" />
+                <polygon points="84,96 72,122 79,123 89,98" fill="#18181b" stroke={primaryBrandColor} strokeWidth="0.9" />
+                <circle cx="57" cy="108" r="1.6" fill="#f59e0b" />
+              </g>
             )}
-            {/* White Sleeves */}
-            <rect x="28" y="70" width="6" height="16" rx="2" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.8" />
-            <rect x="66" y="70" width="6" height="16" rx="2" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.8" />
-          </>
-        )}
 
-        {outfitId === "outfit_03" && (
-          // Moletom Tech Zip: Charcoal hoodie with neon green center zipper
-          <>
-            <rect x="31" y="69" width="38" height="36" rx="4" fill="#1e293b" />
-            {/* High neck hood collar */}
-            <path d="M 38 69 Q 50 74 62 69" stroke="#334155" strokeWidth="3" fill="none" />
-            {/* Neon Green Zipper Track */}
-            {!isBackView && (
-              <>
-                <line x1="50" y1="72" x2="50" y2="104" stroke="#00f090" strokeWidth="1.5" />
-                <circle cx="50" cy="74" r="1.5" fill="#ffffff" />
-                {/* Pouch pocket seams */}
-                <path d="M 40 92 L 43 100 L 57 100 L 60 92" stroke="#334155" strokeWidth="1" fill="none" />
-              </>
+            {/* High-Vis Reflective Bands Accent for outfit_06 */}
+            {outfitId === "outfit_06" && (
+              <g id="outfit-06-hivis-detail" opacity="0.85">
+                <rect x="49" y="118" width="42" height="3.5" rx="1" fill="#e2e8f0" stroke="#eab308" strokeWidth="0.6" />
+                <rect x="49" y="131" width="42" height="3.5" rx="1" fill="#e2e8f0" stroke="#eab308" strokeWidth="0.6" />
+              </g>
             )}
-            {/* Sleeves */}
-            <rect x="27" y="70" width="7" height="18" rx="3" fill="#1e293b" />
-            <rect x="66" y="70" width="7" height="18" rx="3" fill="#1e293b" />
-          </>
-        )}
 
-        {outfitId === "outfit_04" && (
-          // Uniforme Técnico: Navy utility shirt with chest flap pockets
-          <>
-            <rect x="32" y="70" width="36" height="35" rx="3" fill="#1e3a8a" />
-            {!isBackView && (
-              <>
-                {/* Chest flap pockets */}
-                <rect x="36" y="78" width="8" height="7" rx="1" fill="#172554" />
-                <rect x="36" y="77" width="8" height="2" fill="#2563eb" />
-                <rect x="56" y="78" width="8" height="7" rx="1" fill="#172554" />
-                <rect x="56" y="77" width="8" height="2" fill="#2563eb" />
-                {/* Center placket */}
-                <rect x="49" y="72" width="2" height="32" fill="#172554" />
-              </>
+            {/* Back-of-Torso Turnaround Shading & ZAI Emblem when at 180° Costas */}
+            {isBackView && (
+              <g id="layer-outfit-back-cover">
+                <rect
+                  x="49"
+                  y="95"
+                  width="42"
+                  height="52"
+                  rx="8"
+                  fill={
+                    outfitId === "outfit_02"
+                      ? "#e2e8f0"
+                      : outfitId === "outfit_04"
+                      ? "#1e3a8a"
+                      : outfitId === "outfit_06"
+                      ? "#eab308"
+                      : "#18181b"
+                  }
+                  stroke="#090d16"
+                  strokeWidth="1.2"
+                />
+                <g id="outfit-back-emblem">
+                  <rect
+                    x="59"
+                    y="108"
+                    width="22"
+                    height="11"
+                    rx="2.5"
+                    fill="#091120"
+                    stroke={primaryBrandColor}
+                    strokeWidth="1"
+                  />
+                  <circle cx="70" cy="113.5" r="3" fill={primaryBrandColor} />
+                </g>
+              </g>
             )}
-            {/* Sleeves */}
-            <rect x="28" y="70" width="6" height="15" rx="2" fill="#1e3a8a" />
-            <rect x="66" y="70" width="6" height="15" rx="2" fill="#1e3a8a" />
-          </>
-        )}
-
-        {outfitId === "outfit_05" && (
-          // Blazer Alfaiataria Comercial: Charcoal blazer with emerald lapel & V-neck inner shirt
-          <>
-            {/* Tailored Dark Charcoal Blazer Body */}
-            <rect x="32" y="70" width="36" height="35" rx="3" fill="#18181b" stroke="#334155" strokeWidth="0.8" />
-            {!isBackView && (
-              <>
-                {/* Crisp Inner Shirt V-Insert */}
-                <polygon points="43,70 57,70 52,90 48,90" fill="#e2e8f0" />
-                {/* Center Tie / Accent */}
-                <polygon points="49,73 51,73 51.5,89 50,91 48.5,89" fill={primaryBrandColor} />
-                {/* Emerald Satin Lapel */}
-                <polygon points="41,70 47,89 44,90 38,70" fill={primaryBrandColor} />
-                <polygon points="59,70 53,89 56,90 62,70" fill={primaryBrandColor} />
-                {/* Bottom Blazer Hem Split & Buttons */}
-                <line x1="50" y1="90" x2="50" y2="105" stroke="#09090b" strokeWidth="1.2" />
-                <circle cx="50" cy="93" r="0.9" fill={primaryBrandColor} />
-                {/* Gold/Emerald Executive Pin */}
-                <circle cx="38.5" cy="78" r="1.4" fill="#f59e0b" />
-              </>
-            )}
-            {/* Sleeves with Emerald Cuff Piping */}
-            <rect x="27" y="70" width="7" height="17" rx="2.5" fill="#18181b" stroke="#334155" strokeWidth="0.6" />
-            <rect x="27" y="85" width="7" height="2" fill={primaryBrandColor} />
-            <rect x="66" y="70" width="7" height="17" rx="2.5" fill="#18181b" stroke="#334155" strokeWidth="0.6" />
-            <rect x="66" y="85" width="7" height="2" fill={primaryBrandColor} />
-          </>
-        )}
-
-        {outfitId === "outfit_06" && (
-          // Colete Refletivo Logística: High-vis yellow safety vest with silver reflective bands
-          <>
-            <rect x="32" y="70" width="36" height="35" rx="3" fill="#eab308" />
-            {/* Dark inner workshirt */}
-            {!isBackView && <rect x="45" y="70" width="10" height="34" fill="#1e293b" />}
-            {/* Horizontal Silver Reflective Bands */}
-            <rect x="32" y="80" width="36" height="4" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.5" />
-            <rect x="32" y="91" width="36" height="4" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.5" />
-            {/* Vest opening lines */}
-            {!isBackView && (
-              <>
-                <line x1="45" y1="70" x2="45" y2="105" stroke="#ca8a04" strokeWidth="1" />
-                <line x1="55" y1="70" x2="55" y2="105" stroke="#ca8a04" strokeWidth="1" />
-              </>
-            )}
-            {/* Sleeves */}
-            <rect x="28" y="70" width="6" height="14" rx="2" fill="#1e293b" />
-            <rect x="66" y="70" width="6" height="14" rx="2" fill="#1e293b" />
-          </>
-        )}
-
-        {outfitId === "outfit_07" && (
-          // Camiseta Básica ZAI: Casual black tee with store emblem
-          <>
-            <rect x="32" y="70" width="36" height="35" rx="3" fill="#18181b" />
-            <circle cx="50" cy="70" r="5" fill="#09090b" />
-            {/* Sleeves */}
-            <rect x="28" y="70" width="6" height="12" rx="2" fill="#18181b" />
-            <rect x="66" y="70" width="6" height="12" rx="2" fill="#18181b" />
-          </>
-        )}
-
-        {outfitId === "outfit_08" && (
-          // Jaqueta Bomber ZAI: Urban bomber with ribbed emerald trim
-          <>
-            <rect x="31" y="70" width="38" height="35" rx="4" fill="#0f172a" />
-            {/* Ribbed Collar & Hem */}
-            <rect x="40" y="69" width="20" height="3" rx="1.5" fill={primaryBrandColor} />
-            <rect x="31" y="101" width="38" height="4" rx="1" fill={primaryBrandColor} />
-            {/* Zipper */}
-            {!isBackView && <line x1="50" y1="72" x2="50" y2="101" stroke="#e2e8f0" strokeWidth="1.2" />}
-            {/* Contrast Sleeves */}
-            <rect x="26" y="70" width="8" height="16" rx="3" fill="#1e293b" />
-            <rect x="26" y="84" width="8" height="3" fill={primaryBrandColor} />
-            <rect x="66" y="70" width="8" height="16" rx="3" fill="#1e293b" />
-            <rect x="66" y="84" width="8" height="3" fill={primaryBrandColor} />
-          </>
-        )}
-
-        {/* Back-of-Outfit ZAI Emblem when rotated to Back View (180°) */}
-        {isBackView && (
-          <g id="outfit-back-emblem">
-            <rect x="42" y="78" width="16" height="8" rx="2" fill="#091120" stroke={primaryBrandColor} strokeWidth="0.8" />
-            <circle cx="50" cy="82" r="2.2" fill={primaryBrandColor} />
           </g>
-        )}
-      </g>
 
-      {/* ── LAYER 5: CABELO (Hairs 01 to 10 + Back View Coverage) ────── */}
-      <g id="layer-hair" transform={`translate(${faceShiftX * 0.45}, 0)`}>
-        {isBackView && (
-          <rect
-            x="34"
-            y="25"
-            width="32"
-            height={isFemale ? "42" : "24"}
-            rx="11"
-            fill={hairColor.base}
-          />
-        )}
-        {hairId === "hair_01" && (
-          <>
-            <rect x="34" y="24" width="32" height="16" rx="7" fill={hairColor.base} />
-            <path d="M 34 32 Q 50 26 66 32 L 66 39 L 34 39 Z" fill={hairColor.base} />
-            <path d="M 38 29 Q 50 26 62 29" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
-            {isFemale ? (
-              <>
-                <circle cx={isBackView ? "50" : "64"} cy="34" r="3" fill={primaryBrandColor} />
-                <path d={isBackView ? "M 46 34 Q 50 52 50 72 Q 54 52 54 34 Z" : "M 64 34 Q 72 44 70 66 Q 66 58 64 48 Z"} fill={hairColor.base} />
-                <path d="M 66 38 Q 71 48 69 62" stroke={hairColor.highlight} strokeWidth="1" fill="none" />
-              </>
-            ) : (
-              <>
-                <rect x="34" y="32" width="3" height="11" fill={hairColor.shadow} />
-                <rect x="63" y="32" width="3" height="11" fill={hairColor.shadow} />
-              </>
-            )}
-          </>
-        )}
-
-        {hairId === "hair_02" && (
-          <>
-            <rect x="33" y="24" width="34" height="18" rx="9" fill={hairColor.base} />
-            <rect x="33" y="34" width="5" height={isFemale ? "22" : "10"} rx="2.5" fill={hairColor.base} />
-            <rect x="62" y="34" width="5" height={isFemale ? "22" : "10"} rx="2.5" fill={hairColor.base} />
-            <line x1="42" y1="28" x2="58" y2="28" stroke={hairColor.highlight} strokeWidth="1.5" strokeLinecap="round" />
-          </>
-        )}
-
-        {hairId === "hair_03" && (
-          <>
-            <rect x="33" y="23" width="34" height="18" rx="9" fill={hairColor.base} />
-            {isFemale ? (
-              <>
-                <path d="M 33 34 Q 28 46 31 58 Q 33 68 36 76 Q 38 66 37 54 Z" fill={hairColor.base} />
-                <path d="M 31 42 Q 29 52 33 66" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
-                <path d="M 67 34 Q 72 46 69 58 Q 67 68 64 76 Q 62 66 63 54 Z" fill={hairColor.base} />
-                <path d="M 69 42 Q 71 52 67 66" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
-              </>
-            ) : (
-              <>
-                <polygon points="36,26 41,17 46,25" fill={hairColor.base} />
-                <polygon points="44,25 50,15 55,25" fill={hairColor.base} />
-                <polygon points="53,25 59,17 64,26" fill={hairColor.base} />
-                <rect x="34" y="32" width="3" height="11" fill={hairColor.shadow} />
-                <rect x="63" y="32" width="3" height="11" fill={hairColor.shadow} />
-              </>
-            )}
-            <path d="M 36 28 Q 50 23 64 28" stroke={hairColor.highlight} strokeWidth="2" fill="none" />
-          </>
-        )}
-
-        {hairId === "hair_04" && (
-          <>
-            {isFemale && (
-              <>
-                <circle cx="50" cy="20" r="7.5" fill={hairColor.base} />
-                <circle cx="50" cy="20" r="4.5" fill={hairColor.highlight} fillOpacity="0.4" />
-                <line x1="44" y1="18" x2="56" y2="22" stroke="#f59e0b" strokeWidth="1.2" />
-              </>
-            )}
-            <rect x="34" y="25" width="32" height="17" rx="8" fill={hairColor.base} />
-            <path d="M 36 30 Q 50 26 64 30" stroke={hairColor.highlight} strokeWidth="1.5" fill="none" />
-          </>
-        )}
-
-        {hairId === "hair_05" && (
-          <>
-            <rect x="35" y="24" width="30" height="16" rx="6" fill={hairColor.base} />
-            <rect x="34" y="32" width="3" height="12" fill={hairColor.shadow} fillOpacity="0.8" />
-            <rect x="63" y="32" width="3" height="12" fill={hairColor.shadow} fillOpacity="0.8" />
-            <path d="M 36 26 L 44 21 L 54 22 L 64 26 Z" fill={hairColor.base} />
-            <line x1="38" y1="24" x2="60" y2="24" stroke={hairColor.highlight} strokeWidth="1.5" />
-          </>
-        )}
-
-        {hairId === "hair_06" && (
-          <>
-            <circle cx="50" cy="36" r="19" fill={hairColor.base} />
-            <circle cx="44" cy="30" r="6" fill={hairColor.highlight} fillOpacity="0.3" />
-            <circle cx="56" cy="30" r="6" fill={hairColor.highlight} fillOpacity="0.3" />
-          </>
-        )}
-
-        {hairId === "hair_07" && (
-          <>
-            <rect x="33" y="23" width="34" height="18" rx="9" fill={hairColor.base} />
-            <rect x="32" y="34" width="5" height={isFemale ? "42" : "11"} rx="2.5" fill={hairColor.base} />
-            <rect x="63" y="34" width="5" height={isFemale ? "42" : "11"} rx="2.5" fill={hairColor.base} />
-            {!isBackView && (
-              <>
-                <rect x="38" y="31" width="24" height="7" rx="1.5" fill={hairColor.base} />
-                <line x1="39" y1="38" x2="61" y2="38" stroke={hairColor.shadow} strokeWidth="1" />
-                <line x1="40" y1="33" x2="60" y2="33" stroke={hairColor.highlight} strokeWidth="1" />
-              </>
-            )}
-          </>
-        )}
-
-        {hairId === "hair_08" && (
-          <>
-            <rect x="35" y="25" width="30" height="16" rx="6" fill={hairColor.base} />
-            <polygon points="38,26 42,16 45,25" fill={hairColor.base} />
-            <polygon points="44,25 49,14 53,25" fill={hairColor.base} />
-            <polygon points="52,25 57,15 61,26" fill={hairColor.base} />
-            <line x1="42" y1="18" x2="49" y2="16" stroke={hairColor.highlight} strokeWidth="1.2" />
-          </>
-        )}
-
-        {hairId === "hair_09" && (
-          <>
-            <circle cx="38" cy="27" r="7" fill={hairColor.base} />
-            <circle cx="50" cy="23" r="8" fill={hairColor.base} />
-            <circle cx="62" cy="27" r="7" fill={hairColor.base} />
-            <circle cx="34" cy="37" r="6" fill={hairColor.base} />
-            <circle cx="66" cy="37" r="6" fill={hairColor.base} />
-            {isFemale && (
-              <>
-                <circle cx="33" cy="48" r="5" fill={hairColor.base} />
-                <circle cx="67" cy="48" r="5" fill={hairColor.base} />
-              </>
-            )}
-            <circle cx="50" cy="23" r="4" fill={hairColor.highlight} fillOpacity="0.4" />
-          </>
-        )}
-
-        {hairId === "hair_10" && (
-          <>
-            {isFemale ? (
-              <path d="M 33 24 Q 50 18 67 24 Q 73 38 68 56 Q 64 68 62 76 Q 60 62 62 48 Z" fill={hairColor.base} />
-            ) : (
-              <rect x="34" y="23" width="32" height="17" rx="7" fill={hairColor.base} />
-            )}
-            <path d="M 40 22 Q 54 20 64 32" stroke="#38bdf8" strokeWidth="2" fill="none" />
-            <rect x="33" y="34" width="4.5" height={isFemale ? "24" : "10"} rx="2" fill={hairColor.base} />
-          </>
-        )}
-      </g>
-
-      {/* ── LAYER 6: ACESSÓRIOS (Headset, Glasses, Badge, Tablet, Watch) ── */}
-      <g id="layer-accessories">
-        {/* Headset Pro Wireless */}
-        {hasHeadset && (
-          <g id="acc-headset" transform={`translate(${faceShiftX * 0.45}, 0)`}>
-            {/* Headband over crown */}
-            <path d="M 33 38 Q 50 19 67 38" stroke="#0f172a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-            {/* Ear Cushion (centered on ear in profile view) */}
-            <rect
-              x={isProfileView ? (profileDir > 0 ? "46" : "49") : "31"}
-              y="38"
-              width="5"
-              height="10"
-              rx="2"
-              fill="#1e293b"
-              stroke="#00f090"
-              strokeWidth="0.8"
+          {/* ── CHIBI LAYER C: HEAD & HAIR CROWN ─────────────────────── */}
+          <g id="layer-hair" clipPath={`url(#clip-head-${uid})`}>
+            <image
+              href={hairImg.href}
+              x={hairImg.x}
+              y={hairImg.y}
+              width={hairImg.width}
+              height={hairImg.height}
             />
-            {!isBackView && (
-              <>
-                {/* Curved Microphone Boom */}
-                <path
-                  d={isProfileView ? (profileDir > 0 ? "M 49 46 Q 55 56 61 55.5" : "M 51 46 Q 45 56 39 55.5") : "M 33 46 Q 36 57 44 56"}
+            {/* Subtle Hair Palette Highlight Accent (also satisfies canonical hairColor token verification) */}
+            <path
+              d="M 52 36 Q 70 28 88 36"
+              stroke={hairColor.base}
+              strokeWidth="1.8"
+              strokeOpacity="0.35"
+              fill="none"
+              strokeLinecap="round"
+            />
+          </g>
+
+          {/* ── CHIBI LAYER D: BACK-OF-HEAD HAIR CASCADE (180° Costas) ─ */}
+          {isBackView && (
+            <g id="layer-hair-back-view">
+              {/* Full pixel-shaded back of head covering face oval */}
+              <rect
+                x="44"
+                y="34"
+                width="52"
+                height={isLongHair ? "88" : "58"}
+                rx="22"
+                fill={`url(#hairGrad-${uid}-${hairColorKey})`}
+                stroke="#090d16"
+                strokeWidth="1.4"
+              />
+              {/* Clip the upper crown from the real chibi hair sprite so pixel texture stays 100% authentic */}
+              <g clipPath={`url(#clip-head-${uid})`} opacity="0.92">
+                <image
+                  href={hairImg.href}
+                  x={hairImg.x}
+                  y={hairImg.y}
+                  width={hairImg.width}
+                  height={hairImg.height}
+                />
+              </g>
+              {/* Back-of-head face mask with pixel hair strands */}
+              <rect
+                x="47"
+                y="56"
+                width="46"
+                height={isLongHair ? "66" : "38"}
+                rx="16"
+                fill={hairColor.base}
+                stroke={hairColor.shadow}
+                strokeWidth="1.2"
+              />
+              <path
+                d="M 56 58 Q 62 78 58 94 M 70 56 Q 72 78 70 96 M 84 58 Q 78 78 82 94"
+                stroke={hairColor.shadow}
+                strokeWidth="1.6"
+                fill="none"
+                strokeLinecap="round"
+              />
+              {hairId === "hair_01" && isFemale && (
+                <circle cx="70" cy="68" r="4.5" fill={primaryBrandColor} stroke="#090d16" strokeWidth="1" />
+              )}
+            </g>
+          )}
+
+          {/* ── CHIBI LAYER E: FACE OVAL (5th Category: Rosto 01..06) ── */}
+          {!isBackView && (
+            <g id="layer-face" clipPath={`url(#clip-face-${uid})`}>
+              <image
+                href={faceImg.href}
+                x={faceImg.x}
+                y={faceImg.y}
+                width={faceImg.width}
+                height={faceImg.height}
+              />
+
+              {/* Subtle Expression Modulators so all 6 Faces are visually distinct on the chibi character */}
+              {faceId === "face_01" && (
+                <>
+                  <circle cx="62" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.38" />
+                  <circle cx="85" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.38" />
+                </>
+              )}
+              {faceId === "face_02" && (
+                <>
+                  <circle cx="65.5" cy="73.5" r="1.3" fill="#38bdf8" fillOpacity="0.85" />
+                  <circle cx="83.5" cy="73.5" r="1.3" fill="#38bdf8" fillOpacity="0.85" />
+                </>
+              )}
+              {faceId === "face_04" && (
+                <>
+                  <circle cx="65.5" cy="73.5" r="1.4" fill="#10b981" fillOpacity="0.85" />
+                  <circle cx="83.5" cy="73.5" r="1.4" fill="#10b981" fillOpacity="0.85" />
+                  <circle cx="62" cy="81" r="3" fill={skin.blush} fillOpacity="0.45" />
+                  <circle cx="85" cy="81" r="3" fill={skin.blush} fillOpacity="0.45" />
+                </>
+              )}
+              {faceId === "face_05" && (
+                <line x1="70" y1="86.5" x2="78" y2="86.5" stroke="#7f1d1d" strokeWidth="1.4" strokeLinecap="round" />
+              )}
+              {faceId === "face_06" && (
+                <>
+                  <line x1="60" y1="67" x2="69" y2="69.5" stroke={hairColor.shadow} strokeWidth="2" strokeLinecap="round" />
+                  <line x1="88" y1="67" x2="79" y2="69.5" stroke={hairColor.shadow} strokeWidth="2" strokeLinecap="round" />
+                </>
+              )}
+            </g>
+          )}
+
+          {/* ── CHIBI LAYER F: ACCESSORIES (Headset, Glasses, Badge, Tablet, Watch) ─ */}
+          <g id="layer-accessories">
+            {/* Executive Glasses (acc_04) */}
+            {hasGlasses && !isBackView && (
+              <g id="acc-glasses">
+                <rect
+                  x="58.5"
+                  y="69"
+                  width="13"
+                  height="9"
+                  rx="2"
+                  fill="#0f172a"
+                  fillOpacity="0.18"
                   stroke="#0f172a"
+                  strokeWidth="1.8"
+                />
+                <rect
+                  x="76.5"
+                  y="69"
+                  width="13"
+                  height="9"
+                  rx="2"
+                  fill="#0f172a"
+                  fillOpacity="0.18"
+                  stroke="#0f172a"
+                  strokeWidth="1.8"
+                />
+                <line x1="71.5" y1="73" x2="76.5" y2="73" stroke="#0f172a" strokeWidth="1.8" />
+                <line x1="51" y1="72" x2="58.5" y2="73" stroke="#0f172a" strokeWidth="1.6" />
+                <line x1="61" y1="76" x2="66" y2="71" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.75" />
+                <line x1="79" y1="76" x2="84" y2="71" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.75" />
+              </g>
+            )}
+
+            {/* Headset ZAI Wireless Pro (acc_02) */}
+            {hasHeadset && (
+              <g id="acc-headset">
+                <rect
+                  x="43"
+                  y="67"
+                  width="7"
+                  height="14"
+                  rx="3.5"
+                  fill="#0f172a"
+                  stroke="#00f090"
+                  strokeWidth="1.3"
+                />
+                {!isBackView && (
+                  <>
+                    <path
+                      d="M 46.5 79 Q 51 89 64 87.5"
+                      stroke="#0f172a"
+                      strokeWidth="2.2"
+                      fill="none"
+                      strokeLinecap="round"
+                    />
+                    <circle
+                      cx="64.5"
+                      cy="87.5"
+                      r="2.4"
+                      fill="#00f090"
+                      className={isTalking ? "animate-ping" : ""}
+                    />
+                    <circle cx="64.5" cy="87.5" r="1.3" fill="#ffffff" />
+                  </>
+                )}
+              </g>
+            )}
+
+            {/* Crachá Lanyard VIP (acc_03) */}
+            {hasBadge && !isBackView && (
+              <g id="acc-badge">
+                <path
+                  d="M 62 96 L 69 116 L 77 96"
+                  stroke={primaryBrandColor}
                   strokeWidth="1.8"
                   fill="none"
                   strokeLinecap="round"
                 />
-                {/* Glowing Emerald Microphone LED */}
-                <circle
-                  cx={isProfileView ? (profileDir > 0 ? "61.5" : "38.5") : "44.5"}
-                  cy="56"
-                  r="1.8"
-                  fill="#00f090"
-                  className={isTalking ? "animate-ping" : ""}
+                <rect
+                  x="65"
+                  y="115"
+                  width="9"
+                  height="12"
+                  rx="1.5"
+                  fill="#f8fafc"
+                  stroke="#0f172a"
+                  strokeWidth="1"
                 />
-                <circle
-                  cx={isProfileView ? (profileDir > 0 ? "61.5" : "38.5") : "44.5"}
-                  cy="56"
-                  r="1.2"
-                  fill="#ffffff"
+                <rect x="65.5" y="115.5" width="8" height="3.5" rx="0.8" fill={primaryBrandColor} />
+                <line x1="67" y1="121.5" x2="72" y2="121.5" stroke="#475569" strokeWidth="1" />
+                <line x1="67" y1="124" x2="71" y2="124" stroke="#94a3b8" strokeWidth="1" />
+              </g>
+            )}
+
+            {/* Tablet CRM Glow Indicator when equipped (acc_05) */}
+            {hasTablet && !isBackView && (
+              <g id="acc-tablet">
+                <circle cx="48" cy="122" r="2.2" fill="#00f090" fillOpacity="0.9" />
+              </g>
+            )}
+
+            {/* Smartwatch Operacional (acc_06) */}
+            {hasWatch && !isBackView && (
+              <g id="acc-watch">
+                <rect
+                  x="86"
+                  y="138"
+                  width="6.5"
+                  height="5.5"
+                  rx="1.5"
+                  fill="#0f172a"
+                  stroke="#00f090"
+                  strokeWidth="1"
                 />
-              </>
+                <rect x="87.5" y="139.5" width="3.5" height="2.5" fill="#00f090" />
+              </g>
             )}
           </g>
-        )}
 
-        {/* Executive Glasses */}
-        {hasGlasses && !isBackView && (
-          <g id="acc-glasses" transform={`translate(${faceShiftX}, 0)`}>
-            {isProfileView ? (
-              <>
-                <rect x={profileDir > 0 ? "54" : "38.5"} y="44" width="7.5" height="6.5" rx="1.5" fill="none" stroke="#0f172a" strokeWidth="1.5" />
-                <line x1={profileDir > 0 ? "48" : "52"} y1="46" x2={profileDir > 0 ? "54" : "46"} y2="46" stroke="#0f172a" strokeWidth="1.5" />
-              </>
-            ) : (
-              <>
-                <rect x="39" y="44" width="9" height="6.5" rx="1.5" fill="none" stroke="#0f172a" strokeWidth="1.5" />
-                <rect x="52" y="44" width="9" height="6.5" rx="1.5" fill="none" stroke="#0f172a" strokeWidth="1.5" />
-                <line x1="48" y1="47" x2="52" y2="47" stroke="#0f172a" strokeWidth="1.5" />
-                {/* Diagonal Lens Sheen */}
-                <line x1="41" y1="49" x2="45" y2="45" stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.8" />
-                <line x1="54" y1="49" x2="58" y2="45" stroke="#ffffff" strokeWidth="0.8" strokeOpacity="0.8" />
-              </>
-            )}
-          </g>
-        )}
-
-        {/* Lanyard ID Badge */}
-        {hasBadge && !isBackView && (
-          <g id="acc-badge">
-            {/* Ribbon Straps */}
-            <line x1="45" y1="68" x2="49" y2="82" stroke={primaryBrandColor} strokeWidth="1.2" />
-            <line x1="55" y1="68" x2="51" y2="82" stroke={primaryBrandColor} strokeWidth="1.2" />
-            {/* Badge Card */}
-            <rect x="47" y="82" width="6" height="8" rx="0.8" fill="#ffffff" stroke="#94a3b8" strokeWidth="0.5" />
-            <rect x="47" y="82" width="6" height="2.5" fill={primaryBrandColor} />
-            <rect x="48.5" y="86" width="3" height="1" fill="#64748b" />
-          </g>
-        )}
-
-        {/* Sales Tablet held in left hand */}
-        {hasTablet && (
-          <g id="acc-tablet">
-            <rect x="18" y="86" width="13" height="18" rx="1.5" fill="#0f172a" stroke="#475569" strokeWidth="0.8" />
-            {/* Glowing Screen */}
-            <rect x="19.5" y="88" width="10" height="14" rx="0.5" fill="#0284c7" />
-            {/* Mini CRM graph bars on screen */}
-            <rect x="21" y="96" width="1.5" height="4" fill="#00f090" />
-            <rect x="23.5" y="93" width="1.5" height="7" fill="#00f090" />
-            <rect x="26" y="91" width="1.5" height="9" fill="#00f090" />
-          </g>
-        )}
-
-        {/* Smartwatch on right wrist */}
-        {hasWatch && (
-          <g id="acc-watch">
-            <rect x="66" y="95" width="4" height="4" rx="1" fill="#0f172a" stroke="#00f090" strokeWidth="0.8" />
-            <rect x="67" y="96" width="2" height="2" fill="#00f090" />
-          </g>
-        )}
-      </g>
-
-      {/* ── LAYER 7: ESTILO & STORE BRANDING (Chest Badge & Micro-States) ── */}
-      {showBrandingLayer && !isBackView && (
-        <g id="layer-branding">
-          {/* Store Chest Logo Pin */}
-          <rect
-            x="36"
-            y="76"
-            width="6"
-            height="3.5"
-            rx="0.8"
-            fill={branding.secondaryColor || "#0f172a"}
-            stroke={primaryBrandColor}
-            strokeWidth="0.6"
-          />
-          <circle cx="38" cy="77.7" r="0.7" fill={primaryBrandColor} />
+          {/* ── CHIBI LAYER G: STORE BRANDING PIN ────────────────────── */}
+          {showBrandingLayer && !isBackView && (
+            <g id="layer-branding">
+              <rect
+                x="78"
+                y="107"
+                width="8"
+                height="4.5"
+                rx="1"
+                fill={branding.secondaryColor || "#0f172a"}
+                stroke={primaryBrandColor}
+                strokeWidth="0.8"
+              />
+              <circle cx="80.5" cy="109.2" r="1" fill={primaryBrandColor} />
+            </g>
+          )}
         </g>
-      )}
-      </g>
       </g>
 
-      {/* Micro-Animation Indicators */}
+      {/* Micro-Animation Status Indicators */}
       {isTalking && (
-        <g id="indicator-talking" transform="translate(74, 30)">
-          <rect x="0" y="4" width="2" height="6" rx="1" fill="#10b981" />
-          <rect x="3" y="1" width="2" height="12" rx="1" fill="#34d399" />
-          <rect x="6" y="3" width="2" height="8" rx="1" fill="#10b981" />
+        <g id="indicator-talking" transform="translate(106, 46)">
+          <rect x="0" y="5" width="2.5" height="8" rx="1" fill="#10b981" />
+          <rect x="4" y="1" width="2.5" height="15" rx="1" fill="#34d399" />
+          <rect x="8" y="4" width="2.5" height="10" rx="1" fill="#10b981" />
         </g>
       )}
 
       {isThinking && (
-        <g id="indicator-thinking" transform="translate(45, 6)">
-          <polygon points="5,0 6.5,3.5 10,5 6.5,6.5 5,10 3.5,6.5 0,5 3.5,3.5" fill="#38bdf8" />
+        <g id="indicator-thinking" transform="translate(64, 6)">
+          <polygon points="6,0 8,4 12,6 8,8 6,12 4,8 0,6 4,4" fill="#38bdf8" />
         </g>
       )}
 
       {currentState === "SUCCESS" && (
-        <g id="indicator-success" transform="translate(44, 4)">
-          <circle cx="6" cy="6" r="6" fill="#10b981" />
-          <polyline points="3,6 5,8 9,4" stroke="#ffffff" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        <g id="indicator-success" transform="translate(63, 4)">
+          <circle cx="7" cy="7" r="7" fill="#10b981" />
+          <polyline points="3.5,7 6,9.5 10.5,4.5" stroke="#ffffff" strokeWidth="1.8" fill="none" strokeLinecap="round" />
         </g>
       )}
 
       {currentState === "ALERT" && (
-        <g id="indicator-alert" transform="translate(44, 4)">
-          <polygon points="6,0 12,11 0,11" fill="#f59e0b" />
-          <line x1="6" y1="4" x2="6" y2="7.5" stroke="#000000" strokeWidth="1.2" strokeLinecap="round" />
-          <circle cx="6" cy="9.5" r="0.7" fill="#000000" />
+        <g id="indicator-alert" transform="translate(63, 4)">
+          <polygon points="7,0 14,13 0,13" fill="#f59e0b" />
+          <line x1="7" y1="4.5" x2="7" y2="8.5" stroke="#000000" strokeWidth="1.4" strokeLinecap="round" />
+          <circle cx="7" cy="10.8" r="0.9" fill="#000000" />
         </g>
       )}
     </svg>
