@@ -329,6 +329,8 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   const leadAlgorithm = crmContext.leadAlgorithm || leadAnalysis.leadAlgorithm || null;
   const tags = crmContext.tags || [];
   const salesStrategy = generateSalesStrategy(leadAnalysis);
+  const aiAntiRepetitionService = require('./aiAntiRepetitionService');
+  const recentBotReplies = aiAntiRepetitionService.extractRecentBotReplies(leadHistory, 3);
 
   console.log(`[AutomationEngine] Calling AI Engine for conversation ${conversationId} (algo=${leadAlgorithm?.algorithmId || 'default'}, style=${leadAlgorithm?.conversationStyle || 'default'})`);
   publishProgress('generating', {
@@ -353,6 +355,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
         notes: crmContext.notes || conversation?.notes || '',
         orderStatus: crmContext.orderStatus || leadAnalysis.intent,
         currentIssue: crmContext.currentIssue,
+        recentBotReplies,
       },
       history: leadHistory,
       message: incomingText,
@@ -360,6 +363,10 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       agentName: matchedAgent.name,
       companyId,
     });
+
+    if (ai && ai.reply) {
+      ai.reply = aiAntiRepetitionService.sanitizeAndVaryBotReply(ai.reply, recentBotReplies);
+    }
   } catch (error) {
     console.error('[AutomationEngine] processAI failed:', error.message);
   }

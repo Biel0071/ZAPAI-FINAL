@@ -67,6 +67,10 @@ class CustomerMemoryEngine {
             : [String(raw)];
         }
         if (cJson.paymentPreference) context.paymentPreference = cJson.paymentPreference;
+        if (cJson.capacity) context.capacity = cJson.capacity;
+        if (cJson.product && !context.quotedProducts.includes(cJson.product)) {
+          context.quotedProducts.push(cJson.product);
+        }
       }
 
       // 2. Query ai_conversation_memory
@@ -147,11 +151,20 @@ class CustomerMemoryEngine {
       facts.product = 'Tijolo 8 Furos (Milheiro)';
     } else if (text.includes('cimento')) {
       facts.product = 'Cimento CP II 50kg';
+    } else if (text.includes('caixa d') || text.includes('caixa dagua') || text.includes('5 mil') || text.includes('5000') || text.includes('litros')) {
+      facts.product = "Caixa d'água";
+      if (text.includes('5 mil') || text.includes('5000')) {
+        facts.capacity = '5.000 Litros';
+      } else if (text.includes('3 mil') || text.includes('3000')) {
+        facts.capacity = '3.000 Litros';
+      } else if (text.includes('1 mil') || text.includes('1000')) {
+        facts.capacity = '1.000 Litros';
+      }
     }
 
     // Detect payment preference
     if (text.includes('pix')) {
-      facts.paymentPreference = 'PIX';
+      facts.paymentPreference = 'PIX (com desconto à vista)';
     } else if (text.includes('cartao') || text.includes('cartão') || text.includes('parcel')) {
       facts.paymentPreference = 'Cartão de Crédito';
     }
@@ -231,8 +244,11 @@ class CustomerMemoryEngine {
     if (context.quotedProducts && context.quotedProducts.length > 0) {
       prompt += `\n- Itens cotados/interesse: ${context.quotedProducts.join(', ')}`;
     }
+    if (context.capacity) {
+      prompt += `\n- Capacidade/Medida: ${context.capacity} (JÁ INFORMADA - NÃO pergunte o tamanho novamente!)`;
+    }
     if (context.paymentPreference) {
-      prompt += `\n- Preferência de Pagamento: ${context.paymentPreference}`;
+      prompt += `\n- Preferência de Pagamento: ${context.paymentPreference} (JÁ INFORMADA - NÃO pergunte forma de pagamento novamente!)`;
     }
     if (context.lastInteractionSummary) {
       prompt += `\n- Resumo de interações anteriores: ${context.lastInteractionSummary}`;

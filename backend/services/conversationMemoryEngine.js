@@ -244,6 +244,55 @@ function extractFactsFromContext(text = '', analysis = {}, memory) {
       category: MEMORY_CATEGORIES.COMMERCIAL_INTENT,
       importance: 9,
     });
+    // If no specific product is identified yet, 5 mil litros indicates caixa d'agua
+    if (!memory.commercial?.activeProduct && (cap.includes('Litros') || cap.includes('litros'))) {
+      setCustomerFact(memory, {
+        key: 'produto_interesse',
+        value: "Caixa d'água",
+        category: MEMORY_CATEGORIES.COMMERCIAL_INTENT,
+        importance: 8,
+      });
+    }
+  }
+
+  // Forma de pagamento
+  if (lower.includes('pix')) {
+    setCustomerFact(memory, {
+      key: 'forma_pagamento',
+      value: 'PIX (à vista com desconto)',
+      category: MEMORY_CATEGORIES.PREFERENCE,
+      importance: 8,
+    });
+  } else if (lower.includes('cartao') || lower.includes('cartão') || lower.includes('parcelar') || lower.includes('10x')) {
+    setCustomerFact(memory, {
+      key: 'forma_pagamento',
+      value: 'Cartão de crédito parcelado',
+      category: MEMORY_CATEGORIES.PREFERENCE,
+      importance: 8,
+    });
+  }
+
+  // CEP ou Bairro
+  const cepMatch = text.match(/\b\d{5}-?\d{3}\b/);
+  if (cepMatch) {
+    setCustomerFact(memory, {
+      key: 'cep_entrega',
+      value: cepMatch[0],
+      category: MEMORY_CATEGORIES.CUSTOMER_FACT,
+      importance: 9,
+    });
+  }
+  const bairroMatch = text.match(/(?:bairro|no bairro|moro no|sou do)\s+([a-zA-ZÀ-ÿ\s]{3,30})/i);
+  if (bairroMatch && bairroMatch[1]) {
+    const rawBairro = bairroMatch[1].replace(/[?.,!].*$/, '').trim();
+    if (rawBairro.length > 2 && !rawBairro.toLowerCase().includes('qual') && !rawBairro.toLowerCase().includes('quanto')) {
+      setCustomerFact(memory, {
+        key: 'bairro_entrega',
+        value: rawBairro,
+        category: MEMORY_CATEGORIES.CUSTOMER_FACT,
+        importance: 8,
+      });
+    }
   }
 
   // Localização / Entrega
@@ -402,6 +451,9 @@ function buildContextualPrompt(memory) {
   if (memory.commercial?.deliveryCity) {
     sections.push(`- DESTINO DE ENTREGA / CIDADE: ${memory.commercial.deliveryCity}`);
   }
+  if (memory.commercial?.paymentPreference) {
+    sections.push(`- FORMA DE PAGAMENTO DEFINIDA: ${memory.commercial.paymentPreference}`);
+  }
   if (memory.commercial?.quotedPrice) {
     sections.push(`- PREÇO JÁ COTADO: ${memory.commercial.quotedPrice}`);
   }
@@ -415,11 +467,11 @@ function buildContextualPrompt(memory) {
     sections.push(`PENDÊNCIAS DA CONVERSA: ${memory.pendingQuestions.join('; ')}`);
   }
 
-  // Regras de Ouro de Continuidade
+  // Regras de Ouro de Continuidade e Seguimento Real
   sections.push(
-    'REGRA CRÍTICA DE CONTINUIDADE: Você JAMAIS deve pedir informações que já constam na memória acima. ' +
-    'Se o cliente perguntar "Quanto fica?", "Tem foto?" ou "Entrega?", responda DIRETAMENTE considerando o produto, ' +
-    'capacidade e cidade especificados acima. Não responda de forma genérica nem reinicie a conversa!'
+    'REGRA CRÍTICA DE CONTINUIDADE E SEGUIMENTO REAL: Você JAMAIS deve pedir informações que já constam na memória acima. ' +
+    'Se o cliente fornecer um dado ou responder sua pergunta (como "De 5 mil litros", "no pix" ou o bairro dele), você DEVE responder e confirmar diretamente esse dado primeiro, e só então fazer uma pergunta de próximo passo. ' +
+    'Não responda de forma genérica nem reinicie a conversa com saudações repetidas!'
   );
 
   return sections.join('\n');

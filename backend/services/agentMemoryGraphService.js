@@ -62,6 +62,25 @@ function extractTopics(text) {
   if (/(?:ajuda|d[úu]vida|problema|atendimento|humano|falar|suporte)/i.test(t)) {
     topics.push('Suporte e Dúvidas');
   }
+  if (/(?:hor[áa]rio|funcionamento|aberto|fecha|atende|localiza|endere[çc]o|loja f[íi]sica|onde fica|visita)/i.test(t)) {
+    topics.push('Horário e Localização');
+  }
+  if (/(?:promo[çc][aã]o|oferta|queima|combo|brinde|cupom|b[ôo]nus)/i.test(t)) {
+    topics.push('Promoções e Ofertas');
+  }
+  if (/(?:estoque|pronta entrega|dispon[íi]vel|tem dispon[íi]vel|acabou|reserva)/i.test(t)) {
+    topics.push('Estoque e Disponibilidade');
+  }
+
+  // Fallback to top significant dynamic concept if no predefined topics matched
+  if (topics.length === 0) {
+    const concepts = extractConcepts(text);
+    if (concepts.length > 0 && concepts[0].length >= 4) {
+      const formattedConcept = concepts[0].charAt(0).toUpperCase() + concepts[0].slice(1);
+      topics.push(`Dúvida: ${formattedConcept}`);
+    }
+  }
+
   return topics;
 }
 

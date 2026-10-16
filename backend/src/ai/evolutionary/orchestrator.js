@@ -37,6 +37,7 @@ class EvolutionaryAgentOrchestrator {
     message = '',
     conversationId = null,
     leadIntent = null,
+    history = [],
   }) {
     const cleanCompany = String(companyId || 'default');
     const cleanMsg = String(message || '').trim();
@@ -148,13 +149,32 @@ class EvolutionaryAgentOrchestrator {
       quickRepliesPrompt = quickReplyCapability.formatCapabilitiesForPrompt(qrs);
     } catch (_) {}
 
+    // 4.3 Anti-Repetition & Recent Attendant Replies Tracker
+    let antiRepetitionPrompt = '';
+    let recentBotReplies = [];
+    try {
+      const aiAntiRepetitionService = require('../../../services/aiAntiRepetitionService');
+      const histToScan = history && history.length > 0 ? history : (contact.history || []);
+      recentBotReplies = contact.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(histToScan, 3);
+      const knownPreferences = {
+        product: customerContext?.quotedProducts?.[0] || customerContext?.product,
+        capacity: customerContext?.capacity,
+        neighborhood: customerContext?.neighborhood,
+        city: customerContext?.city,
+        paymentPreference: customerContext?.paymentPreference,
+      };
+      antiRepetitionPrompt = aiAntiRepetitionService.buildAntiRepetitionPromptBlock({ recentBotReplies, knownPreferences });
+    } catch (_) {}
+
     // 5. Layer 5: Authority Rules & Directive Synthesis
     const hierarchyPrompt = `
 ### [HIERARQUIA DE AUTORIDADE E CONDUTA DO AGENTE]
 1. VERDADE OFICIAL DA LOJA É SOBERANA: Nunca prometa descontos ou prazos que contradigam o catálogo oficial da Camada 1.
-2. NUNCA REPITA PERGUNTAS: Se a informação já estiver na Memória do Cliente (Camada 2), utilize-a diretamente.
-3. SIGA O ROTEIRO DO PLAYBOOK: Utilize a estratégia e o CTA orientados na Camada 3.
-4. TOM 100% NATURAL: Seja direto, acolhedor, rápido e termine sempre incentivando o próximo passo da compra sem parecer robô.
+2. NUNCA REPITA PERGUNTAS OU DADOS JÁ INFORMADOS: Se a informação já estiver na Memória do Cliente (Camada 2), utilize-a diretamente.
+3. REGRA ANTI-REPETIÇÃO E NATURALIDADE: NUNCA se apresente novamente ("Olá! Aqui é a Camila...") se você já falou anteriormente na conversa. NUNCA repita o mesmo CTA sucessivamente.
+4. SEGUIMENTO DIRETO NA LINHA DE RACIOCÍNIO: Se o cliente respondeu uma capacidade, produto ou pergunta sua (ex: "De 5 mil litros"), responda diretamente sobre a resposta dele antes de fazer a próxima pergunta de avanço.
+5. SIGA O ROTEIRO DO PLAYBOOK: Utilize a estratégia orientada na Camada 3 variando a pergunta de fechamento.
+6. TOM 100% NATURAL DE WHATSAPP: Seja direto, acolhedor, rápido e termine sempre incentivando o próximo passo da compra sem parecer robô.
 `;
 
     const fullEvolutionaryPrompt = [
@@ -164,6 +184,7 @@ class EvolutionaryAgentOrchestrator {
       experiencePrompt,
       crossConvPrompt,
       quickRepliesPrompt,
+      antiRepetitionPrompt,
       hierarchyPrompt
     ].filter(Boolean).join('\n---\n');
 
@@ -173,6 +194,7 @@ class EvolutionaryAgentOrchestrator {
       customerContext,
       activePlaybook,
       pastExperiences,
+      recentBotReplies,
     };
   }
 
@@ -209,6 +231,7 @@ class EvolutionaryAgentOrchestrator {
       message: customerMessage,
       conversationId: convId,
       leadIntent: leadAnalysis?.intent || conversation?.lead_intent,
+      history: conversationHistory,
     });
 
     // Step 3: Call AI Provider via ai.service.js
@@ -291,24 +314,53 @@ class EvolutionaryAgentOrchestrator {
     }
 
     // Step 4: If LLM produced no text, construct an intelligent Playbook-guided fallback
+    const aiAntiRepetitionService = require('../../../services/aiAntiRepetitionService');
+    const histToScan = conversationHistory && conversationHistory.length > 0 ? conversationHistory : [];
+    const recentBotReplies = evoData.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(histToScan, 3);
+    const hasPastBotMessages = recentBotReplies.length > 0;
+    const lastBotCta = recentBotReplies[recentBotReplies.length - 1]?.cta || '';
+
     if (!responseText) {
       const pb = evoData.activePlaybook;
-      const cta = pb?.recommended_cta || 'Qual o seu bairro para calcularmos a entrega com o melhor desconto?';
+      let cta = pb?.recommended_cta;
+      if (!cta || aiAntiRepetitionService.areCtasSimilar(cta, lastBotCta)) {
+        cta = aiAntiRepetitionService.getAlternativeCta(lastBotCta, 'closing_advance');
+      }
+
       let agentName = agent?.name || 'Camila';
       // WhatsApp customer chats must ALWAYS identify as store attendant (Camila), NEVER ZAIBOT
       if (String(agentName).toLowerCase() === 'zaibot' || agent?.isPlatformAssistant || String(agent?.key || '').toLowerCase() === 'zaibot') {
         agentName = 'Camila';
       }
 
-      if (customerMessage.toLowerCase().includes('frete') || customerMessage.toLowerCase().includes('entrega')) {
-        responseText = `Olá! Aqui é a ${agentName} da loja. Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km. ${cta}`;
-      } else if (customerMessage.toLowerCase().includes('tijolo') || customerMessage.toLowerCase().includes('milheiro')) {
-        responseText = `Olá! Aqui é a ${agentName}. O milheiro do tijolo 8 furos está saindo por R$ 720,00 (ou R$ 684,00 no PIX com 5% de desconto). ${cta}`;
-      } else if (customerMessage.toLowerCase().includes('churrasqueira') || customerMessage.toLowerCase().includes('trio')) {
-        responseText = `Olá! A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou até 10x sem juros (no PIX tem 5% de desconto por R$ 940,50). ${cta}`;
+      const lowerMsg = (customerMessage || '').toLowerCase();
+      if (lowerMsg.includes('frete') || lowerMsg.includes('entrega')) {
+        responseText = hasPastBotMessages
+          ? `Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km da loja. ${cta}`
+          : `Olá! Aqui é a ${agentName} da loja. Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km. ${cta}`;
+      } else if (lowerMsg.includes('tijolo') || lowerMsg.includes('milheiro')) {
+        responseText = hasPastBotMessages
+          ? `O milheiro do tijolo 8 furos está saindo por R$ 720,00 (ou R$ 684,00 no PIX com 5% de desconto). ${cta}`
+          : `Olá! Aqui é a ${agentName}. O milheiro do tijolo 8 furos está saindo por R$ 720,00 (ou R$ 684,00 no PIX com 5% de desconto). ${cta}`;
+      } else if (lowerMsg.includes('churrasqueira') || lowerMsg.includes('trio')) {
+        responseText = hasPastBotMessages
+          ? `A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou até 10x sem juros (no PIX tem desconto por R$ 940,50). ${cta}`
+          : `Olá! A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou até 10x sem juros (no PIX tem desconto por R$ 940,50). ${cta}`;
+      } else if (lowerMsg.includes('5 mil') || lowerMsg.includes('5000') || lowerMsg.includes('caixa') || lowerMsg.includes('litros')) {
+        responseText = hasPastBotMessages
+          ? `Temos a caixa d'água de 5 mil litros em polietileno com tampa de rosca pronta para entrega. ${cta}`
+          : `Olá! Aqui é a ${agentName}. Temos a caixa d'água de 5 mil litros em polietileno com tampa de rosca pronta para entrega. ${cta}`;
       } else {
-        responseText = `Olá! Aqui é a ${agentName} da loja. ${cta}`;
+        responseText = hasPastBotMessages
+          ? `Com certeza! ${cta}`
+          : `Olá! Aqui é a ${agentName} da loja. ${cta}`;
       }
+    }
+
+    if (responseText) {
+      try {
+        responseText = aiAntiRepetitionService.sanitizeAndVaryBotReply(responseText, recentBotReplies);
+      } catch (_) {}
     }
 
     // Step 5: Rule Validation against Layer 1 (Ensure no hallucinated prices)

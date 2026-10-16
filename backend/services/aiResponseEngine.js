@@ -17,7 +17,7 @@ function ensureAgent(agent) {
 
 function buildConversationHistory(messages = []) {
   return messages
-    .slice(-20)
+    .slice(-30)
     .map((message) => ({
       role: message.from === 'agent' ? 'assistant' : 'user',
       content: message.text || `[${message.mediaType || 'mensagem'}]`,

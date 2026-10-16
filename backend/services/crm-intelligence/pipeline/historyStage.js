@@ -13,6 +13,7 @@ class HistoryStage {
       // Smart Cache Invalidation / Append
       // Because this is a new message, we add it to the context history array
       // so subsequent stages see it.
+      context.history = context.history.slice(-29);
       context.history.push({
           content: context.message,
           role: 'user',
@@ -32,7 +33,7 @@ class HistoryStage {
         .getMessagesByConversation(context.conversationId, { companyId: context.companyId })
         .catch(() => []);
 
-      context.history = dbMessages.slice(-20).map((msg) => ({
+      context.history = dbMessages.slice(-30).map((msg) => ({
         content: msg.content || msg.text || '',
         role: msg.fromMe ? 'assistant' : 'user',
         timestamp: msg.createdAt || msg.timestamp || new Date().toISOString(),

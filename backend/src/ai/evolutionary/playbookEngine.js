@@ -112,7 +112,7 @@ class PlaybookEngine {
     });
 
     if (playbook.recommended_cta) {
-      prompt += `- Sugestão de CTA final: "${playbook.recommended_cta}"\n`;
+      prompt += `- Sugestão de CTA final: "${playbook.recommended_cta}" (Atenção: NUNCA repita esse CTA se ele já foi usado na mensagem anterior pelo atendente! Se já foi usado, varie a pergunta para avançar a conversa).\n`;
     }
 
     prompt += '\n';

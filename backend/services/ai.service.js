@@ -253,7 +253,7 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `[CONTEXTO DA EMPRESA E LOJA]\n`;
   const companyName = store?.name || agent?.company || 'Depósito Mais';
   const companyDesc = store?.description || store?.companyDescription || agent?.companyDescription || 'Materiais de Construção & Reforma';
-  const policies = store?.policies || store?.deliveryPolicy || agent?.policies || 'Garantia de 90 dias em ferramentas e materiais com defeito de fabricação. Frete sob consulta de CEP/região. Pagamento facilitado em até 10x sem juros no cartão ou desconto de 5% à vista no PIX.';
+  const policies = store?.policies || store?.deliveryPolicy || agent?.policies || 'Garantia legal em ferramentas e materiais com defeito de fabricação. Frete sob consulta de CEP e região. Condições de pagamento conforme tabela vigente da loja.';
   const storeAddress = store?.address || store?.location || agent?.storeAddress || '';
   const storePhone = store?.phone || store?.contactPhone || agent?.storePhone || '';
   const storeHours = store?.business_hours || agent?.hours || (store?.aiConfig?.businessHours?.open ? `Seg a Sex: ${store.aiConfig.businessHours.open} às ${store.aiConfig.businessHours.close}` : '');
@@ -417,7 +417,7 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- PROTOCOLO ESTRITO ANTI-ALUCINAÇÃO (ZERO INVENÇÃO DE PREÇOS, PRAZOS OU CONDIÇÕES):\n`;
   compiled += `  * NUNCA INVENTE PREÇOS: Se o cliente perguntar o preço de um item, material ou serviço que NÃO está listado explicitamente na tabela de produtos/serviços acima, NUNCA invente um preço. Em vez disso, responda com cordialidade e precisão profissional: "Vou verificar o valor atualizado desse item no estoque da nossa loja e já te confirmo!" ou acione o transbordo para um atendente da loja.\n`;
   compiled += `  * NUNCA INVENTE PRAZOS OU ENDEREÇOS: Informe apenas prazos de entrega e horários confirmados no contexto da loja. Não prometa entrega imediata sem confirmação da expedição.\n`;
-  compiled += `  * NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS: Se o cliente pedir desconto ou parcelamento além do cadastrado, informe a condição oficial da loja (ex: até 10x sem juros ou 5% no PIX) e informe que exceções dependem de autorização da gerência.\n`;
+  compiled += `  * NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS: Se o cliente pedir desconto ou parcelamento além do cadastrado, informe a condição oficial da loja (conforme políticas cadastradas) e informe que exceções dependem de autorização da gerência.\n`;
   compiled += `  * NÃO INVENTE COISAS FORA DO CONTEXTO: Se o cliente perguntar algo completamente fora do escopo ou enviar mensagens sem sentido, responda com simpatia breve e reoriente com presteza para os produtos e atendimento da loja.\n`;
   compiled += `  * MEMÓRIA DAS CONVERSAS: Se o cliente já informou itens, medidas ou endereço em mensagens anteriores, RESPEITE o que já foi dito. Nunca reinicie o atendimento do zero nem pergunte o que o cliente já respondeu.\n`;
   compiled += `  * COMPREENSÃO DE MÚLTIPLOS ITENS E MATERIAIS DE CONSTRUÇÃO / COMÉRCIO:\n`;
@@ -448,8 +448,21 @@ function compileSystemPrompt(agent, store, contact = null) {
   }
   compiled += `  * PRIORIDADE MÁXIMA PARA SUPORTE / ENTREGA: Se o cliente relatar problema na entrega ("não foi entregue", "atrasou", "não recebi"), NÃO continue empurrando vendas ou perguntando o que ele quer comprar! Peça sinceras desculpas pela situação com empatia real, acolha a queixa e garanta que você já está acionando o setor de logística/expedição para verificar o ocorrido imediatamente.\n`;
   compiled += `  * SE O PEDIDO JÁ FOI AGENDADO: Reconheça que o pedido já estava agendado e demonstre comprometimento imediato para resolver com a equipe.\n`;
-  compiled += `  * CONDUÇÃO COMERCIAL ATIVA: Quando for venda ou cotação, termine sempre com uma pergunta curta e natural que guie para o próximo passo (ex: "Qual o seu CEP pra calcularmos a entrega?", "Prefere pagamento à vista no PIX ou no cartão?").\n`;
+  compiled += `  * CONDUÇÃO COMERCIAL ATIVA: Quando for venda ou cotação, termine sempre com uma pergunta curta e natural que guie para o próximo passo (ex: "Qual o seu CEP pra calcularmos a entrega?", "Qual forma de pagamento você prefere?").\n`;
   compiled += `\n`;
+
+  // Anti-Repetição e Rastreamento de Respostas Recentes do Atendente
+  try {
+    const aiAntiRepetitionService = require('./aiAntiRepetitionService');
+    const recentBotReplies = contact?.recentBotReplies || [];
+    const knownPreferences = {
+      product: contact?.leadAlgorithm?.primaryProductLabel || contact?.conversationMemory?.commercial?.activeProduct,
+      capacity: contact?.conversationMemory?.commercial?.capacity,
+      neighborhood: contact?.neighborhood || contact?.conversationMemory?.commercial?.deliveryCity,
+      paymentPreference: contact?.leadAlgorithm?.preferredPayment || contact?.conversationMemory?.commercial?.paymentPreference,
+    };
+    compiled += aiAntiRepetitionService.buildAntiRepetitionPromptBlock({ recentBotReplies, knownPreferences });
+  } catch (_) {}
 
   // 11. ANÁLISE DE CONTEXTO E METADADOS DO FUNIL
   compiled += `[ANÁLISE DE CONTEXTO E METADADOS DO FUNIL]\n`;
@@ -709,6 +722,11 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
         console.error('[AI SERVICE testAIConnection] Failed to parse analysis block:', err.message);
       }
     }
+    try {
+      const aiAntiRepetitionService = require('./aiAntiRepetitionService');
+      const testBotReplies = aiAntiRepetitionService.extractRecentBotReplies(history, 3);
+      replyClean = aiAntiRepetitionService.sanitizeAndVaryBotReply(replyClean, testBotReplies);
+    } catch (_) {}
     result.response = enforceResponseWordLimit(replyClean, finalAgent);
     result.analysis = analysisResult;
   }
@@ -852,6 +870,11 @@ async function processAI({ contact, history, message, store, agentName, companyI
 
   const conversationMemoryEngine = require('./conversationMemoryEngine');
   const quickReplyCapability = require('./quickReplyCapability');
+  const aiAntiRepetitionService = require('./aiAntiRepetitionService');
+
+  const slicedHistory = Array.isArray(history) ? history.slice(-30) : [];
+  const recentBotReplies = contact?.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(slicedHistory, 3);
+  contact = { ...contact, recentBotReplies };
 
   let convMemory = null;
   let bestQuickReplyMatch = null;
@@ -865,6 +888,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
     if (convMemory) {
       conversationMemoryEngine.extractFactsFromContext(message, {}, convMemory);
       contact.conversationMemoryPrompt = conversationMemoryEngine.buildContextualPrompt(convMemory);
+      contact.conversationMemory = convMemory;
       // Company-wide quick replies have no store provenance; do not add them to connection memory.
       contact.matchedCapability = bestQuickReplyMatch;
     }
@@ -896,6 +920,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
         message,
         conversationId: contact?.conversationId,
         leadIntent: contact?.leadAnalysis?.intent,
+        history: slicedHistory,
       });
       if (evoData && evoData.prompt) {
         evoPrompt = `\n\n${evoData.prompt}`;
@@ -943,7 +968,8 @@ async function processAI({ contact, history, message, store, agentName, companyI
   };
   const systemPrompt = `${officialKnowledge}${compileSystemPrompt(resolvedAgent, storeForCompile, {...contact,memoryContext:null})}${graphPromptToAdd}${evoPrompt}\n${require("../src/ai/evolutionary/historyLearning").GUARDRAILS}`;
 
-  const slicedHistory = Array.isArray(history) ? history.slice(-8) : [];
+  // Preserving full context history (20-30 messages)
+  // slicedHistory is already defined above with up to 30 messages
 
   // Response Caching (60s TTL)
   const historyHashString = slicedHistory.map(h => `${h.role || h.from || 'user'}:${h.content || h.text || ''}`).join('|');
@@ -1107,7 +1133,9 @@ async function processAI({ contact, history, message, store, agentName, companyI
     }
 
     // Customer facts are projected from persisted inbound messages, never generated replies.
-    // Save log entry asynchronously
+    try {
+      replyClean = aiAntiRepetitionService.sanitizeAndVaryBotReply(replyClean, recentBotReplies);
+    } catch (_) {}
     replyClean = enforceResponseWordLimit(replyClean, resolvedAgent);
 
     await aiLogService.saveLogEntry(

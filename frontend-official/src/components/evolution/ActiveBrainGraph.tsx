@@ -32,7 +32,7 @@ interface GraphCategoryRelationship {
   count: number;
 }
 
-const MAX_VISIBLE_CATEGORY_MEMORIES = 8;
+const MAX_VISIBLE_CATEGORY_MEMORIES = 28;
 
 const GRAPH_CATEGORY_LABELS: Record<string, string> = {
   client: "Clientes",
@@ -42,6 +42,9 @@ const GRAPH_CATEGORY_LABELS: Record<string, string> = {
   delivery: "Entrega & Frete",
   product: "Produtos",
   objection: "Objeções",
+  location: "Horário & Loja",
+  promotion: "Promoções & Ofertas",
+  stock: "Estoque & Pronta Entrega",
   unknown: "Sem categoria",
 };
 const GRAPH_CATEGORY_COLORS: Record<string, string> = {
@@ -52,6 +55,9 @@ const GRAPH_CATEGORY_COLORS: Record<string, string> = {
   delivery: "#f43f5e",
   product: "#3b82f6",
   objection: "#8b5cf6",
+  location: "#0ea5e9",
+  promotion: "#f43f5e",
+  stock: "#10b981",
 };
 
 export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
@@ -129,8 +135,8 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
   }, [memories, selectedCategory]);
 
   const isAllCategories = !selectedCategory || selectedCategory === "todos";
-  const showMemoryNodes = !isAllCategories && activeMemories.length <= MAX_VISIBLE_CATEGORY_MEMORIES;
-  const graphMemories = showMemoryNodes ? activeMemories : [];
+  const showMemoryNodes = !isAllCategories && activeMemories.length > 0;
+  const graphMemories = showMemoryNodes ? activeMemories.slice(0, MAX_VISIBLE_CATEGORY_MEMORIES) : [];
 
   const categoryPositions = useMemo(() => new Map(categoryBranches.map((branch) => [
     branch.id,
@@ -368,9 +374,13 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
 
       {activeMemories.length > 0 && !showMemoryNodes && (
         <div role="status" className="absolute bottom-3 right-3 z-20 max-w-[70%] rounded-xl border border-border/70 bg-card/90 px-3 py-2 text-[10px] text-muted-foreground shadow-sm">
-          {isAllCategories
-            ? "Selecione uma categoria para explorar memórias individuais"
-            : `Esta categoria tem ${activeMemories.length} memórias. Use a lista ao lado para explorar os registros.`}
+          Selecione uma categoria para explorar memórias individuais
+        </div>
+      )}
+
+      {showMemoryNodes && activeMemories.length > MAX_VISIBLE_CATEGORY_MEMORIES && (
+        <div role="status" className="absolute bottom-3 right-3 z-20 max-w-[70%] rounded-xl border border-emerald-500/40 bg-card/90 px-3 py-2 text-[10px] text-emerald-400 shadow-sm font-medium">
+          Exibindo {graphMemories.length} de {activeMemories.length} memórias mais assertivas nesta categoria
         </div>
       )}
 
@@ -401,6 +411,22 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
         <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`} transform-origin={`${centerX} ${centerY}`}>
         {/* Large subtle aura */}
           <circle cx={centerX} cy={centerY} r={280} fill="url(#centerGlow)" />
+
+          {/* Branch-to-Leaf connector lines (Obsidian-style tree branches) */}
+          {showMemoryNodes && positionedNodes.map((node) => (
+            <line
+              key={`branch-leaf-edge-${node.memory.id}`}
+              data-testid="branch-leaf-relationship"
+              x1={node.branchX}
+              y1={node.branchY}
+              x2={node.x}
+              y2={node.y}
+              stroke={node.branchColor}
+              strokeWidth={node.isSelected ? "2" : "1.2"}
+              strokeOpacity={node.isSelected ? "0.85" : "0.45"}
+              strokeDasharray={node.isSelected ? undefined : "3 3"}
+            />
+          ))}
 
           {/* Only draw relationships returned by the memory graph API. */}
           {centralConnections.map((node) => (

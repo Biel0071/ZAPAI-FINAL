@@ -242,6 +242,13 @@ const PRODUCT_CATALOG_PATTERNS = [
     quickReplyId: '51787699-0cec-45f0-b5e4-f01e0a92290a',
     quickReplyTitle: 'RETORNO',
   },
+  {
+    key: 'caixa_dagua',
+    label: 'Caixa d\'Água & Reservatórios',
+    keywords: ['caixa dagua', 'caixa d\'agua', 'caixa d’agua', 'caixa d agua', 'reservatorio', 'reservatório', '5 mil litros', '5000l', '5000 litros', '3 mil litros', '3000l', '1000l', '500l', 'polietileno', 'fortlev', 'tigre'],
+    quickReplyId: '3d7739a3-60dd-44fd-93a6-9de76f2e0e4e',
+    quickReplyTitle: 'catalogo',
+  },
 ];
 
 const STORE_EVOLUTION_ALGORITHMS = Object.freeze({
