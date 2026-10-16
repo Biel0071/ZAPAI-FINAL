@@ -898,120 +898,123 @@ export default function AttendantsPage() {
               }}
             />
 
-            {/* Top-left Info Chip */}
-            <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/70 border border-border/60 text-[10px] backdrop-blur-xs">
-              <span
-                className={cn(
-                  "w-1.5 h-1.5 rounded-full",
-                  isAgentActive ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
-                )}
-              />
-              <span className="font-semibold text-foreground">{previewAgent.name}</span>
-              <span className="text-muted-foreground">•</span>
-              <span className="font-mono text-emerald-400 text-[9px]">
-                {isAgentActive ? "No PC · Trabalhando" : "Em pé · Parado"}
-              </span>
-            </div>
-
-            {/* Top-right Dual Controls: Active/Pause Toggle, Render Mode (3D / Chibi) & Gender */}
-            <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5">
-              <button
-                type="button"
-                data-stage-toggle-active
-                onClick={() => handleToggleActive(previewAgent)}
-                disabled={pendingAgent !== null}
-                className={cn(
-                  "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer flex items-center gap-1 backdrop-blur-xs shadow-xs",
-                  isAgentActive
-                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
-                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
-                )}
-                title={isAgentActive ? "Colocar em espera (Pausar · Ficar em pé)" : "Ativar no PC (Sentar para trabalhar)"}
-              >
-                <span className={cn("w-1.5 h-1.5 rounded-full", isAgentActive ? "bg-amber-400" : "bg-emerald-400 animate-pulse")} />
-                <span>{isAgentActive ? "⏸ Pausar" : "▶ Ativar no PC"}</span>
-              </button>
-
-              <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
-                <button
-                  type="button"
-                  data-studio-rendermode="3d"
-                  onClick={() => {
-                    handleUpdateAvatar({ renderStyle: "3d_enterprise" });
-                  }}
+            {/* Top Stage Header Bar: Info Chip on left, Controls on right */}
+            <div className="absolute top-2.5 inset-x-2.5 z-20 flex items-center justify-between gap-2 pointer-events-none">
+              {/* Top-left Info Chip */}
+              <div className="pointer-events-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 border border-border/70 text-[10px] backdrop-blur-xs shadow-xs shrink-0">
+                <span
                   className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
-                    resolvedInlineAvatar.renderStyle === "3d_enterprise"
-                      ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
-                      : "text-muted-foreground hover:text-foreground"
+                    "w-1.5 h-1.5 rounded-full",
+                    isAgentActive ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
                   )}
-                  title="3D Enterprise Fotorrealista"
-                >
-                  ★ 3D Hi-End
-                </button>
-                <button
-                  type="button"
-                  data-studio-rendermode="chibi"
-                  onClick={() => {
-                    handleUpdateAvatar({ renderStyle: "chibi_25d" });
-                  }}
-                  className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
-                    resolvedInlineAvatar.renderStyle !== "3d_enterprise"
-                      ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  title="Chibi 2.5D Modular"
-                >
-                  2.5D Chibi
-                </button>
+                />
+                <span className="font-semibold text-foreground">{previewAgent.name}</span>
+                <span className="text-muted-foreground">•</span>
+                <span className="font-mono text-emerald-400 text-[9px]">
+                  {isAgentActive ? "No PC · Trabalhando" : "Em pé · Parado"}
+                </span>
               </div>
 
-              <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
+              {/* Top-right Dual Controls: Active/Pause Toggle, Render Mode (3D / Chibi) & Gender */}
+              <div className="pointer-events-auto flex items-center gap-1.5 flex-wrap justify-end">
                 <button
                   type="button"
-                  data-studio-gender="female"
-                  onClick={() => {
-                    const updated = { ...resolvedInlineAvatar, body: "female" as const, base: "female" as const, catalogSpriteId: undefined };
-                    handleUpdateAvatar({
-                      body: "female",
-                      base: "female",
-                      hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, true),
-                      catalogSpriteId: resolveSpriteForAvatar(updated, true),
-                    });
-                  }}
+                  data-stage-toggle-active
+                  onClick={() => handleToggleActive(previewAgent)}
+                  disabled={pendingAgent !== null}
                   className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
-                    inlineGender === "female"
-                      ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
-                      : "text-muted-foreground hover:text-foreground"
+                    "px-2.5 py-1 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 backdrop-blur-xs shadow-xs",
+                    isAgentActive
+                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                      : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
                   )}
-                  title="Personagem Feminina"
+                  title={isAgentActive ? "Colocar em espera (Pausar · Ficar em pé)" : "Ativar no PC (Sentar para trabalhar)"}
                 >
-                  ♀ Fem
+                  <span className={cn("w-1.5 h-1.5 rounded-full", isAgentActive ? "bg-amber-400" : "bg-emerald-400 animate-pulse")} />
+                  <span>{isAgentActive ? "⏸ Pausar" : "▶ Ativar no PC"}</span>
                 </button>
-                <button
-                  type="button"
-                  data-studio-gender="male"
-                  onClick={() => {
-                    const updated = { ...resolvedInlineAvatar, body: "male" as const, base: "male" as const, catalogSpriteId: undefined };
-                    handleUpdateAvatar({
-                      body: "male",
-                      base: "male",
-                      hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, false),
-                      catalogSpriteId: resolveSpriteForAvatar(updated, true),
-                    });
-                  }}
-                  className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
-                    inlineGender === "male"
-                      ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  title="Personagem Masculino"
-                >
-                  ♂ Masc
-                </button>
+
+                <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
+                  <button
+                    type="button"
+                    data-studio-rendermode="3d"
+                    onClick={() => {
+                      handleUpdateAvatar({ renderStyle: "3d_enterprise" });
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                      resolvedInlineAvatar.renderStyle === "3d_enterprise"
+                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="3D Enterprise Fotorrealista"
+                  >
+                    ★ 3D Hi-End
+                  </button>
+                  <button
+                    type="button"
+                    data-studio-rendermode="chibi"
+                    onClick={() => {
+                      handleUpdateAvatar({ renderStyle: "chibi_25d" });
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                      resolvedInlineAvatar.renderStyle !== "3d_enterprise"
+                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Chibi 2.5D Modular"
+                  >
+                    2.5D Chibi
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
+                  <button
+                    type="button"
+                    data-studio-gender="female"
+                    onClick={() => {
+                      const updated = { ...resolvedInlineAvatar, body: "female" as const, base: "female" as const, catalogSpriteId: undefined };
+                      handleUpdateAvatar({
+                        body: "female",
+                        base: "female",
+                        hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, true),
+                        catalogSpriteId: resolveSpriteForAvatar(updated, true),
+                      });
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                      inlineGender === "female"
+                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Personagem Feminina"
+                  >
+                    ♀ Fem
+                  </button>
+                  <button
+                    type="button"
+                    data-studio-gender="male"
+                    onClick={() => {
+                      const updated = { ...resolvedInlineAvatar, body: "male" as const, base: "male" as const, catalogSpriteId: undefined };
+                      handleUpdateAvatar({
+                        body: "male",
+                        base: "male",
+                        hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, false),
+                        catalogSpriteId: resolveSpriteForAvatar(updated, true),
+                      });
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                      inlineGender === "male"
+                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Personagem Masculino"
+                  >
+                    ♂ Masc
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1029,22 +1032,6 @@ export default function AttendantsPage() {
               <div className="sr-only">
                 <span>360° Orbit · {studioRotationY}°</span>
               </div>
-
-              {/* Free Rotation Drag Hint when standing idle */}
-              {!isAgentActive && (
-                <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 border border-emerald-500/40 text-[9px] font-mono text-emerald-300 backdrop-blur-xs pointer-events-none shadow-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Giro 360° livre (mouse/toque)</span>
-                </div>
-              )}
-
-              {/* Scenario indicator when active working at PC */}
-              {isAgentActive && (
-                <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 border border-emerald-500/40 text-[9px] font-mono text-emerald-300 backdrop-blur-xs pointer-events-none shadow-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>No PC · Escritório ZAI</span>
-                </div>
-              )}
 
               {/* Interactive Speech bubble when typing or test chat is in flight */}
               {isAgentActive && (previewPresence?.state === "TYPING" || isTestingAgent) && (

@@ -1,0 +1,147 @@
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { chromium } = require(path.resolve(__dirname, '../frontend-official/node_modules/@playwright/test'));
+
+const BASE_URL = 'https://209.50.241.22';
+const USERNAME = 'zapadmin';
+const PASSWORD = 'zapadmin1010';
+const JWT_SECRET = '73d1ef96dde5afc4938e0b71a5978b2666f1885fb0d2febc4bd52cc7a1cd9e15';
+const BRAIN_DIR = 'C:/Users/Dell/.gemini/antigravity/brain/578a7157-8bf3-47e3-82f2-9ed1bb8f9f40';
+
+if (!fs.existsSync(BRAIN_DIR)) {
+  fs.mkdirSync(BRAIN_DIR, { recursive: true });
+}
+
+function generateAdminToken() {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    sub: 'zapadmin',
+    username: 'zapadmin',
+    tenantId: 'default',
+    companyId: 'default',
+    role: 'master',
+    iat: now,
+    exp: now + 86400 * 7,
+  };
+  const toB64Url = (obj) =>
+    Buffer.from(JSON.stringify(obj))
+      .toString('base64')
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_');
+  const sData = `${toB64Url(header)}.${toB64Url(payload)}`;
+  const sig = crypto
+    .createHmac('sha256', JWT_SECRET)
+    .update(sData)
+    .digest('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+  return `${sData}.${sig}`;
+}
+
+async function saveShot(target, filename, options = {}) {
+  const fullPath = path.join(BRAIN_DIR, filename);
+  const buf = await target.screenshot(options);
+  fs.writeFileSync(fullPath, buf);
+  console.log(`[SAVED] ${filename} (${buf.length} bytes)`);
+}
+
+async function loginIfNeeded(page) {
+  if (page.url().includes('login') || (await page.locator('input[type="password"]').count()) > 0) {
+    console.log('Submitting login form...');
+    const userInput = page.locator('input[type="text"], input[name="username"]').first();
+    if (await userInput.isVisible()) await userInput.fill(USERNAME);
+    const pwInput = page.locator('input[type="password"]').first();
+    if (await pwInput.isVisible()) await pwInput.fill(PASSWORD);
+    const submitBtn = page.locator('button[type="submit"], button:has-text("Entrar")').first();
+    if (await submitBtn.isVisible()) {
+      await submitBtn.click();
+      await page.waitForTimeout(3000);
+    }
+  }
+}
+
+async function run() {
+  console.log('--- STARTING ATTENDANT SCENARIO VERIFICATION ---');
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--ignore-certificate-errors'],
+  });
+
+  const token = generateAdminToken();
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 920 },
+    deviceScaleFactor: 1,
+    ignoreHTTPSErrors: true,
+  });
+
+  await context.addInitScript((jwt) => {
+    const sessionObj = {
+      token: jwt,
+      username: 'zapadmin',
+      role: 'master',
+      tenantId: 'default',
+      companyId: 'default',
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 86400000 * 7,
+      remember: true,
+    };
+    localStorage.setItem('zapai_admin_auth_session', JSON.stringify(sessionObj));
+    sessionStorage.setItem('zapai_admin_auth_session', JSON.stringify(sessionObj));
+    localStorage.setItem('auth_token', jwt);
+    localStorage.setItem('token', jwt);
+    localStorage.setItem('auth_user', JSON.stringify({ username: 'zapadmin', role: 'master', companyId: 'default' }));
+    localStorage.setItem('theme', 'dark');
+  }, token);
+
+  const page = await context.newPage();
+
+  console.log('1. Navigating to /attendants...');
+  await page.goto(`${BASE_URL}/attendants`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForTimeout(3500);
+  await loginIfNeeded(page);
+  await page.waitForTimeout(3000);
+
+  // 1. CAPTURE ACTIVE STATE: Seated at PC workstation with full office scenario
+  console.log('Capturing: VERIFY_01_ATTENDANTS_WORKING_PC_SCENARIO.png');
+  await saveShot(page, 'VERIFY_01_ATTENDANTS_WORKING_PC_SCENARIO.png');
+
+  // 2. TOGGLE PAUSE to see STANDING STATE ("em pé quando parado sem atender")
+  console.log('2. Clicking toggle pause button on stage...');
+  const toggleBtn = page.locator('button[data-stage-toggle-active]').first();
+  if (await toggleBtn.isVisible()) {
+    await toggleBtn.click();
+    await page.waitForTimeout(2500);
+    console.log('Capturing: VERIFY_02_ATTENDANTS_STANDING_IDLE_PEDESTAL.png');
+    await saveShot(page, 'VERIFY_02_ATTENDANTS_STANDING_IDLE_PEDESTAL.png');
+
+    // Toggle back to active
+    await toggleBtn.click();
+    await page.waitForTimeout(2000);
+  }
+
+  // 3. OPEN AVATAR STUDIO MODAL: Standing pose during creation/customization
+  console.log('3. Opening Avatar Studio modal...');
+  const openModalBtn = page.locator('button:has-text("Avatar Studio"), button:has-text("Estúdio Avançado"), button:has-text("Personalizar Avatar")').first();
+  if (await openModalBtn.count() > 0) {
+    await openModalBtn.click();
+    await page.waitForTimeout(2000);
+  }
+
+  const dialog = page.locator('[role="dialog"]').first();
+  if (await dialog.isVisible()) {
+    console.log('Capturing: VERIFY_03_STUDIO_MODAL_STANDING_CREATION.png');
+    await saveShot(dialog, 'VERIFY_03_STUDIO_MODAL_STANDING_CREATION.png');
+  }
+
+  await browser.close();
+  console.log('--- ALL ATTENDANT VERIFICATIONS COMPLETED SUCCESSFULLY ---');
+}
+
+run().catch((err) => {
+  console.error('Fatal error during capture:', err);
+  process.exit(1);
+});

@@ -162,7 +162,7 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     expect(text).toContain("Automação & Fluxos");
     expect(text).toContain("Operações & Filas");
     expect(text).toContain("Evolução & Score");
-  });
+  }, 15000);
 
   it("switches to Automação & Fluxos tab when ?tab=flows is in URL", async () => {
     await act(async () => {

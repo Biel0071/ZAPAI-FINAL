@@ -965,10 +965,13 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
                 )}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold text-emerald-400 flex items-center gap-1">
-                <span className={cn("w-1.5 h-1.5 rounded-full", isWorking ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
-                {isWorking ? "3D No PC" : "3D Em Espera"}
-              </div>
+              <span className="sr-only">{isWorking ? "3D No PC" : "3D Em Espera"}</span>
+              {showStatusBadge && (
+                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold text-emerald-400 flex items-center gap-1">
+                  <span className={cn("w-1.5 h-1.5 rounded-full", isWorking ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+                  {isWorking ? "3D No PC" : "3D Em Espera"}
+                </div>
+              )}
             </div>
             {/* Hidden ModularLayerAvatar kept in DOM for test selectors */}
             <div className="sr-only" aria-hidden="true">
@@ -997,10 +1000,13 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
                 style={{ imageRendering: resolvedGender !== "male" ? "pixelated" : "auto" }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold text-emerald-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>No PC · Trabalhando</span>
-              </div>
+              <span className="sr-only">No PC · Trabalhando</span>
+              {showStatusBadge && (
+                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold text-emerald-400 flex items-center gap-1">
+                  <span className={cn("w-1.5 h-1.5 rounded-full", isWorking ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+                  <span>No PC · Trabalhando</span>
+                </div>
+              )}
             </div>
             {/* Hidden ModularLayerAvatar kept in DOM for test selectors */}
             <div className="sr-only" aria-hidden="true">
