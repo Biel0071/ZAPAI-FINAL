@@ -869,16 +869,26 @@ export default function AttendantsPage() {
   ------------------------------------------------------------- */
   const renderAvatarStudioSection = () => {
     if (!previewAgent) return null;
-    const resolvedInlineAvatar = previewAgent.avatarConfig || createAgentAvatar({
+    const isCamila = previewAgent.key === "camila" || previewAgent.name?.toLowerCase().includes("camila");
+    let resolvedInlineAvatar = previewAgent.avatarConfig || createAgentAvatar({
       agentId: previewAgent.key || previewAgent.name,
       name: previewAgent.name,
       role: previewAgent.role,
       storeId: previewStore?.id,
       storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
-      gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+      gender: isCamila ? "female" : previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
     });
+    if (isCamila && (resolvedInlineAvatar.body === "male" || resolvedInlineAvatar.base === "male")) {
+      resolvedInlineAvatar = {
+        ...resolvedInlineAvatar,
+        body: "female",
+        base: "female",
+        hair: resolvedInlineAvatar.hair?.startsWith("male") ? "hair_01" : (resolvedInlineAvatar.hair || "hair_01"),
+        catalogSpriteId: "sprite_r2_c1",
+      };
+    }
     const inlineGender: "male" | "female" =
-      resolvedInlineAvatar.body === "male" || resolvedInlineAvatar.base === "male" ? "male" : "female";
+      isCamila ? "female" : (resolvedInlineAvatar.body === "male" || resolvedInlineAvatar.base === "male" ? "male" : "female");
     const inlineSpriteId = resolveSpriteForAvatar(resolvedInlineAvatar, false);
     const isAgentActive =
       previewAgent.active !== false &&

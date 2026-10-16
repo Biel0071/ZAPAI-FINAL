@@ -862,14 +862,19 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
   const renderedAvatar = normalizeAvatarForRenderer(avatar || {});
   const resolvedRotationY = (((rotationYProp ?? avatar?.rotationY ?? 0) % 360) + 360) % 360;
   const resolvedMovement3D = movement3DProp || avatar?.movement3D || "idle";
-  const resolvedGender = avatar?.body === "male" || avatar?.base === "male" ? "male" : "female";
+  const agentKey = String(avatar?.agentId || "").toLowerCase();
+  const isCamila = agentKey.includes("camila") || String(avatar?.name || "").toLowerCase().includes("camila");
+  const resolvedGender = isCamila
+    ? "female"
+    : avatar?.body === "male" || avatar?.base === "male"
+    ? "male"
+    : "female";
 
   const effectiveRenderStyle = renderStyle || avatar?.renderStyle || "chibi_25d";
   const is3DEnterprise = effectiveRenderStyle === "3d_enterprise";
 
-  const agentKey = String(avatar?.agentId || "").toLowerCase();
   const isZaibot = agentKey.includes("zaibot");
-  const isRafael = agentKey.includes("rafael") || agentKey.includes("carlos") || agentKey.includes("joao") || avatar?.body === "male";
+  const isRafael = !isCamila && (agentKey.includes("rafael") || agentKey.includes("carlos") || agentKey.includes("joao") || avatar?.body === "male");
   const isJulia = agentKey.includes("julia");
   const charSlug = isZaibot ? "zaibot" : isRafael ? "rafael" : isJulia ? "julia" : "camila";
   const isWorking = currentState === "WORKING" || currentState === "TALKING" || currentState === "TYPING" || currentState === "THINKING" || currentState === "SUCCESS";
@@ -913,8 +918,8 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
         className="sr-only"
         aria-hidden="true"
       />
-      {/* Tripo3D Turntable Stage Pedestal Accent */}
-      {size === "workspace" && (
+      {/* Tripo3D Turntable Stage Pedestal Accent (visible only when standing idle / paused) */}
+      {size === "workspace" && !isWorking && (
         <div
           className="absolute bottom-1 left-1/2 -translate-x-1/2 w-44 sm:w-52 h-8 rounded-full pointer-events-none transition-all duration-500 flex items-center justify-center"
           style={{
@@ -950,7 +955,11 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
       <div
         className={cn(
           "relative z-10 flex items-center justify-center my-auto transition-transform duration-500",
-          cropFocus !== "full" ? "w-full h-full" : sizeConfig.character
+          size === "workspace" && isWorking
+            ? "w-full h-full max-w-[280px] sm:max-w-[340px] max-h-[220px] sm:max-h-[240px]"
+            : cropFocus !== "full"
+            ? "w-full h-full"
+            : sizeConfig.character
         )}
       >
         {is3DEnterprise ? (
@@ -989,7 +998,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
           </div>
         ) : size === "workspace" && isWorking && cropFocus === "full" ? (
           <div className="relative w-full h-full flex items-center justify-center">
-            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 shadow-2xl shadow-emerald-500/10 bg-slate-950/80 max-h-full aspect-[4/5] flex items-center justify-center group/card">
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 shadow-2xl shadow-emerald-500/10 bg-slate-950/80 w-full h-full aspect-[0.95/1] sm:aspect-square flex items-center justify-center group/card">
               <img
                 src={resolvedGender === "male" ? "/assets/characters/rafael/working.jpg" : "/assets/evolution/camila_office_active.png"}
                 alt={avatar?.agentId || "Atendente no computador"}
