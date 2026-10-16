@@ -49,8 +49,13 @@ const RENDERER_HAIR_ALIASES: Record<string, string> = {
 
 const RENDERER_OUTFIT_ALIASES: Record<string, string> = {
   polo_zai_black: "outfit_01",
-  polo_zai_white: "outfit_01",
-  hoodie_zai_black: "outfit_03",
+  polo_zai_white: "outfit_07",
+  shirt_formal_blue: "outfit_02",
+  tshirt_casual_dark: "outfit_03",
+  hoodie_zai_black: "outfit_04",
+  blazer_executive_dark: "outfit_05",
+  vest_operations: "outfit_06",
+  bomber_jacket_tech: "outfit_08",
   vest_hivis_safety: "outfit_06",
   shirt_business_white: "outfit_02",
   jacket_exec_dark: "outfit_08",

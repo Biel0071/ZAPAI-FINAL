@@ -55,7 +55,7 @@ const SIZE_CONFIGS = {
   xl: { container: "w-48 h-64", character: "h-56 w-auto", badge: "text-xs px-3 py-1", indicator: "w-4 h-4" },
   workspace: {
     container: "w-full h-full flex flex-col items-center justify-center",
-    character: "h-full max-h-[265px] sm:max-h-[295px] w-[185px] sm:w-[210px]",
+    character: "h-full max-h-[285px] sm:max-h-[315px] w-[200px] sm:w-[230px]",
     badge: "text-xs px-2.5 py-0.5",
     indicator: "w-3 h-3",
   },
@@ -968,8 +968,8 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
         className="sr-only"
         aria-hidden="true"
       />
-      {/* Tripo3D Turntable Stage Pedestal Accent (visible only when standing idle / paused) */}
-      {size === "workspace" && !isWorking && (
+      {/* Tripo3D Turntable Stage Pedestal Accent (visible when standing idle, paused, or performing 3D movements) */}
+      {size === "workspace" && (!isWorking || resolvedMovement3D !== "idle") && (
         <div
           className="absolute bottom-1 left-1/2 -translate-x-1/2 w-44 sm:w-52 h-8 rounded-full pointer-events-none transition-all duration-500 flex items-center justify-center"
           style={{
@@ -1005,7 +1005,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
       <div
         className={cn(
           "relative z-10 flex items-center justify-center my-auto transition-transform duration-500",
-          size === "workspace" && isWorking
+          size === "workspace" && isWorking && resolvedMovement3D === "idle"
             ? "w-full h-full max-w-[280px] sm:max-w-[340px] max-h-[220px] sm:max-h-[240px]"
             : cropFocus !== "full"
             ? "w-full h-full"

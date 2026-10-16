@@ -36,7 +36,7 @@ async function getMetrics(req, res) {
       const params = [companyId, sessionId, start.toISOString(), end.toISOString()];
       const [messageRows, conversationRows, connectedRows, memoryRows] = await Promise.all([
         pool.query(`SELECT COUNT(*)::int AS messages,
-          COUNT(*) FILTER (WHERE sender IN ('ai','bot') OR message_origin='ai')::int AS ai_responses,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(sender, '')) IN ('ai','bot','assistant') OR message_origin='ai' OR origin='ai')::int AS ai_responses,
           COUNT(DISTINCT conversation_id)::int AS active_chats
           FROM messages WHERE company_id=$1 AND ($2::text IS NULL OR session_id=$2)
           AND timestamp >= $3::timestamp AND timestamp <= $4::timestamp`, params),
@@ -48,7 +48,13 @@ async function getMetrics(req, res) {
       ]);
       const messages = messageRows.rows[0];
       const conversations = conversationRows.rows[0];
-      const aiMemories = Number(memoryRows.rows[0]?.count ?? 0);
+      let aiMemories = Number(memoryRows.rows[0]?.count ?? 0);
+      if (aiMemories === 0) {
+        try {
+          const fallbackRes = await pool.query(`SELECT COUNT(*)::int AS count FROM conversation_memories WHERE ($1::text IS NULL OR company_id=$1)`, [companyId]);
+          aiMemories = Number(fallbackRes?.rows?.[0]?.count ?? 0);
+        } catch { /* ignore */ }
+      }
       return res.json({
         messagesToday: messages.messages,
         messages: messages.messages,
@@ -72,6 +78,10 @@ async function getMetrics(req, res) {
       const { pool } = require('../../infrastructure/config/database');
       const memRes = await pool.query('SELECT COUNT(*)::int AS count FROM agent_memory_nodes WHERE ($1::text IS NULL OR company_id=$1)', [companyId]);
       aiMemories = Number(memRes.rows[0]?.count ?? 0);
+      if (aiMemories === 0) {
+        const fallbackRes = await pool.query('SELECT COUNT(*)::int AS count FROM conversation_memories WHERE ($1::text IS NULL OR company_id=$1)', [companyId]);
+        aiMemories = Number(fallbackRes.rows[0]?.count ?? 0);
+      }
     } catch { /* ignore */ }
 
     return res.status(200).json({

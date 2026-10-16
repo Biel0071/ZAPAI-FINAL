@@ -356,6 +356,10 @@ export default function AttendantsPage() {
 
     const handleDragEnd = () => {
       setIsStudioDragging(false);
+      setStudioRotationY((curr) => {
+        handleUpdateAvatar({ rotationY: curr });
+        return curr;
+      });
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -391,8 +395,7 @@ export default function AttendantsPage() {
       if (overrides.body) updatedConfig.base = overrides.body === "male" ? "male" : "female";
       if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "female";
 
-      const forceRecompute = Boolean((overrides.body || overrides.base) && !overrides.catalogSpriteId);
-      const updatedSprite = overrides.catalogSpriteId || resolveSpriteForAvatar(updatedConfig, forceRecompute);
+      const updatedSprite = overrides.catalogSpriteId || resolveSpriteForAvatar({ ...updatedConfig, catalogSpriteId: undefined }, true);
       updatedConfig.catalogSpriteId = updatedSprite;
       const avatarUrl = `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`;
 
@@ -420,8 +423,7 @@ export default function AttendantsPage() {
         if (overrides.clothing) updatedConfig.outfit = overrides.clothing;
         if (overrides.body) updatedConfig.base = overrides.body === "male" ? "male" : "female";
         if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "female";
-        const forceRecompute = Boolean((overrides.body || overrides.base) && !overrides.catalogSpriteId);
-        const updatedSprite = overrides.catalogSpriteId || resolveSpriteForAvatar(updatedConfig, forceRecompute);
+        const updatedSprite = overrides.catalogSpriteId || resolveSpriteForAvatar({ ...updatedConfig, catalogSpriteId: undefined }, true);
         updatedConfig.catalogSpriteId = updatedSprite;
         const avatarUrl = `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`;
         return { ...a, avatarConfig: updatedConfig, avatar: avatarUrl };
@@ -1035,12 +1037,12 @@ export default function AttendantsPage() {
             {/* Centered Live Modular 3D/2.5D Character on Turntable / Workstation Scenario */}
             <div
               className={cn(
-                "relative w-full h-[255px] sm:h-[285px] flex items-center justify-center my-auto select-none transition-colors",
-                !isAgentActive ? (isStudioDragging ? "cursor-grabbing" : "cursor-grab") : "cursor-default"
+                "relative w-full h-[270px] sm:h-[300px] flex items-center justify-center my-auto select-none transition-colors",
+                isStudioDragging ? "cursor-grabbing" : "cursor-grab"
               )}
-              onMouseDown={!isAgentActive ? handleInlineStageMouseDown : undefined}
-              onTouchStart={!isAgentActive ? handleInlineStageTouchStart : undefined}
-              title={isAgentActive ? "Atendente operando no computador do escritório" : "Clique e arraste para girar em 360°"}
+              onMouseDown={handleInlineStageMouseDown}
+              onTouchStart={handleInlineStageTouchStart}
+              title="Clique e arraste para girar em 360°"
             >
               {/* Tripo3D Orbit Degree Indicator kept for tests/accessibility */}
               <div className="sr-only">
@@ -1074,7 +1076,7 @@ export default function AttendantsPage() {
                 }}
                 renderStyle={resolvedInlineAvatar.renderStyle || "chibi_25d"}
                 state={
-                  isAgentActive
+                  isAgentActive && studioMovement3D === "idle" && !isStudioDragging
                     ? previewPresence?.state === "TYPING" || previewPresence?.state === "TALKING"
                       ? previewPresence.state
                       : "WORKING"
@@ -1206,16 +1208,12 @@ export default function AttendantsPage() {
                       type="button"
                       data-avatar-item={h.id}
                       onClick={() => {
-                        const next = {
-                          ...(previewAgent?.avatarConfig || {}),
+                        const hairColor = resolveHairColorForHair(h.id, previewAgent?.avatarConfig?.hairColor, inlineGender !== "male");
+                        handleUpdateAvatar({
                           body: inlineGender,
                           base: inlineGender,
                           hair: h.id,
-                          hairColor: resolveHairColorForHair(h.id, previewAgent?.avatarConfig?.hairColor, inlineGender !== "male"),
-                        };
-                        handleUpdateAvatar({
-                          ...next,
-                          catalogSpriteId: resolveSpriteForAvatar(next, true),
+                          hairColor,
                         });
                       }}
                       className={cn(
@@ -1254,15 +1252,10 @@ export default function AttendantsPage() {
                       type="button"
                       data-avatar-item={f.id}
                       onClick={() => {
-                        const next = {
-                          ...(previewAgent?.avatarConfig || {}),
+                        handleUpdateAvatar({
                           body: inlineGender,
                           base: inlineGender,
                           face: f.id,
-                        };
-                        handleUpdateAvatar({
-                          ...next,
-                          catalogSpriteId: resolveSpriteForAvatar(next, true),
                         });
                       }}
                       className={cn(
@@ -1301,16 +1294,11 @@ export default function AttendantsPage() {
                       type="button"
                       data-avatar-item={o.id}
                       onClick={() => {
-                        const next = {
-                          ...(previewAgent?.avatarConfig || {}),
+                        handleUpdateAvatar({
                           body: inlineGender,
                           base: inlineGender,
                           outfit: o.id,
                           clothing: o.id,
-                        };
-                        handleUpdateAvatar({
-                          ...next,
-                          catalogSpriteId: resolveSpriteForAvatar(next, true),
                         });
                       }}
                       className={cn(
@@ -1411,18 +1399,13 @@ export default function AttendantsPage() {
                           updatedAccessories.headwear = updatedAccessories.headwear === "hardhat_zai_white" ? "none" : "hardhat_zai_white";
                         }
 
-                        const next = {
-                          ...(cfg || {}),
+                        handleUpdateAvatar({
                           body: inlineGender,
                           base: inlineGender,
                           accessories: updatedAccessories,
                           headset: updatedHeadset,
                           glasses: updatedGlasses,
                           workObject: updatedWorkObject,
-                        };
-                        handleUpdateAvatar({
-                          ...next,
-                          catalogSpriteId: resolveSpriteForAvatar(next, true),
                         });
                       }}
                       className={cn(

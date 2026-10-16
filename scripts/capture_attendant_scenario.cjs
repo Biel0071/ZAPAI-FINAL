@@ -195,6 +195,13 @@ async function run() {
     }
   }
 
+  // 5b. NAVIGATE TO DASHBOARD TO CAPTURE REAL AI USAGE & BALANCED SCREEN FILLING
+  console.log('5b. Navigating to Dashboard to capture real AI usage & layout...');
+  await page.goto(`${BASE_URL}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForTimeout(4000);
+  console.log('Capturing: VERIFY_09_DASHBOARD_REAL_AI_USAGE.png');
+  await saveShot(page, 'VERIFY_09_DASHBOARD_REAL_AI_USAGE.png');
+
   // 6. MOBILE VIEWPORT (390 x 844)
   console.log('6. Capturing mobile viewport (390x844)...');
   const mobileContext = await browser.newContext({

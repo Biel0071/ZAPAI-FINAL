@@ -191,8 +191,8 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
                COUNT(*)::int AS count,
                COALESCE(SUM(LENGTH(COALESCE(text, content, ''))), 0)::int AS total_chars
              FROM messages
-             WHERE (sender IN ('ai', 'bot') OR message_origin = 'ai')
-               AND timestamp >= CURRENT_DATE
+             WHERE (LOWER(COALESCE(sender, '')) IN ('ai', 'bot', 'assistant') OR message_origin = 'ai' OR origin = 'ai')
+               AND COALESCE(created_at, timestamp) >= CURRENT_DATE
                AND ($1::text IS NULL OR company_id = $1)
                AND ($2::text IS NULL OR session_id = $2)`,
             [companyId, sessionId && sessionId !== 'all' ? sessionId : null]
@@ -224,7 +224,11 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
           memoryFacts = Number(memRes.rows[0].count || 0);
         }
       } catch (memErr) {
-        // Fallback to conversation_memories if agent_memory_nodes is unavailable
+        /* ignore */
+      }
+
+      // Fallback to conversation_memories if agent_memory_nodes has 0 facts or failed
+      if (memoryFacts === 0) {
         try {
           const fallbackRes = await query(
             `SELECT COUNT(*)::int AS count FROM conversation_memories WHERE ($1::text IS NULL OR company_id = $1)`,

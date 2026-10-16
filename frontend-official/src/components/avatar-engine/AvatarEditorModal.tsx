@@ -496,12 +496,12 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
               <div
                 data-avatar-stage-rotation={rotationY}
                 data-avatar-stage-movement={movement3D}
-                className="flex h-[175px] w-full items-center justify-center drop-shadow-2xl transition-transform duration-300 sm:h-[240px] lg:h-[260px]"
+                className="flex h-[200px] w-full items-center justify-center drop-shadow-2xl transition-transform duration-300 sm:h-[280px] lg:h-[300px]"
                 style={{ perspective: "900px" }}
               >
                 {previewMode === "layers" ? (
                   <div
-                    className="relative mx-auto flex h-full w-[160px] items-center justify-center transition-all duration-300"
+                    className="relative mx-auto flex h-full w-full max-w-[220px] items-center justify-center transition-all duration-300"
                     data-avatar-preview-focal-x={previewFocalX}
                     data-avatar-rotation={rotationY}
                     data-avatar-movement={movement3D}
@@ -532,7 +532,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                 ) : (
                   /* 3D turntable wrapper for catalog illustration mode without 0px collapse */
                   <div
-                    className="relative mx-auto flex h-full w-[160px] items-center justify-center transition-transform duration-500"
+                    className="relative mx-auto flex h-full w-full max-w-[220px] items-center justify-center transition-transform duration-500"
                     style={{
                       transform: `perspective(900px) rotateY(${Math.abs(rotationY % 180) === 90 ? (rotationY > 0 ? rotationY - 15 : rotationY + 15) : rotationY}deg) scale3d(1, 1, 1)`,
                       transformStyle: "preserve-3d",
