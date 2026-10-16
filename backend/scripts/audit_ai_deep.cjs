@@ -86,11 +86,10 @@ async function audit() {
     console.log(`[${qr.id}] ${qr.title || qr.name || 'No title'} | Type: ${qr.media_type} | Media: ${qr.media_url} | Category: ${qr.category}`);
   }
 
-  console.log('\n=== 7. CHECK CAMPAIGNS AND ATTACHMENTS ===');
-  const camps = await query(`SELECT id, name, status, scheduled_at, message, config FROM campaigns ORDER BY id DESC LIMIT 10`);
+  const camps = await query(`SELECT * FROM campaigns ORDER BY id DESC LIMIT 10`);
   console.log('Campaigns count:', camps.rows.length);
   for (const c of camps.rows) {
-    console.log(`[${c.id}] ${c.name} | Status: ${c.status} | Scheduled: ${c.scheduled_at} | Msg: ${String(c.message).slice(0, 80)}`);
+    console.log(`[${c.id}] ${c.name} | Status: ${c.status} | Created: ${c.created_at || c.created_date} | Msg: ${String(c.message || c.content || '').slice(0, 80)}`);
   }
 
   console.log('\n=== 8. CHECK RECENT AI AGENT RUNTIME LOGS / ERRORS ===');
