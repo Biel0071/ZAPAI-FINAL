@@ -237,7 +237,7 @@ export function NewAgentWizardModal({
         theme: "emerald",
       },
       appearance: {
-        avatar: gender === "female" ? "/assets/evolution/camila_avatar.png" : "/assets/evolution/joao_avatar.png",
+        avatar: gender === "female" ? "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png" : "/assets/avatar_factory/catalog/sprite_r1_c1_clean.png",
         character: gender === "female" ? "female_attendant" : "male_attendant",
         outfit,
         accessories: hasHeadset ? ["headset", "badge"] : ["badge"],
@@ -548,13 +548,13 @@ export function NewAgentWizardModal({
                 )}
               >
                 <img
-                  src="/assets/evolution/camila_avatar.png"
+                  src="/assets/avatar_factory/catalog/sprite_r2_c1_clean.png"
                   alt="Feminino"
-                  className="h-12 w-12 rounded-xl object-cover border border-emerald-500/30 bg-background"
+                  className="h-12 w-12 rounded-xl object-contain border border-emerald-500/30 bg-background/80"
                 />
                 <div>
                   <p className="text-xs font-bold text-foreground">Atendente Feminina</p>
-                  <p className="text-[11px] text-muted-foreground">Modelo Camila / Mariana</p>
+                  <p className="text-[11px] text-muted-foreground">Modelo Camila (2.5D Chibi)</p>
                 </div>
               </div>
 
@@ -568,13 +568,13 @@ export function NewAgentWizardModal({
                 )}
               >
                 <img
-                  src="/assets/evolution/joao_avatar.png"
+                  src="/assets/avatar_factory/catalog/sprite_r1_c1_clean.png"
                   alt="Masculino"
-                  className="h-12 w-12 rounded-xl object-cover border border-emerald-500/30 bg-background"
+                  className="h-12 w-12 rounded-xl object-contain border border-emerald-500/30 bg-background/80"
                 />
                 <div>
                   <p className="text-xs font-bold text-foreground">Atendente Masculino</p>
-                  <p className="text-[11px] text-muted-foreground">Modelo Rafael / Carlos</p>
+                  <p className="text-[11px] text-muted-foreground">Modelo Rafael (2.5D Chibi)</p>
                 </div>
               </div>
             </div>

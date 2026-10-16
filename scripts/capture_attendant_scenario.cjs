@@ -145,24 +145,14 @@ async function run() {
         await saveShot(dialog, 'VERIFY_06_AVATAR_STUDIO_MALE_SWITCH.png');
       }
 
-      // 7. Click "★ 3D Blender" toggle
-      console.log('Clicking "★ 3D Blender" mode...');
-      const blenderToggleBtn = dialog.locator('button[data-avatar-rendermode="3d"], button:has-text("3D Blender")').first();
-      if (await blenderToggleBtn.isVisible()) {
-        await blenderToggleBtn.click();
-        await page.waitForTimeout(2000);
-        console.log('Capturing: VERIFY_07_AVATAR_STUDIO_3D_BLENDER.png');
-        await saveShot(dialog, 'VERIFY_07_AVATAR_STUDIO_3D_BLENDER.png');
-      }
-
-      // 8. Test 3D movement button "Andar 3D" or "Acenar 3D"
-      console.log('Clicking "Acenar 3D" button...');
+      // 7. Test 3D movement button "Acenar 3D" or "Andar 3D" on 2.5D Chibi puppet
+      console.log('Clicking "Acenar 3D" button on 2.5D Chibi puppet...');
       const waveBtn = dialog.locator('button[data-avatar-movement-btn="wave"], button:has-text("Acenar 3D")').first();
       if (await waveBtn.isVisible()) {
         await waveBtn.click();
         await page.waitForTimeout(1500);
-        console.log('Capturing: VERIFY_08_AVATAR_STUDIO_3D_MOVEMENTS.png');
-        await saveShot(dialog, 'VERIFY_08_AVATAR_STUDIO_3D_MOVEMENTS.png');
+        console.log('Capturing: VERIFY_07_AVATAR_STUDIO_3D_MOVEMENTS.png');
+        await saveShot(dialog, 'VERIFY_07_AVATAR_STUDIO_3D_MOVEMENTS.png');
       }
 
       // Close modal
@@ -188,23 +178,20 @@ async function run() {
     await page.waitForTimeout(1000);
   }
 
-  // 5. CLICK 3D Hi-End ON THE MAIN ATTENDANTS PAGE
-  console.log('5. Clicking 3D Hi-End on the main attendants page...');
-  const main3dBtn = page.locator('button[data-studio-rendermode="3d"]').first();
-  if (await main3dBtn.isVisible()) {
-    await main3dBtn.click();
+  // 5. TEST MALE ATTENDANT ON MAIN STAGE WORKING AT PC
+  console.log('5. Clicking ♂ Masc on the main attendants page...');
+  const maleBtn = page.locator('button[data-studio-gender="male"]').first();
+  if (await maleBtn.isVisible()) {
+    await maleBtn.click();
     await page.waitForTimeout(2000);
-    console.log('Capturing: VERIFY_09_ATTENDANTS_PAGE_3D_BLENDER.png');
-    await saveShot(page, 'VERIFY_09_ATTENDANTS_PAGE_3D_BLENDER.png');
+    console.log('Capturing: VERIFY_03_ATTENDANTS_PAGE_MALE_WORKING.png');
+    await saveShot(page, 'VERIFY_03_ATTENDANTS_PAGE_MALE_WORKING.png');
 
-    // Click Male button
-    console.log('Clicking ♂ Masc on the main attendants page...');
-    const maleBtn = page.locator('button[data-studio-gender="male"]').first();
-    if (await maleBtn.isVisible()) {
-      await maleBtn.click();
-      await page.waitForTimeout(2000);
-      console.log('Capturing: VERIFY_10_ATTENDANTS_PAGE_MALE_3D.png');
-      await saveShot(page, 'VERIFY_10_ATTENDANTS_PAGE_MALE_3D.png');
+    // Return to female
+    const femaleBtn = page.locator('button[data-studio-gender="female"]').first();
+    if (await femaleBtn.isVisible()) {
+      await femaleBtn.click();
+      await page.waitForTimeout(1500);
     }
   }
 

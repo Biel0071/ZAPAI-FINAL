@@ -761,11 +761,11 @@ export default function Connections() {
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2.5 min-w-0">
                                 <img
-                                  src={session.linkedAgent.avatar || "/assets/evolution/camila_avatar.png"}
+                                  src={session.linkedAgent.avatar || "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png"}
                                   alt={session.linkedAgent.name}
-                                  className="h-8 w-8 rounded-full border border-emerald-500/40 object-cover bg-background shrink-0"
+                                  className="h-8 w-8 rounded-full border border-emerald-500/40 object-contain bg-background shrink-0"
                                   onError={(e) => {
-                                    (e.target as HTMLImageElement).src = "/assets/evolution/camila_avatar.png";
+                                    (e.target as HTMLImageElement).src = "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png";
                                   }}
                                 />
                                 <div className="min-w-0">

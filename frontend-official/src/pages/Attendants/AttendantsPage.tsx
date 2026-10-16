@@ -951,41 +951,6 @@ export default function AttendantsPage() {
                 <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
                   <button
                     type="button"
-                    data-studio-rendermode="3d"
-                    onClick={() => {
-                      handleUpdateAvatar({ renderStyle: "3d_enterprise" });
-                    }}
-                    className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
-                      resolvedInlineAvatar.renderStyle === "3d_enterprise"
-                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    title="3D Enterprise Fotorrealista"
-                  >
-                    ★ 3D Hi-End
-                  </button>
-                  <button
-                    type="button"
-                    data-studio-rendermode="chibi"
-                    onClick={() => {
-                      handleUpdateAvatar({ renderStyle: "chibi_25d" });
-                    }}
-                    className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
-                      resolvedInlineAvatar.renderStyle !== "3d_enterprise"
-                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    title="Chibi 2.5D Modular"
-                  >
-                    2.5D Chibi
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
-                  <button
-                    type="button"
                     data-studio-gender="female"
                     onClick={() => {
                       const updated = {
@@ -2826,7 +2791,7 @@ export default function AttendantsPage() {
                                           role: agent.role,
                                           gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
                                         })}
-                                        renderStyle={agent.avatarConfig?.renderStyle || "3d_enterprise"}
+                                        renderStyle="chibi_25d"
                                         state={isActive ? "WORKING" : "IDLE"}
                                         size="sm"
                                         showAura={false}

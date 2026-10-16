@@ -882,15 +882,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
   const resolvedRotationY = (((rotationYProp ?? avatar?.rotationY ?? 0) % 360) + 360) % 360;
   const resolvedMovement3D = movement3DProp || avatar?.movement3D || "idle";
 
-  const effectiveRenderStyle = renderStyle || avatar?.renderStyle || "chibi_25d";
-  const is3DEnterprise = effectiveRenderStyle === "3d_enterprise";
-
-  const isZaibot = agentKey.includes("zaibot");
-  const isRafael = resolvedGender === "male";
-  const isJulia = !isCamila && agentKey.includes("julia");
-  const charSlug = isZaibot ? "zaibot" : isRafael ? "rafael" : isJulia ? "julia" : "camila";
   const isWorking = currentState === "WORKING" || currentState === "TALKING" || currentState === "TYPING" || currentState === "THINKING" || currentState === "SUCCESS";
-  const photo3DUrl = `/assets/characters/${charSlug}/${isWorking ? "working.jpg" : "standing.jpg"}`;
 
   // Resolve branding attributes with robust fallbacks
   const rawBranding = avatar?.branding || (avatar as any)?.storeBranding || {};
@@ -974,80 +966,29 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
             : sizeConfig.character
         )}
       >
-        {is3DEnterprise ? (
-          <div
-            className="relative w-full h-full flex items-center justify-center transition-transform duration-300"
-            style={{ perspective: "1000px" }}
-          >
-            <div
-              className={cn(
-                "relative overflow-hidden rounded-2xl border border-emerald-500/30 shadow-2xl shadow-emerald-500/10 bg-slate-950/80 max-h-full aspect-[4/5] flex items-center justify-center group/card transition-all duration-300",
-                resolvedMovement3D === "walk" && "translate-y-[-4px] ring-1 ring-emerald-500/40",
-                resolvedMovement3D === "wave" && "rotate-[2.5deg] translate-y-[-2px]",
-                resolvedMovement3D === "pose" && "scale-[1.04] shadow-emerald-500/40 ring-1 ring-emerald-500/50",
-                resolvedMovement3D === "idle" && "hover:scale-[1.02]"
-              )}
-              style={{
-                transform: `rotateY(${resolvedRotationY}deg)`,
-                transformStyle: "preserve-3d",
-              }}
-            >
-              <img
-                src={photo3DUrl}
-                alt={avatar?.agentId || (resolvedGender === "male" ? "Rafael 3D" : "Camila 3D")}
-                className={cn(
-                  "w-full h-full object-cover transition-transform duration-500 group-hover/card:scale-105",
-                  isWorking ? "brightness-105" : "brightness-95"
-                )}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-              <span className="sr-only">{isWorking ? "3D No PC" : "3D Em Espera"}</span>
-              {showStatusBadge && (
-                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold text-emerald-400 flex items-center gap-1">
-                  <span className={cn("w-1.5 h-1.5 rounded-full", isWorking ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
-                  {isWorking ? "3D No PC" : "3D Em Espera"}
-                </div>
-              )}
+        <div className="relative w-full h-full flex items-center justify-center">
+          <ModularLayerAvatar
+            avatar={renderedAvatar}
+            branding={branding}
+            currentState={currentState}
+            size={size}
+            cropFocus={cropFocus}
+            showBrandingLayer={showBrandingLayer}
+            rotationY={resolvedRotationY}
+            movement3D={resolvedMovement3D}
+          />
+          {isWorking ? (
+            <span className="sr-only">No PC · Trabalhando</span>
+          ) : (
+            <span className="sr-only">Em pé · Parado</span>
+          )}
+          {showStatusBadge && (
+            <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold text-emerald-400 flex items-center gap-1 z-20">
+              <span className={cn("w-1.5 h-1.5 rounded-full", isWorking ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+              <span>{isWorking ? "No PC · Trabalhando" : "Em pé · Parado"}</span>
             </div>
-            {/* Hidden ModularLayerAvatar kept in DOM for test selectors */}
-            <div className="sr-only" aria-hidden="true">
-              <ModularLayerAvatar
-                avatar={renderedAvatar}
-                branding={branding}
-                currentState={currentState}
-                size={size}
-                cropFocus={cropFocus}
-                showBrandingLayer={showBrandingLayer}
-                rotationY={resolvedRotationY}
-                movement3D={resolvedMovement3D}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="relative w-full h-full flex items-center justify-center">
-            <ModularLayerAvatar
-              avatar={renderedAvatar}
-              branding={branding}
-              currentState={currentState}
-              size={size}
-              cropFocus={cropFocus}
-              showBrandingLayer={showBrandingLayer}
-              rotationY={resolvedRotationY}
-              movement3D={resolvedMovement3D}
-            />
-            {isWorking ? (
-              <span className="sr-only">No PC · Trabalhando</span>
-            ) : (
-              <span className="sr-only">Em pé · Parado</span>
-            )}
-            {showStatusBadge && (
-              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold text-emerald-400 flex items-center gap-1 z-20">
-                <span className={cn("w-1.5 h-1.5 rounded-full", isWorking ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
-                <span>{isWorking ? "No PC · Trabalhando" : "Em pé · Parado"}</span>
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* 3D Angle & Movement Indicator for Workspace */}

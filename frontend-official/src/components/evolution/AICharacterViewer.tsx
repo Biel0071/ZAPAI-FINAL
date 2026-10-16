@@ -327,11 +327,10 @@ export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
     if (currentMode === "zaibot") return "/assets/mascot/zaibot_avatar.png";
     if (avatarUrl && !avatarUrl.includes("/assets/mascot/")) return avatarUrl;
     const n = (customName || agentName || "").toLowerCase();
-    if (n.includes("joao") || n.includes("joão")) return "/assets/evolution/joao_avatar.png";
-    if (n.includes("marina")) return "/assets/evolution/marina_avatar.png";
-    if (n.includes("carlos")) return "/assets/evolution/carlos_avatar.png";
-    if (n.includes("ana")) return "/assets/evolution/ana_avatar.png";
-    return "/assets/evolution/camila_avatar.png";
+    if (n.includes("joao") || n.includes("joão") || n.includes("carlos") || n.includes("rafael")) {
+      return "/assets/avatar_factory/catalog/sprite_r1_c1_clean.png";
+    }
+    return "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png";
   };
 
   // State visuals mapping

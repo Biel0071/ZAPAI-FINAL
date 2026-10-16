@@ -32,7 +32,7 @@ export const CHARACTER_PRESETS: Record<string, CharacterPreset> = {
     assets: {
       working: "/assets/characters/camila/working.jpg",
       standing: "/assets/characters/camila/standing.jpg",
-      avatar: "/assets/evolution/camila_avatar.png",
+      avatar: "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png",
     },
     themeColor: "#10b981", // Emerald
     accentColor: "#34d399",
@@ -46,7 +46,7 @@ export const CHARACTER_PRESETS: Record<string, CharacterPreset> = {
     assets: {
       working: "/assets/characters/rafael/working.jpg",
       standing: "/assets/characters/rafael/standing.jpg",
-      avatar: "/assets/evolution/carlos_avatar.png",
+      avatar: "/assets/avatar_factory/catalog/sprite_r1_c1_clean.png",
     },
     themeColor: "#0ea5e9", // Sky Blue
     accentColor: "#38bdf8",
@@ -60,7 +60,7 @@ export const CHARACTER_PRESETS: Record<string, CharacterPreset> = {
     assets: {
       working: "/assets/characters/julia/working.jpg",
       standing: "/assets/characters/julia/standing.jpg",
-      avatar: "/assets/evolution/marina_avatar.png",
+      avatar: "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png",
     },
     themeColor: "#8b5cf6", // Purple/Violet
     accentColor: "#a78bfa",

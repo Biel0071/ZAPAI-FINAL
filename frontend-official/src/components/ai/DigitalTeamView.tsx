@@ -116,18 +116,18 @@ export function getEmployeeAvatar(agent: any): string {
   const key = String(agent?.key || "").toLowerCase();
   const name = String(agent?.name || "").toLowerCase();
 
-  if (key === "camila" || name.includes("camila")) return "/assets/evolution/camila_avatar.png";
-  if (key === "joao" || name.includes("joao") || name.includes("joão")) return "/assets/evolution/joao_avatar.png";
-  if (key === "marina" || name.includes("marina")) return "/assets/evolution/marina_avatar.png";
-  if (key === "carlos" || name.includes("carlos")) return "/assets/evolution/carlos_avatar.png";
-  if (key === "ana" || name.includes("ana")) return "/assets/evolution/ana_avatar.png";
+  if (key === "camila" || name.includes("camila")) return "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png";
+  if (key === "joao" || name.includes("joao") || name.includes("joão")) return "/assets/avatar_factory/catalog/sprite_r1_c1_clean.png";
+  if (key === "marina" || name.includes("marina")) return "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png";
+  if (key === "carlos" || name.includes("carlos")) return "/assets/avatar_factory/catalog/sprite_r1_c1_clean.png";
+  if (key === "ana" || name.includes("ana")) return "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png";
 
   const isFemale =
     agent?.character?.gender === "female" ||
     agent?.gender === "female" ||
     name.endsWith("a");
 
-  return isFemale ? "/assets/evolution/camila_avatar.png" : "/assets/evolution/joao_avatar.png";
+  return isFemale ? "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png" : "/assets/avatar_factory/catalog/sprite_r1_c1_clean.png";
 }
 
 interface DigitalTeamViewProps {
@@ -164,7 +164,7 @@ export function DigitalTeamView({
       active: true,
       status: "active",
       channels: ["whatsapp", "inbox"],
-      avatar: "/assets/evolution/camila_avatar.png",
+      avatar: "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png",
       personalityType: "comercial",
       character: { gender: "female", outfit: "uniforme_vendas", theme: "emerald" },
       stats: { chatsToday: 127, slaPercent: 94, satisfactionCsat: 98, avgResponseTime: "18s" },

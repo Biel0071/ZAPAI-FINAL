@@ -461,37 +461,6 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
               </div>
 
               <div className="flex items-center gap-1.5">
-                {/* Render style switcher: 2.5D Chibi vs 3D Blender */}
-                <div className="flex items-center gap-1 p-0.5 rounded-full bg-background/85 border border-border/70 backdrop-blur-xs">
-                  <button
-                    type="button"
-                    data-avatar-rendermode="chibi"
-                    onClick={() => setAvatar((prev) => ({ ...prev, renderStyle: "chibi_25d" }))}
-                    className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
-                      avatar.renderStyle !== "3d_enterprise"
-                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    title="Chibi 2.5D Modular"
-                  >
-                    2.5D Chibi
-                  </button>
-                  <button
-                    type="button"
-                    data-avatar-rendermode="3d"
-                    onClick={() => setAvatar((prev) => ({ ...prev, renderStyle: "3d_enterprise" }))}
-                    className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
-                      avatar.renderStyle === "3d_enterprise"
-                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    title="3D Blender Hi-End"
-                  >
-                    ★ 3D Blender
-                  </button>
-                </div>
 
                 {store && (
                   <div
