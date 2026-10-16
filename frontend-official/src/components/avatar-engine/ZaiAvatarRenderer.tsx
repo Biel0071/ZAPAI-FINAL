@@ -159,6 +159,14 @@ const CHIBI_HAIR_SPRITES: Record<"female" | "male", Record<string, string>> = {
     hair_08: "sprite_r2_c9",
     hair_09: "sprite_r2_c8",
     hair_10: "sprite_r2_c10",
+    hair_11: "sprite_r2_c6",
+    hair_12: "sprite_r2_c9",
+    hair_13: "sprite_r3_c8",
+    hair_14: "sprite_r2_c6",
+    hair_15: "sprite_r2_c9",
+    hair_16: "sprite_r2_c7",
+    hair_17: "sprite_r2_c6",
+    hair_18: "sprite_r2_c2",
   },
   male: {
     hair_01: "sprite_r1_c1",
@@ -171,6 +179,14 @@ const CHIBI_HAIR_SPRITES: Record<"female" | "male", Record<string, string>> = {
     hair_08: "sprite_r1_c3",
     hair_09: "sprite_r1_c5",
     hair_10: "sprite_r1_c10",
+    hair_11: "sprite_r1_c4",
+    hair_12: "sprite_r1_c6",
+    hair_13: "sprite_r3_c7",
+    hair_14: "sprite_r1_c4",
+    hair_15: "sprite_r1_c6",
+    hair_16: "sprite_r1_c8",
+    hair_17: "sprite_r1_c10",
+    hair_18: "sprite_r1_c9",
   },
 };
 
@@ -188,6 +204,8 @@ const CHIBI_OUTFIT_SPRITES: {
       outfit_06: "sprite_r3_c2",
       outfit_07: "sprite_r2_c3",
       outfit_08: "sprite_r2_c10",
+      outfit_09: "sprite_r3_c11",
+      outfit_10: "sprite_r3_c1",
     },
     tablet: {
       outfit_01: "sprite_r2_c1",
@@ -198,6 +216,8 @@ const CHIBI_OUTFIT_SPRITES: {
       outfit_06: "sprite_r3_c2",
       outfit_07: "sprite_r2_c1",
       outfit_08: "sprite_r2_c10",
+      outfit_09: "sprite_r3_c11",
+      outfit_10: "sprite_r3_c1",
     },
   },
   male: {
@@ -210,6 +230,8 @@ const CHIBI_OUTFIT_SPRITES: {
       outfit_06: "sprite_r3_c2",
       outfit_07: "sprite_r1_c7",
       outfit_08: "sprite_r1_c10",
+      outfit_09: "sprite_r3_c11",
+      outfit_10: "sprite_r3_c1",
     },
     tablet: {
       outfit_01: "sprite_r1_c2",
@@ -220,6 +242,8 @@ const CHIBI_OUTFIT_SPRITES: {
       outfit_06: "sprite_r3_c2",
       outfit_07: "sprite_r1_c2",
       outfit_08: "sprite_r3_c4",
+      outfit_09: "sprite_r3_c11",
+      outfit_10: "sprite_r3_c1",
     },
   },
 };
@@ -232,6 +256,8 @@ const CHIBI_FACE_SPRITES: Record<"female" | "male", Record<string, string>> = {
     face_04: "sprite_r2_c3",
     face_05: "sprite_r2_c2",
     face_06: "sprite_r2_c7",
+    face_07: "sprite_r2_c2",
+    face_08: "sprite_r2_c6",
   },
   male: {
     face_01: "sprite_r1_c1",
@@ -240,6 +266,8 @@ const CHIBI_FACE_SPRITES: Record<"female" | "male", Record<string, string>> = {
     face_04: "sprite_r1_c6",
     face_05: "sprite_r1_c7",
     face_06: "sprite_r1_c8",
+    face_07: "sprite_r1_c8",
+    face_08: "sprite_r1_c9",
   },
 };
 
@@ -356,7 +384,7 @@ function ModularLayerAvatar({
   if (cropFocus === "face") {
     hairSpriteId = faceSpriteId;
   }
-  const isLongHair = isFemale && (hairId === "hair_01" || hairId === "hair_03" || hairId === "hair_07" || hairId === "hair_08" || hairId === "hair_09" || hairId === "hair_10");
+  const isLongHair = isFemale && (hairId === "hair_01" || hairId === "hair_03" || hairId === "hair_07" || hairId === "hair_08" || hairId === "hair_09" || hairId === "hair_10" || hairId === "hair_11" || hairId === "hair_12" || hairId === "hair_13");
 
   let bodySpriteId = hasTablet
     ? (CHIBI_OUTFIT_SPRITES[genderKey]?.tablet?.[outfitId] || (isFemale ? "sprite_r2_c2" : "sprite_r1_c2"))
@@ -367,7 +395,9 @@ function ModularLayerAvatar({
   } else if (avatar.workObject === "laptop_zai") {
     bodySpriteId = "sprite_r3_c5";
   } else if (avatar.workObject === "coffee_cup") {
-    bodySpriteId = "sprite_r2_c5";
+    bodySpriteId = genderKey === "male" ? "sprite_r1_c5" : "sprite_r2_c5";
+  } else if (avatar.accessories?.glasses === "sunglasses_wayfarer" || avatar.glasses === "sunglasses_wayfarer") {
+    bodySpriteId = genderKey === "male" ? "sprite_r1_c9" : "sprite_r2_c6";
   }
 
   if (cropFocus === "hair" || cropFocus === "face" || cropFocus === "accessory-head") {

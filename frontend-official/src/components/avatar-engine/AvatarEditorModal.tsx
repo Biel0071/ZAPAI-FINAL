@@ -1020,7 +1020,13 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           (a.id === "acc_03" && avatar.accessories?.badge === "badge_zai_lanyard") ||
                           (a.id === "acc_04" && (avatar.glasses === "glasses_square_exec" || avatar.glasses?.includes("glasses"))) ||
                           (a.id === "acc_05" && avatar.workObject === "tablet_zai") ||
-                          (a.id === "acc_06" && avatar.accessories?.watch === "watch_zai_smart");
+                          (a.id === "acc_06" && avatar.accessories?.watch === "watch_zai_smart") ||
+                          (a.id === "acc_07" && avatar.glasses === "sunglasses_wayfarer") ||
+                          (a.id === "acc_08" && avatar.workObject === "coffee_cup") ||
+                          (a.id === "acc_09" && avatar.workObject === "boxes_delivery") ||
+                          (a.id === "acc_10" && avatar.workObject === "laptop_zai") ||
+                          (a.id === "acc_11" && avatar.accessories?.backpack === "backpack_tactical_black") ||
+                          (a.id === "acc_12" && avatar.accessories?.headwear === "hardhat_zai_white");
                         return (
                           <button
                             key={a.id}
@@ -1034,6 +1040,13 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                               if (a.id === "acc_01") {
                                 updHeadset = "none";
                                 updGlasses = "none";
+                                updWorkObject = "none";
+                                curAcc.headset = "none";
+                                curAcc.badge = "none";
+                                curAcc.watch = "none";
+                                curAcc.glasses = "none";
+                                curAcc.backpack = "none";
+                                curAcc.headwear = "none";
                               } else if (a.id === "acc_02") {
                                 updHeadset = updHeadset === "headset_zai_green" ? "none" : "headset_zai_green";
                                 curAcc.headset = updHeadset;
@@ -1046,6 +1059,19 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                                 updWorkObject = updWorkObject === "tablet_zai" ? "none" : "tablet_zai";
                               } else if (a.id === "acc_06") {
                                 curAcc.watch = curAcc.watch === "watch_zai_smart" ? "none" : "watch_zai_smart";
+                              } else if (a.id === "acc_07") {
+                                updGlasses = updGlasses === "sunglasses_wayfarer" ? "none" : "sunglasses_wayfarer";
+                                curAcc.glasses = updGlasses;
+                              } else if (a.id === "acc_08") {
+                                updWorkObject = updWorkObject === "coffee_cup" ? "none" : "coffee_cup";
+                              } else if (a.id === "acc_09") {
+                                updWorkObject = updWorkObject === "boxes_delivery" ? "none" : "boxes_delivery";
+                              } else if (a.id === "acc_10") {
+                                updWorkObject = updWorkObject === "laptop_zai" ? "none" : "laptop_zai";
+                              } else if (a.id === "acc_11") {
+                                curAcc.backpack = curAcc.backpack === "backpack_tactical_black" ? "none" : "backpack_tactical_black";
+                              } else if (a.id === "acc_12") {
+                                curAcc.headwear = curAcc.headwear === "hardhat_zai_white" ? "none" : "hardhat_zai_white";
                               }
                               setAvatar((prev) => ({
                                 ...prev,
@@ -1065,7 +1091,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             <div className="flex items-center gap-2.5">
                               <AvatarItemPreview
                                 spriteRef={resolveItemSpriteForGender(a, avatar.body)}
-                                focus={a.id === "acc_02" || a.id === "acc_04" ? "accessory-head" : "accessory-body"}
+                                focus={a.id === "acc_02" || a.id === "acc_04" || a.id === "acc_07" || a.id === "acc_12" ? "accessory-head" : "accessory-body"}
                                 title={a.title}
                               />
                               <div className="min-w-0">

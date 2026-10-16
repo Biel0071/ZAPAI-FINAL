@@ -88,7 +88,7 @@ export function normalizeAvatarForRenderer(avatar: Partial<AgentAvatarConfig>): 
   const legacyFace = avatar.face || avatar.eyes;
   const configuredOutfit = avatar.outfit || avatar.clothing;
   const resolvedHair = RENDERER_HAIR_ALIASES[avatar.hair || ""] || avatar.hair || "";
-  const finalHair = /^hair_(0[1-9]|10)$/.test(resolvedHair) ? resolvedHair : (avatar.body === "male" ? "hair_05" : "hair_01");
+  const finalHair = /^hair_(0[1-9]|1[0-8])$/.test(resolvedHair) ? resolvedHair : (avatar.body === "male" ? "hair_05" : "hair_01");
   const resolvedFace = RENDERER_FACE_ALIASES[legacyFace || ""] || legacyFace || "";
   const resolvedOutfit = RENDERER_OUTFIT_ALIASES[configuredOutfit || ""] || configuredOutfit || "";
   const isFemale = avatar.body !== "male" && avatar.base !== "male";
@@ -97,8 +97,8 @@ export function normalizeAvatarForRenderer(avatar: Partial<AgentAvatarConfig>): 
     ...avatar,
     hair: finalHair,
     hairColor: resolveHairColorForHair(avatar.hair || finalHair, avatar.hairColor, isFemale),
-    face: /^face_0[1-6]$/.test(resolvedFace) ? resolvedFace : "face_01",
-    outfit: /^outfit_0[1-8]$/.test(resolvedOutfit) ? resolvedOutfit : "outfit_01",
+    face: /^face_0[1-8]$/.test(resolvedFace) ? resolvedFace : "face_01",
+    outfit: /^outfit_(0[1-9]|10)$/.test(resolvedOutfit) ? resolvedOutfit : "outfit_01",
     style: RENDERER_STYLE_ALIASES[avatar.style || ""] || avatar.style || "style_vendas",
   };
 }
@@ -168,6 +168,19 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
 
   // Female matches (Row 2)
   if (gender === "female") {
+    if (outfit === "outfit_10") return "sprite_r3_c1";
+    if (outfit === "outfit_09") return "sprite_r3_c11";
+    if (hair === "hair_11") return "sprite_r2_c6";
+    if (hair === "hair_12") return "sprite_r2_c9";
+    if (hair === "hair_13") return "sprite_r3_c8";
+    if (hair === "hair_14") return "sprite_r2_c6";
+    if (hair === "hair_15") return "sprite_r2_c9";
+    if (hair === "hair_16") return "sprite_r2_c7";
+    if (hair === "hair_17") return "sprite_r2_c6";
+    if (hair === "hair_18") return "sprite_r2_c2";
+    if (avatar.face === "face_07") return "sprite_r2_c2";
+    if (avatar.face === "face_08") return "sprite_r2_c6";
+
     // Distinctive outfits
     if ((outfit === "outfit_05" || outfit.includes("blazer") || outfit === "outfit_02") && (!hair || hair === "hair_01" || hair === "hair_02")) {
       return "sprite_r2_c8";
@@ -206,6 +219,19 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   }
 
   // Male matches (Row 1)
+  if (outfit === "outfit_10") return "sprite_r3_c1";
+  if (outfit === "outfit_09") return "sprite_r3_c11";
+  if (hair === "hair_11") return "sprite_r1_c4";
+  if (hair === "hair_12") return "sprite_r1_c6";
+  if (hair === "hair_13") return "sprite_r3_c7";
+  if (hair === "hair_14") return "sprite_r1_c4";
+  if (hair === "hair_15") return "sprite_r1_c6";
+  if (hair === "hair_16") return "sprite_r1_c8";
+  if (hair === "hair_17") return "sprite_r1_c10";
+  if (hair === "hair_18") return "sprite_r1_c9";
+  if (avatar.face === "face_07") return "sprite_r1_c8";
+  if (avatar.face === "face_08") return "sprite_r1_c9";
+
   if (outfit === "outfit_08" || outfit.includes("bomber")) {
     return "sprite_r1_c6";
   }

@@ -146,6 +146,14 @@ const HAIR_ID_TO_COLOR: Record<string, HairColor> = {
   hair_08: "golden_blonde",
   hair_09: "dark_brown",
   hair_10: "cyber_blue",
+  hair_11: "neon_pink",
+  hair_12: "platinum",
+  hair_13: "auburn",
+  hair_14: "black",
+  hair_15: "platinum",
+  hair_16: "dark_brown",
+  hair_17: "fiery_red",
+  hair_18: "black",
   female_ponytail_brunette: "auburn",
   female_straight_glasses: "black",
   female_wavy_blonde: "golden_blonde",
@@ -208,6 +216,30 @@ const MALE_HAIR_DISPLAY_OVERRIDES: Record<string, { title: string; description: 
     title: "Cyber Spiky Urbano",
     description: "Corte masculino moderno estilo tech",
   },
+  hair_11: {
+    title: "Boné Street Urbano",
+    description: "Boné esportivo com visual casual dinâmico",
+  },
+  hair_14: {
+    title: "Boné Tático Preto",
+    description: "Visual tático com boné oficial ZAI",
+  },
+  hair_15: {
+    title: "Repicado Anime Prateado",
+    description: "Corte repicado estilo tech futurista",
+  },
+  hair_16: {
+    title: "Médio Acadêmico com Barba",
+    description: "Cabelo encorpado com caimento lateral",
+  },
+  hair_17: {
+    title: "Espetado Urbano Fogo",
+    description: "Mechas urbanas com atitude jovem",
+  },
+  hair_18: {
+    title: "Ondulado Clássico",
+    description: "Ondas clássicas com óculos executivos",
+  },
 };
 
 /**
@@ -262,6 +294,14 @@ export const AVATAR_HAIRS: AvatarStudioItem[] = [
   { id: "hair_08", number: "08", name: "Street Spiky Texturizado", title: "Street Spiky Texturizado", category: "hair", gender: "male", spriteRef: "sprite_r1_c3", description: "Corte texturizado clássico espetado" },
   { id: "hair_09", number: "09", name: "Cachos Volumosos", title: "Cachos Volumosos", category: "hair", gender: "all", spriteRef: "sprite_r1_c5", description: "Cachos definidos com estilo despojado" },
   { id: "hair_10", number: "10", name: "Cyber Wave Longo", title: "Cyber Wave Longo", category: "hair", gender: "female", spriteRef: "sprite_r2_c10", description: "Mechas longas volumosas estilo cyberpunk" },
+  { id: "hair_11", number: "11", name: "Boné ZAI com Mechas Pink", title: "Boné ZAI com Mechas Pink", category: "hair", gender: "female", spriteRef: "sprite_r2_c6", description: "Mechas longas sob boné esportivo ZAI" },
+  { id: "hair_12", number: "12", name: "Platinado Glamour", title: "Platinado Glamour", category: "hair", gender: "female", spriteRef: "sprite_r2_c9", description: "Ondas platinadas longas e sofisticadas" },
+  { id: "hair_13", number: "13", name: "Capacete Obra com Longo", title: "Capacete Obra com Longo", category: "hair", gender: "female", spriteRef: "sprite_r3_c8", description: "Cabelo protegido por capacete de obra ZAI" },
+  { id: "hair_14", number: "14", name: "Boné Tático Preto", title: "Boné Tático Preto", category: "hair", gender: "male", spriteRef: "sprite_r1_c4", description: "Corte adaptado sob boné tático ZAI" },
+  { id: "hair_15", number: "15", name: "Repicado Anime Prateado", title: "Repicado Anime Prateado", category: "hair", gender: "male", spriteRef: "sprite_r1_c6", description: "Corte repicado com mechas prateadas estilo anime" },
+  { id: "hair_16", number: "16", name: "Médio Acadêmico com Barba", title: "Médio Acadêmico com Barba", category: "hair", gender: "male", spriteRef: "sprite_r1_c8", description: "Cabelo encorpado com caimento lateral e barba" },
+  { id: "hair_17", number: "17", name: "Espetado Urbano Fogo", title: "Espetado Urbano Fogo", category: "hair", gender: "male", spriteRef: "sprite_r1_c10", description: "Mechas urbanas com atitude jovem e cor viva" },
+  { id: "hair_18", number: "18", name: "Ondulado Clássico com Óculos", title: "Ondulado Clássico com Óculos", category: "hair", gender: "male", spriteRef: "sprite_r1_c9", description: "Ondas clássicas executivas penteadas para trás" },
 ];
 
 // 2. ROSTO (Face) — 5ª Categoria oficial
@@ -272,6 +312,8 @@ export const AVATAR_FACES: AvatarStudioItem[] = [
   { id: "face_04", number: "04", name: "Expressivo Comercial", title: "Expressivo Comercial", category: "face", spriteRef: "sprite_r2_c3", description: "Olhar consultivo e receptivo voltado a vendas" },
   { id: "face_05", number: "05", name: "Analítico & Sereno", title: "Analítico & Sereno", category: "face", spriteRef: "sprite_r2_c2", description: "Foco nos detalhes com expressão equilibrada" },
   { id: "face_06", number: "06", name: "Foco Operacional", title: "Foco Operacional", category: "face", spriteRef: "sprite_r3_c5", description: "Postura atenta e olhar concentrado em agilidade" },
+  { id: "face_07", number: "07", name: "Intelectual & Barba", title: "Intelectual & Barba", category: "face", spriteRef: "sprite_r1_c8", description: "Expressão executiva com barba e óculos intelectuais" },
+  { id: "face_08", number: "08", name: "Óculos Escuros Modernos", title: "Óculos Escuros Modernos", category: "face", spriteRef: "sprite_r1_c9", description: "Postura marcante com óculos de sol wayfarer" },
 ];
 
 // 3. ROUPA (Outfit)
@@ -284,6 +326,8 @@ export const AVATAR_OUTFITS: AvatarStudioItem[] = [
   { id: "outfit_06", number: "06", name: "Colete Refletivo Logística", title: "Colete Refletivo Logística", category: "outfit", spriteRef: "sprite_r3_c2", description: "Colete de segurança amarelo fluorescente de expedição" },
   { id: "outfit_07", number: "07", name: "Camiseta Básica ZAI", title: "Camiseta Básica ZAI", category: "outfit", spriteRef: "sprite_r1_c7", description: "Camiseta casual de algodão com escudo no peito" },
   { id: "outfit_08", number: "08", name: "Jaqueta Bomber ZAI", title: "Jaqueta Bomber ZAI", category: "outfit", spriteRef: "sprite_r1_c6", description: "Jaqueta esportiva preta com bordados verdes" },
+  { id: "outfit_09", number: "09", name: "Polo Verde Esmeralda ZAI", title: "Polo Verde Esmeralda ZAI", category: "outfit", spriteRef: "sprite_r3_c11", description: "Polo oficial de operações e inteligência comercial" },
+  { id: "outfit_10", number: "10", name: "Uniforme Expedição & Estoque", title: "Uniforme Expedição & Estoque", category: "outfit", spriteRef: "sprite_r3_c1", description: "Traje reforçado de logística, caixas e carregamento" },
 ];
 
 // 4. ACESSÓRIOS (Accessories)
@@ -294,6 +338,12 @@ export const AVATAR_ACCESSORIES: AvatarStudioItem[] = [
   { id: "acc_04", number: "04", name: "Óculos Executivos", title: "Óculos Executivos", category: "accessories", spriteRef: "sprite_r1_c2", description: "Armação fina de titânio moderna e discreta" },
   { id: "acc_05", number: "05", name: "Tablet de Vendas", title: "Tablet de Vendas", category: "accessories", spriteRef: "sprite_r1_c2", description: "Tablet executivo com CRM e catálogo aberto" },
   { id: "acc_06", number: "06", name: "Smartwatch ZAI Sync", title: "Smartwatch ZAI Sync", category: "accessories", spriteRef: "sprite_r1_c7", description: "Relógio inteligente com tela neon de notificações" },
+  { id: "acc_07", number: "07", name: "Óculos de Sol Wayfarer", title: "Óculos de Sol Wayfarer", category: "accessories", spriteRef: "sprite_r1_c9", description: "Lentes escuras modernas e proteção visual" },
+  { id: "acc_08", number: "08", name: "Copo Térmico ZAI Café", title: "Copo Térmico ZAI Café", category: "accessories", spriteRef: "sprite_r2_c5", description: "Copo térmico de café para longas jornadas de atendimento" },
+  { id: "acc_09", number: "09", name: "Caixas de Entrega ZAI", title: "Caixas de Entrega ZAI", category: "accessories", spriteRef: "sprite_r3_c1", description: "Volumes e caixas de entrega na expedição" },
+  { id: "acc_10", number: "10", name: "Notebook Portátil ZAI", title: "Notebook Portátil ZAI", category: "accessories", spriteRef: "sprite_r3_c5", description: "Notebook sobre o colo em operação de dados" },
+  { id: "acc_11", number: "11", name: "Mochila Tática ZAI", title: "Mochila Tática ZAI", category: "accessories", spriteRef: "sprite_r1_c4", description: "Mochila executiva preta com alças ergonômicas" },
+  { id: "acc_12", number: "12", name: "Capacete de Engenharia ZAI", title: "Capacete de Engenharia ZAI", category: "accessories", spriteRef: "sprite_r3_c8", description: "Capacete de segurança branco com logo da empresa" },
 ];
 
 // 5. ESTILO (Styles — Presets completos de identidade)

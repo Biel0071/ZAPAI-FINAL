@@ -1318,12 +1318,18 @@ export default function AttendantsPage() {
                     (a.id === "acc_03" && cfg?.accessories?.badge && cfg.accessories.badge !== "none") ||
                     (a.id === "acc_04" && cfg?.glasses && cfg.glasses !== "none") ||
                     (a.id === "acc_05" && cfg?.workObject === "tablet_zai") ||
-                    (a.id === "acc_06" && cfg?.accessories?.watch && cfg.accessories.watch !== "none");
+                    (a.id === "acc_06" && cfg?.accessories?.watch && cfg.accessories.watch !== "none") ||
+                    (a.id === "acc_07" && cfg?.glasses === "sunglasses_wayfarer") ||
+                    (a.id === "acc_08" && cfg?.workObject === "coffee_cup") ||
+                    (a.id === "acc_09" && cfg?.workObject === "boxes_delivery") ||
+                    (a.id === "acc_10" && cfg?.workObject === "laptop_zai") ||
+                    (a.id === "acc_11" && cfg?.accessories?.backpack === "backpack_tactical_black") ||
+                    (a.id === "acc_12" && cfg?.accessories?.headwear === "hardhat_zai_white");
 
                   const focusType =
                     a.id === "acc_01"
                       ? "full"
-                      : a.id === "acc_02" || a.id === "acc_04"
+                      : a.id === "acc_02" || a.id === "acc_04" || a.id === "acc_07" || a.id === "acc_12"
                       ? "accessory-head"
                       : "accessory-body";
                   const resolvedAccSprite = resolveItemSpriteForGender(a, inlineGender);
@@ -1346,6 +1352,8 @@ export default function AttendantsPage() {
                           updatedAccessories.watch = "none";
                           updatedWorkObject = "none";
                           updatedGlasses = "none";
+                          updatedAccessories.backpack = "none";
+                          updatedAccessories.headwear = "none";
                         } else if (a.id === "acc_02") {
                           updatedHeadset = updatedHeadset === "headset_zai_green" ? "none" : "headset_zai_green";
                           updatedAccessories.headset = updatedHeadset;
@@ -1358,6 +1366,19 @@ export default function AttendantsPage() {
                           updatedWorkObject = updatedWorkObject === "tablet_zai" ? "none" : "tablet_zai";
                         } else if (a.id === "acc_06") {
                           updatedAccessories.watch = updatedAccessories.watch === "watch_zai_smart" ? "none" : "watch_zai_smart";
+                        } else if (a.id === "acc_07") {
+                          updatedGlasses = updatedGlasses === "sunglasses_wayfarer" ? "none" : "sunglasses_wayfarer";
+                          updatedAccessories.glasses = updatedGlasses;
+                        } else if (a.id === "acc_08") {
+                          updatedWorkObject = updatedWorkObject === "coffee_cup" ? "none" : "coffee_cup";
+                        } else if (a.id === "acc_09") {
+                          updatedWorkObject = updatedWorkObject === "boxes_delivery" ? "none" : "boxes_delivery";
+                        } else if (a.id === "acc_10") {
+                          updatedWorkObject = updatedWorkObject === "laptop_zai" ? "none" : "laptop_zai";
+                        } else if (a.id === "acc_11") {
+                          updatedAccessories.backpack = updatedAccessories.backpack === "backpack_tactical_black" ? "none" : "backpack_tactical_black";
+                        } else if (a.id === "acc_12") {
+                          updatedAccessories.headwear = updatedAccessories.headwear === "hardhat_zai_white" ? "none" : "hardhat_zai_white";
                         }
 
                         const next = {
