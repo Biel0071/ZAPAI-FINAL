@@ -869,26 +869,27 @@ export default function AttendantsPage() {
   ------------------------------------------------------------- */
   const renderAvatarStudioSection = () => {
     if (!previewAgent) return null;
-    const isCamila = previewAgent.key === "camila" || previewAgent.name?.toLowerCase().includes("camila");
+    const isExplicitMale = previewAgent.avatarConfig?.body === "male" || previewAgent.avatarConfig?.base === "male";
+    const isExplicitFemale = previewAgent.avatarConfig?.body === "female" || previewAgent.avatarConfig?.base === "female";
+    const nameLower = String(previewAgent.name || previewAgent.key || "").toLowerCase();
+    const defaultGender: "male" | "female" = isExplicitMale
+      ? "male"
+      : isExplicitFemale
+      ? "female"
+      : nameLower.includes("carlos") || nameLower.includes("joao") || nameLower.includes("rafael") || nameLower.includes("pedro")
+      ? "male"
+      : "female";
+
     let resolvedInlineAvatar = previewAgent.avatarConfig || createAgentAvatar({
       agentId: previewAgent.key || previewAgent.name,
       name: previewAgent.name,
       role: previewAgent.role,
       storeId: previewStore?.id,
       storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
-      gender: isCamila ? "female" : previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+      gender: defaultGender,
     });
-    if (isCamila && (resolvedInlineAvatar.body === "male" || resolvedInlineAvatar.base === "male")) {
-      resolvedInlineAvatar = {
-        ...resolvedInlineAvatar,
-        body: "female",
-        base: "female",
-        hair: resolvedInlineAvatar.hair?.startsWith("male") ? "hair_01" : (resolvedInlineAvatar.hair || "hair_01"),
-        catalogSpriteId: "sprite_r2_c1",
-      };
-    }
     const inlineGender: "male" | "female" =
-      isCamila ? "female" : (resolvedInlineAvatar.body === "male" || resolvedInlineAvatar.base === "male" ? "male" : "female");
+      resolvedInlineAvatar.body === "male" || resolvedInlineAvatar.base === "male" ? "male" : "female";
     const inlineSpriteId = resolveSpriteForAvatar(resolvedInlineAvatar, false);
     const isAgentActive =
       previewAgent.active !== false &&
@@ -919,6 +920,9 @@ export default function AttendantsPage() {
                   )}
                 />
                 <span className="font-semibold text-foreground">{previewAgent.name}</span>
+                <span className="text-muted-foreground text-[10px] font-mono">
+                  ({inlineGender === "male" ? "Masculino" : "Feminino"})
+                </span>
                 <span className="text-muted-foreground">•</span>
                 <span className="font-mono text-emerald-400 text-[9px]">
                   {isAgentActive ? "No PC · Trabalhando" : "Em pé · Parado"}
@@ -984,11 +988,20 @@ export default function AttendantsPage() {
                     type="button"
                     data-studio-gender="female"
                     onClick={() => {
-                      const updated = { ...resolvedInlineAvatar, body: "female" as const, base: "female" as const, catalogSpriteId: undefined };
+                      const updated = {
+                        ...resolvedInlineAvatar,
+                        body: "female" as const,
+                        base: "female" as const,
+                        hair: "hair_01",
+                        face: "face_01",
+                        catalogSpriteId: undefined,
+                      };
                       handleUpdateAvatar({
                         body: "female",
                         base: "female",
-                        hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, true),
+                        hair: "hair_01",
+                        face: "face_01",
+                        hairColor: resolveHairColorForHair("hair_01", resolvedInlineAvatar.hairColor, true),
                         catalogSpriteId: resolveSpriteForAvatar(updated, true),
                       });
                     }}
@@ -1006,11 +1019,20 @@ export default function AttendantsPage() {
                     type="button"
                     data-studio-gender="male"
                     onClick={() => {
-                      const updated = { ...resolvedInlineAvatar, body: "male" as const, base: "male" as const, catalogSpriteId: undefined };
+                      const updated = {
+                        ...resolvedInlineAvatar,
+                        body: "male" as const,
+                        base: "male" as const,
+                        hair: "hair_05",
+                        face: "face_02",
+                        catalogSpriteId: undefined,
+                      };
                       handleUpdateAvatar({
                         body: "male",
                         base: "male",
-                        hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, false),
+                        hair: "hair_05",
+                        face: "face_02",
+                        hairColor: resolveHairColorForHair("hair_05", resolvedInlineAvatar.hairColor, false),
                         catalogSpriteId: resolveSpriteForAvatar(updated, true),
                       });
                     }}
@@ -2103,7 +2125,7 @@ export default function AttendantsPage() {
         {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><span>{loadError}</span><Button size="sm" variant="outline" onClick={() => void fetchData()}>Tentar novamente</Button></div>}
 
         {/* ROW 0: ATENDENTES DIGITAIS + NOVO ATENDENTE NA MESMA LINHA */}
-        <section aria-label="Seleção de atendente" className="p-3.5 rounded-2xl border border-border/70 bg-card/60 space-y-2.5">
+        <section aria-label="Seleção de atendente" className="p-3.5 rounded-2xl border border-border/70 bg-card/60 space-y-2.5 md:grid-cols-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-bold text-foreground font-display flex items-center gap-2">

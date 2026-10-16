@@ -258,15 +258,22 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
   const handleGenderChange = (newGender: "male" | "female") => {
     const newHair = newGender === "male" ? "hair_05" : "hair_01";
+    const newFace = newGender === "male" ? "face_02" : "face_01";
     const isFemale = newGender !== "male";
-    setAvatar((prev) => ({
-      ...prev,
-      body: newGender,
-      base: newGender,
-      hair: newHair,
-      hairColor: resolveHairColorForHair(newHair, prev.hairColor, isFemale),
-      catalogSpriteId: resolveSpriteForAvatar({ ...prev, body: newGender, base: newGender, hair: newHair }, true),
-    }));
+    setAvatar((prev) => {
+      const updated = {
+        ...prev,
+        body: newGender,
+        base: newGender,
+        hair: newHair,
+        face: newFace,
+        hairColor: resolveHairColorForHair(newHair, prev.hairColor, isFemale),
+      };
+      return {
+        ...updated,
+        catalogSpriteId: resolveSpriteForAvatar(updated, true),
+      };
+    });
   };
 
   const selectCatalogLook = (item: { id: string; spriteRef?: string }) => {
@@ -444,38 +451,62 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
             />
 
             {/* Top State Badge & Info */}
-            <div className="w-full flex flex-wrap items-center justify-between gap-2 z-10">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/80 border border-border/60 text-xs font-medium">
+            <div className="w-full flex items-center justify-between gap-2 z-10 flex-wrap">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-background/85 border border-border/70 text-xs font-medium shadow-xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-foreground font-semibold">{agent?.name || "Camila"}</span>
-                <span className="text-muted-foreground text-[10px]">({avatar.body === "female" ? "Feminino" : "Masculino"})</span>
+                <span className="text-muted-foreground text-xs font-mono font-medium">
+                  ({avatar.body === "male" || avatar.base === "male" ? "Masculino" : "Feminino"})
+                </span>
               </div>
 
-              {store && (
-                <div
-                  className="px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1"
-                  style={{
-                    borderColor: `${avatar.branding?.primaryColor || "#10b981"}66`,
-                    backgroundColor: `${avatar.branding?.primaryColor || "#10b981"}15`,
-                    color: avatar.branding?.accentColor || "#00f090",
-                  }}
-                >
-                  <Storefront className="w-3 h-3" />
-                  <span>{store.name}</span>
+              <div className="flex items-center gap-1.5">
+                {/* Render style switcher: 2.5D Chibi vs 3D Blender */}
+                <div className="flex items-center gap-1 p-0.5 rounded-full bg-background/85 border border-border/70 backdrop-blur-xs">
+                  <button
+                    type="button"
+                    data-avatar-rendermode="chibi"
+                    onClick={() => setAvatar((prev) => ({ ...prev, renderStyle: "chibi_25d" }))}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                      avatar.renderStyle !== "3d_enterprise"
+                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Chibi 2.5D Modular"
+                  >
+                    2.5D Chibi
+                  </button>
+                  <button
+                    type="button"
+                    data-avatar-rendermode="3d"
+                    onClick={() => setAvatar((prev) => ({ ...prev, renderStyle: "3d_enterprise" }))}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                      avatar.renderStyle === "3d_enterprise"
+                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="3D Blender Hi-End"
+                  >
+                    ★ 3D Blender
+                  </button>
                 </div>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-pressed={previewMode === "layers"}
-                aria-label={previewMode === "layers" ? "Alternar para ilustração de catálogo" : "Alternar para prévia modular por camadas"}
-                onClick={() => setPreviewMode((mode) => mode === "layers" ? "illustration" : "layers")}
-                className="h-8 shrink-0 border-border/70 bg-background/80 px-2.5 text-[10px]"
-              >
-                <Sparkle className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
-                {previewMode === "layers" ? "Modo Modular Ativo" : "Ilustração Catálogo"}
-              </Button>
+
+                {store && (
+                  <div
+                    className="hidden sm:flex px-2.5 py-0.5 rounded-full text-[10px] font-bold border items-center gap-1 shadow-xs"
+                    style={{
+                      borderColor: `${avatar.branding?.primaryColor || "#10b981"}66`,
+                      backgroundColor: `${avatar.branding?.primaryColor || "#10b981"}15`,
+                      color: avatar.branding?.accentColor || "#00f090",
+                    }}
+                  >
+                    <Storefront className="w-3 h-3" />
+                    <span>{store.name}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Live Interactive Avatar Stage with True Modular 2.5D SVG Layers & Tripo3D 360 Orbit */}
@@ -493,20 +524,10 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                 <span>360° Orbit · {rotationY}°</span>
               </div>
 
-              {/* Free Rotation Drag Hint */}
-              <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 border border-emerald-500/40 text-[9px] font-mono text-emerald-300 backdrop-blur-xs pointer-events-none shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Giro 360° livre (mouse/toque)</span>
-              </div>
-
               <div
                 data-avatar-stage-rotation={rotationY}
                 data-avatar-stage-movement={movement3D}
-                className={cn(
-                  "flex h-[175px] w-full items-center justify-center drop-shadow-2xl transition-transform duration-300 sm:h-[240px] lg:h-[260px]",
-                  movement3D === "walk" && "animate-bounce",
-                  movement3D === "wave" && "animate-pulse"
-                )}
+                className="flex h-[175px] w-full items-center justify-center drop-shadow-2xl transition-transform duration-300 sm:h-[240px] lg:h-[260px]"
                 style={{ perspective: "900px" }}
               >
                 {previewMode === "layers" ? (
@@ -518,6 +539,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                   >
                     <ZaiAvatarRenderer
                       avatar={avatar}
+                      renderStyle={avatar.renderStyle || "chibi_25d"}
                       state={previewState}
                       size="workspace"
                       showAura={true}
@@ -710,7 +732,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             : "border-border hover:border-border/80 text-muted-foreground"
                         )}
                       >
-                        <AvatarItemPreview spriteRef="sprite_r2_c1" focus="full" title="Feminino" />
+                        <AvatarItemPreview spriteRef="sprite_r2_c1" gender="female" focus="full" title="Feminino" />
                         <div className="min-w-0">
                           <div className="text-xs font-bold text-foreground">Feminino</div>
                           <div className="text-[10px] text-muted-foreground">Silhueta executiva feminina</div>
@@ -727,7 +749,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             : "border-border hover:border-border/80 text-muted-foreground"
                         )}
                       >
-                        <AvatarItemPreview spriteRef="sprite_r1_c1" focus="full" title="Masculino" />
+                        <AvatarItemPreview spriteRef="sprite_r1_c1" gender="male" focus="full" title="Masculino" />
                         <div className="min-w-0">
                           <div className="text-xs font-bold text-foreground">Masculino</div>
                           <div className="text-[10px] text-muted-foreground">Silhueta executiva masculina</div>

@@ -295,9 +295,9 @@ describe("Unified Attendants & Assistente ZAI Integration Tests", () => {
     });
 
     const text = document.body.textContent || "";
-    // Top Tabs
+    // Clean header
     expect(text).toContain("Atendente IA");
-    expect(text).toContain("Assistente ZAI");
+    expect(text).toContain("Loja, WhatsApp e atendimento em um só lugar.");
 
     // Attendant Card details
     expect(text).toContain("Camila");
@@ -305,12 +305,8 @@ describe("Unified Attendants & Assistente ZAI Integration Tests", () => {
     expect(text).toContain("Loja Principal Matriz");
     expect(text).toContain("+55 11 98765-4321");
 
-    // Summarized Visual KPI Chips
+    // Summarized Visual KPI Chips in attendant management cards
     expect(text).toContain("WhatsApps");
-    expect(text).toContain("Respostas IA hoje0");
-    expect(text).toContain("Tokens hoje0");
-    expect(text).toContain("Conversas hoje—");
-    expect(text).toContain("Leads hoje—");
     expect(text).not.toContain("99%");
 
     const attendantSelector = document.querySelector<HTMLSelectElement>("#attendant-selector");

@@ -547,8 +547,8 @@ function ModularLayerAvatar({
           <animateTransform
             attributeName="transform"
             type="translate"
-            values="0,0; -1.5,-3.5; 0,0; 1.5,-3.5; 0,0"
-            dur="0.65s"
+            values="0,0; -1.5,-3.2; 0,0; 1.5,-3.2; 0,0"
+            dur="0.75s"
             repeatCount="indefinite"
           />
         )}
@@ -556,8 +556,8 @@ function ModularLayerAvatar({
           <animateTransform
             attributeName="transform"
             type="rotate"
-            values="0 70 160; -2.5 70 160; 2.5 70 160; 0 70 160"
-            dur="0.7s"
+            values="0 70 140; -3.2 70 140; 3.2 70 140; -1.8 70 140; 0 70 140"
+            dur="1.1s"
             repeatCount="indefinite"
           />
         )}
@@ -565,8 +565,8 @@ function ModularLayerAvatar({
           <animateTransform
             attributeName="transform"
             type="translate"
-            values="0,0; 0,-3.2; 0,0"
-            dur="1.3s"
+            values="0,0; 0,-3.5; 0,0"
+            dur="1.8s"
             repeatCount="indefinite"
           />
         )}
@@ -857,25 +857,37 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
   className,
   onClick,
 }) => {
-  const currentState = stateProp || avatar.animationState || "WAITING";
+  const currentState = stateProp || avatar?.animationState || "WAITING";
   const sizeConfig = SIZE_CONFIGS[size] || SIZE_CONFIGS.md;
-  const renderedAvatar = normalizeAvatarForRenderer(avatar || {});
-  const resolvedRotationY = (((rotationYProp ?? avatar?.rotationY ?? 0) % 360) + 360) % 360;
-  const resolvedMovement3D = movement3DProp || avatar?.movement3D || "idle";
+  const isExplicitMale = avatar?.body === "male" || avatar?.base === "male";
+  const isExplicitFemale = avatar?.body === "female" || avatar?.base === "female";
   const agentKey = String(avatar?.agentId || "").toLowerCase();
-  const isCamila = agentKey.includes("camila") || String(avatar?.name || "").toLowerCase().includes("camila");
-  const resolvedGender = isCamila
+  const agentName = String(avatar?.name || "").toLowerCase();
+  const isCamila = agentKey.includes("camila") || agentName.includes("camila");
+  const resolvedGender: "male" | "female" = isExplicitMale
+    ? "male"
+    : isExplicitFemale
     ? "female"
-    : avatar?.body === "male" || avatar?.base === "male"
+    : isCamila
+    ? "female"
+    : agentKey.includes("carlos") || agentKey.includes("joao") || agentKey.includes("rafael") || agentName.includes("carlos") || agentName.includes("joao") || agentName.includes("rafael")
     ? "male"
     : "female";
+
+  const renderedAvatar = {
+    ...normalizeAvatarForRenderer(avatar || {}),
+    body: resolvedGender,
+    base: resolvedGender,
+  };
+  const resolvedRotationY = (((rotationYProp ?? avatar?.rotationY ?? 0) % 360) + 360) % 360;
+  const resolvedMovement3D = movement3DProp || avatar?.movement3D || "idle";
 
   const effectiveRenderStyle = renderStyle || avatar?.renderStyle || "chibi_25d";
   const is3DEnterprise = effectiveRenderStyle === "3d_enterprise";
 
   const isZaibot = agentKey.includes("zaibot");
-  const isRafael = !isCamila && (agentKey.includes("rafael") || agentKey.includes("carlos") || agentKey.includes("joao") || avatar?.body === "male");
-  const isJulia = agentKey.includes("julia");
+  const isRafael = resolvedGender === "male";
+  const isJulia = !isCamila && agentKey.includes("julia");
   const charSlug = isZaibot ? "zaibot" : isRafael ? "rafael" : isJulia ? "julia" : "camila";
   const isWorking = currentState === "WORKING" || currentState === "TALKING" || currentState === "TYPING" || currentState === "THINKING" || currentState === "SUCCESS";
   const photo3DUrl = `/assets/characters/${charSlug}/${isWorking ? "working.jpg" : "standing.jpg"}`;
@@ -963,11 +975,26 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
         )}
       >
         {is3DEnterprise ? (
-          <div className="relative w-full h-full flex items-center justify-center">
-            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 shadow-2xl shadow-emerald-500/10 bg-slate-950/80 max-h-full aspect-[4/5] flex items-center justify-center group/card">
+          <div
+            className="relative w-full h-full flex items-center justify-center transition-transform duration-300"
+            style={{ perspective: "1000px" }}
+          >
+            <div
+              className={cn(
+                "relative overflow-hidden rounded-2xl border border-emerald-500/30 shadow-2xl shadow-emerald-500/10 bg-slate-950/80 max-h-full aspect-[4/5] flex items-center justify-center group/card transition-all duration-300",
+                resolvedMovement3D === "walk" && "translate-y-[-4px] ring-1 ring-emerald-500/40",
+                resolvedMovement3D === "wave" && "rotate-[2.5deg] translate-y-[-2px]",
+                resolvedMovement3D === "pose" && "scale-[1.04] shadow-emerald-500/40 ring-1 ring-emerald-500/50",
+                resolvedMovement3D === "idle" && "hover:scale-[1.02]"
+              )}
+              style={{
+                transform: `rotateY(${resolvedRotationY}deg)`,
+                transformStyle: "preserve-3d",
+              }}
+            >
               <img
                 src={photo3DUrl}
-                alt={avatar?.agentId || "Atendente 3D"}
+                alt={avatar?.agentId || (resolvedGender === "male" ? "Rafael 3D" : "Camila 3D")}
                 className={cn(
                   "w-full h-full object-cover transition-transform duration-500 group-hover/card:scale-105",
                   isWorking ? "brightness-105" : "brightness-95"

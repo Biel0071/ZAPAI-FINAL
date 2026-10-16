@@ -57,19 +57,21 @@ export const AvatarItemPreview: React.FC<AvatarItemPreviewProps> = ({
   const src = `/assets/avatar_factory/catalog/${spriteRef}_clean.png`;
 
   const previewAvatar = React.useMemo(() => {
+    const isMale = gender === "male";
     const base: Record<string, any> = {
-      body: gender,
-      base: gender,
-      hair: gender === "male" ? "hair_05" : "hair_01",
-      face: "face_01",
+      body: isMale ? "male" : "female",
+      base: isMale ? "male" : "female",
+      hair: isMale ? "hair_05" : "hair_01",
+      face: isMale ? "face_02" : "face_01",
       outfit: "outfit_01",
       clothing: "outfit_01",
+      catalogSpriteId: spriteRef || (isMale ? "sprite_r1_c1" : "sprite_r2_c1"),
       headset: "none",
       glasses: "none",
       workObject: "none",
       badge: false,
       accessories: { headset: "none", glasses: "none", badge: "none", watch: "none" },
-      style: "style_vendas",
+      style: isMale ? "style_corporativo" : "style_vendas",
     };
 
     if (itemId) {
