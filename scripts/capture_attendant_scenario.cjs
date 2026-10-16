@@ -105,11 +105,11 @@ async function run() {
   await loginIfNeeded(page);
   await page.waitForTimeout(3000);
 
-  // 1. CAPTURE ACTIVE STATE: Camila seated at PC workstation in office scenario
-  console.log('Capturing: VERIFY_01_ATTENDANTS_WORKING_PC_SCENARIO.png');
-  await saveShot(page, 'VERIFY_01_ATTENDANTS_WORKING_PC_SCENARIO.png');
+  // 1. CAPTURE STREAMLINED PAGE: Camila in canonical 2.5D modular avatar with new single-line header and toolbar
+  console.log('Capturing: VERIFY_01_ATTENDANTS_PAGE_STREAMLINED.png');
+  await saveShot(page, 'VERIFY_01_ATTENDANTS_PAGE_STREAMLINED.png');
 
-  // 2. TOGGLE PAUSE to see STANDING STATE ("em pé quando parado sem atender")
+  // 2. TOGGLE PAUSE to see STANDING STATE ON PEDESTAL
   console.log('2. Clicking toggle pause button on stage...');
   const toggleBtn = page.locator('button[data-stage-toggle-active]').first();
   if (await toggleBtn.isVisible()) {
@@ -144,21 +144,16 @@ async function run() {
     }
   }
 
-  // 4. CAPTURE MALE ATTENDANT SEATED WORKING AT PC: Click on João card
-  console.log('4. Selecting male attendant João...');
-  const joaoCard = page.locator('text="João"').first();
-  if (await joaoCard.isVisible()) {
-    await joaoCard.click();
-    await page.waitForTimeout(2500);
-    console.log('Capturing: VERIFY_04_MALE_WORKING_PC.png');
-    await saveShot(page, 'VERIFY_04_MALE_WORKING_PC.png');
-
-    // Switch back to Camila
-    const camilaCard = page.locator('text="Camila"').first();
-    if (await camilaCard.isVisible()) {
-      await camilaCard.click();
-      await page.waitForTimeout(2000);
-    }
+  // 4. CLICK NOVO ATENDENTE BUTTON LOCATED IN THE ATTENDANTS LINE
+  console.log('4. Clicking [+ Novo Atendente] in the attendants line...');
+  const newAttendantBtn = page.locator('button:has-text("Novo Atendente")').first();
+  if (await newAttendantBtn.isVisible()) {
+    await newAttendantBtn.click();
+    await page.waitForTimeout(2000);
+    console.log('Capturing: VERIFY_04_NEW_ATTENDANT_WIZARD.png');
+    await saveShot(page, 'VERIFY_04_NEW_ATTENDANT_WIZARD.png');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(1000);
   }
 
   await browser.close();

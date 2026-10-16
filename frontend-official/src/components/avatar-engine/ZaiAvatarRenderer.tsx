@@ -996,52 +996,30 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
               />
             </div>
           </div>
-        ) : size === "workspace" && isWorking && cropFocus === "full" ? (
-          <div className="relative w-full h-full flex items-center justify-center">
-            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 shadow-2xl shadow-emerald-500/10 bg-slate-950/80 w-full h-full aspect-[0.95/1] sm:aspect-square flex items-center justify-center group/card">
-              <img
-                src={resolvedGender === "male" ? "/assets/characters/rafael/working.jpg" : "/assets/evolution/camila_office_active.png"}
-                alt={avatar?.agentId || "Atendente no computador"}
-                className={cn(
-                  "w-full h-full object-cover transition-transform duration-500 group-hover/card:scale-105 brightness-105",
-                  resolvedGender !== "male" && "image-rendering-pixelated"
-                )}
-                style={{ imageRendering: resolvedGender !== "male" ? "pixelated" : "auto" }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-              <span className="sr-only">No PC · Trabalhando</span>
-              {showStatusBadge && (
-                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold text-emerald-400 flex items-center gap-1">
-                  <span className={cn("w-1.5 h-1.5 rounded-full", isWorking ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
-                  <span>No PC · Trabalhando</span>
-                </div>
-              )}
-            </div>
-            {/* Hidden ModularLayerAvatar kept in DOM for test selectors */}
-            <div className="sr-only" aria-hidden="true">
-              <ModularLayerAvatar
-                avatar={renderedAvatar}
-                branding={branding}
-                currentState={currentState}
-                size={size}
-                cropFocus={cropFocus}
-                showBrandingLayer={showBrandingLayer}
-                rotationY={resolvedRotationY}
-                movement3D={resolvedMovement3D}
-              />
-            </div>
-          </div>
         ) : (
-          <ModularLayerAvatar
-            avatar={renderedAvatar}
-            branding={branding}
-            currentState={currentState}
-            size={size}
-            cropFocus={cropFocus}
-            showBrandingLayer={showBrandingLayer}
-            rotationY={resolvedRotationY}
-            movement3D={resolvedMovement3D}
-          />
+          <div className="relative w-full h-full flex items-center justify-center">
+            <ModularLayerAvatar
+              avatar={renderedAvatar}
+              branding={branding}
+              currentState={currentState}
+              size={size}
+              cropFocus={cropFocus}
+              showBrandingLayer={showBrandingLayer}
+              rotationY={resolvedRotationY}
+              movement3D={resolvedMovement3D}
+            />
+            {isWorking ? (
+              <span className="sr-only">No PC · Trabalhando</span>
+            ) : (
+              <span className="sr-only">Em pé · Parado</span>
+            )}
+            {showStatusBadge && (
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold text-emerald-400 flex items-center gap-1 z-20">
+                <span className={cn("w-1.5 h-1.5 rounded-full", isWorking ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+                <span>{isWorking ? "No PC · Trabalhando" : "Em pé · Parado"}</span>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

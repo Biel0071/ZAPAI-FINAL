@@ -64,7 +64,7 @@ describe("Avatar Studio 360 & Dynamic Poses", () => {
     expect(idleState).toBe("WAITING");     // Parado fica em pé
   });
 
-  it("renders the office workstation scenario with computer when active in workspace size", () => {
+  it("renders the canonical modular avatar with working state without fake static images or mock photos", () => {
     const activeFemaleMarkup = renderToStaticMarkup(
       React.createElement(ZaiAvatarRenderer, {
         avatar: { body: "female", hair: "hair_01" },
@@ -72,8 +72,9 @@ describe("Avatar Studio 360 & Dynamic Poses", () => {
         state: "WORKING",
       })
     );
-    expect(activeFemaleMarkup).toContain("camila_office_active.png");
     expect(activeFemaleMarkup).toContain("No PC · Trabalhando");
+    expect(activeFemaleMarkup).toContain("character-3d-breathe");
+    expect(activeFemaleMarkup).not.toContain("camila_office_active.png");
 
     const activeMaleMarkup = renderToStaticMarkup(
       React.createElement(ZaiAvatarRenderer, {
@@ -82,8 +83,9 @@ describe("Avatar Studio 360 & Dynamic Poses", () => {
         state: "WORKING",
       })
     );
-    expect(activeMaleMarkup).toContain("rafael/working.jpg");
     expect(activeMaleMarkup).toContain("No PC · Trabalhando");
+    expect(activeMaleMarkup).toContain("character-3d-breathe");
+    expect(activeMaleMarkup).not.toContain("rafael/working.jpg");
   });
 
   it("renders the standing character on turntable pedestal when stopped/waiting (parado sem atender)", () => {
@@ -96,6 +98,8 @@ describe("Avatar Studio 360 & Dynamic Poses", () => {
       })
     );
     expect(waitingMarkup).toContain("layer-pedestal");
+    expect(waitingMarkup).toContain("Em pé · Parado");
     expect(waitingMarkup).not.toContain("camila_office_active.png");
+    expect(waitingMarkup).not.toContain("rafael/working.jpg");
   });
 });
