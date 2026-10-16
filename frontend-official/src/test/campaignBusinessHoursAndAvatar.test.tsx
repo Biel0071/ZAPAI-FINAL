@@ -1,5 +1,8 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect, vi } from "vitest";
 import { checkBusinessHours } from "../pages/Campaigns";
+import { ZaiAvatarRenderer } from "../components/avatar-engine/ZaiAvatarRenderer";
 import {
   HAIRSTYLES_MALE,
   HAIRSTYLES_FEMALE,
@@ -59,5 +62,40 @@ describe("Avatar Studio 360 & Dynamic Poses", () => {
     expect(creationState).toBe("WAITING"); // Boneco fica em pé na criação
     expect(activeState).toBe("WORKING");   // Em cenário com computador trabalhando quando ativo
     expect(idleState).toBe("WAITING");     // Parado fica em pé
+  });
+
+  it("renders the office workstation scenario with computer when active in workspace size", () => {
+    const activeFemaleMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: { body: "female", hair: "hair_01" },
+        size: "workspace",
+        state: "WORKING",
+      })
+    );
+    expect(activeFemaleMarkup).toContain("camila_office_active.png");
+    expect(activeFemaleMarkup).toContain("No PC · Trabalhando");
+
+    const activeMaleMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: { body: "male", hair: "hair_05" },
+        size: "workspace",
+        state: "WORKING",
+      })
+    );
+    expect(activeMaleMarkup).toContain("rafael/working.jpg");
+    expect(activeMaleMarkup).toContain("No PC · Trabalhando");
+  });
+
+  it("renders the standing character on turntable pedestal when stopped/waiting (parado sem atender)", () => {
+    const waitingMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: { body: "female", hair: "hair_01" },
+        size: "workspace",
+        state: "WAITING",
+        rotationY: 0,
+      })
+    );
+    expect(waitingMarkup).toContain("layer-pedestal");
+    expect(waitingMarkup).not.toContain("camila_office_active.png");
   });
 });

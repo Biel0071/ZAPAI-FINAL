@@ -880,6 +880,9 @@ export default function AttendantsPage() {
     const inlineGender: "male" | "female" =
       resolvedInlineAvatar.body === "male" || resolvedInlineAvatar.base === "male" ? "male" : "female";
     const inlineSpriteId = resolveSpriteForAvatar(resolvedInlineAvatar, false);
+    const isAgentActive =
+      previewAgent.active !== false &&
+      (aiStatus?.active !== false && (aiStatus?.enabled ?? aiStatus?.ai) !== false);
 
     return (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -900,16 +903,35 @@ export default function AttendantsPage() {
               <span
                 className={cn(
                   "w-1.5 h-1.5 rounded-full",
-                  previewAgent.active !== false ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                  isAgentActive ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
                 )}
               />
               <span className="font-semibold text-foreground">{previewAgent.name}</span>
               <span className="text-muted-foreground">•</span>
-              <span className="font-mono text-emerald-400 text-[9px]">{previewPresence?.label}</span>
+              <span className="font-mono text-emerald-400 text-[9px]">
+                {isAgentActive ? "No PC · Trabalhando" : "Em pé · Parado"}
+              </span>
             </div>
 
-            {/* Top-right Dual Controls: Render Mode (3D / Chibi) & Gender (Feminino / Masculino) */}
+            {/* Top-right Dual Controls: Active/Pause Toggle, Render Mode (3D / Chibi) & Gender */}
             <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5">
+              <button
+                type="button"
+                data-stage-toggle-active
+                onClick={() => handleToggleActive(previewAgent)}
+                disabled={pendingAgent !== null}
+                className={cn(
+                  "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer flex items-center gap-1 backdrop-blur-xs shadow-xs",
+                  isAgentActive
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
+                )}
+                title={isAgentActive ? "Colocar em espera (Pausar · Ficar em pé)" : "Ativar no PC (Sentar para trabalhar)"}
+              >
+                <span className={cn("w-1.5 h-1.5 rounded-full", isAgentActive ? "bg-amber-400" : "bg-emerald-400 animate-pulse")} />
+                <span>{isAgentActive ? "⏸ Pausar" : "▶ Ativar no PC"}</span>
+              </button>
+
               <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
                 <button
                   type="button"
@@ -993,26 +1015,44 @@ export default function AttendantsPage() {
               </div>
             </div>
 
-            {/* Centered Live Modular 3D/2.5D Character on Turntable with Drag Orbit */}
+            {/* Centered Live Modular 3D/2.5D Character on Turntable / Workstation Scenario */}
             <div
               className={cn(
                 "relative w-full h-[215px] sm:h-[235px] flex items-center justify-center pt-5 pb-7 my-auto select-none transition-colors",
-                isStudioDragging ? "cursor-grabbing" : "cursor-grab"
+                !isAgentActive ? (isStudioDragging ? "cursor-grabbing" : "cursor-grab") : "cursor-default"
               )}
-              onMouseDown={handleInlineStageMouseDown}
-              onTouchStart={handleInlineStageTouchStart}
-              title="Clique e arraste para girar em 360°"
+              onMouseDown={!isAgentActive ? handleInlineStageMouseDown : undefined}
+              onTouchStart={!isAgentActive ? handleInlineStageTouchStart : undefined}
+              title={isAgentActive ? "Atendente operando no computador do escritório" : "Clique e arraste para girar em 360°"}
             >
               {/* Tripo3D Orbit Degree Indicator kept for tests/accessibility */}
               <div className="sr-only">
                 <span>360° Orbit · {studioRotationY}°</span>
               </div>
 
-              {/* Free Rotation Drag Hint */}
-              <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 border border-emerald-500/40 text-[9px] font-mono text-emerald-300 backdrop-blur-xs pointer-events-none shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Giro 360° livre (mouse/toque)</span>
-              </div>
+              {/* Free Rotation Drag Hint when standing idle */}
+              {!isAgentActive && (
+                <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 border border-emerald-500/40 text-[9px] font-mono text-emerald-300 backdrop-blur-xs pointer-events-none shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Giro 360° livre (mouse/toque)</span>
+                </div>
+              )}
+
+              {/* Scenario indicator when active working at PC */}
+              {isAgentActive && (
+                <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 border border-emerald-500/40 text-[9px] font-mono text-emerald-300 backdrop-blur-xs pointer-events-none shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>No PC · Escritório ZAI</span>
+                </div>
+              )}
+
+              {/* Interactive Speech bubble when typing or test chat is in flight */}
+              {isAgentActive && (previewPresence?.state === "TYPING" || isTestingAgent) && (
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 animate-bounce bg-emerald-500 text-black px-3 py-0.5 rounded-full text-[10px] font-black shadow-lg flex items-center gap-1.5 pointer-events-none">
+                  <span className="w-1.5 h-1.5 rounded-full bg-black animate-ping" />
+                  <span>💬 {previewAgent.name} respondendo ao cliente...</span>
+                </div>
+              )}
 
               {/* Semantic sprite img kept in DOM for legacy test selectors */}
               <img
@@ -1033,11 +1073,11 @@ export default function AttendantsPage() {
                 }}
                 renderStyle={resolvedInlineAvatar.renderStyle || "chibi_25d"}
                 state={
-                  previewAgent?.active === false || (aiStatus?.active === false && (aiStatus?.enabled ?? aiStatus?.ai) === false)
-                    ? "WAITING"
-                    : previewPresence?.state === "TYPING" || previewPresence?.state === "TALKING"
-                    ? previewPresence.state
-                    : "WORKING"
+                  isAgentActive
+                    ? previewPresence?.state === "TYPING" || previewPresence?.state === "TALKING"
+                      ? previewPresence.state
+                      : "WORKING"
+                    : "WAITING"
                 }
                 size="workspace"
                 rotationY={studioRotationY}

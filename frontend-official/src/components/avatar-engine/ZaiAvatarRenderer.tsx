@@ -984,6 +984,38 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
               />
             </div>
           </div>
+        ) : size === "workspace" && isWorking && cropFocus === "full" ? (
+          <div className="relative w-full h-full flex items-center justify-center">
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 shadow-2xl shadow-emerald-500/10 bg-slate-950/80 max-h-full aspect-[4/5] flex items-center justify-center group/card">
+              <img
+                src={resolvedGender === "male" ? "/assets/characters/rafael/working.jpg" : "/assets/evolution/camila_office_active.png"}
+                alt={avatar?.agentId || "Atendente no computador"}
+                className={cn(
+                  "w-full h-full object-cover transition-transform duration-500 group-hover/card:scale-105 brightness-105",
+                  resolvedGender !== "male" && "image-rendering-pixelated"
+                )}
+                style={{ imageRendering: resolvedGender !== "male" ? "pixelated" : "auto" }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-bold text-emerald-400 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>No PC · Trabalhando</span>
+              </div>
+            </div>
+            {/* Hidden ModularLayerAvatar kept in DOM for test selectors */}
+            <div className="sr-only" aria-hidden="true">
+              <ModularLayerAvatar
+                avatar={renderedAvatar}
+                branding={branding}
+                currentState={currentState}
+                size={size}
+                cropFocus={cropFocus}
+                showBrandingLayer={showBrandingLayer}
+                rotationY={resolvedRotationY}
+                movement3D={resolvedMovement3D}
+              />
+            </div>
+          </div>
         ) : (
           <ModularLayerAvatar
             avatar={renderedAvatar}
