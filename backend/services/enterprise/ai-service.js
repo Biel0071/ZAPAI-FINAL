@@ -73,6 +73,30 @@ async function evaluateInboundAi({ agent, chatId, conversationHistory = [], cust
   const confidence = Math.max(0, Math.min(1, Number(lead?.confidence || 0)));
   let action = classifyDecisionFromConfidence(confidence);
 
+  if (lead?.isOutOfContext) {
+    action = 'human';
+    const handoffMessage = "Para garantir que você receba as informações exatas para a sua obra, vou transferir o seu atendimento para um de nossos especialistas humanos da loja. Em instantes um atendente vai continuar aqui com você! 🙏";
+
+    await appendAiMemory({
+      chatId,
+      context: recentHistory,
+      decision: 'human_handover_out_of_context',
+      lead,
+      response: handoffMessage,
+    });
+
+    return {
+      action: 'human',
+      transferToHuman: true,
+      decision: 'human_handover_out_of_context',
+      confidence: confidence || 0.15,
+      lead,
+      response: handoffMessage,
+      agentName: agent?.name || 'Camila',
+      analysis: lead,
+    };
+  }
+
   if (forceAutoReply) {
     action = 'auto_reply';
   }

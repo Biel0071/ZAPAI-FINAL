@@ -430,6 +430,33 @@ async function dispatchSingleMessage(state, contact, io) {
       return { success: false, error: 'no_session' };
     }
 
+    // Check company business hours (default 08:00 - 18:00) unless allowOutsideHours is true
+    if (!state.settings.allowOutsideHours && !state.settings.forceDispatch) {
+      const now = new Date();
+      const options = { timeZone: 'America/Sao_Paulo', hour12: false, hour: '2-digit', minute: '2-digit' };
+      let hour = now.getHours();
+      let minute = now.getMinutes();
+      try {
+        const parts = new Intl.DateTimeFormat('pt-BR', options).formatToParts(now);
+        hour = Number(parts.find(p => p.type === 'hour')?.value ?? hour);
+        minute = Number(parts.find(p => p.type === 'minute')?.value ?? minute);
+      } catch (_) {}
+
+      const startHour = Number(state.settings.businessHoursStart ?? 8);
+      const endHour = Number(state.settings.businessHoursEnd ?? 18);
+      const currentMinutes = hour * 60 + minute;
+      const startMinutes = startHour * 60;
+      const endMinutes = endHour * 60;
+
+      if (currentMinutes < startMinutes || currentMinutes >= endMinutes) {
+        console.warn(`[CampaignEngine] Disparo pausado fora do horário comercial (${hour}:${minute} fora de ${startHour}:00-${endHour}:00). Campanha: ${state.name} (${state.id})`);
+        state.status = 'paused';
+        saveCampaignState(state);
+        emitCampaignProgress(state);
+        throw new Error(`Envio pausado: horário atual (${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}) fora do horário comercial da empresa (${String(startHour).padStart(2, '0')}:00 às ${String(endHour).padStart(2, '0')}:00). Requer consentimento ou ajuste para o próximo horário útil.`);
+      }
+    }
+
     // Check hourly and daily limits if set
     if (state.settings.dailyLimit || state.settings.hourlyLimit) {
       const { query } = require('../src/infrastructure/config/database');

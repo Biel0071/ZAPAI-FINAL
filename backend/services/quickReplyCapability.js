@@ -127,14 +127,44 @@ async function findBestMatchForContext({ message = '', intent = '', product = ''
   let detectedProduct = product || '';
   let detectedIntent = intent || '';
 
-  // Detecção de tipo de mídia solicitado
-  if (normMessage.includes('foto') || normMessage.includes('imagem') || normMessage.includes('ver') || normMessage.includes('olhar') || normMessage.includes('fotos')) {
+  // Detecção de tipo de mídia explicitamente solicitado pelo cliente
+  const hasExplicitPhotoRequest =
+    normMessage.includes('manda foto') ||
+    normMessage.includes('mandar foto') ||
+    normMessage.includes('envia foto') ||
+    normMessage.includes('tem foto') ||
+    normMessage.includes('ver foto') ||
+    normMessage.includes('fotos do') ||
+    normMessage.includes('fotos da') ||
+    normMessage.includes('imagens do');
+
+  const hasExplicitAudioRequest =
+    normMessage.includes('manda audio') ||
+    normMessage.includes('manda áudio') ||
+    normMessage.includes('mande audio') ||
+    normMessage.includes('prefiro audio') ||
+    normMessage.includes('grava audio') ||
+    normMessage.includes('pode mandar audio');
+
+  const hasExplicitVideoRequest =
+    normMessage.includes('manda video') ||
+    normMessage.includes('manda vídeo') ||
+    normMessage.includes('video do produto') ||
+    normMessage.includes('teste de resistencia');
+
+  const hasExplicitDocRequest =
+    normMessage.includes('manda catalogo') ||
+    normMessage.includes('manda catálogo') ||
+    normMessage.includes('tabela de precos') ||
+    normMessage.includes('pdf');
+
+  if (hasExplicitPhotoRequest) {
     requestedMediaType = 'image';
-  } else if (normMessage.includes('audio') || normMessage.includes('áudio') || normMessage.includes('voz') || normMessage.includes('ouvir')) {
+  } else if (hasExplicitAudioRequest) {
     requestedMediaType = 'audio';
-  } else if (normMessage.includes('video') || normMessage.includes('vídeo') || normMessage.includes('resistencia') || normMessage.includes('quebra')) {
+  } else if (hasExplicitVideoRequest) {
     requestedMediaType = 'video';
-  } else if (normMessage.includes('catalogo') || normMessage.includes('tabela') || normMessage.includes('pdf')) {
+  } else if (hasExplicitDocRequest) {
     requestedMediaType = 'document';
   }
 
@@ -181,7 +211,13 @@ async function findBestMatchForContext({ message = '', intent = '', product = ''
   if (results.length === 0) return null;
 
   const best = results[0];
-  if (best.score < 10) return null; // Score mínimo de confiança
+  // Require solid confidence score to prevent accidental triggers
+  if (best.score < 50) return null;
+
+  // Never return an audio-only quick reply unless customer explicitly requested audio
+  if (!hasExplicitAudioRequest && (best.availableTypes?.includes('audio') && best.availableTypes?.length === 1)) {
+    return null;
+  }
 
   const qr = best.quickReply;
   const items = Array.isArray(qr.items) && qr.items.length > 0 ? qr.items : (qr.steps || []);

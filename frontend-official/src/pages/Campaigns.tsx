@@ -245,6 +245,41 @@ function formatInputDateTime(value?: string | null) {
   return new Date(parsed.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
 }
 
+function checkBusinessHours(targetDate?: Date | string | null): {
+  isOutside: boolean;
+  currentHour: number;
+  currentMinute: number;
+  suggestedDate: Date;
+  suggestedDateFormatted: string;
+} {
+  const date = targetDate ? new Date(targetDate) : new Date();
+  const hour = date.getHours();
+  const minute = date.getMinutes();
+  const isOutside = hour < 8 || hour >= 18;
+
+  const nextDate = new Date(date);
+  if (hour >= 18) {
+    nextDate.setDate(nextDate.getDate() + 1);
+  }
+  nextDate.setHours(8, 0, 0, 0);
+
+  const suggestedDateFormatted = nextDate.toLocaleString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return {
+    isOutside,
+    currentHour: hour,
+    currentMinute: minute,
+    suggestedDate: nextDate,
+    suggestedDateFormatted,
+  };
+}
+
 function normalizePhone(value?: string | null) {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (!normalized) return "";
@@ -381,6 +416,18 @@ export default function Campaigns() {
   const [selectedCadencePreset, setSelectedCadencePreset] = useState<CadencePresetType>("safe");
   const [maturationStats, setMaturationStats] = useState<CampaignMaturationData | null>(null);
   const [maturationLoading, setMaturationLoading] = useState(false);
+
+  // Consentimento de Horário Comercial da Empresa (08:00 - 18:00)
+  const [businessHoursModal, setBusinessHoursModal] = useState<{
+    isOpen: boolean;
+    campaignId?: string;
+    mode?: "launch" | "start";
+    startOptions?: { mode?: 'safe' | 'balanced' | 'fast' };
+    suggestedDateFormatted?: string;
+    suggestedDate?: Date;
+    currentHour?: number;
+    currentMinute?: number;
+  }>({ isOpen: false });
 
   const handleSelectCadencePreset = useCallback((preset: CadencePresetType) => {
     setSelectedCadencePreset(preset);
@@ -1195,6 +1242,25 @@ export default function Campaigns() {
 
         if (mode === "launch") {
           const isFuture = payload.settings?.startAt && new Date(payload.settings.startAt).getTime() > Date.now();
+          const targetTime = payload.settings?.startAt || new Date().toISOString();
+          const bh = checkBusinessHours(targetTime);
+          const allowOutside = Boolean(payload.settings?.allowOutsideHours);
+
+          if (!isFuture && bh.isOutside && !allowOutside) {
+            setBusinessHoursModal({
+              isOpen: true,
+              campaignId: savedCampaign.id,
+              mode: "launch",
+              suggestedDateFormatted: bh.suggestedDateFormatted,
+              suggestedDate: bh.suggestedDate,
+              currentHour: bh.currentHour,
+              currentMinute: bh.currentMinute,
+            });
+            resetComposer();
+            await loadPageData({ silent: true });
+            return;
+          }
+
           if (!isFuture) {
             try {
               await apiService.startCampaignDispatch(savedCampaign.id);
@@ -1203,7 +1269,7 @@ export default function Campaigns() {
             }
             setTrackedDispatchIds((current) => Array.from(new Set([...current, savedCampaign.id])));
             await refreshCampaignDispatchStatus(savedCampaign.id);
-            notify.success("Campanha criada e lancada. Progresso em atualizacao...");
+            notify.success("Campanha criada e lançada com cadência humanizada. Progresso em atualização...");
           } else {
             notify.success("Campanha salva e agendada para disparo futuro.");
           }
@@ -1237,6 +1303,24 @@ export default function Campaigns() {
       setActionType(action);
       try {
         if (action === "start") {
+          const bh = checkBusinessHours();
+          const allowOutside = Boolean((targetCampaign.settings as any)?.allowOutsideHours);
+          if (bh.isOutside && !allowOutside) {
+            setBusinessHoursModal({
+              isOpen: true,
+              campaignId,
+              mode: "start",
+              startOptions: options,
+              suggestedDateFormatted: bh.suggestedDateFormatted,
+              suggestedDate: bh.suggestedDate,
+              currentHour: bh.currentHour,
+              currentMinute: bh.currentMinute,
+            });
+            setActionType(null);
+            setActionCampaignId(null);
+            return;
+          }
+
           try {
             await apiService.startCampaignDispatch(campaignId, options);
           } catch (error) {
@@ -1249,7 +1333,7 @@ export default function Campaigns() {
               ? "Campanha iniciada no Modo Seguro (Padrão Humano Anti-Ban)."
               : options?.mode === 'fast'
               ? "Campanha iniciada no Modo Turbo."
-              : "Campanha iniciada. Progresso em atualizacao..."
+              : "Campanha iniciada com cadência humanizada. Progresso em atualização..."
           );
         }
 
@@ -3323,6 +3407,114 @@ listSection={
         onClose={() => setIsAiModalOpen(false)}
         onApplyGeneratedCampaign={handleApplyGeneratedCampaign}
       />
+
+      {/* Modal de Consentimento de Envio Fora do Horário Comercial */}
+      <Dialog
+        open={businessHoursModal.isOpen}
+        onOpenChange={(open) => {
+          if (!open) setBusinessHoursModal({ isOpen: false });
+        }}
+      >
+        <DialogContent className="max-w-md bg-slate-950 border-amber-500/40 text-foreground shadow-2xl p-6">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Envio Fora do Horário Comercial
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Horário atual: {String(businessHoursModal.currentHour || 0).padStart(2, '0')}:{String(businessHoursModal.currentMinute || 0).padStart(2, '0')}
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs leading-relaxed text-muted-foreground">
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200/90 text-xs">
+              <span className="font-semibold text-amber-300">Aviso da Empresa:</span> O horário de atendimento padrão é das <strong>08:00 às 18:00</strong>. Disparar mensagens fora desse horário pode gerar desconforto nos clientes e aumentar o risco de denúncias no WhatsApp.
+            </div>
+            <p>
+              Recomendamos agendar o início do disparo para o próximo horário comercial, garantindo envio com cadência humanizada anti-ban e melhor taxa de conversão.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              type="button"
+              onClick={async () => {
+                const { campaignId, suggestedDate, suggestedDateFormatted } = businessHoursModal;
+                setBusinessHoursModal({ isOpen: false });
+                if (!campaignId || !suggestedDate) return;
+                try {
+                  const targetCampaign = campaigns.find(c => c.id === campaignId);
+                  if (targetCampaign) {
+                    await apiService.updateCampaign(campaignId, {
+                      ...targetCampaign,
+                      status: "scheduled",
+                      settings: {
+                        ...(targetCampaign.settings || {}),
+                        startAt: suggestedDate.toISOString(),
+                      },
+                    });
+                    notify.success(`Campanha agendada para ${suggestedDateFormatted} com cadência humanizada!`);
+                    await loadPageData({ silent: true });
+                  }
+                } catch (err: any) {
+                  notify.error(err?.message || "Erro ao ajustar agendamento.");
+                }
+              }}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/30"
+            >
+              <Clock className="w-4 h-4" />
+              <span>Ajustar para {businessHoursModal.suggestedDateFormatted || "Amanhã às 08:00"}</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={async () => {
+                const { campaignId, startOptions } = businessHoursModal;
+                setBusinessHoursModal({ isOpen: false });
+                if (!campaignId) return;
+                try {
+                  const targetCampaign = campaigns.find(c => c.id === campaignId);
+                  if (targetCampaign) {
+                    await apiService.updateCampaign(campaignId, {
+                      ...targetCampaign,
+                      settings: {
+                        ...(targetCampaign.settings || {}),
+                        allowOutsideHours: true,
+                      },
+                    });
+                  }
+                  await apiService.startCampaignDispatch(campaignId, startOptions);
+                  setTrackedDispatchIds((current) => Array.from(new Set([...current, campaignId])));
+                  await refreshCampaignDispatchStatus(campaignId);
+                  notify.warning("Consentimento registrado. Disparo iniciado fora do horário com cadência humanizada.");
+                  await loadPageData({ silent: true });
+                } catch (err: any) {
+                  notify.error(err?.message || "Erro ao iniciar disparo.");
+                }
+              }}
+              className="w-full border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-semibold text-xs py-2 rounded-xl"
+            >
+              <span>Confirmar e Enviar Agora Mesmo</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setBusinessHoursModal({ isOpen: false })}
+              className="w-full text-muted-foreground hover:text-foreground text-xs py-1"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

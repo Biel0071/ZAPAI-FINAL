@@ -65,7 +65,46 @@ function getHistorySignals(conversationHistory = []) {
   );
 }
 
+function isNonsenseOrOutOfContext(message) {
+  if (!message || typeof message !== 'string') return true;
+  const trimmed = message.trim();
+  if (trimmed.length === 0) return true;
+
+  // Punctuation or symbols only
+  if (/^[^a-zA-Z0-9áéíóúÁÉÍÓÚãõÃÕâêîôûÂÊÎÔÛçÇ]+$/.test(trimmed)) return true;
+
+  // Keyboard mashing (e.g. repeated character 5+ times or classic mashes)
+  if (/(.)\1{4,}/.test(trimmed)) return true;
+  if (/\b(asdf|qwer|zxcv|hjkl|poiuy|mnbvc)\w*/i.test(trimmed)) return true;
+
+  // Very short single token without common intent
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length === 1) {
+    const w = words[0].toLowerCase();
+    const commonValid = [
+      'oi', 'ola', 'olá', 'bom', 'boa', 'dia', 'tarde', 'noite',
+      'sim', 'nao', 'não', 'ok', 'blz', 'quanto', 'preco', 'preço',
+      'valor', 'tijolo', 'cimento', 'churrasqueira', 'areia', 'brita',
+      'telha', 'frete', 'entrega', 'pix', 'cartao', 'cartão', 'obrigado',
+      'obg', 'valeu', 'foto', 'fotos', 'catalogo', 'catálogo'
+    ];
+    if (w.length <= 2 && !commonValid.includes(w) && !/^\d+$/.test(w)) return true;
+  }
+
+  return false;
+}
+
 function analyzeLeadIntent(message, conversationHistory = []) {
+  if (isNonsenseOrOutOfContext(message)) {
+    return {
+      confidence: 0.15,
+      intent: 'out_of_context',
+      lead_temperature: 'cold',
+      next_action: 'handover_human',
+      isOutOfContext: true,
+    };
+  }
+
   const normalizedMessage = normalizeText(message);
   const historySignals = getHistorySignals(conversationHistory);
 

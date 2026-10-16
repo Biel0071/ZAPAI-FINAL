@@ -188,6 +188,16 @@ function getActiveAgentsSync(tenantId = DEFAULT_TENANT_ID) {
   return getAgentsSync(tenantId).filter((agent) => agent.active !== false);
 }
 
+function getActiveStoreAgentsSync(tenantId = DEFAULT_TENANT_ID) {
+  return getAgentsSync(tenantId).filter(
+    (agent) =>
+      agent.active !== false &&
+      !agent.isPlatformAssistant &&
+      String(agent.key || '').toLowerCase() !== 'zaibot' &&
+      String(agent.name || '').toLowerCase() !== 'zaibot'
+  );
+}
+
 function findByNameSync(name = '', tenantId = DEFAULT_TENANT_ID) {
   const normalizedName = String(name || '').trim().toLowerCase();
   if (!normalizedName) return null;
@@ -200,7 +210,8 @@ function findByNameSync(name = '', tenantId = DEFAULT_TENANT_ID) {
 }
 
 function pickRandomAgentSync(tenantId = DEFAULT_TENANT_ID) {
-  return selectRandomActiveAgent(getActiveAgentsSync(tenantId)) || null;
+  const storeAgents = getActiveStoreAgentsSync(tenantId);
+  return selectRandomActiveAgent(storeAgents.length > 0 ? storeAgents : getActiveAgentsSync(tenantId)) || null;
 }
 
 function getDelayForAgentMs(agent, tenantId = DEFAULT_TENANT_ID) {

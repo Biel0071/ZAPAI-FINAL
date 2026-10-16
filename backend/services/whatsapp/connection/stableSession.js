@@ -466,9 +466,16 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
 
   const contact = resolveContactForChat(store, chatId);
   // Ensure the agents list cache is hydrated
-  const aiAgentService = require('../../../src/ai/agents/services/aiAgentService');
-  await aiAgentService.listAgents(tenantId).catch(() => {});
-  const agent = getAgentByName(chat.assignedTo, tenantId) || pickRandomAgent(tenantId);
+  let agent = getAgentByName(chat.assignedTo, tenantId);
+  // Ensure the assigned attendant is NEVER ZAIBOT (which is exclusively the platform system assistant)
+  if (!agent || agent.isPlatformAssistant || String(agent.key || '').toLowerCase() === 'zaibot' || String(agent.name || '').toLowerCase() === 'zaibot') {
+    agent = pickRandomAgent(tenantId) || getAgentByName('Camila', tenantId) || {
+      name: 'Camila',
+      key: 'camila',
+      role: 'Vendas & Atendimento',
+      personality: 'Você é a Camila, atendente oficial do Depósito Mais.',
+    };
+  }
 
   // Log AI_TRIGGERED step
   try {
@@ -529,6 +536,84 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
   }
 
   const safeResponse = String(aiResult?.response || '').trim();
+
+  if (aiResult?.transferToHuman) {
+    console.log(`[WHATSAPP_AI] Out of context / nonsense detected for ${chatId}. Transferring to human.`);
+    const convId = fresh?.id || incomingFormattedMessage?.conversationId;
+    if (convId) {
+      await conversationRepository.updateConversationState(convId, {
+        aiEnabled: false,
+        status: 'pending_human',
+      }).catch(() => {});
+
+      const payloadUpdate = {
+        ...(fresh || chat || {}),
+        id: convId,
+        aiEnabled: false,
+        ai_enabled: false,
+        status: 'pending_human',
+        humanActive: true,
+      };
+      const sockIo = session.io || global.io;
+      sockIo?.emit('conversation:update', payloadUpdate);
+      sockIo?.emit('conversation_updated', payloadUpdate);
+    }
+
+    if (safeResponse) {
+      await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
+      await sleep(1500);
+      const sent = await sendMessage(sock, chatId, safeResponse, { beforeSend });
+      if (sent) {
+        try {
+          const persistedMsg = await enterpriseMessageService.persistInboundMessage({
+            companyId,
+            fromMe: true,
+            text: safeResponse,
+            name: agent?.name || 'Camila',
+            phone: normalizePhone(chatId),
+            timestamp: new Date().toISOString(),
+            conversationId: convId,
+            metadata: {
+              action: 'handoff_human',
+              agent: agent?.name || 'Camila',
+              reason: 'out_of_context',
+            },
+          });
+          const outgoingFormatted = {
+            id: persistedMsg?.id || `msg-${Date.now()}`,
+            conversationId: convId,
+            chatId,
+            sender: agent?.name || 'Camila',
+            fromMe: true,
+            text: safeResponse,
+            timestamp: new Date().toISOString(),
+            status: 'sent',
+          };
+          addMessageToRealtimeStore(session, outgoingFormatted);
+          enterpriseRealtimeService.emitNewMessage(session.io || global.io, outgoingFormatted);
+        } catch (err) {
+          console.error('[WHATSAPP_AI] Failed to persist handoff message:', err.message);
+        }
+      }
+    }
+
+    try {
+      await MessageAuditService.logStep({
+        messageId: incomingFormattedMessage?.id || null,
+        conversationId: convId || null,
+        phone: normalizePhone(chatId),
+        step: 'HANDOFF_TO_HUMAN',
+        status: 'success',
+        details: {
+          reason: 'out_of_context',
+          agentName: agent?.name || 'Camila',
+          chatId,
+        },
+      });
+    } catch (_) {}
+
+    return null;
+  }
 
   if (aiResult?.action === 'human' || (!safeResponse && !aiResult?.analysis?.trigger_quick_reply)) {
     return null;

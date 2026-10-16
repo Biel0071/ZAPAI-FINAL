@@ -273,8 +273,17 @@ class EvolutionaryAgentOrchestrator {
         message: customerMessage,
         companyId: cleanCompany,
       });
-      // If customer explicitly requested photos, videos, audios, or quote and confidence is high
-      if (!triggerQuickReply && matchedCapability && matchedCapability.score >= 50) {
+      // Strictly require explicit media request from customer AND high confidence score (>= 85)
+      const lowerMsg = (customerMessage || '').toLowerCase();
+      const userAskedMedia =
+        lowerMsg.includes('me manda foto') ||
+        lowerMsg.includes('manda foto') ||
+        lowerMsg.includes('envia foto') ||
+        lowerMsg.includes('tem foto') ||
+        lowerMsg.includes('fotos') ||
+        lowerMsg.includes('catalogo') ||
+        lowerMsg.includes('catálogo');
+      if (!triggerQuickReply && matchedCapability && matchedCapability.score >= 85 && userAskedMedia) {
         triggerQuickReply = matchedCapability.id;
       }
     } catch (qrErr) {
@@ -285,7 +294,11 @@ class EvolutionaryAgentOrchestrator {
     if (!responseText) {
       const pb = evoData.activePlaybook;
       const cta = pb?.recommended_cta || 'Qual o seu bairro para calcularmos a entrega com o melhor desconto?';
-      const agentName = agent?.name || 'Camila';
+      let agentName = agent?.name || 'Camila';
+      // WhatsApp customer chats must ALWAYS identify as store attendant (Camila), NEVER ZAIBOT
+      if (String(agentName).toLowerCase() === 'zaibot' || agent?.isPlatformAssistant || String(agent?.key || '').toLowerCase() === 'zaibot') {
+        agentName = 'Camila';
+      }
 
       if (customerMessage.toLowerCase().includes('frete') || customerMessage.toLowerCase().includes('entrega')) {
         responseText = `Olá! Aqui é a ${agentName} da loja. Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km. ${cta}`;
@@ -294,7 +307,7 @@ class EvolutionaryAgentOrchestrator {
       } else if (customerMessage.toLowerCase().includes('churrasqueira') || customerMessage.toLowerCase().includes('trio')) {
         responseText = `Olá! A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou até 10x sem juros (no PIX tem 5% de desconto por R$ 940,50). ${cta}`;
       } else {
-        responseText = `Olá! Sou a ${agentName}. ${cta}`;
+        responseText = `Olá! Aqui é a ${agentName} da loja. ${cta}`;
       }
     }
 

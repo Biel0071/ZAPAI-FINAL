@@ -3,12 +3,16 @@ const { buildPersonalityPrompt } = require('../src/ai/agents/engine/personalityE
 const { processEvent } = require('../src/messaging/inbox/ai/AIEventBridge');
 
 function ensureAgent(agent) {
-  return agent || {
-    name: 'Atendente',
+  let safeAgent = agent || {
+    name: 'Camila',
     personality: 'Friendly sales assistant focused on closing purchases naturally.',
     tone: 'warm',
     responseStyle: 'short_natural',
   };
+  if (!safeAgent.name || safeAgent.name.toLowerCase() === 'zaibot' || safeAgent.isPlatformAssistant || safeAgent.key === 'zaibot') {
+    safeAgent = { ...safeAgent, name: 'Camila' };
+  }
+  return safeAgent;
 }
 
 function buildConversationHistory(messages = []) {
@@ -24,18 +28,18 @@ function buildFallbackResponse(agent, leadAnalysis = {}, strategy = {}) {
   const resolvedAgent = ensureAgent(agent);
 
   if (leadAnalysis.next_action === 'close_sale') {
-    return `${resolvedAgent.name}: Posso finalizar seu pedido agora. Prefere pagamento via PIX ou retirada na loja?`;
+    return 'Posso finalizar seu pedido agora. Você prefere pagamento via PIX com 5% de desconto ou em até 10x sem juros no cartão?';
   }
 
   if (leadAnalysis.next_action === 'send_price') {
-    return `${resolvedAgent.name}: Posso te passar o valor final e organizar retirada ou entrega. Quais itens e quantidades deseja confirmar?`;
+    return 'Posso te passar o valor final e calcular a entrega certinho. Quais itens e quantidades você deseja confirmar para sua obra?';
   }
 
   if (leadAnalysis.next_action === 'overcome_objection') {
-    return `${resolvedAgent.name}: Entendo sua preocupação. Posso te ajudar com uma opção mais adequada ao seu pedido. Quais itens deseja priorizar?`;
+    return 'Entendo perfeitamente sua preocupação. Temos condições especiais e modelos variados para atender seu orçamento. O que você gostaria de priorizar?';
   }
 
-  return `${resolvedAgent.name}: Posso te orientar com clareza e já avançar seu atendimento. O que você precisa para sua obra?`;
+  return 'Olá! Aqui é a Camila da loja. Como posso ajudar com sua obra hoje? Posso te orientar sobre tijolos, cimento, telhas, churrasqueiras e prazos de entrega!';
 }
 
 async function generateAIResponse({

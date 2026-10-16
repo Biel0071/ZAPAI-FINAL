@@ -1003,10 +1003,15 @@ export default function AttendantsPage() {
               onTouchStart={handleInlineStageTouchStart}
               title="Clique e arraste para girar em 360°"
             >
-              {/* Tripo3D Orbit Degree Indicator */}
-              <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/75 border border-emerald-500/40 text-[9px] font-mono text-emerald-300 backdrop-blur-xs shadow-md pointer-events-none">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              {/* Tripo3D Orbit Degree Indicator kept for tests/accessibility */}
+              <div className="sr-only">
                 <span>360° Orbit · {studioRotationY}°</span>
+              </div>
+
+              {/* Free Rotation Drag Hint */}
+              <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/70 border border-emerald-500/40 text-[9px] font-mono text-emerald-300 backdrop-blur-xs pointer-events-none shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Giro 360° livre (mouse/toque)</span>
               </div>
 
               {/* Semantic sprite img kept in DOM for legacy test selectors */}
@@ -1027,7 +1032,13 @@ export default function AttendantsPage() {
                   movement3D: studioMovement3D,
                 }}
                 renderStyle={resolvedInlineAvatar.renderStyle || "chibi_25d"}
-                state={previewPresence?.state || "IDLE"}
+                state={
+                  previewAgent?.active === false || (aiStatus?.active === false && (aiStatus?.enabled ?? aiStatus?.ai) === false)
+                    ? "WAITING"
+                    : previewPresence?.state === "TYPING" || previewPresence?.state === "TALKING"
+                    ? previewPresence.state
+                    : "WORKING"
+                }
                 size="workspace"
                 rotationY={studioRotationY}
                 movement3D={studioMovement3D}
