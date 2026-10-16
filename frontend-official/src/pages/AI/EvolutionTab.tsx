@@ -480,7 +480,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
   const filteredMemories = React.useMemo(() => {
     let items = dateFilteredMemoryItems;
     if (memoryCategory !== "todos") {
-      items = items.filter((n) => n.type === memoryCategory);
+      items = items.filter((n) => (n.type === memoryCategory || n.category === memoryCategory));
     }
     if (memorySearch.trim()) {
       const q = memorySearch.toLowerCase().trim();
@@ -1054,6 +1054,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
               selectedCategory={graphCategoryFilter}
               selectedMemoryId={selectedMemoryNode?.id || null}
               onSelectMemory={(mem) => setSelectedMemoryNode(mem)}
+              onSelectCategory={(cat) => setGraphCategoryFilter(cat)}
               height={580}
             />}
           </div>
@@ -1229,9 +1230,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
                   <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
                     {[
                       { id: "todos", label: "Todas as Memórias" },
-                      { id: "topic", label: "Tópicos & Regras" },
-                      { id: "objection", label: "Objeções Resolvidas" },
-                      { id: "preference", label: "Preferências de Clientes" },
+                      ...memoryCategories.map((c) => ({ id: c.id, label: c.label })),
                     ].map((cat) => (
                       <button
                         key={cat.id}
@@ -1380,8 +1379,8 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
         </div>
       )}
 
-      {/* MODE 4: EVOLUÇÃO COGNITIVA */}
-      {evolutionSubTab === "cognitive" && (
+      {/* MODE 3 & 4: LINHA DO TEMPO & EVOLUÇÃO COGNITIVA UNIFICADAS */}
+      {(evolutionSubTab === "timeline" || evolutionSubTab === "cognitive") && (
         <div className="space-y-6">
           {hasEvolutionData ? (
             <>
@@ -1622,12 +1621,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
           ) : (
             <Card className="p-5 text-sm text-muted-foreground">{isLoading ? "Carregando evolução..." : "Sem dados de evolução disponíveis para este agente."}</Card>
           )}
-        </div>
-      )}
 
-      {/* MODE 3: LINHA DO TEMPO & HISTÓRICO */}
-      {evolutionSubTab === "timeline" && (
-        <div className="space-y-6">
           {/* SECTION 1.5: CANDIDATE LEARNINGS & PLAYBOOKS DETECTED */}
           <Card className="bg-card border-border/80 shadow-sm">
         <CardHeader className="pb-3 border-b border-border/40">
@@ -1674,42 +1668,64 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {dateFilteredCandidateSuggestions.map((sug) => {
                 const isProcessing = processingSuggestionId === sug.id;
-                const confidence = typeof sug.confidence_score === "number" && Number.isFinite(sug.confidence_score)
-                  ? `${Math.round(sug.confidence_score * 100)}% confiança`
-                  : "—";
+                const rawScore = typeof sug.confidence_score === "number" && Number.isFinite(sug.confidence_score)
+                  ? sug.confidence_score
+                  : (typeof sug.relevancePct === "number" && Number.isFinite(sug.relevancePct) ? sug.relevancePct : null);
+
+                const normalizedScore = rawScore == null ? null : (rawScore <= 1 && rawScore > 0 ? Math.round(rawScore * 100) : Math.round(rawScore));
+
+                const confidence = rawScore == null
+                  ? "—"
+                  : `${normalizedScore}% confiança`;
+
+                const isHighRelevance = normalizedScore != null && normalizedScore >= 85;
+                const isSandboxRecommended = normalizedScore != null && normalizedScore < 85 && normalizedScore > 0;
+
                 return (
                   <div
                     key={sug.id}
-                    className="p-4 rounded-xl border border-border/70 bg-muted/5 hover:border-emerald-500/40 transition-all space-y-3 shadow-xs"
+                    className="p-3.5 rounded-xl border border-border/70 bg-card/60 hover:border-emerald-500/40 transition-all space-y-2.5 shadow-xs"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider">
-                        {sug.topic || "—"}
-                      </Badge>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider">
+                          {sug.topic || "—"}
+                        </Badge>
+                        {isHighRelevance && (
+                          <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[9px] font-bold">
+                            Aprovação Direta (≥ 85%)
+                          </Badge>
+                        )}
+                        {isSandboxRecommended && (
+                          <Badge variant="outline" className="border-amber-500/40 text-amber-300 bg-amber-500/10 text-[9px] font-bold">
+                            Sandbox Recomendado (&lt; 85%)
+                          </Badge>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         {sug.status === "testing" ? (
                           <Badge variant="outline" className="border-purple-500/40 text-purple-300 bg-purple-500/10 text-[9px] font-bold">
-                            Teste em andamento
+                            Teste em andamento (10%)
                           </Badge>
                         ) : (
-                          <span className="text-[10px] text-emerald-400 font-semibold">
+                          <span className="text-[10px] text-emerald-400 font-semibold font-mono">
                             {confidence}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <span className="text-[10px] text-muted-foreground font-bold uppercase">Situação Identificada:</span>
-                      <p className="text-xs text-foreground font-medium italic">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Situação Identificada:</span>
+                      <p className="text-xs text-foreground font-medium italic line-clamp-2">
                         {sug.situation_summary || sug.pattern || "—"}
                       </p>
                     </div>
 
-                    <div className="space-y-1 bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">
-                      <span className="text-[10px] text-emerald-300 font-bold uppercase">Estratégia Proposta:</span>
-                      <p className="text-xs text-foreground font-semibold">
-                        {sug.proposed_strategy || sug.golden_response || "—"}
+                    <div className="space-y-0.5 bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">
+                      <span className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Estratégia Proposta:</span>
+                      <p className="text-xs text-foreground font-semibold line-clamp-3">
+                        {sug.proposed_strategy || sug.suggested_strategy || sug.golden_response || "—"}
                       </p>
                     </div>
 
@@ -1721,21 +1737,26 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
                         size="sm"
                         disabled={isProcessing}
                         onClick={() => handleRejectCandidate(sug.id)}
-                        className="h-8 text-xs text-muted-foreground hover:text-rose-400 px-2.5"
+                        className="h-7 text-xs text-muted-foreground hover:text-rose-400 px-2"
                       >
-                        <X className="h-3.5 w-3.5 mr-1" /> Ignorar
+                        <X className="h-3 w-3 mr-1" /> Ignorar
                       </Button>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           disabled={isProcessing || sug.status === "testing"}
                           onClick={() => handleTestCandidate(sug)}
-                          className="h-8 text-xs border-purple-500/40 text-purple-300 bg-purple-500/10 hover:bg-purple-500/20"
+                          className={cn(
+                            "h-7 text-xs px-2.5",
+                            isSandboxRecommended
+                              ? "border-amber-500/50 text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 font-bold shadow-xs"
+                              : "border-purple-500/40 text-purple-300 bg-purple-500/10 hover:bg-purple-500/20"
+                          )}
                         >
-                          <Zap className="h-3.5 w-3.5 mr-1 text-purple-400" />
+                          <Zap className="h-3 w-3 mr-1 text-purple-400" />
                           <span>Testar Sandbox 10%</span>
                         </Button>
 
@@ -1744,12 +1765,17 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
                           size="sm"
                           disabled={isProcessing}
                           onClick={() => handleApproveCandidate(sug.id)}
-                          className="h-8 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-xs"
+                          className={cn(
+                            "h-7 text-xs px-3 font-semibold shadow-xs",
+                            isHighRelevance
+                              ? "bg-emerald-500 hover:bg-emerald-600 text-white font-bold ring-1 ring-emerald-400"
+                              : "bg-emerald-500/80 hover:bg-emerald-600 text-white"
+                          )}
                         >
                           {isProcessing ? (
-                            <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" />
+                            <RefreshCw className="h-3 w-3 animate-spin mr-1" />
                           ) : (
-                            <Check className="h-3.5 w-3.5 mr-1" />
+                            <Check className="h-3 w-3 mr-1" />
                           )}
                           <span>Aprovar</span>
                         </Button>

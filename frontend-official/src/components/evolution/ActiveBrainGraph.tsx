@@ -12,6 +12,7 @@ export interface ActiveBrainGraphProps {
   selectedCategory: string;
   selectedMemoryId: string | number | null;
   onSelectMemory: (memory: MemoryNodeData) => void;
+  onSelectCategory?: (category: string) => void;
   width?: number;
   height?: number;
 }
@@ -61,6 +62,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
   selectedCategory,
   selectedMemoryId,
   onSelectMemory,
+  onSelectCategory,
   height = 540,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -288,6 +290,12 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
     setPan({ x: 0, y: 0 });
   };
 
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+    setZoom((z) => Math.min(2.5, Math.max(0.5, z * zoomFactor)));
+  };
+
   return (
     <div
       ref={containerRef}
@@ -296,6 +304,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onWheel={handleWheel}
       className={cn(
         "relative w-full rounded-2xl border border-border/80 bg-[#060a0f] overflow-hidden select-none shadow-inner",
         isDragging ? "cursor-grabbing" : "cursor-grab"
@@ -470,7 +479,24 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
             const count = branch.count;
 
             return (
-              <g key={`branch-node-${branch.id}`} data-testid="memory-category-node" className="cursor-pointer">
+              <g
+                key={`branch-node-${branch.id}`}
+                data-testid="memory-category-node"
+                className="cursor-pointer transition-transform hover:scale-105"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectCategory?.(branch.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelectCategory?.(branch.id);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Categoria ${branch.label}, ${count} itens`}
+              >
                 {/* Glow ring */}
                 <circle cx={bx} cy={by} r={24} fill="#0d141e" stroke={branch.color} strokeWidth="2" />
                 <circle cx={bx} cy={by} r={8} fill={branch.color} fillOpacity="0.9" />

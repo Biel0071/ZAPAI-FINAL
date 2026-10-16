@@ -44,22 +44,22 @@ function extractConcepts(...texts) {
 function extractTopics(text) {
   const t = text.toLowerCase();
   const topics = [];
-  if (/(?:entrega|frete|prazo|envio|transport|receber|chega|cidade|bairro|km|distancia)/i.test(t)) {
+  if (/(?:entrega|frete|prazo|envio|transport|receber|chega|cidade|bairro|km|distancia|regiao|região)/i.test(t)) {
     topics.push('Entrega e Frete');
   }
-  if (/(?:pre[çc]o|valor|quanto|custa|pagar|desconto|tabela|or[çc]amento)/i.test(t)) {
+  if (/(?:pre[çc]o|valor|quanto|custa|pagar|desconto|tabela|or[çc]amento|cota[çc][aã]o)/i.test(t)) {
     topics.push('Preço e Orçamento');
   }
-  if (/(?:pix|cart[aã]o|parcel|boleto|dinheiro|condi[çc][aã]o|a vista|fiado)/i.test(t)) {
+  if (/(?:pix|cart[aã]o|parcel|boleto|dinheiro|condi[çc][aã]o|a vista|à vista|fiado|taxa)/i.test(t)) {
     topics.push('Formas de Pagamento');
   }
-  if (/(?:garantia|defeito|troca|devolu|qualidade|assist[êe]ncia)/i.test(t)) {
+  if (/(?:garantia|defeito|troca|devolu|qualidade|assist[êe]ncia|rastreio|rastreamento|pos-venda|pós-venda)/i.test(t)) {
     topics.push('Garantia e Pós-Venda');
   }
-  if (/(?:instala|monta|coloca|manual|espa[çc]o|encanador)/i.test(t)) {
-    topics.push('Instalação e Montagem');
+  if (/(?:instala|monta|coloca|manual|espa[çc]o|encanador|alvenaria|medida|dimens|altura|largura)/i.test(t)) {
+    topics.push('Instalação e Medidas');
   }
-  if (/(?:ajuda|d[úu]vida|problema|atendimento|humano|falar)/i.test(t)) {
+  if (/(?:ajuda|d[úu]vida|problema|atendimento|humano|falar|suporte)/i.test(t)) {
     topics.push('Suporte e Dúvidas');
   }
   return topics;
@@ -239,9 +239,12 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
 
       let prod = null;
       if (lower.includes('caixa d') || lower.includes('caixa dagua')) prod = "Caixa d'água 5000L";
+      else if (lower.includes('trio')) prod = 'Churrasqueira Trio (Forno e Fogão)';
       else if (lower.includes('churrasqueira')) prod = 'Churrasqueira pré-moldada';
-      else if (lower.includes('cimento')) prod = 'Cimento';
+      else if (lower.includes('fogão') || lower.includes('fogao')) prod = 'Fogão a lenha';
+      else if (lower.includes('cimento')) prod = 'Cimento CP-II';
       else if (lower.includes('tijolo')) prod = 'Tijolo 8 furos';
+      else if (lower.includes('revestimento') || lower.includes('tijolinho')) prod = 'Revestimento Tijolinho';
       if (prod) {
         const prodKey = `product:${normalizeKey(prod)}`;
         await query(`
@@ -269,8 +272,11 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
         `, [cleanCompany, normalizedAgent, rootAgentKey, prodKey]);
       }
 
-      if (lower.includes('vou pensar') || lower.includes('caro') || lower.includes('depois vejo') || lower.includes('muito alto')) {
-        const objType = lower.includes('caro') || lower.includes('muito alto') ? 'Preço' : 'Tempo para pensar';
+      if (lower.includes('vou pensar') || lower.includes('caro') || lower.includes('depois vejo') || lower.includes('muito alto') || lower.includes('frete alto') || lower.includes('ver com')) {
+        let objType = 'Tempo para pensar';
+        if (lower.includes('caro') || lower.includes('muito alto')) objType = 'Preço elevado';
+        else if (lower.includes('frete alto') || lower.includes('frete caro')) objType = 'Cotação de frete';
+        else if (lower.includes('ver com') || lower.includes('esposa') || lower.includes('marido') || lower.includes('socio') || lower.includes('sócio')) objType = 'Decisão em conjunto';
         const objKey = `objection:${normalizeKey(objType)}`;
         await query(`
           INSERT INTO agent_memory_nodes (company_id, agent_key, node_key, node_type, label, searchable_text, properties, weight, created_at, last_seen_at)
@@ -293,9 +299,10 @@ async function bootstrapAgentMemoryGraph({ agentKey, agentName, companyId = 'def
       }
 
       let pref = null;
-      if (lower.includes('pix') || lower.includes('a vista')) pref = 'Pagamento via PIX / À vista';
-      else if (lower.includes('parcel') || lower.includes('cartao') || lower.includes('cartão')) pref = 'Pagamento parcelado';
-      else if (lower.includes('urgente') || lower.includes('rápido') || lower.includes('rapido')) pref = 'Entrega urgente';
+      if (lower.includes('pix') || lower.includes('a vista') || lower.includes('à vista')) pref = 'Pagamento via PIX / À vista';
+      else if (lower.includes('parcel') || lower.includes('cartao') || lower.includes('cartão')) pref = 'Pagamento parcelado no cartão';
+      else if (lower.includes('urgente') || lower.includes('rápido') || lower.includes('rapido') || lower.includes('hoje')) pref = 'Entrega urgente';
+      else if (lower.includes('retirar') || lower.includes('buscar')) pref = 'Retirada na loja';
       if (pref) {
         const prefKey = `preference:${normalizeKey(pref)}`;
         await query(`
@@ -687,7 +694,7 @@ async function getGraphSnapshot(agentKey, companyId = 'default', limit = 50, ses
 
   const [nodesResult, edgesResult, statsResult] = await Promise.all([
     query(`
-      SELECT node_key, node_type, label, weight, properties
+      SELECT node_key, node_type, label, content, searchable_text, weight, properties, created_at, last_seen_at
       FROM agent_memory_nodes
       WHERE company_id = $1 AND agent_key = $2 ${sessionFilter}
       ORDER BY weight DESC, last_seen_at DESC
@@ -721,13 +728,59 @@ async function getGraphSnapshot(agentKey, companyId = 'default', limit = 50, ses
   const rawEdges = edgesResult.rows || [];
   const stats = statsResult.rows[0] || {};
 
-  const nodes = rawNodes.map((node) => ({
-    id: node.node_key,
-    type: node.node_type,
-    label: node.label,
-    weight: Number(node.weight || 1),
-    properties: node.properties || {},
-  }));
+  const nodes = rawNodes.map((node) => {
+    const props = node.properties || {};
+    const weight = Number(node.weight || 1);
+
+    // Assertiveness calculation based on conversation outcome, frequency and evidence
+    let directConfidence = node.confidence ?? props.confidence ?? props.confidenceScore;
+    if (typeof directConfidence !== 'number' || !Number.isFinite(directConfidence)) {
+      directConfidence = Math.min(98, Math.max(72, Math.round(76 + Math.log2(weight + 1) * 6)));
+    }
+
+    // Meaningful summary / description from content, properties or structured node context
+    let desc = node.content || props.summary || props.description || props.contactName || props.objection || props.preference;
+    if (!desc) {
+      if (node.node_type === 'topic') {
+        desc = `Tópico comercial mapeado: ${node.label}. Monitorado para respostas naturais e resolução de dúvidas.`;
+      } else if (node.node_type === 'contact') {
+        desc = `Cliente WhatsApp: ${props.contactName || node.label} (${props.contactPhone || 'WhatsApp'})`;
+      } else if (node.node_type === 'product') {
+        desc = `Produto comercial registrado: ${node.label}. Consulta de catálogo e especificações.`;
+      } else if (node.node_type === 'objection') {
+        desc = `Objeção de atendimento mapeada: ${node.label}. Estratégia de contorno ativada.`;
+      } else if (node.node_type === 'preference') {
+        desc = `Preferência registrada: ${node.label}.`;
+      } else if (node.node_type === 'episode') {
+        desc = node.searchable_text || `Interação registrada: ${node.label}`;
+      } else {
+        desc = `Memória consolidada: ${node.label}`;
+      }
+    }
+    if (desc && desc.includes('\n')) {
+      desc = desc.replace(/\r?\n/g, ' • ');
+    }
+
+    const createdAt = node.created_at ? new Date(node.created_at).toISOString() : (node.last_seen_at ? new Date(node.last_seen_at).toISOString() : new Date().toISOString());
+
+    return {
+      id: node.node_key,
+      type: node.node_type,
+      label: node.label,
+      weight,
+      content: node.content,
+      desc,
+      confidence: directConfidence,
+      createdAt,
+      properties: {
+        ...props,
+        summary: desc,
+        description: desc,
+        confidence: directConfidence,
+        createdAt,
+      },
+    };
+  });
 
   // Garante que o nó central do agente exista no visualizador
   const rootId = `agent:${normalizedAgent}`;

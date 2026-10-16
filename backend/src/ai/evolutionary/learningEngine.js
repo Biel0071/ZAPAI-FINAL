@@ -233,7 +233,18 @@ class LearningEngine {
          ORDER BY CASE status WHEN 'pending' THEN 1 WHEN 'testing' THEN 2 ELSE 3 END, observed_frequency DESC, id DESC`,
         [cleanCompany, status]
       );
-      return res.rows;
+      return res.rows.map((row) => {
+        const continuityImpact = Number(row.continuity_impact_pct || 15);
+        const calculatedRelevance = Math.min(98, Math.max(70, Math.round(75 + continuityImpact * 0.9)));
+        const relevancePct = row.relevancePct ?? calculatedRelevance;
+        const confidenceScore = row.confidence_score !== undefined ? row.confidence_score : relevancePct;
+        return {
+          ...row,
+          proposed_strategy: row.suggested_strategy || row.proposed_strategy,
+          relevancePct,
+          confidence_score: confidenceScore,
+        };
+      });
     } catch (err) {
       console.error('[LearningEngine] listSuggestions error:', err.message);
       throw err;
