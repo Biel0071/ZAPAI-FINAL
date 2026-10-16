@@ -998,10 +998,22 @@ async function processAI({ contact, history, message, store, agentName, companyI
     let completionTokens = 0;
     let totalTokens = 0;
 
+    // Deduplicate if the last history entry is already the current incoming user message
+    let historyForPrompt = slicedHistory;
+    if (historyForPrompt.length > 0) {
+      const last = historyForPrompt[historyForPrompt.length - 1];
+      const lastText = String(last.content || last.text || '').trim();
+      const currentText = String(message || '').trim();
+      const lastIsUser = last.role !== 'assistant' && last.from !== 'agent' && last.from !== 'bot' && !last.fromMe && !last.from_me;
+      if (lastIsUser && lastText === currentText) {
+        historyForPrompt = historyForPrompt.slice(0, -1);
+      }
+    }
+
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...slicedHistory.map((h) => ({
-        role: (h.role === 'assistant' || h.from === 'agent' || h.from === 'bot' || h.from === 'system') ? 'assistant' : 'user',
+      ...historyForPrompt.map((h) => ({
+        role: (h.role === 'assistant' || h.from === 'agent' || h.from === 'bot' || h.from === 'system' || h.fromMe || h.from_me) ? 'assistant' : 'user',
         content: h.content || h.text || '',
       })),
       { role: 'user', content: message },

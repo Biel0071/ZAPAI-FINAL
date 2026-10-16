@@ -24,22 +24,29 @@ function buildConversationHistory(messages = []) {
     }));
 }
 
-function buildFallbackResponse(agent, leadAnalysis = {}, strategy = {}) {
+function buildFallbackResponse(agent, leadAnalysis = {}, strategy = {}, options = {}) {
   const resolvedAgent = ensureAgent(agent);
+  const aiAntiRepetitionService = require('./aiAntiRepetitionService');
+  const history = options.conversationHistory || [];
+  const recentBotReplies = aiAntiRepetitionService.extractRecentBotReplies(history, 3);
+  const hasPastBotMessages = recentBotReplies.length > 0;
+  const recentCtas = recentBotReplies.map(r => r.cta).filter(Boolean);
 
+  let reply = '';
   if (leadAnalysis.next_action === 'close_sale') {
-    return 'Posso finalizar seu pedido agora. Você prefere pagamento via PIX com 5% de desconto ou em até 10x sem juros no cartão?';
+    const nextCta = aiAntiRepetitionService.getAlternativeCta(recentCtas, 'payment');
+    reply = `Posso finalizar seu pedido agora. ${nextCta}`;
+  } else if (leadAnalysis.next_action === 'send_price') {
+    reply = 'Posso te passar o valor final e calcular a entrega certinho. Quais itens e quantidades você deseja confirmar para sua obra?';
+  } else if (leadAnalysis.next_action === 'overcome_objection') {
+    reply = 'Entendo perfeitamente sua preocupação. Temos condições especiais e modelos variados para atender seu orçamento. O que você gostaria de priorizar?';
+  } else {
+    reply = hasPastBotMessages
+      ? 'Como posso te orientar melhor sobre materiais, medidas e prazos de entrega para a sua obra?'
+      : `Olá! Aqui é a ${resolvedAgent.name} da loja. Como posso ajudar com sua obra hoje? Posso te orientar sobre tijolos, cimento, telhas, churrasqueiras e prazos de entrega!`;
   }
 
-  if (leadAnalysis.next_action === 'send_price') {
-    return 'Posso te passar o valor final e calcular a entrega certinho. Quais itens e quantidades você deseja confirmar para sua obra?';
-  }
-
-  if (leadAnalysis.next_action === 'overcome_objection') {
-    return 'Entendo perfeitamente sua preocupação. Temos condições especiais e modelos variados para atender seu orçamento. O que você gostaria de priorizar?';
-  }
-
-  return 'Olá! Aqui é a Camila da loja. Como posso ajudar com sua obra hoje? Posso te orientar sobre tijolos, cimento, telhas, churrasqueiras e prazos de entrega!';
+  return aiAntiRepetitionService.sanitizeAndVaryBotReply(reply, recentBotReplies);
 }
 
 async function generateAIResponse({
@@ -80,7 +87,7 @@ async function generateAIResponse({
   const openai = getClient();
 
   if (!openai) {
-    return buildFallbackResponse(resolvedAgent, leadAnalysis, salesStrategy);
+    return buildFallbackResponse(resolvedAgent, leadAnalysis, salesStrategy, { conversationHistory, customerMessage });
   }
 
   const personalityPrompt = buildPersonalityPrompt(resolvedAgent);

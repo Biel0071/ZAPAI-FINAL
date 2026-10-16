@@ -355,6 +355,8 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
         notes: crmContext.notes || conversation?.notes || '',
         orderStatus: crmContext.orderStatus || leadAnalysis.intent,
         currentIssue: crmContext.currentIssue,
+        neighborhood: conversation?.neighborhood || conversation?.memory_json?.neighborhood || crmContext?.neighborhood || null,
+        city: conversation?.city || conversation?.memory_json?.city || crmContext?.city || null,
         recentBotReplies,
       },
       history: leadHistory,

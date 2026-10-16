@@ -156,12 +156,16 @@ class EvolutionaryAgentOrchestrator {
       const aiAntiRepetitionService = require('../../../services/aiAntiRepetitionService');
       const histToScan = history && history.length > 0 ? history : (contact.history || []);
       recentBotReplies = contact.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(histToScan, 3);
+      
+      // Extract direct facts from the current message and merge with customer memory
+      const directFacts = this.customerMemoryEngine.extractFactsLocally(cleanMsg);
+      const memComm = contact.conversationMemory?.commercial || {};
       const knownPreferences = {
-        product: customerContext?.quotedProducts?.[0] || customerContext?.product,
-        capacity: customerContext?.capacity,
-        neighborhood: customerContext?.neighborhood,
-        city: customerContext?.city,
-        paymentPreference: customerContext?.paymentPreference,
+        product: directFacts.product || customerContext?.quotedProducts?.[0] || customerContext?.product || memComm.activeProduct || contact?.leadAlgorithm?.primaryProductLabel,
+        capacity: directFacts.capacity || customerContext?.capacity || memComm.capacity,
+        neighborhood: directFacts.neighborhood || customerContext?.neighborhood || memComm.neighborhood || memComm.deliveryCity || contact?.neighborhood,
+        city: customerContext?.city || memComm.deliveryCity || contact?.city,
+        paymentPreference: directFacts.paymentPreference || customerContext?.paymentPreference || memComm.paymentPreference || contact?.leadAlgorithm?.preferredPayment,
       };
       antiRepetitionPrompt = aiAntiRepetitionService.buildAntiRepetitionPromptBlock({ recentBotReplies, knownPreferences });
     } catch (_) {}
@@ -216,13 +220,17 @@ class EvolutionaryAgentOrchestrator {
     const convId = conversation?.id || conversation?.phone || 'unknown';
     const phone = conversation?.phone || store?.contact?.phone || '';
 
-    // Step 1: Extract customer facts asynchronously from customerMessage (Layer 2)
-    this.customerMemoryEngine.extractAndSaveFacts({
-      companyId: cleanCompany,
-      phone,
-      conversationId: convId,
-      messageText: customerMessage,
-    }).catch(e => console.warn('[Orchestrator] extractFacts error:', e.message));
+    // Step 1: Extract customer facts from customerMessage (Layer 2)
+    try {
+      await this.customerMemoryEngine.extractAndSaveFacts({
+        companyId: cleanCompany,
+        phone,
+        conversationId: convId,
+        messageText: customerMessage,
+      });
+    } catch (e) {
+      console.warn('[Orchestrator] extractFacts error:', e.message);
+    }
 
     // Step 2: Build 5-Layer Evolutionary Prompt
     const evoData = await this.buildEvolutionaryPrompt({
@@ -318,14 +326,11 @@ class EvolutionaryAgentOrchestrator {
     const histToScan = conversationHistory && conversationHistory.length > 0 ? conversationHistory : [];
     const recentBotReplies = evoData.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(histToScan, 3);
     const hasPastBotMessages = recentBotReplies.length > 0;
-    const lastBotCta = recentBotReplies[recentBotReplies.length - 1]?.cta || '';
+    const recentCtas = recentBotReplies.map(r => r.cta).filter(Boolean);
 
     if (!responseText) {
       const pb = evoData.activePlaybook;
       let cta = pb?.recommended_cta;
-      if (!cta || aiAntiRepetitionService.areCtasSimilar(cta, lastBotCta)) {
-        cta = aiAntiRepetitionService.getAlternativeCta(lastBotCta, 'closing_advance');
-      }
 
       let agentName = agent?.name || 'Camila';
       // WhatsApp customer chats must ALWAYS identify as store attendant (Camila), NEVER ZAIBOT
@@ -334,26 +339,65 @@ class EvolutionaryAgentOrchestrator {
       }
 
       const lowerMsg = (customerMessage || '').toLowerCase();
+      const extractedFacts = this.customerMemoryEngine.extractFactsLocally(customerMessage);
+      const capacity = extractedFacts.capacity || evoData.customerContext?.capacity;
+      const neighborhood = extractedFacts.neighborhood || evoData.customerContext?.neighborhood;
+      const paymentPref = extractedFacts.paymentPreference || evoData.customerContext?.paymentPreference;
+
+      if (!cta || recentCtas.some(prev => aiAntiRepetitionService.areCtasSimilar(cta, prev))) {
+        cta = null;
+      }
+
+      // Prohibit playbook CTA from re-asking information already known or just answered
+      if (cta) {
+        const ctaIntent = aiAntiRepetitionService.getCtaIntent(cta);
+        if (ctaIntent === 'PAGAMENTO' && paymentPref) {
+          cta = null;
+        } else if (ctaIntent === 'LOCALIZACAO_FRETE' && neighborhood) {
+          cta = null;
+        } else if (ctaIntent === 'MEDIDAS_CAPACIDADE' && capacity) {
+          cta = null;
+        }
+      }
+
       if (lowerMsg.includes('frete') || lowerMsg.includes('entrega')) {
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'freight_location');
         responseText = hasPastBotMessages
-          ? `Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km da loja. ${cta}`
-          : `Olá! Aqui é a ${agentName} da loja. Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km. ${cta}`;
+          ? `Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km da loja. ${nextCta}`
+          : `Olá! Aqui é a ${agentName} da loja. Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km. ${nextCta}`;
+      } else if (extractedFacts.capacity || lowerMsg.includes('caixa') || lowerMsg.includes('litros') || lowerMsg.includes('reservatorio')) {
+        const capLabel = extractedFacts.capacity || evoData.customerContext?.capacity || "5 mil litros";
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'freight_location');
+        responseText = hasPastBotMessages
+          ? `Temos a caixa d'água de ${capLabel} em polietileno com tampa de rosca pronta para entrega. ${nextCta}`
+          : `Olá! Aqui é a ${agentName}. Temos a caixa d'água de ${capLabel} em polietileno com tampa de rosca pronta para entrega. ${nextCta}`;
+      } else if (extractedFacts.neighborhood || lowerMsg.includes('bairro') || lowerMsg.includes('cep')) {
+        const bairro = extractedFacts.neighborhood || evoData.customerContext?.neighborhood || 'seu bairro';
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'payment');
+        responseText = hasPastBotMessages
+          ? `Perfeito! Para entrega no ${bairro} temos rota rápida e conseguimos agilizar o frete. ${nextCta}`
+          : `Olá! Aqui é a ${agentName}. Para entrega no ${bairro} temos rota rápida e conseguimos agilizar o frete. ${nextCta}`;
+      } else if (extractedFacts.paymentPreference || lowerMsg.includes('pix') || lowerMsg.includes('cartao') || lowerMsg.includes('cartão') || lowerMsg.includes('pagar')) {
+        const isPix = lowerMsg.includes('pix') || (extractedFacts.paymentPreference && extractedFacts.paymentPreference.includes('PIX'));
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'closing_advance');
+        responseText = hasPastBotMessages
+          ? `Excelente! No ${isPix ? 'PIX' : 'cartão'} conseguimos as melhores condições comerciais à vista. ${nextCta}`
+          : `Olá! Aqui é a ${agentName}. No ${isPix ? 'PIX' : 'cartão'} conseguimos as melhores condições comerciais à vista. ${nextCta}`;
       } else if (lowerMsg.includes('tijolo') || lowerMsg.includes('milheiro')) {
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'freight_location');
         responseText = hasPastBotMessages
-          ? `O milheiro do tijolo 8 furos está saindo por R$ 720,00 (ou R$ 684,00 no PIX com 5% de desconto). ${cta}`
-          : `Olá! Aqui é a ${agentName}. O milheiro do tijolo 8 furos está saindo por R$ 720,00 (ou R$ 684,00 no PIX com 5% de desconto). ${cta}`;
+          ? `O milheiro do tijolo 8 furos está saindo por R$ 720,00 (com desconto no PIX). ${nextCta}`
+          : `Olá! Aqui é a ${agentName}. O milheiro do tijolo 8 furos está saindo por R$ 720,00 (com desconto no PIX). ${nextCta}`;
       } else if (lowerMsg.includes('churrasqueira') || lowerMsg.includes('trio')) {
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'freight_location');
         responseText = hasPastBotMessages
-          ? `A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou até 10x sem juros (no PIX tem desconto por R$ 940,50). ${cta}`
-          : `Olá! A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou até 10x sem juros (no PIX tem desconto por R$ 940,50). ${cta}`;
-      } else if (lowerMsg.includes('5 mil') || lowerMsg.includes('5000') || lowerMsg.includes('caixa') || lowerMsg.includes('litros')) {
-        responseText = hasPastBotMessages
-          ? `Temos a caixa d'água de 5 mil litros em polietileno com tampa de rosca pronta para entrega. ${cta}`
-          : `Olá! Aqui é a ${agentName}. Temos a caixa d'água de 5 mil litros em polietileno com tampa de rosca pronta para entrega. ${cta}`;
+          ? `A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou parcelada (com desconto no PIX). ${nextCta}`
+          : `Olá! A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou parcelada (com desconto no PIX). ${nextCta}`;
       } else {
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'closing_advance');
         responseText = hasPastBotMessages
-          ? `Com certeza! ${cta}`
-          : `Olá! Aqui é a ${agentName} da loja. ${cta}`;
+          ? `Com certeza! ${nextCta}`
+          : `Olá! Aqui é a ${agentName} da loja. ${nextCta}`;
       }
     }
 

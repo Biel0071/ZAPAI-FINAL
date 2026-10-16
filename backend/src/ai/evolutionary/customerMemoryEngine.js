@@ -125,13 +125,10 @@ class CustomerMemoryEngine {
   }
 
   /**
-   * Extract new customer facts from message text and update PostgreSQL
+   * Synchronously extract customer facts from message text without DB roundtrip
    */
-  async extractAndSaveFacts({ companyId = 'default', phone = '', conversationId = null, messageText = '' }) {
-    if (!messageText) return;
-    const cleanCompany = String(companyId || 'default');
-    const cleanPhone = String(phone || '').replace(/\D/g, '');
-
+  extractFactsLocally(messageText = '') {
+    if (!messageText || typeof messageText !== 'string') return {};
     const text = messageText.toLowerCase();
     const facts = {};
 
@@ -140,7 +137,7 @@ class CustomerMemoryEngine {
     if (neighborhoodMatch && neighborhoodMatch[1]) {
       const candidate = neighborhoodMatch[1].trim();
       if (!candidate.includes('obrigad') && !candidate.includes('qual') && !candidate.includes('quanto')) {
-        facts.neighborhood = candidate;
+        facts.neighborhood = candidate.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       }
     }
 
@@ -151,15 +148,16 @@ class CustomerMemoryEngine {
       facts.product = 'Tijolo 8 Furos (Milheiro)';
     } else if (text.includes('cimento')) {
       facts.product = 'Cimento CP II 50kg';
-    } else if (text.includes('caixa d') || text.includes('caixa dagua') || text.includes('5 mil') || text.includes('5000') || text.includes('litros')) {
+    } else if (text.includes('caixa d') || text.includes('caixa dagua') || text.includes('litros') || text.includes('reservatorio')) {
       facts.product = "Caixa d'água";
-      if (text.includes('5 mil') || text.includes('5000')) {
-        facts.capacity = '5.000 Litros';
-      } else if (text.includes('3 mil') || text.includes('3000')) {
-        facts.capacity = '3.000 Litros';
-      } else if (text.includes('1 mil') || text.includes('1000')) {
-        facts.capacity = '1.000 Litros';
-      }
+    }
+
+    // Normalized capacity (10.000L, 5.000L, 3.000L, 1.000L, 500L, etc.)
+    const convMemEngine = require('../../../services/conversationMemoryEngine');
+    const cap = convMemEngine.normalizeCapacity(text);
+    if (cap) {
+      facts.capacity = cap;
+      if (!facts.product) facts.product = "Caixa d'água";
     }
 
     // Detect payment preference
@@ -169,6 +167,18 @@ class CustomerMemoryEngine {
       facts.paymentPreference = 'Cartão de Crédito';
     }
 
+    return facts;
+  }
+
+  /**
+   * Extract new customer facts from message text and update PostgreSQL
+   */
+  async extractAndSaveFacts({ companyId = 'default', phone = '', conversationId = null, messageText = '' }) {
+    if (!messageText) return;
+    const cleanCompany = String(companyId || 'default');
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+
+    const facts = this.extractFactsLocally(messageText);
     if (Object.keys(facts).length === 0) return;
 
     try {

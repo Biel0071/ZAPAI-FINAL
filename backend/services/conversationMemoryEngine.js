@@ -179,13 +179,63 @@ function setCustomerFact(memory, { key, value, category = MEMORY_CATEGORIES.CUST
     memory.commercial.capacity = String(value).trim();
   } else if (normKey.includes('quantidade') || normKey === 'quantity') {
     memory.commercial.quantity = String(value).trim();
-  } else if (normKey.includes('cidade') || normKey === 'city' || normKey.includes('endereco') || normKey === 'address') {
-    memory.commercial.deliveryCity = String(value).trim();
+  } else if (normKey.includes('cidade') || normKey.includes('bairro') || normKey === 'city' || normKey.includes('endereco') || normKey === 'address') {
+    memory.commercial.deliveryCity = memory.commercial.deliveryCity || String(value).trim();
+    memory.commercial.neighborhood = String(value).trim();
   } else if (normKey.includes('pagamento') || normKey === 'payment') {
     memory.commercial.paymentPreference = String(value).trim();
   } else if (normKey.includes('preco') || normKey === 'price' || normKey.includes('orcamento')) {
     memory.commercial.quotedPrice = String(value).trim();
   }
+}
+
+/**
+ * Normaliza capacidades de reservatórios e caixas d'água em formato canônico
+ */
+function normalizeCapacity(text = '') {
+  if (!text || typeof text !== 'string') return null;
+  const clean = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+  // 10.000 Litros (must be checked BEFORE 1.000 to prevent substring collisions)
+  if (/\b(?:10\s*(?:mil|k)|10000|10\.000|dez\s*mil)\b/i.test(clean)) {
+    return '10.000 Litros';
+  }
+  // 5.000 Litros
+  if (/\b(?:5\s*(?:mil|k)|5000|5\.000|cinco\s*mil)\b/i.test(clean)) {
+    return '5.000 Litros';
+  }
+  // 3.000 Litros
+  if (/\b(?:3\s*(?:mil|k)|3000|3\.000|tres\s*mil)\b/i.test(clean)) {
+    return '3.000 Litros';
+  }
+  // 2.000 Litros
+  if (/\b(?:2\s*(?:mil|k)|2000|2\.000|dois\s*mil)\b/i.test(clean)) {
+    return '2.000 Litros';
+  }
+  // 1.000 Litros
+  if (/\b(?:1\s*(?:mil|k)|1000|1\.000|um\s*mil|mil\s*litros|mil\s*l\b)\b/i.test(clean)) {
+    return '1.000 Litros';
+  }
+  // 500 Litros
+  if (/\b(?:500|quinhentos)\s*(?:l\b|litros|lts)?\b/i.test(clean)) {
+    return '500 Litros';
+  }
+  // 310 Litros
+  if (/\b(?:310)\s*(?:l\b|litros|lts)?\b/i.test(clean)) {
+    return '310 Litros';
+  }
+
+  // Genérico numérico com litros / L
+  const genMatch = clean.match(/(\d+[\.,]?\d*)\s*(?:mil\s*l|mil\s*litros|litros|lts|l\b)/i);
+  if (genMatch && genMatch[1]) {
+    const num = parseFloat(genMatch[1].replace(',', '.'));
+    if (num > 0) {
+      if (clean.includes('mil') && num < 100) return (num * 1000).toLocaleString('pt-BR') + ' Litros';
+      return num.toLocaleString('pt-BR') + ' Litros';
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -225,27 +275,17 @@ function extractFactsFromContext(text = '', analysis = {}, memory) {
     });
   }
 
-  // Capacidade em litros
-  const capacityMatch = lower.match(/(\d+[\.,]?\d*)\s*(mil\s*litros|mil\s*l|litros|l\b)/i) ||
-                        lower.match(/(\d{3,5})\s*l/i) ||
-                        (lower.includes('5 mil') || lower.includes('5mil') ? ['5 mil litros', '5', 'mil litros'] : null);
-  if (capacityMatch) {
-    let cap = capacityMatch[0].trim();
-    if (cap.includes('5 mil') || cap.includes('5mil') || cap.includes('5000')) {
-      cap = '5.000 Litros';
-    } else if (cap.includes('3 mil') || cap.includes('3mil') || cap.includes('3000')) {
-      cap = '3.000 Litros';
-    } else if (cap.includes('1 mil') || cap.includes('1mil') || cap.includes('1000')) {
-      cap = '1.000 Litros';
-    }
+  // Capacidade em litros com normalização robusta
+  const detectedCapacity = normalizeCapacity(text);
+  if (detectedCapacity) {
     setCustomerFact(memory, {
       key: 'capacidade',
-      value: cap,
+      value: detectedCapacity,
       category: MEMORY_CATEGORIES.COMMERCIAL_INTENT,
       importance: 9,
     });
-    // If no specific product is identified yet, 5 mil litros indicates caixa d'agua
-    if (!memory.commercial?.activeProduct && (cap.includes('Litros') || cap.includes('litros'))) {
+    // Se nenhum produto específico foi identificado ainda, capacidade em litros indica Caixa d'água
+    if (!memory.commercial?.activeProduct) {
       setCustomerFact(memory, {
         key: 'produto_interesse',
         value: "Caixa d'água",
@@ -482,6 +522,7 @@ module.exports = {
   getConversationMemory,
   setCustomerFact,
   extractFactsFromContext,
+  normalizeCapacity,
   persistConversationMemory,
   buildContextualPrompt,
 };

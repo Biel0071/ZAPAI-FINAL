@@ -133,7 +133,7 @@ test('getGraphSnapshot ensures root agent hub is connected to all semantic node 
   require.cache[databasePath] = {
     exports: {
       query: async (sql, params) => {
-        if (sql.includes('SELECT node_key, node_type, label, weight, properties')) {
+        if (sql.includes('SELECT node_key, node_type, label')) {
           return {
             rows: [
               { node_key: 'topic:entrega', node_type: 'topic', label: 'Entrega e Frete', weight: 4 },
@@ -185,7 +185,7 @@ test('getGraphSnapshot never fills an empty agent graph with another agent\'s no
     exports: {
       query: async (sql, params) => {
         calls.push({ sql, params });
-        if (sql.includes('SELECT node_key, node_type, label, weight, properties')) {
+        if (sql.includes('SELECT node_key, node_type, label')) {
           return { rows: sql.includes('agent_key = $2') ? [] : [
             { node_key: 'topic:other-agent', node_type: 'topic', label: 'Dados de outro agente', weight: 1 },
           ] };
@@ -203,7 +203,7 @@ test('getGraphSnapshot never fills an empty agent graph with another agent\'s no
     const snapshot = await service.getGraphSnapshot('new-agent', 'tenant-a', 50);
     assert.deepEqual(snapshot.nodes.map((node) => node.id), ['agent:new-agent']);
     assert.equal(snapshot.stats.totalNodes, 1);
-    const nodeReads = calls.filter((call) => call.sql.includes('SELECT node_key, node_type, label, weight, properties'));
+    const nodeReads = calls.filter((call) => call.sql.includes('SELECT node_key, node_type, label'));
     assert.equal(nodeReads.length, 1);
     assert.match(nodeReads[0].sql, /company_id = \$1 AND agent_key = \$2/);
   } finally {
