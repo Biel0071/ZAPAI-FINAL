@@ -391,5 +391,36 @@ router.get('/learned-patterns', async (req, res) => {
   }
 });
 
+// 16. GET /api/ai/evolution/lead-algorithms (Store Standard + Per-Lead Evolution Algorithms)
+router.get('/lead-algorithms', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const metrics = await learningEngine.getEvolutionMetrics({ companyId });
+    res.json({
+      success: true,
+      data: {
+        storeEvolutionAlgorithms: metrics.storeEvolutionAlgorithms || [],
+        aiFollowupEngine: metrics.aiFollowupEngine || null,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 17. POST /api/ai/evolution/followup-scan (Trigger algorithmic AI follow-up scan)
+router.post('/followup-scan', async (req, res) => {
+  try {
+    const aiFollowupCron = require('../../../services/aiFollowupCron');
+    const result = await aiFollowupCron.runFollowupScan({
+      ignoreBusinessHours: Boolean(req.body?.force),
+      maxBatch: Math.min(Math.max(Number(req.body?.maxBatch) || 3, 1), 10),
+    });
+    res.json({ success: Boolean(result.ok), data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
 

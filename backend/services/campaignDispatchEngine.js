@@ -248,7 +248,10 @@ function normalizeCampaignMessage(rawMessage) {
   };
 }
 
-function selectMessageForContact(state, _contact) {
+function selectMessageForContact(state, contact) {
+  if (contact && typeof contact === 'object' && contact.customMessage) {
+    return normalizeCampaignMessage(contact.customMessage);
+  }
   if (!state.messages.length) return null;
   const idx = Math.max(0, state.currentIndex - 1) % state.messages.length;
   return normalizeCampaignMessage(state.messages[idx]);
@@ -538,6 +541,10 @@ async function dispatchSingleMessage(state, contact, io) {
         const currentTags = Array.isArray(conversation.tags) ? [...conversation.tags] : [];
         if (!currentTags.includes('robo_ativo')) currentTags.push('robo_ativo');
         if (!currentTags.includes('recuperacao')) currentTags.push('recuperacao');
+        if (!currentTags.includes('followup_ia_ativo')) currentTags.push('followup_ia_ativo');
+        if (contact?.algorithmCode && !currentTags.includes(String(contact.algorithmCode).toLowerCase())) {
+          currentTags.push(String(contact.algorithmCode).toLowerCase());
+        }
 
         const nowIso = new Date().toISOString();
         await conversationRepository.updateConversationState(conversation.id, {

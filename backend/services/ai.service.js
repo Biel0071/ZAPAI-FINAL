@@ -232,6 +232,21 @@ function compileSystemPrompt(agent, store, contact = null) {
     if (contact.leadAnalysis?.lead_temperature) compiled += `- Temperatura do lead: ${contact.leadAnalysis.lead_temperature}\n`;
     if (contact.salesStrategy?.goal) compiled += `- Objetivo comercial desta resposta: ${contact.salesStrategy.goal}\n`;
     compiled += `\n`;
+
+    const leadAlgo = contact.leadAlgorithm || contact.leadAnalysis?.leadAlgorithm || null;
+    if (leadAlgo) {
+      compiled += `[ALGORITMO DO LEAD & ESTILO DE CONVERSA PADRÃO DA LOJA]\n`;
+      compiled += `- Algoritmo de Evolução Ativo: ${leadAlgo.algorithmCode || 'ALGO'} — ${leadAlgo.algorithmName}\n`;
+      compiled += `- Estilo de Conversa do Lead: ${leadAlgo.styleLabel} (${leadAlgo.conversationStyle})\n`;
+      compiled += `- Produto Principal Identificado: ${leadAlgo.primaryProductLabel}\n`;
+      if (leadAlgo.preferredPayment && leadAlgo.preferredPayment !== 'indefinido') {
+        compiled += `- Preferência de Pagamento Detectada: ${leadAlgo.preferredPayment}\n`;
+      }
+      compiled += `- Regra Padrão da Loja: ${leadAlgo.storeStandardRule}\n`;
+      compiled += `- Diretriz Algorítmica para este Lead: ${leadAlgo.directive}\n`;
+      compiled += `- Status de Compra: ${leadAlgo.hasPurchased ? 'CLIENTE JÁ COMPROU / AGENDOU ENTREGA (Foco 100% Pós-Venda, proibido reativação comercial)' : 'Oportunidade em Aberto (Conduzir fechamento consultivo no padrão da loja)'}\n`;
+      compiled += `\n`;
+    }
   }
 
   // 4. CONTEXTO DA EMPRESA
@@ -866,6 +881,13 @@ async function processAI({ contact, history, message, store, agentName, companyI
     }
   }
 
+  if (contact && !contact.leadAlgorithm && !contact.leadAnalysis?.leadAlgorithm) {
+    try {
+      const { buildLeadAlgorithm } = require('./leadAnalyzer');
+      contact.leadAlgorithm = buildLeadAlgorithm(message, history, contact);
+    } catch (_algoErr) {}
+  }
+
   const graphPromptToAdd = (evoPrompt.includes('MEMÓRIA EVOLUTIVA EM GRAFO') || evoPrompt.includes('PERFIL DO CLIENTE EM GRAFO')) ? '' : graphMemory.prompt;
   const officialKnowledge = memorySessionId ? await aiAgentService.sessionKnowledge(resolvedCompanyId, memorySessionId) : '';
   const systemPrompt = `${officialKnowledge}${compileSystemPrompt(resolvedAgent, {aiConfig:{memorySettings:{enabled:true}}}, {...contact,memoryContext:null})}${graphPromptToAdd}${evoPrompt}\n${require("../src/ai/evolutionary/historyLearning").GUARDRAILS}`;
@@ -1425,4 +1447,4 @@ async function analyzeHistoryText({ companyId, prompt, message, history = [] }) 
   return result.response;
 }
 
-module.exports = { processAI, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache, refineAgentPrompt, transcribeAudio, describeImage, analyzeHistoryText, resolveHistoryMediaPath };
+module.exports = { processAI, compileSystemPrompt, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache, refineAgentPrompt, transcribeAudio, describeImage, analyzeHistoryText, resolveHistoryMediaPath };

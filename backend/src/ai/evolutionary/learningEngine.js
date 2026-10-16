@@ -164,6 +164,43 @@ class LearningEngine {
 
       const responseContinuityRate = totalExp > 0 ? Math.round((repliedExp / totalExp) * 100) : null;
 
+      let storeEvolutionAlgorithms = [];
+      let aiFollowupEngine = null;
+      try {
+        const { STORE_EVOLUTION_ALGORITHMS } = require('../../../services/leadAnalyzer');
+        const { getFollowupCronStatus } = require('../../../services/aiFollowupCron');
+        const algoStats = await this.pool.query(
+          `SELECT
+             count(*) FILTER (WHERE funnel_stage IN ('ready_to_buy', 'negotiation') OR lead_intent = 'purchase_intent') AS fast_pix,
+             count(*) FILTER (WHERE funnel_stage IN ('price_sent', 'interested') OR lead_intent IN ('price_request', 'question')) AS consultive,
+             count(*) FILTER (WHERE lead_intent = 'objection' OR 'desconto' = ANY(COALESCE(tags, '{}'))) AS objection,
+             count(*) FILTER (WHERE status = 'open' AND COALESCE(funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte')) AS reactivation,
+             count(*) FILTER (WHERE funnel_stage IN ('closed', 'fechamento', 'agendado', 'suporte') OR lead_intent IN ('payment_confirmed', 'delivery_issue')) AS post_sale,
+             count(*) FILTER (WHERE ai_enabled = TRUE AND status = 'open') AS ai_active_leads,
+             count(*) FILTER (WHERE 'campanha_50_leads_ia' = ANY(COALESCE(tags, '{}')) OR 'followup_ia_ativo' = ANY(COALESCE(tags, '{}'))) AS followup_monitored_leads
+           FROM conversations
+           WHERE company_id = $1`,
+          [cleanCompany]
+        );
+        const row = algoStats.rows[0] || {};
+        const countMap = {
+          ALGO_CONVERSAO_RAPIDA_PIX: parseInt(row.fast_pix || '0', 10),
+          ALGO_CONSULTIVO_TECNICO: parseInt(row.consultive || '0', 10),
+          ALGO_QUEBRA_OBJECAO_VALOR: parseInt(row.objection || '0', 10),
+          ALGO_REATIVACAO_RESPOSTA_RAPIDA: parseInt(row.reactivation || '0', 10),
+          ALGO_POS_VENDA_PROTEGIDO: parseInt(row.post_sale || '0', 10),
+        };
+        storeEvolutionAlgorithms = Object.values(STORE_EVOLUTION_ALGORITHMS).map((algo) => ({
+          ...algo,
+          activeLeadsCount: countMap[algo.id] || 0,
+        }));
+        aiFollowupEngine = {
+          ...getFollowupCronStatus(),
+          aiActiveLeads: parseInt(row.ai_active_leads || '0', 10),
+          followupMonitoredLeads: parseInt(row.followup_monitored_leads || '0', 10),
+        };
+      } catch (_algoErr) {}
+
       return {
         officialKnowledgeCount: parseInt(knowCount.rows[0]?.count || '0', 10),
         activePlaybooks,
@@ -172,7 +209,9 @@ class LearningEngine {
         humanCorrections: correctionsExp,
         pendingSuggestions: parseInt(suggCount.rows[0]?.count || '0', 10),
         responseContinuityRate,
-        learningRateStatus: totalExp > 0 ? 'Ativo e Aprendendo' : 'Sem dados'
+        learningRateStatus: totalExp > 0 ? 'Ativo e Aprendendo' : 'Sem dados',
+        storeEvolutionAlgorithms,
+        aiFollowupEngine,
       };
     } catch (err) {
       console.error('[LearningEngine] getEvolutionMetrics error:', err.message);

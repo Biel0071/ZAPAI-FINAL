@@ -238,6 +238,9 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
   const [learnedPatterns, setLearnedPatterns] = useState<LearnedPattern[]>([]);
   const [candidateSuggestions, setCandidateSuggestions] = useState<any[]>([]);
   const [processingSuggestionId, setProcessingSuggestionId] = useState<number | null>(null);
+  const [storeAlgorithms, setStoreAlgorithms] = useState<any[]>([]);
+  const [followupEngineStatus, setFollowupEngineStatus] = useState<any | null>(null);
+  const [isRunningFollowupScan, setIsRunningFollowupScan] = useState(false);
 
   // Load agent data with Zero Mock real backend endpoints
   const loadAgentData = useCallback(async (agentKey: string) => {
@@ -251,13 +254,16 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
     setLearnedPatterns([]);
     setCandidateSuggestions([]);
     setLearningEvents([]);
+    setStoreAlgorithms([]);
+    setFollowupEngineStatus(null);
     try {
-      const [evoRes, learnRes, patternsRes, levelRes, suggestionsRes] = await Promise.all([
+      const [evoRes, learnRes, patternsRes, levelRes, suggestionsRes, algoRes] = await Promise.all([
         apiService.getAgentEvolution(agentKey),
         apiService.getAgentLearning(agentKey),
         apiService.getLearnedPatterns(),
         requestApiEndpoint<any>(`/api/ai/evolution/agent-level?agentKey=${encodeURIComponent(agentKey)}`),
         requestApiEndpoint<any>("/api/ai/evolution/suggestions"),
+        requestApiEndpoint<any>("/api/ai/evolution/lead-algorithms").catch(() => null),
       ]);
       if (requestId !== loadRequestId.current) return;
       if ([evoRes, learnRes, patternsRes, levelRes, suggestionsRes].some((response) => response?.success === false)) {
@@ -273,7 +279,16 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
 
       const levelData = levelRes?.data || levelRes;
       const hasLevelData = Boolean(levelData && typeof levelData === "object" && Object.keys(levelData).some((key) => key !== "success"));
-      setHasEvolutionData(Boolean(evoRes?.evolution || hasLevelData));
+      const algoPayload = algoRes?.data || algoRes;
+      const algoList = Array.isArray(algoPayload?.storeEvolutionAlgorithms) ? algoPayload.storeEvolutionAlgorithms : [];
+      if (algoList.length > 0) {
+        setStoreAlgorithms(algoList);
+      }
+      if (algoPayload?.aiFollowupEngine) {
+        setFollowupEngineStatus(algoPayload.aiFollowupEngine);
+      }
+
+      setHasEvolutionData(Boolean(evoRes?.evolution || hasLevelData || algoList.length > 0));
       if (hasLevelData) {
         setHumanStats((prev) => ({
           ...prev,
@@ -1520,6 +1535,89 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
           </CardContent>
         </Card>
       </div>
+
+      {/* SECTION 2: ALGORITMOS DE EVOLUÇÃO DA LOJA (PADRÃO DA LOJA + ESTILO POR LEAD) & FOLLOW-UP IA */}
+      {storeAlgorithms.length > 0 && (
+        <Card className="bg-card border-border/80 shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/40">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
+                  <Network className="h-4 w-4 text-emerald-400" />
+                  Algoritmos de Evolução da Loja (Padrão da Loja + Estilo de Conversa por Lead)
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  A atendente mantém o padrão oficial da loja enquanto adapta automaticamente o estilo de conversa e o follow-up para cada perfil de lead.
+                </CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {followupEngineStatus && (
+                  <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 text-[10px] font-bold">
+                    Follow-up IA Automático: {followupEngineStatus.active ? "ATIVO" : "PRONTO"} • {followupEngineStatus.followupMonitoredLeads ?? 0} monitorados
+                  </Badge>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isRunningFollowupScan}
+                  onClick={async () => {
+                    setIsRunningFollowupScan(true);
+                    try {
+                      const res = await requestApiEndpoint<any>("/api/ai/evolution/followup-scan", "POST", { force: true, maxBatch: 3 });
+                      const d = res?.data || res;
+                      toast({
+                        title: "Varredura de Follow-up IA Executada",
+                        description: `Avaliados: ${d?.evaluated ?? 0} leads • Disparados: ${d?.dispatched ?? 0} • Protegidos (já compraram): ${d?.skippedPurchased ?? 0}`,
+                      });
+                      void loadAgentData(selectedAgentKey);
+                    } catch (err: any) {
+                      toast({
+                        title: "Erro ao rodar varredura",
+                        description: err?.message || "Não foi possível acionar o follow-up agora.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsRunningFollowupScan(false);
+                    }
+                  }}
+                  className="h-8 text-xs border-emerald-500/40 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20"
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", isRunningFollowupScan && "animate-spin")} />
+                  {isRunningFollowupScan ? "Verificando Leads..." : "Verificar Follow-up IA"}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {storeAlgorithms.map((algo: any) => (
+                <div
+                  key={algo.id}
+                  className="p-3.5 rounded-xl border border-border/70 bg-muted/5 hover:border-emerald-500/40 transition-all flex flex-col justify-between gap-2.5"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant="outline" className="text-[10px] font-mono font-bold border-purple-500/40 text-purple-300 bg-purple-500/10">
+                        {algo.code}
+                      </Badge>
+                      <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 text-[10px] font-bold">
+                        {algo.activeLeadsCount ?? 0} leads
+                      </Badge>
+                    </div>
+                    <h4 className="text-xs font-bold text-foreground leading-snug">{algo.name}</h4>
+                    <p className="text-[11px] text-purple-300 font-medium">{algo.styleLabel}</p>
+                    <p className="text-[11px] text-muted-foreground line-clamp-2">{algo.storeStandardRule}</p>
+                  </div>
+                  <div className="pt-2 border-t border-border/40 text-[10px] text-foreground/80 line-clamp-2">
+                    <strong className="text-emerald-400">Diretriz IA:</strong> {algo.directive}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       </>
           ) : (
             <Card className="p-5 text-sm text-muted-foreground">{isLoading ? "Carregando evolução..." : "Sem dados de evolução disponíveis para este agente."}</Card>

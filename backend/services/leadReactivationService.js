@@ -90,17 +90,20 @@ function classifyAction(conv) {
 }
 
 /**
- * Analyze all leads and return reactivation recommendations.
+ * Analyze all leads and return reactivation recommendations with Lead Algorithm profiling.
  */
 async function analyzeLeadsForReactivation(companyId = 'default') {
+  const { buildLeadAlgorithm } = require('./leadAnalyzer');
   const result = await query(
     `SELECT c.id, c.lead_temperature, c.funnel_stage, c.tags, c.ai_enabled,
             c.agent_name, c.status, c.updated_at, c.summary, c.lead_intent,
+            c.last_message, c.remote_jid, c.session_id,
             l.name, l.phone
      FROM conversations c
      LEFT JOIN leads l ON l.id = c.lead_id
      WHERE c.company_id = $1
        AND c.status = 'open'
+       AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte')
        AND c.updated_at < NOW() - INTERVAL '4 hours'
      ORDER BY c.updated_at DESC
      LIMIT $2`,
@@ -113,6 +116,15 @@ async function analyzeLeadsForReactivation(companyId = 'default') {
   let coldCount = 0;
 
   for (const conv of result.rows) {
+    const leadAlgorithm = buildLeadAlgorithm(conv.last_message || '', [], {
+      ...conv,
+      name: conv.name || conv.phone || conv.remote_jid,
+    });
+
+    if (leadAlgorithm.hasPurchased) {
+      continue;
+    }
+
     const analysis = classifyAction(conv);
     if (analysis.action === 'no_action') continue;
 
@@ -122,13 +134,15 @@ async function analyzeLeadsForReactivation(companyId = 'default') {
 
     recommendations.push({
       conversationId: conv.id,
-      phone: conv.phone,
-      name: conv.name || conv.phone,
+      phone: conv.phone || conv.remote_jid,
+      name: conv.name || conv.phone || conv.remote_jid,
       temperature: conv.lead_temperature,
       funnelStage: conv.funnel_stage,
       lastActivity: conv.updated_at,
       aiEnabled: conv.ai_enabled !== false,
       ...analysis,
+      suggestedMessage: leadAlgorithm.followupHook || analysis.suggestedMessage,
+      leadAlgorithm,
     });
   }
 
@@ -154,6 +168,7 @@ async function analyzeLeadsForReactivation(companyId = 'default') {
  * @param {Array<{conversationId, action, message?}>} actions
  */
 async function executeReactivations(actions, companyId = 'default') {
+  const { executeAlgorithmicFollowupForLead } = require('./aiFollowupEngine');
   const results = [];
 
   for (const item of actions) {
@@ -170,12 +185,17 @@ async function executeReactivations(actions, companyId = 'default') {
       }
 
       if (item.action === 'send_followup') {
-        // Enable AI and let the automation engine handle the next interaction
-        await query(
-          `UPDATE conversations SET ai_enabled = true WHERE id = $1 AND company_id = $2`,
-          [item.conversationId, companyId]
-        );
-        results.push({ conversationId: item.conversationId, action: 'send_followup', success: true });
+        const followupRes = await executeAlgorithmicFollowupForLead({
+          conversationId: item.conversationId,
+          companyId,
+        });
+        results.push({
+          conversationId: item.conversationId,
+          action: 'send_followup',
+          success: Boolean(followupRes.ok),
+          skipped: Boolean(followupRes.skipped),
+          leadAlgorithm: followupRes.leadAlgorithm || null,
+        });
       }
 
       if (item.action === 'mark_cold') {

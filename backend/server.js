@@ -67,6 +67,7 @@ const websocketGateway = require('./services/websocketGateway');
 const campaignDispatchEngine = require('./services/campaignDispatchEngine');
 const campaignScheduler = require('./services/campaignScheduler');
 const agentEvolutionCron = require('./services/agentEvolutionCron');
+const aiFollowupCron = require('./services/aiFollowupCron');
 const envValidator = require('./services/envValidator');
 const sessionWatchdog = require('./services/sessionWatchdog');
 const { createHealthService } = require('./services/healthService');
@@ -1984,9 +1985,10 @@ async function bootstrap() {
       }, 15 * 60 * 1000); // every 15 minutes
       workerSupervisor.startWorker('human_attendance_learner');
 
-      // Phase 9: Campaign Scheduler and AI Evolution
+      // Phase 9: Campaign Scheduler, AI Evolution, and Algorithmic AI Follow-Up
       campaignScheduler.startCampaignScheduler(io);
       agentEvolutionCron.startEvolutionScan();
+      aiFollowupCron.startCron();
 
       // Signal PM2 that the process is fully ready (wait_ready: true)
       // This tells PM2 it can safely route traffic and manage restarts

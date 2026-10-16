@@ -326,10 +326,11 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   const leadHistory = crmContext.leadHistory || [];
   const funnelStage = crmContext.funnelStage || 'new_lead';
   const leadAnalysis = crmContext.analysis || {};
+  const leadAlgorithm = crmContext.leadAlgorithm || leadAnalysis.leadAlgorithm || null;
   const tags = crmContext.tags || [];
-  const salesStrategy = { goal: 'Fechar venda e sanar dúvidas' }; // Fallback since generateSalesStrategy was removed from this scope, could be added to context.
+  const salesStrategy = generateSalesStrategy(leadAnalysis);
 
-  console.log(`[AutomationEngine] Calling AI Engine for conversation ${conversationId}`);
+  console.log(`[AutomationEngine] Calling AI Engine for conversation ${conversationId} (algo=${leadAlgorithm?.algorithmId || 'default'}, style=${leadAlgorithm?.conversationStyle || 'default'})`);
   publishProgress('generating', {
     agentName: matchedAgent.name,
     estimatedMs: estimatedGenerationMs + plannedResponseDelayMs + plannedTypingDelayMs,
@@ -346,6 +347,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
         funnelStage: crmContext.funnelStage || funnelStage,
         nextAction: leadAnalysis.next_action,
         leadAnalysis,
+        leadAlgorithm,
         salesStrategy,
         tags: crmContext.tags || conversation?.tags || [],
         notes: crmContext.notes || conversation?.notes || '',
