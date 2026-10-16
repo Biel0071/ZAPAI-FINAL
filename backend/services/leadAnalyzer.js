@@ -45,11 +45,11 @@ function countMatches(text, patterns) {
 function getHistorySignals(conversationHistory = []) {
   return conversationHistory.reduce(
     (accumulator, message) => {
-      if (message?.from !== 'client') {
+      if (!isClientMessage(message)) {
         return accumulator;
       }
 
-      const content = normalizeText(message.text);
+      const content = normalizeText(message?.text || message?.content || '');
 
       accumulator.priceRequests += countMatches(content, PRICE_REQUEST_PATTERNS);
       accumulator.purchaseIntents += countMatches(content, PURCHASE_INTENT_PATTERNS);
@@ -278,6 +278,14 @@ function detectPreferredPayment(rawText = '') {
   return 'indefinido';
 }
 
+function isClientMessage(m) {
+  if (!m || typeof m !== 'object') return true;
+  if (m.fromMe === true || m.from_me === true) return false;
+  const sender = String(m.sender || m.from || m.role || '').toLowerCase();
+  if (['agent', 'bot', 'system', 'assistant', 'operator'].includes(sender)) return false;
+  return true;
+}
+
 function detectPurchaseStatus(message = '', conversationHistory = [], conversationMeta = {}) {
   const funnel = normalizeText(conversationMeta?.funnel_stage || conversationMeta?.funnelStage || '');
   const orderStatus = normalizeText(conversationMeta?.orderStatus || conversationMeta?.order_status || '');
@@ -295,20 +303,20 @@ function detectPurchaseStatus(message = '', conversationHistory = [], conversati
     return { hasPurchased: true, reason: 'tag_purchased' };
   }
 
-  const combinedClientText = normalizeText(
+  const allHistoryText = normalizeText(
     [
       ...(Array.isArray(conversationHistory)
-        ? conversationHistory
-            .filter((m) => !m?.from || m.from === 'client' || m.from === 'contact' || m.role === 'user')
-            .map((m) => m?.text || m?.content || '')
+        ? conversationHistory.map((m) => m?.text || m?.content || '')
         : []),
       message,
     ].join(' ')
   );
 
   if (
-    includesPattern(combinedClientText, PAYMENT_CONFIRMED_PATTERNS) ||
-    includesPattern(combinedClientText, SCHEDULED_PATTERNS)
+    includesPattern(allHistoryText, PAYMENT_CONFIRMED_PATTERNS) ||
+    includesPattern(allHistoryText, SCHEDULED_PATTERNS) ||
+    /\b(liberar o rastreio|codigo de rastreio|pedido agendado|entrega agendada|nota fiscal emitida|ja comprei|comprei ja)\b/.test(allHistoryText) ||
+    /\b\d{3}[./-]\d{3}[./-]\d{3}[./-]\d{2}\b/.test(allHistoryText)
   ) {
     return { hasPurchased: true, reason: 'message_payment_or_schedule_confirmed' };
   }
@@ -320,7 +328,7 @@ function detectConversationStyle(message = '', conversationHistory = []) {
   const clientMessages = [
     ...(Array.isArray(conversationHistory)
       ? conversationHistory
-          .filter((m) => !m?.from || m.from === 'client' || m.from === 'contact' || m.role === 'user')
+          .filter(isClientMessage)
           .map((m) => String(m?.text || m?.content || '').trim())
       : []),
     String(message || '').trim(),
@@ -349,14 +357,21 @@ function detectConversationStyle(message = '', conversationHistory = []) {
 
 function buildLeadAlgorithm(message = '', conversationHistory = [], conversationMeta = {}) {
   const baseAnalysis = analyzeLeadIntent(message, conversationHistory);
-  const allTexts = [
-    ...(Array.isArray(conversationHistory) ? conversationHistory.map((m) => m?.text || m?.content || '') : []),
+  const clientOnlyTexts = [
+    ...(Array.isArray(conversationHistory)
+      ? conversationHistory.filter(isClientMessage).map((m) => m?.text || m?.content || '')
+      : []),
     String(message || ''),
+  ].join(' ');
+  const allTexts = [
+    clientOnlyTexts,
+    ...(Array.isArray(conversationHistory) ? conversationHistory.map((m) => m?.text || m?.content || '') : []),
     String(conversationMeta?.last_message || conversationMeta?.lastMessage || ''),
     String(conversationMeta?.summary || ''),
   ].join(' ');
 
-  const detectedProducts = detectProductsFromText(allTexts);
+  const clientProducts = detectProductsFromText(clientOnlyTexts);
+  const detectedProducts = clientProducts.length > 0 ? clientProducts : detectProductsFromText(allTexts);
   const primaryProductObj = detectedProducts[0] || {
     key: 'geral',
     label: 'Churrasqueiras & Materiais de Construção',
