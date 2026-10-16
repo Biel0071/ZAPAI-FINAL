@@ -93,8 +93,11 @@ describe('Páginas com dados de produção', () => {
     await act(async () => (state.props.onRefresh as () => void)());
     expect(apiService.listSessions).toHaveBeenCalledTimes(2);
   });
-  it('abre a implementação canônica do assistente somente sob demanda', async () => {
+  it('permanece desativado por padrão e abre a implementação canônica do assistente sob demanda quando ativado', async () => {
     await render(<ZaibotFloatingAssistant />, '/dashboard');
+    expect(document.querySelector('[aria-label="Abrir Assistente ZAI"]')).toBeNull();
+
+    await render(<ZaibotFloatingAssistant forceEnabled />, '/dashboard');
     expect(document.body.textContent).not.toContain('Copiloto canônico');
     await act(async () => (document.querySelector('[aria-label="Abrir Assistente ZAI"]') as HTMLButtonElement).click());
     expect(document.body.textContent).toContain('Copiloto canônico');

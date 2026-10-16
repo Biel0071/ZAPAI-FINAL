@@ -422,5 +422,74 @@ router.post('/followup-scan', async (req, res) => {
   }
 });
 
-module.exports = router;
+// 18. GET & PUT /api/ai/evolution/zai-assistant-config (ZAI System Assistant Config: disabled by default, personality, mascot model)
+const DEFAULT_ZAI_ASSISTANT_CONFIG = {
+  enabled: false,
+  role: 'system_assistant_only',
+  name: 'Assistente ZAI (ZAIBOT)',
+  mascotModel: 'zaibot_avatar',
+  mascotAvatarUrl: '/assets/mascot/zaibot_avatar.png',
+  personality: {
+    tone: 'executivo_direto',
+    objectivity: 85,
+    proactivity: 70,
+    formality: 65,
+    greetingMessage:
+      'Olá! Sou o ZAIBOT, seu assistente interno do sistema ZAI. Posso consultar métricas, conexões, fila e atendentes da loja. Como posso ajudar agora?',
+  },
+};
 
+router.get('/zai-assistant-config', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const key = `zai_system_assistant_config:${companyId}`;
+    const result = await pool.query('SELECT value FROM system_settings WHERE key = $1 LIMIT 1', [key]);
+    let saved = null;
+    if (result.rows[0]?.value) {
+      saved = typeof result.rows[0].value === 'string' ? JSON.parse(result.rows[0].value) : result.rows[0].value;
+    }
+    const merged = {
+      ...DEFAULT_ZAI_ASSISTANT_CONFIG,
+      ...(saved || {}),
+      personality: {
+        ...DEFAULT_ZAI_ASSISTANT_CONFIG.personality,
+        ...(saved?.personality || {}),
+      },
+    };
+    res.json({ success: true, data: merged });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/zai-assistant-config', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const key = `zai_system_assistant_config:${companyId}`;
+    const incoming = req.body || {};
+    const merged = {
+      ...DEFAULT_ZAI_ASSISTANT_CONFIG,
+      ...incoming,
+      enabled: Boolean(incoming.enabled),
+      role: 'system_assistant_only',
+      personality: {
+        ...DEFAULT_ZAI_ASSISTANT_CONFIG.personality,
+        ...(incoming.personality || {}),
+      },
+      updatedAt: new Date().toISOString(),
+    };
+
+    await pool.query(
+      `INSERT INTO system_settings (key, value, updated_at)
+       VALUES ($1, $2::jsonb, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [key, JSON.stringify(merged)]
+    );
+
+    res.json({ success: true, data: merged });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+module.exports = router;

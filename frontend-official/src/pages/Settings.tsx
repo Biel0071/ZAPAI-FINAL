@@ -39,6 +39,14 @@ import { UnderConstruction } from "@/components/layout/UnderConstruction";
 import { useTheme } from "next-themes";
 import { cn } from "@/core/lib/utils";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import {
+  fetchZaiAssistantConfigFromApi,
+  getZaiAssistantConfig,
+  saveZaiAssistantConfigToApi,
+  ZAI_MASCOT_MODELS,
+  ZAI_PERSONALITY_TONES,
+  type ZaiAssistantConfig,
+} from "@/core/services/zaiAssistantConfigService";
 
 // Lazy load admin pages
 const QueuePage = React.lazy(() => import("./Queue"));
@@ -171,6 +179,301 @@ export default function Settings() {
     }
   };
 
+  // ZAI System Assistant Configuration State (disabled by default at the moment)
+  const [zaiConfig, setZaiConfig] = useState<ZaiAssistantConfig>(() => getZaiAssistantConfig());
+  const [isSavingZaiConfig, setIsSavingZaiConfig] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void fetchZaiAssistantConfigFromApi().then((cfg) => {
+      if (mounted) setZaiConfig(cfg);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleToggleZaiAssistant = async (checked: boolean) => {
+    const updated = await saveZaiAssistantConfigToApi({ ...zaiConfig, enabled: checked });
+    setZaiConfig(updated);
+    notify.success(
+      checked
+        ? "Assistente ZAI (Sistema) ativado no painel."
+        : "Assistente ZAI (Sistema) desativado no momento."
+    );
+  };
+
+  const handleSelectMascotModel = (modelId: string) => {
+    const model = ZAI_MASCOT_MODELS.find((m) => m.id === modelId) || ZAI_MASCOT_MODELS[0];
+    setZaiConfig((prev) => ({
+      ...prev,
+      mascotModel: model.id,
+      mascotAvatarUrl: model.avatarUrl,
+    }));
+  };
+
+  const handleSaveZaiConfig = async () => {
+    if (isSavingZaiConfig) return;
+    setIsSavingZaiConfig(true);
+    try {
+      const saved = await saveZaiAssistantConfigToApi(zaiConfig);
+      setZaiConfig(saved);
+      notify.success("Configurações do Assistente ZAI (Sistema) salvas com sucesso.");
+    } catch {
+      notify.error("Erro ao salvar configurações do Assistente ZAI.");
+    } finally {
+      setIsSavingZaiConfig(false);
+    }
+  };
+
+  const renderZaiSystemAssistantCard = () => (
+    <Card className="glass-card border-emerald-500/25" data-testid="zai-system-assistant-settings-card">
+      <CardHeader className="pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="relative h-12 w-12 shrink-0 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-1 overflow-hidden">
+              <img
+                src={zaiConfig.mascotAvatarUrl || "/assets/mascot/zaibot_avatar.png"}
+                alt="Mascote ZAI"
+                className="h-full w-full rounded-xl object-cover"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <CardTitle className="font-display text-base">
+                  Assistente ZAI (Apenas Assistente do Sistema)
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] font-bold",
+                    zaiConfig.enabled
+                      ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-400"
+                      : "border-amber-500/40 bg-amber-500/15 text-amber-300"
+                  )}
+                >
+                  {zaiConfig.enabled ? "ATIVO NO SISTEMA" : "DESATIVADO NO MOMENTO"}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                O ZAI atua exclusivamente como copiloto interno do sistema. O atendimento de clientes da loja no WhatsApp é feito pela atendente <strong>Camila</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 rounded-xl border border-border/70 bg-background/60 px-3.5 py-2 shrink-0">
+            <div className="text-right">
+              <p className="text-xs font-bold text-foreground">
+                {zaiConfig.enabled ? "Assistente Ativado" : "Assistente Desativado"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {zaiConfig.enabled ? "Botão flutuante visível" : "Oculto no painel"}
+              </p>
+            </div>
+            <Switch
+              data-testid="toggle-zai-system-assistant"
+              aria-label="Ativar Assistente ZAI do Sistema"
+              checked={Boolean(zaiConfig.enabled)}
+              onCheckedChange={(checked) => void handleToggleZaiAssistant(checked)}
+            />
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-5 pt-2">
+        {/* 1. Modelo de Mascote */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+              1. Modelo de Mascote ZAI
+            </Label>
+            <span className="text-[11px] text-muted-foreground">
+              Escolha o visual do assistente do sistema
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+            {ZAI_MASCOT_MODELS.map((model) => {
+              const selected = zaiConfig.mascotModel === model.id;
+              return (
+                <button
+                  key={model.id}
+                  type="button"
+                  data-testid={`select-mascot-${model.id}`}
+                  onClick={() => handleSelectMascotModel(model.id)}
+                  className={cn(
+                    "flex flex-col items-center text-center rounded-xl border p-3 transition-all",
+                    selected
+                      ? "border-emerald-500 bg-emerald-500/12 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                      : "border-border/70 bg-card/50 hover:border-emerald-500/40 hover:bg-card"
+                  )}
+                >
+                  <div className="h-14 w-14 rounded-xl border border-border/60 bg-background/80 p-1 overflow-hidden mb-2">
+                    <img
+                      src={model.avatarUrl}
+                      alt={model.name}
+                      className="h-full w-full object-cover rounded-lg"
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-foreground line-clamp-1">{model.name}</span>
+                  <span className="mt-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 text-[9px] font-semibold text-emerald-400">
+                    {model.badge}
+                  </span>
+                  <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">
+                    {model.description}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2. Ajustes de Personalidade */}
+        <div className="space-y-3 pt-3 border-t border-border/50">
+          <Label className="text-xs font-bold uppercase tracking-wider text-emerald-400 block">
+            2. Ajustes de Personalidade do Assistente ZAI
+          </Label>
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {ZAI_PERSONALITY_TONES.map((tone) => {
+              const selected = zaiConfig.personality.tone === tone.id;
+              return (
+                <button
+                  key={tone.id}
+                  type="button"
+                  data-testid={`select-zai-tone-${tone.id}`}
+                  onClick={() =>
+                    setZaiConfig((prev) => ({
+                      ...prev,
+                      personality: { ...prev.personality, tone: tone.id },
+                    }))
+                  }
+                  className={cn(
+                    "flex flex-col items-start text-left rounded-xl border p-3 transition-colors",
+                    selected
+                      ? "border-emerald-500 bg-emerald-500/12 text-foreground"
+                      : "border-border/70 bg-card/50 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-bold text-foreground">{tone.label}</span>
+                    {selected && (
+                      <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/15 text-[9px] text-emerald-400">
+                        Selecionado
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{tone.description}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 pt-2">
+            <div className="rounded-xl border border-border/60 bg-background/40 p-3 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-foreground">Objetividade</span>
+                <span className="font-mono font-bold text-emerald-400">{zaiConfig.personality.objectivity}%</span>
+              </div>
+              <input
+                type="range"
+                min={20}
+                max={100}
+                step={5}
+                aria-label="Objetividade do Assistente ZAI"
+                value={zaiConfig.personality.objectivity}
+                onChange={(e) =>
+                  setZaiConfig((prev) => ({
+                    ...prev,
+                    personality: { ...prev.personality, objectivity: Number(e.target.value) },
+                  }))
+                }
+                className="w-full accent-emerald-500 cursor-pointer"
+              />
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-background/40 p-3 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-foreground">Proatividade</span>
+                <span className="font-mono font-bold text-emerald-400">{zaiConfig.personality.proactivity}%</span>
+              </div>
+              <input
+                type="range"
+                min={20}
+                max={100}
+                step={5}
+                aria-label="Proatividade do Assistente ZAI"
+                value={zaiConfig.personality.proactivity}
+                onChange={(e) =>
+                  setZaiConfig((prev) => ({
+                    ...prev,
+                    personality: { ...prev.personality, proactivity: Number(e.target.value) },
+                  }))
+                }
+                className="w-full accent-emerald-500 cursor-pointer"
+              />
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-background/40 p-3 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-foreground">Formalidade</span>
+                <span className="font-mono font-bold text-emerald-400">{zaiConfig.personality.formality}%</span>
+              </div>
+              <input
+                type="range"
+                min={20}
+                max={100}
+                step={5}
+                aria-label="Formalidade do Assistente ZAI"
+                value={zaiConfig.personality.formality}
+                onChange={(e) =>
+                  setZaiConfig((prev) => ({
+                    ...prev,
+                    personality: { ...prev.personality, formality: Number(e.target.value) },
+                  }))
+                }
+                className="w-full accent-emerald-500 cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5 pt-1">
+            <Label htmlFor="zai-greeting-input" className="text-xs">
+              Mensagem de Saudação do Assistente do Sistema
+            </Label>
+            <Input
+              id="zai-greeting-input"
+              value={zaiConfig.personality.greetingMessage}
+              onChange={(e) =>
+                setZaiConfig((prev) => ({
+                  ...prev,
+                  personality: { ...prev.personality, greetingMessage: e.target.value },
+                }))
+              }
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+          <p className="text-[11px] text-muted-foreground">
+            Estado atual:{" "}
+            <strong className={zaiConfig.enabled ? "text-emerald-400" : "text-amber-300"}>
+              {zaiConfig.enabled ? "Ativado no sistema" : "Desativado no momento"}
+            </strong>
+          </p>
+          <Button
+            type="button"
+            data-testid="save-zai-assistant-config-btn"
+            onClick={() => void handleSaveZaiConfig()}
+            disabled={isSavingZaiConfig}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white"
+          >
+            {isSavingZaiConfig ? "Salvando..." : "Salvar Configuração do ZAI"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   const handleSaveProfile = async () => {
     if (isProfileSaving) return;
     setIsProfileSaving(true);
@@ -189,13 +492,14 @@ export default function Settings() {
   const iconMap: Record<number, any> = useMemo(() => ({
     0: User, 1: Buildings, 2: Users, 3: Bell, 4: Shield, 5: CreditCard,
     6: Palette, 7: Globe, 8: Key, 9: Link, 10: Database,
-    11: Queue, 12: HardDrives, 13: Shield, 14: TrendUp, 15: GitCommit, 16: FileText, 17: Flask, 18: Pulse
+    11: Queue, 12: HardDrives, 13: Shield, 14: TrendUp, 15: GitCommit, 16: FileText, 17: Flask, 18: Pulse,
+    19: Robot
   }), []);
 
   const navGroups = useMemo(() => [
     {
       title: "Geral",
-      indices: [0, 1, 2, 3, 4, 5],
+      indices: [0, 19, 1, 2, 3, 4, 5],
     },
     {
       title: "Preferências & Chaves",
@@ -375,8 +679,12 @@ export default function Settings() {
                       </Button>
                     </CardContent>
                   </Card>
+
+                  {renderZaiSystemAssistantCard()}
                 </>
               )}
+
+              {activeSection === 19 && renderZaiSystemAssistantCard()}
 
               {activeSection === 6 && (
                 <Card className="glass-card">
@@ -506,7 +814,7 @@ export default function Settings() {
                 </Card>
               )}
 
-              {![0, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18].includes(activeSection) && (
+              {![0, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18, 19].includes(activeSection) && (
                 <Card className="glass-card">
                   <UnderConstruction
                     title={settingsViewModel.sections[activeSection]?.label || "Módulo em Desenvolvimento"}

@@ -33,19 +33,39 @@ const SUGGESTIONS = [
   "Mostrar atendentes",
 ];
 
+import {
+  getZaiAssistantConfig,
+  ZAI_CONFIG_EVENT,
+  ZAI_PERSONALITY_TONES,
+  type ZaiAssistantConfig,
+} from "@/core/services/zaiAssistantConfigService";
+
 function normalize(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents, onNavigate }: ZaiPlatformAssistantViewProps) {
+  const [assistantConfig, setAssistantConfig] = useState<ZaiAssistantConfig>(() => getZaiAssistantConfig());
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const processing = useRef(false);
   const nextId = useRef(1);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const [messages, setMessages] = useState<CopilotMessage[]>([
-    { id: 0, sender: "zaibot", text: "Olá! Sou o ZAIBOT, seu copiloto da operação WhatsApp.\nPosso consultar atendentes, conexões, lojas, fila e uso de IA. Como posso ajudar agora?" },
+  const [messages, setMessages] = useState<CopilotMessage[]>(() => [
+    {
+      id: 0,
+      sender: "zaibot",
+      text:
+        getZaiAssistantConfig().personality?.greetingMessage ||
+        "Olá! Sou o ZAIBOT, seu copiloto da operação WhatsApp.\nPosso consultar atendentes, conexões, lojas, fila e uso de IA. Como posso ajudar agora?",
+    },
   ]);
+
+  useEffect(() => {
+    const onConfigChange = () => setAssistantConfig(getZaiAssistantConfig());
+    window.addEventListener(ZAI_CONFIG_EVENT, onConfigChange);
+    return () => window.removeEventListener(ZAI_CONFIG_EVENT, onConfigChange);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
@@ -161,6 +181,10 @@ export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents
     }
   };
 
+  const avatarSrc = assistantConfig.mascotAvatarUrl || "/assets/mascot/zaibot_avatar.png";
+  const toneLabel =
+    ZAI_PERSONALITY_TONES.find((t) => t.id === assistantConfig.personality?.tone)?.label || "Executivo & Direto";
+
   return (
     <div className="space-y-4 min-w-0 max-w-full overflow-hidden">
       {/* Header Card: ZAIBOT Mascot Avatar, Name and Status */}
@@ -168,7 +192,7 @@ export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents
         <div className="flex items-center gap-3.5 min-w-0">
           <div className="relative shrink-0">
             <img
-              src="/assets/mascot/zaibot_avatar.png"
+              src={avatarSrc}
               alt="ZAIBOT"
               className="h-14 w-14 rounded-2xl border-2 border-emerald-500/50 object-cover bg-background shadow-[0_0_15px_rgba(16,185,129,0.3)]"
             />
@@ -178,10 +202,13 @@ export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents
             </span>
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-bold font-display text-foreground">ZAIBOT</h2>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                Copiloto ZAI
+                Assistente do Sistema
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted/60 border border-border/60 text-muted-foreground">
+                {toneLabel}
               </span>
             </div>
             <p className="text-xs text-muted-foreground">Atendentes, lojas e operação do sistema WhatsApp.</p>
@@ -216,7 +243,7 @@ export function ZaiPlatformAssistantView({ onOpenNewAgentWizard, onRefreshAgents
             <div key={message.id} className={cn("flex gap-2.5", message.sender === "user" && "justify-end")}>
               {message.sender === "zaibot" && (
                 <img
-                  src="/assets/mascot/zaibot_avatar.png"
+                  src={avatarSrc}
                   alt="ZAIBOT"
                   className="h-7 w-7 rounded-full border border-emerald-500/40 object-cover shrink-0 mt-0.5 shadow-xs"
                 />

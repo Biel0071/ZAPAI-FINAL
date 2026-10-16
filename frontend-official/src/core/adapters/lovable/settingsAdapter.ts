@@ -25,6 +25,7 @@ export function createSettingsLovableViewModel(): SettingsLovableViewModel {
       { id: "logs", label: "Logs" },
       { id: "tests", label: "Central de Testes" },
       { id: "diagnostics", label: "Diagnóstico & Saúde" },
+      { id: "assistente-zai", label: "Assistente ZAI (Sistema)" },
     ],
   };
 }
