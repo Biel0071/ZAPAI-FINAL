@@ -128,11 +128,43 @@ async function run() {
   const openModalBtn = page.locator('button:has-text("Estúdio Avançado")').first();
   if (await openModalBtn.isVisible()) {
     await openModalBtn.click();
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500);
     const dialog = page.locator('[role="dialog"]').first();
     if (await dialog.isVisible()) {
-      console.log('Capturing: VERIFY_03_STUDIO_MODAL_STANDING_CREATION.png');
-      await saveShot(dialog, 'VERIFY_03_STUDIO_MODAL_STANDING_CREATION.png');
+      // 5. Capture Female view in Avatar Studio
+      console.log('Capturing: VERIFY_05_AVATAR_STUDIO_FEMALE.png');
+      await saveShot(dialog, 'VERIFY_05_AVATAR_STUDIO_FEMALE.png');
+
+      // 6. Click "Masculino" card in Avatar Studio
+      console.log('Clicking "Masculino" card...');
+      const maleCardBtn = dialog.locator('button:has-text("Masculino")').first();
+      if (await maleCardBtn.isVisible()) {
+        await maleCardBtn.click();
+        await page.waitForTimeout(2000);
+        console.log('Capturing: VERIFY_06_AVATAR_STUDIO_MALE_SWITCH.png');
+        await saveShot(dialog, 'VERIFY_06_AVATAR_STUDIO_MALE_SWITCH.png');
+      }
+
+      // 7. Click "★ 3D Blender" toggle
+      console.log('Clicking "★ 3D Blender" mode...');
+      const blenderToggleBtn = dialog.locator('button[data-avatar-rendermode="3d"], button:has-text("3D Blender")').first();
+      if (await blenderToggleBtn.isVisible()) {
+        await blenderToggleBtn.click();
+        await page.waitForTimeout(2000);
+        console.log('Capturing: VERIFY_07_AVATAR_STUDIO_3D_BLENDER.png');
+        await saveShot(dialog, 'VERIFY_07_AVATAR_STUDIO_3D_BLENDER.png');
+      }
+
+      // 8. Test 3D movement button "Andar 3D" or "Acenar 3D"
+      console.log('Clicking "Acenar 3D" button...');
+      const waveBtn = dialog.locator('button[data-avatar-movement-btn="wave"], button:has-text("Acenar 3D")').first();
+      if (await waveBtn.isVisible()) {
+        await waveBtn.click();
+        await page.waitForTimeout(1500);
+        console.log('Capturing: VERIFY_08_AVATAR_STUDIO_3D_MOVEMENTS.png');
+        await saveShot(dialog, 'VERIFY_08_AVATAR_STUDIO_3D_MOVEMENTS.png');
+      }
+
       // Close modal
       const closeBtn = page.locator('button[aria-label="Close"], button:has-text("Cancelar"), [role="dialog"] button:has-text("✕")').first();
       if (await closeBtn.isVisible()) {
