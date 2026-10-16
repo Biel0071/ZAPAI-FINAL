@@ -290,8 +290,8 @@ export default function AttendantsPage() {
     return String(tokens);
   }
 
-  // Inline 5-category Avatar Studio state
-  const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories" | "style">("hair");
+  // Inline 4-category Avatar Studio state (Cabelo, Rosto, Roupa, Acessórios)
+  const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories">("hair");
   const [studioRotationY, setStudioRotationY] = useState<number>(0);
   const [studioMovement3D, setStudioMovement3D] = useState<"idle" | "walk" | "wave" | "spin360">("idle");
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
@@ -844,52 +844,89 @@ export default function AttendantsPage() {
               <span className="font-mono text-emerald-400 text-[9px]">{previewPresence?.label}</span>
             </div>
 
-            {/* Top-right Dual Gender Switcher (Feminino / Masculino) */}
-            <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
-              <button
-                type="button"
-                data-studio-gender="female"
-                onClick={() => {
-                  const updated = { ...resolvedInlineAvatar, body: "female" as const, base: "female" as const, catalogSpriteId: undefined };
-                  handleUpdateAvatar({
-                    body: "female",
-                    base: "female",
-                    hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, true),
-                    catalogSpriteId: resolveSpriteForAvatar(updated, true),
-                  });
-                }}
-                className={cn(
-                  "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
-                  inlineGender === "female"
-                    ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                title="Personagem Feminina"
-              >
-                ♀ Fem
-              </button>
-              <button
-                type="button"
-                data-studio-gender="male"
-                onClick={() => {
-                  const updated = { ...resolvedInlineAvatar, body: "male" as const, base: "male" as const, catalogSpriteId: undefined };
-                  handleUpdateAvatar({
-                    body: "male",
-                    base: "male",
-                    hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, false),
-                    catalogSpriteId: resolveSpriteForAvatar(updated, true),
-                  });
-                }}
-                className={cn(
-                  "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
-                  inlineGender === "male"
-                    ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                title="Personagem Masculino"
-              >
-                ♂ Masc
-              </button>
+            {/* Top-right Dual Controls: Render Mode (3D / Chibi) & Gender (Feminino / Masculino) */}
+            <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5">
+              <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
+                <button
+                  type="button"
+                  data-studio-rendermode="3d"
+                  onClick={() => {
+                    handleUpdateAvatar({ renderStyle: "3d_enterprise" });
+                  }}
+                  className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                    resolvedInlineAvatar.renderStyle === "3d_enterprise"
+                      ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="3D Enterprise Fotorrealista"
+                >
+                  ★ 3D Hi-End
+                </button>
+                <button
+                  type="button"
+                  data-studio-rendermode="chibi"
+                  onClick={() => {
+                    handleUpdateAvatar({ renderStyle: "chibi_25d" });
+                  }}
+                  className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                    resolvedInlineAvatar.renderStyle !== "3d_enterprise"
+                      ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Chibi 2.5D Modular"
+                >
+                  2.5D Chibi
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
+                <button
+                  type="button"
+                  data-studio-gender="female"
+                  onClick={() => {
+                    const updated = { ...resolvedInlineAvatar, body: "female" as const, base: "female" as const, catalogSpriteId: undefined };
+                    handleUpdateAvatar({
+                      body: "female",
+                      base: "female",
+                      hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, true),
+                      catalogSpriteId: resolveSpriteForAvatar(updated, true),
+                    });
+                  }}
+                  className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                    inlineGender === "female"
+                      ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Personagem Feminina"
+                >
+                  ♀ Fem
+                </button>
+                <button
+                  type="button"
+                  data-studio-gender="male"
+                  onClick={() => {
+                    const updated = { ...resolvedInlineAvatar, body: "male" as const, base: "male" as const, catalogSpriteId: undefined };
+                    handleUpdateAvatar({
+                      body: "male",
+                      base: "male",
+                      hairColor: resolveHairColorForHair(resolvedInlineAvatar.hair, resolvedInlineAvatar.hairColor, false),
+                      catalogSpriteId: resolveSpriteForAvatar(updated, true),
+                    });
+                  }}
+                  className={cn(
+                    "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
+                    inlineGender === "male"
+                      ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Personagem Masculino"
+                >
+                  ♂ Masc
+                </button>
+              </div>
             </div>
 
             {/* Centered Live Modular 3D/2.5D Character on Turntable */}
@@ -911,6 +948,7 @@ export default function AttendantsPage() {
                   rotationY: studioRotationY,
                   movement3D: studioMovement3D,
                 }}
+                renderStyle={resolvedInlineAvatar.renderStyle || "chibi_25d"}
                 state={previewPresence?.state || "IDLE"}
                 size="workspace"
                 rotationY={studioRotationY}
@@ -940,10 +978,10 @@ export default function AttendantsPage() {
                 {activeOutfitItem.title}
               </span>
               <span
-                title={activeStyleItem.title}
+                title={activeAccessoryItem || "Headset Pro"}
                 className="px-2 py-0.5 rounded-md bg-emerald-950/90 border border-emerald-500/50 text-[9px] text-emerald-300 font-mono font-bold truncate text-center"
               >
-                {activeStyleItem.title}
+                {activeAccessoryItem || "Headset Pro"}
               </span>
             </div>
           </div>
@@ -1001,9 +1039,9 @@ export default function AttendantsPage() {
                   ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold"
                   : "bg-card/80 border-border/60 text-muted-foreground hover:text-foreground"
               )}
-              title="Visão de Costas (180°)"
+              title="Visão Oposta (180°)"
             >
-              Costas 180°
+              Lado 180°
             </button>
             <button
               type="button"
@@ -1089,16 +1127,15 @@ export default function AttendantsPage() {
           </div>
         </div>
 
-        {/* Right: 5 Categories Selector + Items Grid (Col 7) */}
+        {/* Right: 4 Categories Selector + Items Grid (Col 7) */}
         <div className="lg:col-span-7 space-y-3">
-          {/* 5 Category Selector Buttons */}
-          <div className="grid grid-cols-5 gap-1.5 p-1 rounded-xl bg-muted/20 border border-border/60">
+          {/* 4 Category Selector Buttons (Cabelo, Rosto, Roupa, Acessórios) */}
+          <div className="grid grid-cols-4 gap-1.5 p-1 rounded-xl bg-muted/20 border border-border/60">
             {[
               { id: "hair" as const, label: "Cabelo", icon: Scissors },
               { id: "face" as const, label: "Rosto", icon: Smiley },
               { id: "outfit" as const, label: "Roupa", icon: TShirt },
               { id: "accessories" as const, label: "Acessórios", icon: Eyeglasses },
-              { id: "style" as const, label: "Estilo", icon: Sparkle },
             ].map((cat) => {
               const Icon = cat.icon;
               const isSelected = studioCategory === cat.id;
@@ -1355,60 +1392,6 @@ export default function AttendantsPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold truncate text-foreground">{a.title}</p>
                         <p className="text-[10px] text-muted-foreground truncate">{a.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {studioCategory === "style" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {AVATAR_STYLES.map((s) => {
-                  const isSelected = (previewAgent?.avatarConfig?.style || "style_vendas") === s.id;
-                  const resolvedStyleSprite = resolveItemSpriteForGender(s, inlineGender);
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      data-avatar-item={s.id}
-                      onClick={() => {
-                        const cfg = previewAgent?.avatarConfig || {};
-                        const next = {
-                          ...cfg,
-                          body: inlineGender,
-                          base: inlineGender,
-                          style: s.id,
-                          branding: {
-                            ...(cfg.branding || {}),
-                            primaryColor: s.primaryColor,
-                            secondaryColor: s.secondaryColor,
-                          },
-                        };
-                        handleUpdateAvatar({
-                          ...next,
-                          catalogSpriteId: resolveSpriteForAvatar(next, true),
-                        });
-                      }}
-                      className={cn(
-                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
-                        isSelected
-                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
-                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <AvatarItemPreview
-                        spriteRef={resolvedStyleSprite || inlineSpriteId}
-                        itemId={s.id}
-                        gender={inlineGender}
-                        focus="full"
-                        accentColor={s.primaryColor}
-                        selected={isSelected}
-                        size="sm"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate text-foreground">{s.title}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{s.description}</p>
                       </div>
                     </button>
                   );
@@ -2435,13 +2418,13 @@ export default function AttendantsPage() {
                               <span>Avatar Studio<span className="sr-only"> 2.5D</span></span>
                             </CardTitle>
                             <CardDescription className="text-[11px] text-muted-foreground truncate">
-                              Personalize cabelo, rosto, uniforme, acessórios e estilo do atendente.
+                              Personalize cabelo, rosto, uniforme e acessórios do atendente.
                             </CardDescription>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <Badge variant="outline" className="text-[10px] text-muted-foreground font-mono hidden sm:inline-flex">
-                            {activeStyleItem.title}
+                            {activeOutfitItem.title}
                           </Badge>
                           <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
                             {collapsedCards.avatarStudio ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
@@ -2779,6 +2762,7 @@ export default function AttendantsPage() {
                                           role: agent.role,
                                           gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
                                         })}
+                                        renderStyle={agent.avatarConfig?.renderStyle || "3d_enterprise"}
                                         state={isActive ? "WORKING" : "IDLE"}
                                         size="sm"
                                         showAura={false}

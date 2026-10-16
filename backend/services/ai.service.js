@@ -251,13 +251,19 @@ function compileSystemPrompt(agent, store, contact = null) {
 
   // 4. CONTEXTO DA EMPRESA
   compiled += `[CONTEXTO DA EMPRESA]\n`;
-  const companyName = agent?.company || 'Não informado';
-  const companyDesc = agent?.companyDescription || 'Use somente o conhecimento oficial vinculado a esta conexão.';
-  const policies = agent?.policies || '';
+  const companyName = agent?.company || store?.name || 'Não informado';
+  const companyDesc = agent?.companyDescription || store?.description || store?.companyDescription || 'Use somente o conhecimento oficial vinculado a esta conexão.';
+  const policies = agent?.policies || store?.policies || store?.deliveryPolicy || '';
   compiled += `- Nome da Empresa: ${companyName}\n`;
   compiled += `- Descrição da Empresa: ${companyDesc}\n`;
   if (policies) {
-    compiled += `- Políticas: ${policies}\n`;
+    compiled += `- Políticas da Loja: ${policies}\n`;
+  }
+  if (store?.address || store?.location) {
+    compiled += `- Endereço Oficial da Loja: ${store.address || store.location}\n`;
+  }
+  if (store?.phone || store?.contactPhone) {
+    compiled += `- Telefone / Contato Oficial: ${store.phone || store.contactPhone}\n`;
   }
   compiled += `\n`;
 
@@ -267,9 +273,17 @@ function compileSystemPrompt(agent, store, contact = null) {
   if (agent?.products) {
     compiled += `Produtos/Tabela de Preços:\n${agent.products}\n`;
     hasProductsOrServices = true;
+  } else if (store?.products || store?.catalog) {
+    const storeProducts = typeof store.products === 'string' ? store.products : JSON.stringify(store.products || store.catalog, null, 2);
+    compiled += `Produtos/Tabela de Preços da Loja:\n${storeProducts}\n`;
+    hasProductsOrServices = true;
   }
   if (agent?.services) {
     compiled += `Serviços:\n${agent.services}\n`;
+    hasProductsOrServices = true;
+  } else if (store?.services) {
+    const storeServices = typeof store.services === 'string' ? store.services : JSON.stringify(store.services, null, 2);
+    compiled += `Serviços da Loja:\n${storeServices}\n`;
     hasProductsOrServices = true;
   }
   if (!hasProductsOrServices) {
@@ -399,8 +413,14 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Nunca mencione que você é um robô ou inteligência artificial, a menos que seja estritamente necessário para realizar o transbordo humano.\n`;
   compiled += `- Se o cliente solicitar atendimento humano ou se a IA não souber responder sobre preços ou condições críticas que você não tem acesso, acione o transbordo imediatamente.\n`;
   compiled += `- Continue o atendimento do ponto atual; não reinicie com saudações repetidas se já existe histórico.\n`;
-  compiled += `- NÃO REPITA PERGUNTAS que o cliente já respondeu em texto ou áudio. Use as quantidades, produtos e preferências presentes no contexto.\n`;
-  compiled += `- Seja flexível e criativo nas respostas gerais, mas evite inventar preços específicos, prazos de entrega ou condições financeiras que não estejam configurados no seu contexto.\n`;
+  compiled += `- PROTOCOLO ESTRITO ANTI-ALUCINAÇÃO (ZERO INVENÇÃO DE PREÇOS, PRAZOS OU CONDIÇÕES):\n`;
+  compiled += `  * NUNCA INVENTE PREÇOS: Se o cliente perguntar o preço de um item, material ou serviço que NÃO está listado explicitamente na tabela de produtos/serviços acima, NUNCA invente um preço. Em vez disso, responda com cordialidade e precisão profissional: "Vou verificar o valor atualizado desse item no estoque da nossa loja e já te confirmo!" ou acione o transbordo para um atendente da loja.\n`;
+  compiled += `  * NUNCA INVENTE PRAZOS OU ENDEREÇOS: Informe apenas prazos de entrega e horários confirmados no contexto. Não prometa entrega imediata sem confirmação da expedição.\n`;
+  compiled += `  * NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS: Se o cliente pedir desconto ou condições especiais além do cadastrado, informe que vai submeter à gerência da loja para liberação.\n`;
+  compiled += `  * COMPREENSÃO DE MÚLTIPLOS ITENS E MATERIAIS DE CONSTRUÇÃO / COMÉRCIO:\n`;
+  compiled += `    - Entenda cálculos de múltiplos materiais em uma mesma mensagem (ex: cimento, areia, brita, blocos, argamassa, tintas, tubos).\n`;
+  compiled += `    - Reconheça unidades usuais do comércio (saco, metro cúbico / m³, milheiro, barra, lata, fardo, caixa).\n`;
+  compiled += `    - Extraia todos os itens e confirme o pedido por completo antes de pedir o endereço de entrega ou dados de faturamento.\n`;
   compiled += `- DIRETRIZ DE HUMANIZAÇÃO NATURAL & ANTI-ROBÔ (WHATSAPP REAL):\n`;
   compiled += `  * ZERO JARGÕES DE ROBÔ: NUNCA diga frases como "Sou uma inteligência artificial", "Sou o assistente virtual da Loja...", "Como posso te ajudar hoje?".\n`;
   compiled += `  * FALE COMO UM ATENDENTE REAL DE WHATSAPP: Escreva de forma acolhedora, brasileira, simpática, prática e ágil.\n`;

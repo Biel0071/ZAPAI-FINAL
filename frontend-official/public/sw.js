@@ -1,5 +1,5 @@
 // ZAI CRM PWA Service Worker
-const CACHE_NAME = "zai-pwa-v1";
+const CACHE_NAME = "zai-pwa-v3";
 const STATIC_ASSETS = [
   "/",
   "/favicon.ico",

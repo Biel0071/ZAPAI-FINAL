@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { cn } from "@/core/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -858,69 +859,140 @@ export function DashboardView({
 
             {/* Right Column (5 cols): Temperature Donut + Real AI Usage */}
             <div className="lg:col-span-5 flex flex-col gap-3.5">
-              {/* Temperature Donut */}
+              {/* Temperature Donut — Horizontal Executive Split (Zero Clipping) */}
               <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[200px] flex flex-col">
-                <CardHeader className="py-2 px-3 border-b border-border/40 shrink-0">
-                  <CardTitle className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <ChartBar weight="bold" className="h-3.5 w-3.5 text-primary" /> Temperatura da Base de Leads
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col items-center justify-center relative p-2 min-h-0">
-                  <div className="h-[110px] w-full relative flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={safeAnalyticsViewModel.tempDistribution} innerRadius={38} outerRadius={52} cornerRadius={3} paddingAngle={3} dataKey="value">
-                          {safeAnalyticsViewModel.tempDistribution.map((entry: any, index: number) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
+                {(() => {
+                  const total = safeAnalyticsViewModel.tempDistribution.reduce(
+                    (acc: number, cur: any) => acc + (cur.value || 0),
+                    0
+                  );
+                  const hotVal = safeAnalyticsViewModel.tempDistribution[0]?.value || 0;
+                  const warmVal = safeAnalyticsViewModel.tempDistribution[1]?.value || 0;
+                  const coldVal = safeAnalyticsViewModel.tempDistribution[2]?.value || 0;
+                  const hotPct = total > 0 ? Math.round((hotVal / total) * 100) : 0;
+                  const warmPct = total > 0 ? Math.round((warmVal / total) * 100) : 0;
+                  const coldPct = total > 0 ? Math.round((coldVal / total) * 100) : 0;
+                  const totalLabel =
+                    total > 0
+                      ? String(total)
+                      : safeAnalyticsViewModel.totalLeadsLabel && safeAnalyticsViewModel.totalLeadsLabel !== "0"
+                        ? safeAnalyticsViewModel.totalLeadsLabel
+                        : "0";
+                  const pieData =
+                    total > 0
+                      ? safeAnalyticsViewModel.tempDistribution
+                      : [{ name: "Sem dados", value: 1, color: "rgba(148, 163, 184, 0.2)" }];
+                  const tiers = [
+                    {
+                      label: "Quente",
+                      hint: "Decisão",
+                      val: hotVal,
+                      pct: hotPct,
+                      color: "#ef4444",
+                      textClass: "text-red-400",
+                      bgClass: "bg-red-500/10 border-red-500/25",
+                    },
+                    {
+                      label: "Morno",
+                      hint: "Engajados",
+                      val: warmVal,
+                      pct: warmPct,
+                      color: "#f59e0b",
+                      textClass: "text-amber-400",
+                      bgClass: "bg-amber-500/10 border-amber-500/25",
+                    },
+                    {
+                      label: "Frio",
+                      hint: "Reativar",
+                      val: coldVal,
+                      pct: coldPct,
+                      color: "#0ea5e9",
+                      textClass: "text-sky-400",
+                      bgClass: "bg-sky-500/10 border-sky-500/25",
+                    },
+                  ];
+
+                  return (
+                    <>
+                      <CardHeader className="py-2 px-3.5 border-b border-border/40 shrink-0 flex flex-row items-center justify-between">
+                        <CardTitle className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                          <ChartBar weight="bold" className="h-3.5 w-3.5 text-primary" /> Temperatura da Base de Leads
+                        </CardTitle>
+                        <span className="text-[10px] font-mono text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded-md border border-border/50">
+                          {totalLabel} leads ativos
+                        </span>
+                      </CardHeader>
+                      <CardContent className="flex-1 flex items-center gap-4 px-4 py-2.5 min-h-0">
+                        {/* Unclipped Square Donut Stage */}
+                        <div className="w-[116px] h-[116px] shrink-0 relative flex items-center justify-center">
+                          <ResponsiveContainer width={116} height={116}>
+                            <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+                              <Pie
+                                data={pieData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={33}
+                                outerRadius={47}
+                                cornerRadius={4}
+                                paddingAngle={total > 0 ? 3 : 0}
+                                dataKey="value"
+                                stroke="none"
+                              >
+                                {pieData.map((entry: any, index: number) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              {total > 0 && <RechartsTooltip />}
+                            </PieChart>
+                          </ResponsiveContainer>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <span className="text-xl font-extrabold font-display leading-none text-foreground">
+                              {totalLabel}
+                            </span>
+                            <span className="text-[8px] text-muted-foreground uppercase font-bold tracking-wider mt-0.5">
+                              Leads Base
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Thermal Distribution Progress Rows */}
+                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-2.5">
+                          {tiers.map((tier) => (
+                            <div key={tier.label} className="space-y-1">
+                              <div className="flex items-center justify-between gap-2 text-[11px] leading-none">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span
+                                    className="h-2 w-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: tier.color, boxShadow: `0 0 8px ${tier.color}80` }}
+                                  />
+                                  <span className={cn("font-bold", tier.textClass)}>{tier.label}:</span>
+                                  <span className="text-[9px] text-muted-foreground hidden sm:inline truncate">
+                                    {tier.hint}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0 font-mono">
+                                  <span className="text-[11px] font-bold text-foreground">
+                                    {tier.pct}% ({tier.val})
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-secondary/60 overflow-hidden border border-border/30">
+                                <div
+                                  className="h-full rounded-full transition-all duration-500"
+                                  style={{
+                                    width: `${total > 0 ? Math.max(tier.pct, tier.val > 0 ? 6 : 0) : 0}%`,
+                                    backgroundColor: tier.color,
+                                    boxShadow: tier.val > 0 ? `0 0 8px ${tier.color}66` : "none",
+                                  }}
+                                />
+                              </div>
+                            </div>
                           ))}
-                        </Pie>
-                        <RechartsTooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-lg font-bold font-display">
-                        {(() => {
-                          const sumDist = (safeAnalyticsViewModel.tempDistribution[0]?.value || 0) +
-                            (safeAnalyticsViewModel.tempDistribution[1]?.value || 0) +
-                            (safeAnalyticsViewModel.tempDistribution[2]?.value || 0);
-                          if (sumDist > 0) return String(sumDist);
-                          return safeAnalyticsViewModel.totalLeadsLabel && safeAnalyticsViewModel.totalLeadsLabel !== "0"
-                            ? safeAnalyticsViewModel.totalLeadsLabel
-                            : "0";
-                        })()}
-                      </span>
-                      <span className="text-[8px] text-muted-foreground uppercase font-bold">Leads Base</span>
-                    </div>
-                  </div>
-                  {(() => {
-                    const total = safeAnalyticsViewModel.tempDistribution.reduce((acc: number, cur: any) => acc + (cur.value || 0), 0);
-                    const hotVal = safeAnalyticsViewModel.tempDistribution[0]?.value || 0;
-                    const warmVal = safeAnalyticsViewModel.tempDistribution[1]?.value || 0;
-                    const coldVal = safeAnalyticsViewModel.tempDistribution[2]?.value || 0;
-                    const hotPct = total > 0 ? Math.round((hotVal / total) * 100) : 0;
-                    const warmPct = total > 0 ? Math.round((warmVal / total) * 100) : 0;
-                    const coldPct = total > 0 ? Math.round((coldVal / total) * 100) : 0;
-                    return (
-                      <div className="flex flex-wrap items-center justify-center gap-1.5 text-xs mt-1 shrink-0">
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-[9px]">
-                          <span className="h-1.5 w-1.5 rounded-full bg-[#ef4444]" />
-                          <span className="font-semibold text-red-400">Quente:</span>
-                          <span className="text-foreground font-mono">{hotPct}% ({hotVal})</span>
                         </div>
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px]">
-                          <span className="h-1.5 w-1.5 rounded-full bg-[#f59e0b]" />
-                          <span className="font-semibold text-amber-400">Morno:</span>
-                          <span className="text-foreground font-mono">{warmPct}% ({warmVal})</span>
-                        </div>
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-[9px]">
-                          <span className="h-1.5 w-1.5 rounded-full bg-[#0ea5e9]" />
-                          <span className="font-semibold text-sky-400">Frio:</span>
-                          <span className="text-foreground font-mono">{coldPct}% ({coldVal})</span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </CardContent>
+                      </CardContent>
+                    </>
+                  );
+                })()}
               </Card>
 
               {/* Real AI Usage */}
