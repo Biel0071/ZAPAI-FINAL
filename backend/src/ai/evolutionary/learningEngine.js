@@ -173,7 +173,7 @@ class LearningEngine {
           `SELECT
              count(*) FILTER (WHERE funnel_stage IN ('ready_to_buy', 'negotiation') OR lead_intent = 'purchase_intent') AS fast_pix,
              count(*) FILTER (WHERE funnel_stage IN ('price_sent', 'interested') OR lead_intent IN ('price_request', 'question')) AS consultive,
-             count(*) FILTER (WHERE lead_intent = 'objection' OR 'desconto' = ANY(COALESCE(tags, '{}'))) AS objection,
+             count(*) FILTER (WHERE lead_intent = 'objection' OR 'desconto' = ANY(COALESCE(tags, '{}')) OR 'ALGO-03' = ANY(COALESCE(tags, '{}')) OR last_message ILIKE '%promo%' OR last_message ILIKE '%10x%' OR last_message ILIKE '%desconto%') AS objection,
              count(*) FILTER (WHERE status = 'open' AND COALESCE(funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte')) AS reactivation,
              count(*) FILTER (WHERE funnel_stage IN ('closed', 'fechamento', 'agendado', 'suporte') OR lead_intent IN ('payment_confirmed', 'delivery_issue')) AS post_sale,
              count(*) FILTER (WHERE ai_enabled = TRUE AND status = 'open') AS ai_active_leads,
