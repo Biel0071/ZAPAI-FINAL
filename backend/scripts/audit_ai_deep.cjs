@@ -11,12 +11,14 @@ async function audit() {
   console.log('Natal messages found:', natalMsgs.rows);
 
   const quickReplies = await query(`
-    SELECT id, title, shortcut, text, media_url, media_type, category
+    SELECT *
     FROM quick_replies
-    WHERE text ILIKE '%natal%' OR shortcut ILIKE '%natal%' OR title ILIKE '%natal%' OR media_url ILIKE '%natal%'
+    WHERE (content ILIKE '%natal%' OR title ILIKE '%natal%' OR media_url ILIKE '%natal%')
     LIMIT 20
-  `);
-  console.log('Quick replies with natal:', quickReplies.rows);
+  `).catch(async () => {
+    return await query(`SELECT * FROM quick_replies LIMIT 20`);
+  });
+  console.log('Quick replies:', quickReplies.rows);
 
   console.log('\n=== 2. SEARCH FOR "ZAI" OR "ZAIBOT" LEAKING IN OUTBOUND MESSAGES (FROM_ME = TRUE) ===');
   const zaiLeaks = await query(`
@@ -78,11 +80,10 @@ async function audit() {
     console.log(`[${m.id}] FromMe: ${m.from_me} | Sender: ${m.sender} | Type: ${m.media_type} | URL: ${m.media_url} | Path: ${m.media_path} | Text: ${m.text}`);
   }
 
-  console.log('\n=== 6. CHECK ALL QUICK REPLIES IN DB ===');
-  const allQr = await query(`SELECT id, title, shortcut, text, media_url, media_type, category FROM quick_replies ORDER BY id ASC LIMIT 50`);
+  const allQr = await query(`SELECT * FROM quick_replies ORDER BY id ASC LIMIT 50`);
   console.log('All Quick Replies count:', allQr.rows.length);
   for (const qr of allQr.rows) {
-    console.log(`[${qr.id}] ${qr.shortcut} - ${qr.title} | Type: ${qr.media_type} | Media: ${qr.media_url} | Category: ${qr.category}`);
+    console.log(`[${qr.id}] ${qr.title || qr.name || 'No title'} | Type: ${qr.media_type} | Media: ${qr.media_url} | Category: ${qr.category}`);
   }
 
   console.log('\n=== 7. CHECK CAMPAIGNS AND ATTACHMENTS ===');
