@@ -97,7 +97,7 @@ export function MobileBottomNav() {
         paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)",
       }}
     >
-      <div className="grid grid-cols-6 items-center px-1 pt-1.5 pb-1">
+      <div className="grid grid-cols-5 items-center px-1 pt-1.5 pb-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
 

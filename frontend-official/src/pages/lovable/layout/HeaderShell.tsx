@@ -110,10 +110,9 @@ export function HeaderShell({
   return (
     <header className="sticky top-0 z-40 shrink-0 border-b border-border/70 bg-card/60 backdrop-blur-xl">
       <div className="flex h-header items-center justify-between gap-2 sm:gap-3 px-3 pl-14 md:gap-4 md:px-6 md:pl-6 max-w-full overflow-hidden">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="flex md:hidden items-center gap-1.5 shrink-0">
-            <BrandLogo size={26} />
-            <span className="font-display text-xs font-bold tracking-tight text-foreground">ZAI</span>
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1 sm:flex-initial">
+          <div className="flex md:hidden items-center shrink-0" title="ZAI CRM Enterprise">
+            <BrandLogo size={24} />
           </div>
           <div className="relative shrink-0 hidden sm:block">
             <MagnifyingGlass className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -163,19 +162,21 @@ export function HeaderShell({
             </Button>
           ) : null}
           {sessions && sessions.length > 0 && (
-            <select
-              aria-label="Filtrar por conexão"
-              value={activeSessionId || "all"}
-              onChange={(e) => setActiveSessionId(e.target.value === "all" ? null : e.target.value)}
-              className="h-8 max-w-[110px] sm:max-w-[150px] md:max-w-[180px] lg:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
-            >
-              <option value="all" className="bg-background text-foreground">Todas as Conexões</option>
-              {sessions.map((session) => (
-                <option key={session.id} value={session.id} className="bg-background text-foreground">
-                  {session.name || session.id} ({session.status === "connected" ? "Online" : "Offline"})
-                </option>
-              ))}
-            </select>
+            <div className="flex-1 sm:flex-initial flex justify-center sm:justify-start">
+              <select
+                aria-label="Filtrar por conexão"
+                value={activeSessionId || "all"}
+                onChange={(e) => setActiveSessionId(e.target.value === "all" ? null : e.target.value)}
+                className="h-7 sm:h-8 max-w-[115px] sm:max-w-[150px] md:max-w-[180px] lg:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 py-0 text-[11px] sm:text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
+              >
+                <option value="all" className="bg-background text-foreground">Todas as Conexões</option>
+                {sessions.map((session) => (
+                  <option key={session.id} value={session.id} className="bg-background text-foreground">
+                    {session.name || session.id} ({session.status === "connected" ? "Online" : "Offline"})
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
 

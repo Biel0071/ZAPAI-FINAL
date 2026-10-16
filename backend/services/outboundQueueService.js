@@ -264,6 +264,10 @@ async function persistSuccessfulSend(item) {
 
 async function executeOutbound(item) {
   if (item.cancelRequested) return { cancelled: true, reason: 'user_cancelled' };
+  if (!String(item.text || '').trim() && !item.mediaPath && !item.mediaType) {
+    console.warn(`[OUTBOUND_QUEUE] Cancelled empty message dispatch with no media for ${item.phone}`);
+    return { cancelled: true, reason: 'empty_content' };
+  }
   const forceResult = String(item.testing?.forceResult || '').toLowerCase();
 
   if (canUseTestHooks() && forceResult === 'failed') {

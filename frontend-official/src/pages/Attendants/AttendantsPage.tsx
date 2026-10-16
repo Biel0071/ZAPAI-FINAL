@@ -2075,7 +2075,7 @@ export default function AttendantsPage() {
                       : "Aprendizado Contínuo"}
                   </Badge>
                 </h1>
-                <p className="text-xs md:text-sm text-muted-foreground">
+                <p className="hidden md:block text-xs md:text-sm text-muted-foreground">
                   {activeTab === "attendants"
                     ? "Loja, WhatsApp e atendimento em um só lugar."
                     : activeTab === "copilot"
@@ -2090,7 +2090,7 @@ export default function AttendantsPage() {
         {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm"><span>{loadError}</span><Button size="sm" variant="outline" onClick={() => void fetchData()}>Tentar novamente</Button></div>}
 
         {/* ROW 0: ATENDENTES DIGITAIS + NOVO ATENDENTE NA MESMA LINHA */}
-        <section aria-label="Seleção de atendente" className="p-3.5 rounded-2xl border border-border/70 bg-card/60 space-y-2.5 md:grid-cols-1">
+        <section aria-label="Seleção de atendente" className="p-3 sm:p-3.5 rounded-2xl border border-border/70 bg-card/60 space-y-2 md:grid-cols-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-bold text-foreground font-display flex items-center gap-2">
@@ -2099,7 +2099,6 @@ export default function AttendantsPage() {
                   {agents.length} Ativo(s)
                 </Badge>
               </h2>
-              <p className="text-xs text-muted-foreground">Selecione o atendente para personalizar ou acompanhar a operação.</p>
             </div>
             {/* Hidden native select kept for headless test and accessibility compatibility */}
             <div className="sr-only">
@@ -2128,7 +2127,7 @@ export default function AttendantsPage() {
           </div>
 
           {/* Attendants row with real attendants + [+ Novo Atendente] alongside */}
-          <div className="flex items-center gap-3 overflow-x-auto pb-1 scrollbar-zai">
+          <div className="grid grid-cols-2 gap-2.5 w-full sm:flex sm:items-center sm:gap-3 sm:overflow-x-auto pb-1 scrollbar-zai">
             {/* Real Registered Agents (Camila) */}
             {agents.map((agent) => {
               const isSelected = !previewAgent?.isExample && previewAgent?.key === agent.key;
@@ -2148,7 +2147,7 @@ export default function AttendantsPage() {
                   type="button"
                   onClick={() => setPreviewAgent(agent)}
                   className={cn(
-                    "flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left shrink-0 cursor-pointer select-none h-[58px]",
+                    "flex items-center gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-xl border transition-all text-left w-full sm:w-auto shrink-0 cursor-pointer select-none h-[58px]",
                     isSelected
                       ? "border-emerald-500 bg-emerald-500/15 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50"
                       : "border-border/70 bg-card hover:border-emerald-500/40 hover:bg-card/90"
@@ -2165,14 +2164,14 @@ export default function AttendantsPage() {
                     />
                     <span className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border border-black animate-pulse z-20" />
                   </div>
-                  <div className="min-w-0 pr-1">
+                  <div className="min-w-0 pr-1 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-foreground truncate max-w-[110px]">{agent.name}</span>
+                      <span className="text-xs font-bold text-foreground truncate max-w-[100px] sm:max-w-[110px]">{agent.name}</span>
                       <Badge variant="outline" className="text-[9px] px-1 py-0 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
                         Ativo
                       </Badge>
                     </div>
-                    <span className="text-[10px] text-muted-foreground block truncate max-w-[130px]">{agent.role || "Especialista"}</span>
+                    <span className="text-[10px] text-muted-foreground block truncate max-w-[115px] sm:max-w-[130px]">{agent.role || "Especialista"}</span>
                   </div>
                 </button>
               );
@@ -2182,40 +2181,40 @@ export default function AttendantsPage() {
             <button
               type="button"
               onClick={() => setIsWizardOpen(true)}
-              className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/15 hover:border-emerald-500 text-emerald-400 hover:text-emerald-300 transition-all shrink-0 cursor-pointer select-none group h-[58px]"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/15 hover:border-emerald-500 text-emerald-400 hover:text-emerald-300 transition-all w-full sm:w-auto shrink-0 cursor-pointer select-none group h-[58px]"
               title="Criar novo atendente digital para a loja"
             >
               <div className="h-9 w-9 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                 <Plus weight="bold" className="h-4 w-4 text-emerald-400" />
               </div>
-              <div className="text-left pr-1">
-                <span className="text-xs font-bold block leading-tight">Novo Atendente</span>
-                <span className="text-[10px] text-muted-foreground block">Adicionar funcionário</span>
+              <div className="text-left pr-1 min-w-0 flex-1">
+                <span className="text-xs font-bold block leading-tight truncate">Novo Atendente</span>
+                <span className="text-[10px] text-muted-foreground block truncate">Adicionar funcionário</span>
               </div>
             </button>
           </div>
         </section>
 
-        {/* UNIFIED STREAMLINED CONTROL BAR: TABS + VIEW MODES + SAVE (SINGLE COMPACT ROW) */}
-        <div className="p-2 sm:p-2.5 rounded-2xl border border-border/70 bg-card/80 backdrop-blur shadow-sm flex flex-wrap items-center justify-between gap-2.5">
-          {/* Left: Navigation Submenus */}
-          <div className="flex items-center gap-1 p-0.5 rounded-xl bg-background/60 border border-border/60">
+        {/* UNIFIED STREAMLINED CONTROL BAR: TABS + VIEW MODES + SAVE (EXACTLY 2 ROWS ON MOBILE) */}
+        <div className="p-2 sm:p-2.5 rounded-2xl border border-border/70 bg-card/80 backdrop-blur shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2.5">
+          {/* Row 1 on Mobile (50/50 split width): Navigation Submenus */}
+          <div className="grid grid-cols-2 gap-1.5 w-full sm:w-auto p-0.5 rounded-xl bg-background/60 border border-border/60">
             <button
               type="button"
               onClick={() => handleTabChange("attendants")}
               className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all select-none cursor-pointer",
+                "flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-all select-none cursor-pointer w-full",
                 activeTab === "attendants"
                   ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-card/40"
               )}
             >
-              <Headset weight="fill" className="h-3.5 w-3.5" />
-              <span>Atendente & Configuração</span>
+              <Headset weight="fill" className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Atendente & Config</span>
               <Badge
                 variant="outline"
                 className={cn(
-                  "ml-1 text-[9px] px-1 py-0 border-emerald-500/30",
+                  "ml-0.5 text-[9px] px-1 py-0 border-emerald-500/30",
                   activeTab === "attendants" ? "bg-emerald-500/30 text-emerald-200" : "text-muted-foreground"
                 )}
               >
@@ -2227,33 +2226,33 @@ export default function AttendantsPage() {
               type="button"
               onClick={() => handleTabChange("evolution")}
               className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all select-none cursor-pointer",
+                "flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-all select-none cursor-pointer w-full",
                 (activeTab === "evolution" || activeTab === "memory")
                   ? "bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-xs"
                   : "text-muted-foreground hover:text-foreground hover:bg-card/40"
               )}
             >
-              <Sparkle weight="fill" className="h-3.5 w-3.5 text-purple-400" />
-              <span>Memória & Evolução</span>
+              <Sparkle weight="fill" className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+              <span className="truncate">Memória & Evolução</span>
             </button>
           </div>
 
-          {/* Right: View Mode Switcher + Action Buttons */}
+          {/* Row 2 on Mobile: View Mode Switcher + Action Buttons */}
           {activeTab === "attendants" && (
-            <div className="flex flex-wrap items-center gap-2 ml-auto">
+            <div className="flex items-center justify-between gap-1.5 w-full sm:w-auto sm:ml-auto">
               {/* Mode Switcher */}
-              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-background/60 border border-border/60">
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-background/60 border border-border/60 shrink-0">
                 <button
                   type="button"
                   onClick={() => setViewMode("steps")}
                   className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                    "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] sm:text-xs font-semibold transition-all cursor-pointer",
                     viewMode === "steps"
                       ? "bg-emerald-600 text-white shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                   )}
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <CheckCircle2 className="h-3 w-3" />
                   <span className="hidden sm:inline">Modo Guiado</span>
                   <span className="sm:hidden">Guiado</span>
                 </button>
@@ -2262,13 +2261,13 @@ export default function AttendantsPage() {
                   type="button"
                   onClick={() => setViewMode("complete")}
                   className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                    "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] sm:text-xs font-semibold transition-all cursor-pointer",
                     viewMode === "complete"
                       ? "bg-emerald-600 text-white shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                   )}
                 >
-                  <Layers className="h-3.5 w-3.5" />
+                  <Layers className="h-3 w-3" />
                   <span className="hidden sm:inline">Modo Completo</span>
                   <span className="sm:hidden">Completo</span>
                 </button>
@@ -2280,7 +2279,7 @@ export default function AttendantsPage() {
                   variant="outline"
                   size="sm"
                   onClick={toggleAllCards}
-                  className="h-7 text-xs rounded-lg gap-1 border-border/70 text-muted-foreground hover:text-foreground cursor-pointer px-2"
+                  className="h-7 text-xs rounded-lg gap-1 border-border/70 text-muted-foreground hover:text-foreground cursor-pointer px-2 shrink-0"
                 >
                   <ChevronsUpDown className="h-3 w-3" />
                   <span className="hidden md:inline">{Object.values(collapsedCards).every(Boolean) ? "Expandir Todas" : "Recolher Todas"}</span>
@@ -2293,9 +2292,9 @@ export default function AttendantsPage() {
                 size="sm"
                 onClick={handleSaveAll}
                 disabled={isSavingAgent}
-                className="h-7 text-xs rounded-lg px-3 gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer"
+                className="flex-1 sm:flex-initial h-7 text-xs rounded-lg px-2.5 sm:px-3 gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer justify-center"
               >
-                <FloppyDisk className="h-3.5 w-3.5" />
+                <FloppyDisk className="h-3.5 w-3.5 shrink-0" />
                 <span>{isSavingAgent ? "Salvando..." : "Salvar Alterações"}</span>
               </Button>
             </div>
@@ -2446,9 +2445,6 @@ export default function AttendantsPage() {
                             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
                               <span>Avatar Studio<span className="sr-only"> 2.5D</span></span>
                             </CardTitle>
-                            <CardDescription className="text-[11px] text-muted-foreground truncate">
-                              Personalize cabelo, rosto, uniforme e acessórios do atendente.
-                            </CardDescription>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">

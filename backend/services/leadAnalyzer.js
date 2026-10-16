@@ -254,6 +254,12 @@ const STORE_EVOLUTION_ALGORITHMS = Object.freeze({
     storeStandardRule: 'Padrão da Loja: Tabela oficial + PIX à vista com desconto ou pagamento seguro na entrega.',
     directive: 'O lead tem perfil direto e objetivo. Responda em 1 a 2 frases curtas com o valor exato do item no padrão da loja, destaque a condição à vista no PIX ou pagamento na entrega e peça o CEP/endereço para agendar.',
     followupHook: 'Oi {{name}}! Passando rapidinho sobre a cotação de {{product}} que você pediu. Ainda conseguimos manter o valor promocional à vista ou pagamento na entrega para a sua região. Quer que eu separe seu pedido?',
+    followupVariants: [
+      '{{greeting}} Passando rapidinho sobre {{product}}. Ainda consigo segurar a condição especial à vista no PIX ou pagamento na entrega. Quer que eu já separe pra você?',
+      '{{greeting}} Tava revisando as cotações de {{product}} por aqui. Temos pronta entrega com condição especial no PIX ou na entrega. Vamos agendar seu pedido?',
+      '{{greeting}} Tudo certinho por aí? Sobre {{product}}, se você quiser fechar hoje ainda consigo incluir na rota de entrega da semana. O que acha?',
+      '{{greeting}} Aqui é da loja. Consegui manter a condição à vista com desconto em {{product}} para a sua região. Posso confirmar a reserva?',
+    ],
   },
   ALGO_CONSULTIVO_TECNICO: {
     id: 'ALGO_CONSULTIVO_TECNICO',
@@ -264,6 +270,11 @@ const STORE_EVOLUTION_ALGORITHMS = Object.freeze({
     storeStandardRule: 'Padrão da Loja: Especificação completa de medidas/modelos + envio de foto/catálogo da resposta rápida.',
     directive: 'O lead busca detalhes técnicos, medidas, fotos ou cálculo de frete. Mantenha o padrão consultivo da loja, acione a resposta rápida com foto/catálogo quando pertinente, explique tamanhos/modelos com clareza e pergunte o CEP para calcular a entrega.',
     followupHook: 'Olá {{name}}, tudo bem? Sobre as especificações e medidas de {{product}} que vimos antes, ficou alguma dúvida técnica? Se quiser, me passa seu bairro ou CEP que já calculo o frete certinho pra você!',
+    followupVariants: [
+      '{{greeting}} Sobre as especificações e medidas de {{product}} que conversamos antes, ficou alguma dúvida? Se quiser me passa seu bairro ou CEP que já calculo o frete certinho!',
+      '{{greeting}} Separei as fotos e detalhes técnicos atualizados de {{product}} no padrão da nossa loja. Quer que eu te envie para dar uma olhadinha?',
+      '{{greeting}} Passando para saber se você conseguiu avaliar as opções de {{product}}. Se precisar de ajuda com medidas ou com o modelo ideal pro seu espaço, estou por aqui!',
+    ],
   },
   ALGO_QUEBRA_OBJECAO_VALOR: {
     id: 'ALGO_QUEBRA_OBJECAO_VALOR',
@@ -274,6 +285,11 @@ const STORE_EVOLUTION_ALGORITHMS = Object.freeze({
     storeStandardRule: 'Padrão da Loja: Parcelamento em até 10x sem juros no cartão ou desconto progressivo no lote/combo.',
     directive: 'O lead é sensível a preço ou pediu condição especial. Acolha com simpatia no padrão da loja, destaque que parcelamos em até 10x sem juros ou fazemos condição diferenciada no PIX/lote fechado, valorizando a qualidade e entrega rápida.',
     followupHook: 'Oi {{name}}! Lembrei da nossa conversa sobre {{product}}. Conseguimos liberar uma condição muito bacana esta semana (tanto no PIX quanto parcelado em até 10x sem juros). Vamos aproveitar para garantir o material da sua obra?',
+    followupVariants: [
+      '{{greeting}} Lembrei da nossa conversa sobre {{product}}. Conseguimos liberar uma condição muito bacana esta semana (tanto no PIX quanto parcelado em até 10x sem juros). Vamos aproveitar para garantir?',
+      '{{greeting}} Falando com a gerência consegui flexibilizar a forma de pagamento de {{product}}. Podemos fazer em até 10x sem juros ou desconto especial à vista. Ficou melhor pra você?',
+      '{{greeting}} Tudo bem por aí? Se a questão era a condição de pagamento de {{product}}, conseguimos parcelar no cartão ou fazer condição diferenciada no lote. Me avisa se ainda tem interesse!',
+    ],
   },
   ALGO_REATIVACAO_RESPOSTA_RAPIDA: {
     id: 'ALGO_REATIVACAO_RESPOSTA_RAPIDA',
@@ -284,6 +300,11 @@ const STORE_EVOLUTION_ALGORITHMS = Object.freeze({
     storeStandardRule: 'Padrão da Loja: Abordagem acolhedora brasileira + envio da Resposta Rápida oficial do produto + ativação de follow-up automático.',
     directive: 'Este lead conversou anteriormente mas ficou sem retorno e ainda não fechou compra. Chame pelo nome com simpatia, relembre o interesse em {{product}} usando a resposta rápida da loja e faça uma pergunta leve e aberta para retomar o atendimento.',
     followupHook: 'Olá {{name}}, tudo joia por aí? Aqui é a Camila da loja! Vi que conversamos sobre {{product}} e como não tivemos retorno, passei para saber se você já conseguiu resolver ou se posso te mandar as condições atualizadas da semana!',
+    followupVariants: [
+      '{{greeting}} Aqui é a Camila da loja! Vi que conversamos sobre {{product}} e como não tivemos retorno, passei para saber se você já conseguiu resolver ou se posso te mandar as opções atualizadas!',
+      '{{greeting}} Passando só pra saber se você ainda está precisando de {{product}} ou se já finalizou essa etapa da sua obra. Qualquer coisa me avisa que estou à disposição!',
+      '{{greeting}} Lembrei do seu orçamento de {{product}}. Se você ainda tiver interesse, temos novidades e condições especiais esta semana!',
+    ],
   },
   ALGO_POS_VENDA_PROTEGIDO: {
     id: 'ALGO_POS_VENDA_PROTEGIDO',
@@ -294,6 +315,7 @@ const STORE_EVOLUTION_ALGORITHMS = Object.freeze({
     storeStandardRule: 'Padrão da Loja: Bloqueio total de cobrança de vendas para clientes que já compraram; prioridade máxima de logística.',
     directive: 'Este cliente já realizou compra, enviou comprovante ou tem entrega agendada. NUNCA envie oferta comercial repetida; atue exclusivamente no suporte pós-venda e acompanhamento de entrega.',
     followupHook: null,
+    followupVariants: [],
   },
 });
 
@@ -438,15 +460,13 @@ function buildLeadAlgorithm(message = '', conversationHistory = [], conversation
   }
 
   const rawName = String(conversationMeta?.name || conversationMeta?.lead_name || '').trim();
-  const cleanFirstName =
-    rawName && !rawName.includes('@') && !/^\d+$/.test(rawName)
-      ? rawName.split(/\s+/)[0].replace(/[^\p{L}]/gu, '') || 'amigo(a)'
-      : 'amigo(a)';
+  const humanName = formatHumanClientName(rawName);
+  const cleanFirstName = humanName || 'amigo(a)';
 
+  // Deterministic seed based on conversation or phone or random to vary messages naturally
+  const seed = Math.floor(Math.random() * 100);
   const personalizedFollowup = selectedAlgo.followupHook
-    ? selectedAlgo.followupHook
-        .replace(/\{\{\s*name\s*\}\}/g, cleanFirstName)
-        .replace(/\{\{\s*product\s*\}\}/g, primaryProductObj.label)
+    ? generateFluidHumanHook(selectedAlgo, rawName, primaryProductObj.label, seed)
     : null;
 
   const personalizedDirective = selectedAlgo.directive.replace(/\{\{\s*product\s*\}\}/g, primaryProductObj.label);
@@ -475,11 +495,55 @@ function buildLeadAlgorithm(message = '', conversationHistory = [], conversation
   };
 }
 
+function formatHumanClientName(rawName = '') {
+  if (!rawName || typeof rawName !== 'string') return null;
+  const trimmed = rawName.trim();
+  if (!trimmed || trimmed.includes('@') || /^\d+$/.test(trimmed)) return null;
+
+  // Strip trailing numbers (e.g. "suelicristina385" -> "suelicristina")
+  const withoutDigits = trimmed.replace(/\d+$/g, '').trim();
+  const firstWord = withoutDigits.split(/\s+/)[0] || '';
+  const lettersOnly = firstWord.replace(/[^\p{L}]/gu, '');
+  if (lettersOnly.length < 2) return null;
+
+  const lower = lettersOnly.toLowerCase();
+  const forbidden = ['cliente', 'amigo', 'amiga', 'usuario', 'contato', 'lead', 'zap', 'whatsapp', 'admin'];
+  if (forbidden.includes(lower)) return null;
+
+  return lettersOnly.charAt(0).toUpperCase() + lettersOnly.slice(1).toLowerCase();
+}
+
+function generateFluidHumanHook(selectedAlgo, rawName, productLabel, seed = 0) {
+  if (!selectedAlgo || !selectedAlgo.followupHook) return null;
+  const formattedName = formatHumanClientName(rawName);
+
+  const variants = Array.isArray(selectedAlgo.followupVariants) && selectedAlgo.followupVariants.length > 0
+    ? selectedAlgo.followupVariants
+    : [selectedAlgo.followupHook];
+
+  const pickIdx = Math.abs(seed) % variants.length;
+  const template = variants[pickIdx] || selectedAlgo.followupHook;
+
+  let greeting = formattedName ? `Oi ${formattedName}!` : 'Olá! Tudo bem?';
+  if (pickIdx % 2 === 1) {
+    greeting = formattedName ? `Olá ${formattedName}, tudo bem?` : 'Oi! Tudo joia?';
+  }
+
+  return template
+    .replace(/\{\{\s*greeting\s*\}\}/g, greeting)
+    .replace(/\{\{\s*name\s*\}\}/g, formattedName || 'amigo(a)')
+    .replace(/\{\{\s*product\s*\}\}/g, productLabel)
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 module.exports = {
   analyzeLeadIntent,
   buildLeadAlgorithm,
   detectProductsFromText,
   detectConversationStyle,
   detectPurchaseStatus,
+  formatHumanClientName,
+  generateFluidHumanHook,
   STORE_EVOLUTION_ALGORITHMS,
 };

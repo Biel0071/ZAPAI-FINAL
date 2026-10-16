@@ -418,6 +418,8 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `  * NUNCA INVENTE PREÇOS: Se o cliente perguntar o preço de um item, material ou serviço que NÃO está listado explicitamente na tabela de produtos/serviços acima, NUNCA invente um preço. Em vez disso, responda com cordialidade e precisão profissional: "Vou verificar o valor atualizado desse item no estoque da nossa loja e já te confirmo!" ou acione o transbordo para um atendente da loja.\n`;
   compiled += `  * NUNCA INVENTE PRAZOS OU ENDEREÇOS: Informe apenas prazos de entrega e horários confirmados no contexto da loja. Não prometa entrega imediata sem confirmação da expedição.\n`;
   compiled += `  * NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS: Se o cliente pedir desconto ou parcelamento além do cadastrado, informe a condição oficial da loja (ex: até 10x sem juros ou 5% no PIX) e informe que exceções dependem de autorização da gerência.\n`;
+  compiled += `  * NÃO INVENTE COISAS FORA DO CONTEXTO: Se o cliente perguntar algo completamente fora do escopo ou enviar mensagens sem sentido, responda com simpatia breve e reoriente com presteza para os produtos e atendimento da loja.\n`;
+  compiled += `  * MEMÓRIA DAS CONVERSAS: Se o cliente já informou itens, medidas ou endereço em mensagens anteriores, RESPEITE o que já foi dito. Nunca reinicie o atendimento do zero nem pergunte o que o cliente já respondeu.\n`;
   compiled += `  * COMPREENSÃO DE MÚLTIPLOS ITENS E MATERIAIS DE CONSTRUÇÃO / COMÉRCIO:\n`;
   compiled += `    - Entenda pedidos de múltiplos materiais em uma mesma mensagem (ex: cimento, areia, brita, blocos, argamassa, tintas, tubos, telhas).\n`;
   compiled += `    - Reconheça unidades usuais do comércio brasileiro (saco / sc, metro cúbico / m³, milheiro, barra, lata, fardo, caixa, peça).\n`;
@@ -437,11 +439,12 @@ function compileSystemPrompt(agent, store, contact = null) {
   ];
   const cadenceHint = DYNAMIC_HUMAN_CADENCES[Math.floor(Math.random() * DYNAMIC_HUMAN_CADENCES.length)];
   compiled += `  * INSTRUÇÃO DE VARIAÇÃO DESTA MENSAGEM: ${cadenceHint}\n`;
-  if (contact?.name && !contact.name.includes('@') && !/^\d+$/.test(contact.name)) {
-    const cleanFirstName = contact.name.trim().split(/\s+/)[0].replace(/[^\p{L}]/gu, '');
-    if (cleanFirstName.length >= 2) {
-      compiled += `  * NOME DO CLIENTE: O cliente se chama ${cleanFirstName}. Se for a primeira mensagem ou soar natural, chame-o pelo primeiro nome.\n`;
-    }
+  const { formatHumanClientName } = require('./leadAnalyzer');
+  const humanClientName = formatHumanClientName(contact?.name);
+  if (humanClientName) {
+    compiled += `  * NOME DO CLIENTE: O cliente se chama ${humanClientName}. Se for a primeira mensagem ou soar natural, chame-o pelo primeiro nome.\n`;
+  } else {
+    compiled += `  * NOME DO CLIENTE: O nome próprio não está disponível. Trate com cordialidade sem inventar nomes ou apelidos como "amigo(a)".\n`;
   }
   compiled += `  * PRIORIDADE MÁXIMA PARA SUPORTE / ENTREGA: Se o cliente relatar problema na entrega ("não foi entregue", "atrasou", "não recebi"), NÃO continue empurrando vendas ou perguntando o que ele quer comprar! Peça sinceras desculpas pela situação com empatia real, acolha a queixa e garanta que você já está acionando o setor de logística/expedição para verificar o ocorrido imediatamente.\n`;
   compiled += `  * SE O PEDIDO JÁ FOI AGENDADO: Reconheça que o pedido já estava agendado e demonstre comprometimento imediato para resolver com a equipe.\n`;

@@ -456,11 +456,11 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       try {
         const agentMemoryGraphService = require('./agentMemoryGraphService');
         void agentMemoryGraphService.learnFromInteraction({
-          agentKey: conversation?.agent_name || 'default',
-          companyId: conversation?.company_id || 'default',
-          contact: { phone, name: conversation?.lead_name || phone, conversationId },
-          message: text,
-          reply: ai.text || '',
+          agentKey: conversation?.agent_name || matchedAgent?.name || 'default',
+          companyId: conversation?.company_id || companyId || 'default',
+          contact: { phone, name: conversation?.lead_name || conversation?.name || phone, conversationId },
+          message: incomingText,
+          reply: ai.reply || '',
         });
       } catch (_gErr) {}
     } catch (err) {
@@ -532,7 +532,11 @@ function splitLongMessage(text) {
   }
 
   // 8. Queue: Enqueue AI response message (Queue -> SendMessage)
-  const replyText = ai.reply || '';
+  const replyText = (ai.reply || '').trim();
+  if (!replyText) {
+    console.warn(`[AutomationEngine] Refused to queue empty reply text for ${phone}`);
+    return { success: false, reason: 'ai_empty_reply_trimmed' };
+  }
   const chunks = splitLongMessage(replyText);
 
   publishProgress('queued', {

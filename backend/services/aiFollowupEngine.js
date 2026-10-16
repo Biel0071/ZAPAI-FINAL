@@ -197,6 +197,9 @@ async function generateRecoveryApproach({ conversationId, phone, lastTopic = '',
   };
 }
 
+const recentFollowupDispatches = new Map();
+const FOLLOWUP_DEDUP_WINDOW_MS = 60 * 1000;
+
 /**
  * Executes an algorithmic follow-up for a stalled lead if they haven't purchased yet.
  */
@@ -222,9 +225,23 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
 
   const targetJid = conversation.remote_jid || conversation.phone;
   const resolvedSessionId = sessionId || conversation.session_id || 'default';
-  const followupText =
-    leadAlgorithm.followupHook ||
-    'Olá! Tudo bem? Aqui é a Camila da loja. Vi que conversamos antes sobre seu orçamento e passei para saber se ficou alguma dúvida ou se posso te ajudar a fechar seu pedido hoje!';
+  const followupText = (leadAlgorithm.followupHook || '').trim();
+
+  // Strict anti-empty message guard: never send blank bubbles
+  if (!followupText) {
+    console.warn(`[AIFollowupEngine] Refusing to send empty follow-up text to conversation ${conversation.id}`);
+    return { ok: false, skipped: true, reason: 'empty_followup_text' };
+  }
+
+  // Deduplication guard: do not double-dispatch followups to the same lead within 60s
+  const dedupKey = `${conversation.company_id || companyId}:${targetJid}`;
+  const now = Date.now();
+  const lastDispatched = recentFollowupDispatches.get(dedupKey);
+  if (lastDispatched && now - lastDispatched < FOLLOWUP_DEDUP_WINDOW_MS) {
+    console.log(`[AIFollowupEngine] Suppressed duplicate follow-up dispatch for ${targetJid} within window`);
+    return { ok: true, skipped: true, reason: 'duplicate_suppressed' };
+  }
+  recentFollowupDispatches.set(dedupKey, now);
 
   const existingTags = Array.isArray(conversation.tags) ? conversation.tags : [];
   const nextTags = Array.from(
