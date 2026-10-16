@@ -105,7 +105,7 @@ async function run() {
   await loginIfNeeded(page);
   await page.waitForTimeout(3000);
 
-  // 1. CAPTURE ACTIVE STATE: Seated at PC workstation with full office scenario
+  // 1. CAPTURE ACTIVE STATE: Camila seated at PC workstation in office scenario
   console.log('Capturing: VERIFY_01_ATTENDANTS_WORKING_PC_SCENARIO.png');
   await saveShot(page, 'VERIFY_01_ATTENDANTS_WORKING_PC_SCENARIO.png');
 
@@ -124,17 +124,41 @@ async function run() {
   }
 
   // 3. OPEN AVATAR STUDIO MODAL: Standing pose during creation/customization
-  console.log('3. Opening Avatar Studio modal...');
-  const openModalBtn = page.locator('button:has-text("Avatar Studio"), button:has-text("Estúdio Avançado"), button:has-text("Personalizar Avatar")').first();
-  if (await openModalBtn.count() > 0) {
+  console.log('3. Opening Avatar Studio modal for Camila...');
+  const openModalBtn = page.locator('button:has-text("Estúdio Avançado")').first();
+  if (await openModalBtn.isVisible()) {
     await openModalBtn.click();
     await page.waitForTimeout(2000);
+    const dialog = page.locator('[role="dialog"]').first();
+    if (await dialog.isVisible()) {
+      console.log('Capturing: VERIFY_03_STUDIO_MODAL_STANDING_CREATION.png');
+      await saveShot(dialog, 'VERIFY_03_STUDIO_MODAL_STANDING_CREATION.png');
+      // Close modal
+      const closeBtn = page.locator('button[aria-label="Close"], button:has-text("Cancelar"), [role="dialog"] button:has-text("✕")').first();
+      if (await closeBtn.isVisible()) {
+        await closeBtn.click();
+      } else {
+        await page.keyboard.press('Escape');
+      }
+      await page.waitForTimeout(1500);
+    }
   }
 
-  const dialog = page.locator('[role="dialog"]').first();
-  if (await dialog.isVisible()) {
-    console.log('Capturing: VERIFY_03_STUDIO_MODAL_STANDING_CREATION.png');
-    await saveShot(dialog, 'VERIFY_03_STUDIO_MODAL_STANDING_CREATION.png');
+  // 4. CAPTURE MALE ATTENDANT SEATED WORKING AT PC: Click on João card
+  console.log('4. Selecting male attendant João...');
+  const joaoCard = page.locator('text="João"').first();
+  if (await joaoCard.isVisible()) {
+    await joaoCard.click();
+    await page.waitForTimeout(2500);
+    console.log('Capturing: VERIFY_04_MALE_WORKING_PC.png');
+    await saveShot(page, 'VERIFY_04_MALE_WORKING_PC.png');
+
+    // Switch back to Camila
+    const camilaCard = page.locator('text="Camila"').first();
+    if (await camilaCard.isVisible()) {
+      await camilaCard.click();
+      await page.waitForTimeout(2000);
+    }
   }
 
   await browser.close();
