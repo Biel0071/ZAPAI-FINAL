@@ -195,6 +195,37 @@ async function run() {
     }
   }
 
+  // 6. MOBILE VIEWPORT (390 x 844)
+  console.log('6. Capturing mobile viewport (390x844)...');
+  const mobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 1,
+    ignoreHTTPSErrors: true,
+  });
+  await mobileContext.addInitScript((jwt) => {
+    const sessionObj = {
+      token: jwt,
+      username: 'zapadmin',
+      role: 'master',
+      tenantId: 'default',
+      companyId: 'default',
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 86400000 * 7,
+      remember: true,
+    };
+    localStorage.setItem('zapai_admin_auth_session', JSON.stringify(sessionObj));
+    sessionStorage.setItem('zapai_admin_auth_session', JSON.stringify(sessionObj));
+    localStorage.setItem('auth_token', jwt);
+    localStorage.setItem('token', jwt);
+    localStorage.setItem('auth_user', JSON.stringify({ username: 'zapadmin', role: 'master', companyId: 'default' }));
+    localStorage.setItem('theme', 'dark');
+  }, token);
+  const mobilePage = await mobileContext.newPage();
+  await mobilePage.goto(`${BASE_URL}/attendants`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await mobilePage.waitForTimeout(3000);
+  await saveShot(mobilePage, 'VERIFY_08_ATTENDANTS_MOBILE_390.png');
+  await mobileContext.close();
+
   await browser.close();
   console.log('--- ALL ATTENDANT VERIFICATIONS COMPLETED SUCCESSFULLY ---');
 }
