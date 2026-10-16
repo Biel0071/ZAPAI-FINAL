@@ -530,10 +530,11 @@ function ModularLayerAvatar({
               <g clipPath={`url(#clip-face-${uid})`}>
                 <image
                   href={hairImg.href}
-                  x={hairImg.x + 14}
-                  y={hairImg.y + 34}
+                  x={hairImg.x}
+                  y={hairImg.y}
                   width={hairImg.width}
                   height={hairImg.height}
+                  transform="translate(0, 126) scale(1, -1)"
                 />
                 <image
                   href={hairImg.href}
@@ -541,7 +542,7 @@ function ModularLayerAvatar({
                   y={hairImg.y}
                   width={hairImg.width}
                   height={hairImg.height}
-                  transform="translate(0, 126) scale(1, -1)"
+                  transform="translate(148, 126) scale(-1, -1)"
                 />
               </g>
               {isLongHair && (
