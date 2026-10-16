@@ -124,17 +124,16 @@ export const AvatarItemPreview: React.FC<AvatarItemPreviewProps> = ({
         aria-hidden="true"
         className="sr-only"
       />
-      <div
-        className="w-full h-full flex items-center justify-center pointer-events-none select-none"
-        style={FOCUS_WRAPPER_STYLES[focus]}
-      >
+      <div className="w-full h-full flex items-center justify-center pointer-events-none select-none p-0.5">
         <ZaiAvatarRenderer
           avatar={previewAvatar}
           state="WAITING"
           size="sm"
+          cropFocus={focus}
           showAura={false}
           showStatusBadge={false}
           showBrandingLayer={focus === "outfit" || focus === "full"}
+          className="w-full h-full"
         />
       </div>
     </div>

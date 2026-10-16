@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 export const repoRoot = path.resolve(__dirname, "..");
-export const logsDir = path.join(repoRoot, "logs");
+export const logsDir = path.join(repoRoot, "data", "logs");
 export const frontendDir = path.join(repoRoot, "frontend-official");
 export const backendDir = path.join(repoRoot, "backend");
 export const targetPorts = [3000, 4025, 4173, 5173, 8080];

@@ -893,7 +893,7 @@ export default function AttendantsPage() {
             </div>
 
             {/* Centered Live Modular 3D/2.5D Character on Turntable */}
-            <div className="relative w-full h-[230px] sm:h-[250px] flex items-center justify-center my-auto">
+            <div className="relative w-full h-[215px] sm:h-[235px] flex items-center justify-center pt-5 pb-7 my-auto">
               {/* Semantic sprite img kept in DOM for legacy test selectors */}
               <img
                 src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
@@ -919,18 +919,30 @@ export default function AttendantsPage() {
               />
             </div>
 
-            {/* Bottom Layer Summary Chips */}
-            <div className="absolute bottom-2 inset-x-2 z-20 flex items-center justify-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-              <span className="px-2 py-0.5 rounded-md bg-black/80 border border-border/60 text-[9px] text-foreground font-mono truncate max-w-[100px]">
+            {/* Bottom Layer Summary Chips (2x2 clean grid, zero pedestal overlap) */}
+            <div className="absolute bottom-1.5 inset-x-2.5 z-20 grid grid-cols-2 gap-1">
+              <span
+                title={activeHairItem.title}
+                className="px-2 py-0.5 rounded-md bg-black/85 border border-border/60 text-[9px] text-foreground font-mono truncate text-center"
+              >
                 {activeHairItem.title}
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-black/80 border border-border/60 text-[9px] text-foreground font-mono truncate max-w-[90px]">
+              <span
+                title={activeFaceItem.title}
+                className="px-2 py-0.5 rounded-md bg-black/85 border border-border/60 text-[9px] text-foreground font-mono truncate text-center"
+              >
                 {activeFaceItem.title}
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-black/80 border border-border/60 text-[9px] text-foreground font-mono truncate max-w-[100px]">
+              <span
+                title={activeOutfitItem.title}
+                className="px-2 py-0.5 rounded-md bg-black/85 border border-border/60 text-[9px] text-foreground font-mono truncate text-center"
+              >
                 {activeOutfitItem.title}
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-emerald-950/90 border border-emerald-500/50 text-[9px] text-emerald-300 font-mono font-bold truncate max-w-[80px]">
+              <span
+                title={activeStyleItem.title}
+                className="px-2 py-0.5 rounded-md bg-emerald-950/90 border border-emerald-500/50 text-[9px] text-emerald-300 font-mono font-bold truncate text-center"
+              >
                 {activeStyleItem.title}
               </span>
             </div>

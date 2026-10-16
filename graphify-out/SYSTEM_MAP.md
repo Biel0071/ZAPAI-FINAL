@@ -1,5 +1,17 @@
 # Mapa canônico consultado para polimento visual
 
+## V1.0.0 — Lapidação Geral de Produção, Motor 2.5D de Avatares, Árvore de Cliques e Higiene Estrutural (15/10/2026)
+
+- **Motor 2.5D de Avatares (`ZaiAvatarRenderer.tsx` & `AvatarItemPreview.tsx`)**:
+  - Coordenadas de pescoço e queixo (`CHIBI_SPRITE_ANCHORS`) calibradas nos 33 sprites de catálogo (`sprite_r1_c1` a `sprite_r3_c11`) para alinhamento exato em `(70, 96)` sem deslocamento horizontal.
+  - Recorte `<clipPath id="clip-body">` iniciando em `y = 95` e `<clipPath id="clip-head">` até `y = 95.5`, eliminando vazamento de barba/microfone e pontas soltas de cabelo (`clip-back-hair` recolhido atrás do ombro quando combinado entre sprites).
+  - Visão traseira `Costas 180°` (`isBackView`) com espelhamento horizontal da silhueta, cobertura dorsal da vestimenta (`#layer-outfit-back-cover` + `#outfit-back-emblem`), contraforte nos calcanhares e coroa/cascata capilar 2.5D completa (`#layer-hair-back-view`).
+  - Miniaturas do catálogo (`AvatarItemPreview.tsx`) renderizadas via `cropFocus` (`viewBox` SVG nativo por categoria) sem cortes no topo da cabeça ou queixo residual nas roupas.
+- **Árvore de Telas, Botões e Ações (`docs/architecture/SYSTEM_UI_AND_ACTION_TREE.md`)**:
+  - Mapa arquitetural completo de rotas, submenus, seletores DOM e handlers, validado automaticamente por `scripts/qa/verify-click-tree.cjs` (relatório em `docs/releases/V1_CLICK_TREE_REPORT.json`).
+- **Padronização de Diretórios V1**:
+  - Raiz enxuta; `scripts/` contendo apenas entrypoints ativos (`runtime-*.mjs`, `deploy-master.js`, `run-e2e-smoke.js`, `qa/`) com 178 scripts ad-hoc movidos para `outros/scripts-archive/`; `docs/` ramificado em `architecture/`, `ops/`, `releases/` e `archive/`; logs locais consolidados em `data/logs/`.
+
 ## Loja integrada ao atendimento (06/10/2026)
 
 - `pages/Attendants/AttendantsPage.tsx` seleciona o contexto por `sessionId`, troca o único responsável e hospeda dados comerciais. `/stores` e `/lojas` redirecionam para `/attendants?section=business`, preservando contexto; não há página de loja nos menus.

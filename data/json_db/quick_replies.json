@@ -2405,5 +2405,68 @@
     "mediaType": null,
     "aiMemory": null,
     "filename": null
+  },
+  {
+    "id": "qr-1792071161272-dqqe1",
+    "title": "Atendimento",
+    "content": "Olá",
+    "items": [
+      {
+        "type": "text",
+        "value": "Olá",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "general",
+    "tags": [],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "tenant-a",
+    "steps": [],
+    "updatedAt": "2026-10-15T13:32:41.272Z",
+    "createdAt": "2026-10-15T13:32:41.272Z"
+  },
+  {
+    "id": "qr-1792071161162-0jen2",
+    "title": "Atendimento",
+    "content": "Olá",
+    "items": [
+      {
+        "type": "text",
+        "value": "Olá",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "general",
+    "tags": [],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "tenant-a",
+    "steps": [],
+    "updatedAt": "2026-10-15T13:32:41.163Z",
+    "createdAt": "2026-10-15T13:32:41.163Z"
+  },
+  {
+    "id": "qr-1792071156292-4lutw",
+    "title": "Nova",
+    "content": "Nova",
+    "items": [
+      {
+        "type": "text",
+        "value": "Nova",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "general",
+    "tags": [],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "tenant-a",
+    "steps": [],
+    "updatedAt": "2026-10-15T13:32:36.292Z",
+    "createdAt": "2026-10-15T13:32:36.292Z"
   }
 ]

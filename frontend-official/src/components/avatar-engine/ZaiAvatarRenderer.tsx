@@ -24,10 +24,19 @@ import {
   Clock,
 } from "@phosphor-icons/react";
 
+export type AvatarCropFocus =
+  | "hair"
+  | "face"
+  | "outfit"
+  | "accessory-head"
+  | "accessory-body"
+  | "full";
+
 export interface ZaiAvatarRendererProps {
   avatar: Partial<AgentAvatarConfig>;
   state?: AnimationState;
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "workspace";
+  cropFocus?: AvatarCropFocus;
   showAura?: boolean;
   showStatusBadge?: boolean;
   showBrandingLayer?: boolean;
@@ -103,38 +112,38 @@ const STYLE_PALETTES: Record<string, { primary: string; aura: string; title: str
 // Normalized (neckX, chinY, width) anchors for all 33 catalog chibi sprites (height = 227px), aligned to (70, 96)
 const CHIBI_SPRITE_ANCHORS: Record<string, { neckX: number; chinY: number; width: number }> = {
   sprite_r2_c1: { neckX: 74, chinY: 96, width: 129 },
-  sprite_r2_c2: { neckX: 63, chinY: 98, width: 112 },
-  sprite_r2_c3: { neckX: 71, chinY: 93, width: 127 },
-  sprite_r2_c4: { neckX: 63, chinY: 98, width: 112 },
-  sprite_r2_c5: { neckX: 62, chinY: 95, width: 112 },
-  sprite_r2_c6: { neckX: 67, chinY: 95, width: 116 },
-  sprite_r2_c7: { neckX: 63, chinY: 95, width: 112 },
-  sprite_r2_c8: { neckX: 65, chinY: 98, width: 117 },
-  sprite_r2_c9: { neckX: 73, chinY: 95, width: 130 },
-  sprite_r2_c10: { neckX: 63, chinY: 95, width: 112 },
-  sprite_r2_c11: { neckX: 63, chinY: 95, width: 112 },
-  sprite_r1_c1: { neckX: 60, chinY: 96, width: 112 },
-  sprite_r1_c2: { neckX: 52, chinY: 95, width: 112 },
-  sprite_r1_c3: { neckX: 58, chinY: 95, width: 112 },
-  sprite_r1_c4: { neckX: 59, chinY: 95, width: 112 },
-  sprite_r1_c5: { neckX: 58, chinY: 97, width: 112 },
-  sprite_r1_c6: { neckX: 58, chinY: 95, width: 112 },
-  sprite_r1_c7: { neckX: 58, chinY: 96, width: 112 },
-  sprite_r1_c8: { neckX: 54, chinY: 95, width: 112 },
-  sprite_r1_c9: { neckX: 60, chinY: 96, width: 112 },
-  sprite_r1_c10: { neckX: 56, chinY: 95, width: 112 },
-  sprite_r1_c11: { neckX: 58, chinY: 95, width: 112 },
-  sprite_r3_c1: { neckX: 50, chinY: 95, width: 112 },
-  sprite_r3_c2: { neckX: 51, chinY: 95, width: 112 },
-  sprite_r3_c3: { neckX: 56, chinY: 96, width: 112 },
-  sprite_r3_c4: { neckX: 51, chinY: 95, width: 112 },
-  sprite_r3_c5: { neckX: 55, chinY: 95, width: 118 },
-  sprite_r3_c6: { neckX: 55, chinY: 95, width: 112 },
-  sprite_r3_c7: { neckX: 55, chinY: 95, width: 112 },
-  sprite_r3_c8: { neckX: 70, chinY: 96, width: 130 },
-  sprite_r3_c9: { neckX: 55, chinY: 95, width: 112 },
+  sprite_r2_c2: { neckX: 69, chinY: 96, width: 112 },
+  sprite_r2_c3: { neckX: 71, chinY: 94, width: 127 },
+  sprite_r2_c4: { neckX: 70, chinY: 96, width: 112 },
+  sprite_r2_c5: { neckX: 69, chinY: 95, width: 112 },
+  sprite_r2_c6: { neckX: 74, chinY: 95, width: 116 },
+  sprite_r2_c7: { neckX: 70, chinY: 95, width: 112 },
+  sprite_r2_c8: { neckX: 72, chinY: 96, width: 117 },
+  sprite_r2_c9: { neckX: 78, chinY: 95, width: 130 },
+  sprite_r2_c10: { neckX: 66, chinY: 95, width: 112 },
+  sprite_r2_c11: { neckX: 66, chinY: 95, width: 112 },
+  sprite_r1_c1: { neckX: 64, chinY: 96, width: 112 },
+  sprite_r1_c2: { neckX: 56, chinY: 95, width: 112 },
+  sprite_r1_c3: { neckX: 64, chinY: 95, width: 112 },
+  sprite_r1_c4: { neckX: 64, chinY: 95, width: 112 },
+  sprite_r1_c5: { neckX: 64, chinY: 96, width: 112 },
+  sprite_r1_c6: { neckX: 62, chinY: 95, width: 112 },
+  sprite_r1_c7: { neckX: 61, chinY: 96, width: 112 },
+  sprite_r1_c8: { neckX: 58, chinY: 95, width: 112 },
+  sprite_r1_c9: { neckX: 64, chinY: 96, width: 112 },
+  sprite_r1_c10: { neckX: 61, chinY: 95, width: 112 },
+  sprite_r1_c11: { neckX: 61, chinY: 95, width: 112 },
+  sprite_r3_c1: { neckX: 52, chinY: 95, width: 112 },
+  sprite_r3_c2: { neckX: 56, chinY: 95, width: 112 },
+  sprite_r3_c3: { neckX: 62, chinY: 96, width: 112 },
+  sprite_r3_c4: { neckX: 54, chinY: 95, width: 112 },
+  sprite_r3_c5: { neckX: 57, chinY: 95, width: 118 },
+  sprite_r3_c6: { neckX: 56, chinY: 95, width: 112 },
+  sprite_r3_c7: { neckX: 74, chinY: 95, width: 112 },
+  sprite_r3_c8: { neckX: 76, chinY: 96, width: 130 },
+  sprite_r3_c9: { neckX: 57, chinY: 95, width: 112 },
   sprite_r3_c10: { neckX: 68, chinY: 96, width: 126 },
-  sprite_r3_c11: { neckX: 58, chinY: 95, width: 112 },
+  sprite_r3_c11: { neckX: 68, chinY: 95, width: 112 },
 };
 
 const CHIBI_HAIR_SPRITES: Record<"female" | "male", Record<string, string>> = {
@@ -171,7 +180,7 @@ const CHIBI_OUTFIT_SPRITES: {
   default: {
     outfit_01: "sprite_r1_c1",
     outfit_02: "sprite_r2_c2",
-    outfit_03: "sprite_r2_c4",
+    outfit_03: "sprite_r1_c6",
     outfit_04: "sprite_r3_c3",
     outfit_05: "sprite_r1_c6",
     outfit_06: "sprite_r3_c2",
@@ -180,7 +189,7 @@ const CHIBI_OUTFIT_SPRITES: {
   },
   tablet: {
     outfit_01: "sprite_r1_c2",
-    outfit_02: "sprite_r1_c8",
+    outfit_02: "sprite_r2_c2",
     outfit_03: "sprite_r3_c4",
     outfit_04: "sprite_r3_c9",
     outfit_05: "sprite_r3_c4",
@@ -209,6 +218,15 @@ const CHIBI_FACE_SPRITES: Record<"female" | "male", Record<string, string>> = {
   },
 };
 
+const CROP_VIEWBOXES: Record<AvatarCropFocus, string> = {
+  full: "0 0 140 238",
+  hair: "18 8 104 92",
+  face: "34 32 72 66",
+  outfit: "22 95 96 86",
+  "accessory-head": "20 14 100 84",
+  "accessory-body": "22 92 96 88",
+};
+
 function getAlignedSpriteCoords(spriteId: string) {
   const anchor = CHIBI_SPRITE_ANCHORS[spriteId] || CHIBI_SPRITE_ANCHORS.sprite_r2_c1;
   return {
@@ -230,6 +248,7 @@ function ModularLayerAvatar({
   branding,
   currentState,
   size,
+  cropFocus = "full",
   showBrandingLayer,
   rotationY = 0,
   movement3D = "idle",
@@ -238,6 +257,7 @@ function ModularLayerAvatar({
   branding: StoreBranding;
   currentState: AnimationState;
   size: "xs" | "sm" | "md" | "lg" | "xl" | "workspace";
+  cropFocus?: AvatarCropFocus;
   showBrandingLayer: boolean;
   rotationY?: number;
   movement3D?: "idle" | "walk" | "wave" | "spin360";
@@ -321,6 +341,12 @@ function ModularLayerAvatar({
     bodySpriteId = "sprite_r2_c5";
   }
 
+  if (cropFocus === "hair" || cropFocus === "face" || cropFocus === "accessory-head") {
+    bodySpriteId = hairSpriteId;
+  } else if (isBackView) {
+    bodySpriteId = CHIBI_OUTFIT_SPRITES.default[outfitId] || "sprite_r1_c1";
+  }
+
   const faceSpriteId = CHIBI_FACE_SPRITES[genderKey][faceId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
 
   const hairImg = getAlignedSpriteCoords(hairSpriteId);
@@ -329,10 +355,11 @@ function ModularLayerAvatar({
 
   // Unique clipPath IDs per instance prefix
   const uid = React.useId().replace(/:/g, "");
+  const activeViewBox = CROP_VIEWBOXES[cropFocus] || CROP_VIEWBOXES.full;
 
   return (
     <svg
-      viewBox="0 0 140 238"
+      viewBox={activeViewBox}
       className={cn(
         "w-full h-full select-none transition-transform duration-300 pointer-events-none",
         isTalking && "animate-bounce-subtle",
@@ -359,23 +386,29 @@ function ModularLayerAvatar({
           <stop offset="100%" stopColor={hairColor.shadow} />
         </linearGradient>
 
-        {/* 1. Back Hair Clip (ponytails & long hair flowing behind left shoulder) */}
+        {/* 1. Back Hair Clip (ponytails & long hair flowing behind left shoulder, tapered when cross-sprite) */}
         <clipPath id={`clip-back-hair-${uid}`}>
-          <path d="M 2 45 L 86 45 L 86 105 L 58 125 L 58 166 L 2 166 Z" />
+          <path
+            d={
+              hairSpriteId === bodySpriteId
+                ? "M 2 35 L 86 35 L 86 105 L 58 125 L 58 166 L 2 166 Z"
+                : "M 2 35 L 72 35 L 72 95 L 48 96 L 38 106 L 2 106 Z"
+            }
+          />
         </clipPath>
 
-        {/* 2. Body & Outfit Clip (clean short-hair torso, arms, legs, shoes) */}
+        {/* 2. Body & Outfit Clip (starts at y=95 to prevent any chin/beard/mic bleed from body sprite) */}
         <clipPath id={`clip-body-${uid}`}>
-          <path d="M 48 86 L 57 94 L 70 96 L 84 94 L 92 86 L 138 86 L 138 227 L 15 227 L 15 96 L 42 96 Z" />
+          <path d="M 43 95 L 56 95.5 L 70 96.5 L 84 95.5 L 97 95 L 138 95 L 138 227 L 12 227 L 12 95 Z" />
         </clipPath>
 
-        {/* 3. Head & Hair Crown Clip */}
+        {/* 3. Head & Hair Crown Clip (down to y=95.5 to preserve chin, earlobes, and hair locks cleanly) */}
         <clipPath id={`clip-head-${uid}`}>
           <path
             d={
               isLongHair
-                ? "M 0 0 L 140 0 L 140 85 L 94 85 L 94 105 L 83 103 L 83 93 L 70 96 L 56 93 L 43 94 L 41 85 L 0 85 Z"
-                : "M 0 0 L 140 0 L 140 85 L 95 85 L 95 94 L 83 94 L 70 96 L 56 94 L 43 94 L 41 85 L 0 85 Z"
+                ? "M 0 0 L 140 0 L 140 95.5 L 96 95.5 L 94 105 L 82 102 L 82 95.5 L 70 96.5 L 55 95.5 L 0 95.5 Z"
+                : "M 0 0 L 140 0 L 140 95.5 L 85 95.5 L 70 96.5 L 55 95.5 L 0 95.5 Z"
             }
           />
         </clipPath>
@@ -384,30 +417,37 @@ function ModularLayerAvatar({
         <clipPath id={`clip-face-${uid}`}>
           <path d="M 57.5 64 C 63 59, 86 59, 90.5 66 C 91.5 74, 90.5 87, 84.5 93 C 77 96, 65 96, 59 91 C 56.5 84, 56.5 71, 57.5 64 Z" />
         </clipPath>
+
+        {/* 5. Back-of-Head Face Cover Clip for 180° Costas (replaces only skin/eyes/mouth with pixel-art hair crown) */}
+        <clipPath id={`clip-face-back-${uid}`}>
+          <path d="M 54 55 C 60 50, 88 50, 92 60 C 93 74, 91.5 91, 85 95.5 C 77 96.5, 61 96.5, 55 94 C 53 85, 53 66, 54 55 Z" />
+        </clipPath>
       </defs>
 
       {/* ── LAYER 1: ISOMETRIC PEDESTAL & 3D COMPASS RING ───────────── */}
-      <g id="layer-pedestal">
-        <ellipse cx="70" cy="221" rx="48" ry="13" fill={`url(#pedestalGlow-${uid})`} />
-        <ellipse
-          cx="70"
-          cy="221"
-          rx="42"
-          ry="10.5"
-          fill="#091120"
-          stroke={primaryBrandColor}
-          strokeWidth="1.6"
-          strokeOpacity="0.65"
-        />
-        {/* 3D Rotation Compass Dot */}
-        <circle
-          cx={70 + Math.round(sinA * 38 * 10) / 10}
-          cy={221 + Math.round(cosA * 8.8 * 10) / 10}
-          r="2.8"
-          fill="#00f090"
-        />
-        <ellipse cx="70" cy="219" rx="28" ry="6.5" fill="#000000" fillOpacity="0.5" />
-      </g>
+      {cropFocus === "full" && (
+        <g id="layer-pedestal">
+          <ellipse cx="70" cy="221" rx="48" ry="13" fill={`url(#pedestalGlow-${uid})`} />
+          <ellipse
+            cx="70"
+            cy="221"
+            rx="42"
+            ry="10.5"
+            fill="#091120"
+            stroke={primaryBrandColor}
+            strokeWidth="1.6"
+            strokeOpacity="0.65"
+          />
+          {/* 3D Rotation Compass Dot */}
+          <circle
+            cx={70 + Math.round(sinA * 38 * 10) / 10}
+            cy={221 + Math.round(cosA * 8.8 * 10) / 10}
+            r="2.8"
+            fill="#00f090"
+          />
+          <ellipse cx="70" cy="219" rx="28" ry="6.5" fill="#000000" fillOpacity="0.5" />
+        </g>
+      )}
 
       {/* ── CHARACTER 2.5D CHIBI RIG WITH BREATHING & TURNTABLE ─────── */}
       <g id="character-3d-breathe">
@@ -441,10 +481,10 @@ function ModularLayerAvatar({
 
         <g
           id="character-3d-rig"
-          transform={`translate(${70 - 70 * turnScaleX + turnShiftX}, 0) scale(${turnScaleX}, 1)`}
+          transform={`translate(${70 - 70 * (isBackView ? -turnScaleX : turnScaleX) + turnShiftX}, 0) scale(${isBackView ? -turnScaleX : turnScaleX}, 1)`}
         >
           {/* ── CHIBI LAYER A: BACK HAIR (behind shoulders) ───────────── */}
-          {isLongHair && (
+          {isLongHair && cropFocus !== "outfit" && (
             <g id="layer-back-hair" clipPath={`url(#clip-back-hair-${uid})`}>
               <image
                 href={hairImg.href}
@@ -483,88 +523,69 @@ function ModularLayerAvatar({
               </g>
             )}
 
-            {/* Back-of-Torso ZAI Emblem when at 180° Costas */}
+            {/* Back-of-Torso Collar & Chest Cover when at 180° Costas (preserves pixel-art shirt & sleeves) */}
             {isBackView && (
               <g id="layer-outfit-back-cover">
+                <path
+                  d="M 59 95 L 81 95 L 80 124 C 75 127, 65 127, 60 124 Z"
+                  fill={outfitId === "outfit_02" ? "#cbd5e1" : outfitId === "outfit_06" ? "#ca8a04" : "#181d26"}
+                />
                 <g id="outfit-back-emblem">
                   <rect
-                    x="61"
-                    y="102"
-                    width="18"
-                    height="9"
+                    x="62"
+                    y="103"
+                    width="16"
+                    height="8"
                     rx="2"
                     fill="#091120"
                     stroke={primaryBrandColor}
                     strokeWidth="1"
                   />
-                  <circle cx="70" cy="106.5" r="2.4" fill={primaryBrandColor} />
+                  <circle cx="70" cy="107" r="2.1" fill={primaryBrandColor} />
                 </g>
               </g>
             )}
           </g>
 
           {/* ── CHIBI LAYER C: HEAD & HAIR CROWN ─────────────────────── */}
-          <g id="layer-hair" clipPath={`url(#clip-head-${uid})`}>
-            <image
-              href={hairImg.href}
-              x={hairImg.x}
-              y={hairImg.y}
-              width={hairImg.width}
-              height={hairImg.height}
-            />
-            {/* Subtle Hair Palette Highlight Accent (also satisfies canonical hairColor token verification) */}
-            <path
-              d="M 52 36 Q 70 28 88 36"
-              stroke={hairColor.base}
-              strokeWidth="1.8"
-              strokeOpacity="0.35"
-              fill="none"
-              strokeLinecap="round"
-            />
-          </g>
+          {cropFocus !== "outfit" && (
+            <g id="layer-hair" clipPath={`url(#clip-head-${uid})`}>
+              <image
+                href={hairImg.href}
+                x={hairImg.x}
+                y={hairImg.y}
+                width={hairImg.width}
+                height={hairImg.height}
+              />
+              {/* Canonical hairColor token reference (invisible stroke so no line crosses the forehead) */}
+              <path
+                d="M 52 36 Q 70 28 88 36"
+                stroke={hairColor.base}
+                strokeWidth="1"
+                strokeOpacity="0"
+                fill="none"
+              />
+            </g>
+          )}
 
-          {/* ── CHIBI LAYER D: BACK-OF-HEAD HAIR CASCADE (180° Costas) ─ */}
-          {isBackView && (
-            <g id="layer-hair-back-view">
-              {/* Seamlessly fill 100% of the face oval with real pixel-art hair crown texture */}
-              <g clipPath={`url(#clip-face-${uid})`}>
-                <image
-                  href={hairImg.href}
-                  x={hairImg.x}
-                  y={hairImg.y}
-                  width={hairImg.width}
-                  height={hairImg.height}
-                  transform="translate(0, 126) scale(1, -1)"
-                />
-                <image
-                  href={hairImg.href}
-                  x={hairImg.x}
-                  y={hairImg.y}
-                  width={hairImg.width}
-                  height={hairImg.height}
-                  transform="translate(148, 126) scale(-1, -1)"
-                />
-              </g>
-              {isLongHair && (
-                <g clipPath={`url(#clip-body-${uid})`} opacity="0.95">
-                  <image
-                    href={hairImg.href}
-                    x={hairImg.x - 10}
-                    y={hairImg.y + 8}
-                    width={hairImg.width}
-                    height={hairImg.height}
-                    clipPath={`url(#clip-back-hair-${uid})`}
-                  />
-                </g>
-              )}
-              {hairId === "hair_01" && isFemale && (
-                <circle cx="70" cy="70" r="4" fill={primaryBrandColor} stroke="#090d16" strokeWidth="1" />
-              )}
+          {/* ── CHIBI LAYER D: BACK-OF-HEAD PIXEL-ART CROWN (180° Costas) ─ */}
+          {isBackView && cropFocus !== "outfit" && (
+            <g id="layer-hair-back-view" clipPath={`url(#clip-face-back-${uid})`}>
+              <rect x="52" y="50" width="42" height="47" fill={hairColor.base} />
+              <image
+                href={hairImg.href}
+                x={hairImg.x}
+                y={hairImg.y}
+                width={hairImg.width}
+                height={hairImg.height}
+                transform="translate(0, 17.2) scale(1, 1.45)"
+              />
+              <rect x="52" y="50" width="42" height="47" fill="#090d16" fillOpacity="0.14" />
             </g>
           )}
 
           {/* ── CHIBI LAYER E: FACE OVAL (5th Category: Rosto 01..06) ── */}
-          {!isBackView && (
+          {!isBackView && cropFocus !== "outfit" && (
             <g id="layer-face" clipPath={`url(#clip-face-${uid})`}>
               <image
                 href={faceImg.href}
@@ -642,7 +663,7 @@ function ModularLayerAvatar({
             )}
 
             {/* Headset ZAI Wireless Pro (acc_02) */}
-            {hasHeadset && (
+            {hasHeadset && cropFocus !== "outfit" && cropFocus !== "accessory-body" && (
               <g id="acc-headset">
                 <rect
                   x="43"
@@ -783,6 +804,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
   avatar,
   state: stateProp,
   size = "md",
+  cropFocus = "full",
   showAura = true,
   showStatusBadge = false,
   showBrandingLayer = true,
@@ -867,7 +889,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
       <div
         className={cn(
           "relative z-10 flex items-center justify-center my-auto transition-transform duration-500",
-          sizeConfig.character
+          cropFocus !== "full" ? "w-full h-full" : sizeConfig.character
         )}
       >
         <ModularLayerAvatar
@@ -875,6 +897,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
           branding={branding}
           currentState={currentState}
           size={size}
+          cropFocus={cropFocus}
           showBrandingLayer={showBrandingLayer}
           rotationY={resolvedRotationY}
           movement3D={resolvedMovement3D}
