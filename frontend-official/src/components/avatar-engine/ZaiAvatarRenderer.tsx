@@ -55,7 +55,7 @@ const SIZE_CONFIGS = {
   xl: { container: "w-48 h-64", character: "h-56 w-auto", badge: "text-xs px-3 py-1", indicator: "w-4 h-4" },
   workspace: {
     container: "w-full h-full flex flex-col items-center justify-center",
-    character: "h-full max-h-[175px] sm:max-h-[235px] w-[140px] sm:w-[160px]",
+    character: "h-full max-h-[265px] sm:max-h-[295px] w-[185px] sm:w-[210px]",
     badge: "text-xs px-2.5 py-0.5",
     indicator: "w-3 h-3",
   },
@@ -339,8 +339,19 @@ function ModularLayerAvatar({
   // Resolve Face (5th Category)
   const faceId = avatar.face || "face_01";
 
-  // Resolve Outfit
-  const outfitId = avatar.outfit || avatar.clothing || "outfit_01";
+  // Resolve Outfit with legacy alias support
+  const LEGACY_OUTFIT_MAP: Record<string, string> = {
+    polo_zai_black: "outfit_01",
+    polo_zai_white: "outfit_07",
+    shirt_formal_blue: "outfit_02",
+    tshirt_casual_dark: "outfit_03",
+    hoodie_zai_black: "outfit_04",
+    blazer_executive_dark: "outfit_05",
+    vest_operations: "outfit_06",
+    bomber_jacket_tech: "outfit_08",
+  };
+  const rawOutfit = avatar.outfit || avatar.clothing || "outfit_01";
+  const outfitId = LEGACY_OUTFIT_MAP[rawOutfit] || rawOutfit || "outfit_01";
 
   // Resolve Accessories
   const hasHeadset =
@@ -372,6 +383,7 @@ function ModularLayerAvatar({
   const style = STYLE_PALETTES[styleId] || STYLE_PALETTES.style_vendas;
   const primaryBrandColor = branding.primaryColor || style.primary;
 
+  const isWorking = currentState === "WORKING";
   const isTalking = currentState === "TALKING";
   const isThinking = currentState === "THINKING";
   const isWalking = currentState === "WALKING" || movement3D === "walk";
@@ -393,7 +405,7 @@ function ModularLayerAvatar({
 
   if (avatar.workObject === "boxes_delivery") {
     bodySpriteId = "sprite_r3_c1";
-  } else if (avatar.workObject === "laptop_zai") {
+  } else if (avatar.workObject === "laptop_zai" && isWorking) {
     bodySpriteId = "sprite_r3_c5";
   } else if (avatar.workObject === "coffee_cup") {
     bodySpriteId = genderKey === "male" ? "sprite_r1_c5" : "sprite_r2_c5";
@@ -538,8 +550,8 @@ function ModularLayerAvatar({
           <animateTransform
             attributeName="transform"
             type="translate"
-            values="0,0; 0,-2.2; 0,0"
-            dur="2.8s"
+            values="0,0; 0,-3.2; 0,0"
+            dur="2.4s"
             repeatCount="indefinite"
           />
         )}
@@ -547,8 +559,8 @@ function ModularLayerAvatar({
           <animateTransform
             attributeName="transform"
             type="translate"
-            values="0,0; -1.5,-3.2; 0,0; 1.5,-3.2; 0,0"
-            dur="0.75s"
+            values="0,0; -2.2,-4.2; 0,0; 2.2,-4.2; 0,0"
+            dur="0.65s"
             repeatCount="indefinite"
           />
         )}
@@ -556,8 +568,8 @@ function ModularLayerAvatar({
           <animateTransform
             attributeName="transform"
             type="rotate"
-            values="0 70 140; -3.2 70 140; 3.2 70 140; -1.8 70 140; 0 70 140"
-            dur="1.1s"
+            values="0 70 140; -4.5 70 140; 4.5 70 140; -3 70 140; 0 70 140"
+            dur="0.9s"
             repeatCount="indefinite"
           />
         )}
@@ -565,8 +577,8 @@ function ModularLayerAvatar({
           <animateTransform
             attributeName="transform"
             type="translate"
-            values="0,0; 0,-3.5; 0,0"
-            dur="1.8s"
+            values="0,0; 0,-5.5; 0,0"
+            dur="1.6s"
             repeatCount="indefinite"
           />
         )}
@@ -641,6 +653,19 @@ function ModularLayerAvatar({
                 strokeWidth="1"
                 strokeOpacity="0"
                 fill="none"
+              />
+            </g>
+          )}
+
+          {/* ── CHIBI LAYER D: FACE FEATURES & EXPRESSION (5th Category: Rosto 01..06) ── */}
+          {!isBackView && cropFocus !== "outfit" && (
+            <g id="layer-face-features" clipPath={`url(#clip-face-${uid})`}>
+              <image
+                href={faceImg.href}
+                x={faceImg.x}
+                y={faceImg.y}
+                width={faceImg.width}
+                height={faceImg.height}
               />
             </g>
           )}
@@ -805,6 +830,27 @@ function ModularLayerAvatar({
                 strokeWidth="0.8"
               />
               <circle cx="80.5" cy="109.2" r="1" fill={primaryBrandColor} />
+            </g>
+          )}
+
+          {/* ── CHIBI WAVING ARM & HAND (Acenar 3D) ─────────────────── */}
+          {isWaving && !isBackView && (
+            <g id="zai-waving-arm" transform="translate(92, 102)">
+              <g>
+                <animateTransform
+                  attributeName="transform"
+                  type="rotate"
+                  values="-18 0 0; 24 0 0; -18 0 0; 24 0 0; -5 0 0"
+                  dur="0.85s"
+                  repeatCount="indefinite"
+                />
+                <path d="M 0 0 L 12 -18 L 18 -15 L 7 4 Z" fill={primaryBrandColor} stroke="#0f172a" strokeWidth="0.8" />
+                <circle cx="15" cy="-20" r="4.5" fill={skin.base} stroke={skin.shadow} strokeWidth="0.6" />
+                <ellipse cx="16" cy="-24" rx="1.8" ry="3" fill={skin.base} />
+                <ellipse cx="13" cy="-23" rx="1.6" ry="2.6" fill={skin.base} />
+                <ellipse cx="19" cy="-22" rx="1.6" ry="2.6" fill={skin.base} />
+                <circle cx="22" cy="-28" r="1.5" fill="#fde047" className="animate-ping" />
+              </g>
             </g>
           )}
         </g>

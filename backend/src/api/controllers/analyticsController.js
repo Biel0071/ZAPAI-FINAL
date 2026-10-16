@@ -34,7 +34,7 @@ async function getMetrics(req, res) {
         if (!owned.rowCount) return res.status(404).json({ error: 'Conexão não encontrada.' });
       }
       const params = [companyId, sessionId, start.toISOString(), end.toISOString()];
-      const [messageRows, conversationRows, connectedRows] = await Promise.all([
+      const [messageRows, conversationRows, connectedRows, memoryRows] = await Promise.all([
         pool.query(`SELECT COUNT(*)::int AS messages,
           COUNT(*) FILTER (WHERE sender IN ('ai','bot') OR message_origin='ai')::int AS ai_responses,
           COUNT(DISTINCT conversation_id)::int AS active_chats
@@ -44,9 +44,11 @@ async function getMetrics(req, res) {
           FROM conversations WHERE company_id=$1 AND ($2::text IS NULL OR session_id=$2)
           AND created_at >= $3::timestamp AND created_at <= $4::timestamp`, params),
         pool.query(`SELECT COUNT(*)::int AS sessions FROM sessions WHERE company_id=$1 AND status='connected' AND ($2::text IS NULL OR session_id=$2)`, [companyId, sessionId]),
+        pool.query(`SELECT COUNT(*)::int AS count FROM agent_memory_nodes WHERE ($1::text IS NULL OR company_id=$1)`, [companyId]).catch(() => ({ rows: [{ count: 0 }] })),
       ]);
       const messages = messageRows.rows[0];
       const conversations = conversationRows.rows[0];
+      const aiMemories = Number(memoryRows.rows[0]?.count ?? 0);
       return res.json({
         messagesToday: messages.messages,
         messages: messages.messages,
@@ -56,6 +58,7 @@ async function getMetrics(req, res) {
         newLeads: conversations.leads,
         leads: conversations.leads,
         sessions: connectedRows.rows[0].sessions,
+        aiMemories,
         generatedAt: new Date().toISOString(),
       });
     }
@@ -64,6 +67,13 @@ async function getMetrics(req, res) {
       force: true,
       sessionId,
     });
+    let aiMemories = 0;
+    try {
+      const { pool } = require('../../infrastructure/config/database');
+      const memRes = await pool.query('SELECT COUNT(*)::int AS count FROM agent_memory_nodes WHERE ($1::text IS NULL OR company_id=$1)', [companyId]);
+      aiMemories = Number(memRes.rows[0]?.count ?? 0);
+    } catch { /* ignore */ }
+
     return res.status(200).json({
       activeConversations: Number(snapshot?.activeConversations) || 0,
       activeChats: Number(snapshot?.activeConversations) || 0,
@@ -75,6 +85,7 @@ async function getMetrics(req, res) {
       sessions: Number(snapshot?.connectedSessions) || 0,
       totalConversations: Number(snapshot?.totalConversations) || 0,
       totalMessages: Number(snapshot?.totalMessages) || 0,
+      aiMemories,
       tenantId: companyId,
       uptime: Number(snapshot?.uptime) || 0,
     });

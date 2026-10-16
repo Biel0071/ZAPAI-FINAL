@@ -374,43 +374,60 @@ export default function AttendantsPage() {
   }, [isStudioDragging]);
 
   const handleUpdateAvatar = useCallback((overrides: Partial<AgentAvatarConfig>) => {
-    if (!previewAgent) return;
-    const baseConfig: AgentAvatarConfig = previewAgent.avatarConfig || createAgentAvatar({
-      agentId: previewAgent.key || previewAgent.name,
-      name: previewAgent.name,
-      role: previewAgent.role,
-      storeId: previewStore?.id,
-      storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
-      gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+    setPreviewAgent((prev: any) => {
+      if (!prev) return prev;
+      const baseConfig: AgentAvatarConfig = prev.avatarConfig || createAgentAvatar({
+        agentId: prev.key || prev.name,
+        name: prev.name,
+        role: prev.role,
+        storeId: previewStore?.id,
+        storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
+        gender: prev.character?.gender || (prev.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+      });
+
+      const updatedConfig: AgentAvatarConfig = { ...baseConfig, ...overrides };
+      if (overrides.outfit) updatedConfig.clothing = overrides.outfit;
+      if (overrides.clothing) updatedConfig.outfit = overrides.clothing;
+      if (overrides.body) updatedConfig.base = overrides.body === "male" ? "male" : "female";
+      if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "female";
+
+      const forceRecompute = Boolean((overrides.body || overrides.base) && !overrides.catalogSpriteId);
+      const updatedSprite = overrides.catalogSpriteId || resolveSpriteForAvatar(updatedConfig, forceRecompute);
+      updatedConfig.catalogSpriteId = updatedSprite;
+      const avatarUrl = `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`;
+
+      return {
+        ...prev,
+        avatarConfig: updatedConfig,
+        avatar: avatarUrl,
+      };
     });
 
-    const updatedConfig: AgentAvatarConfig = { ...baseConfig, ...overrides };
-    if (overrides.outfit) updatedConfig.clothing = overrides.outfit;
-    if (overrides.clothing) updatedConfig.outfit = overrides.clothing;
-    if (overrides.body) updatedConfig.base = overrides.body === "male" ? "male" : "female";
-    if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "female";
-
-    const forceRecompute = Boolean((overrides.body || overrides.base) && !overrides.catalogSpriteId);
-    const updatedSprite = overrides.catalogSpriteId || resolveSpriteForAvatar(updatedConfig, forceRecompute);
-    updatedConfig.catalogSpriteId = updatedSprite;
-    const avatarUrl = `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`;
-
-    setPreviewAgent((prev: any) => ({
-      ...prev,
-      avatarConfig: updatedConfig,
-      avatar: avatarUrl,
-    }));
-
-    if (previewAgent.isExample) return;
-
-    setAgents((prev) =>
-      prev.map((a) =>
-        a.key === previewAgent.key
-          ? { ...a, avatarConfig: updatedConfig, avatar: avatarUrl }
-          : a
-      )
-    );
-  }, [previewAgent, previewStore]);
+    setAgents((prev) => {
+      if (!previewAgent || previewAgent.isExample) return prev;
+      return prev.map((a) => {
+        if (a.key !== previewAgent.key) return a;
+        const baseConfig: AgentAvatarConfig = a.avatarConfig || createAgentAvatar({
+          agentId: a.key || a.name,
+          name: a.name,
+          role: a.role,
+          storeId: previewStore?.id,
+          storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
+          gender: a.character?.gender || (a.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+        });
+        const updatedConfig: AgentAvatarConfig = { ...baseConfig, ...overrides };
+        if (overrides.outfit) updatedConfig.clothing = overrides.outfit;
+        if (overrides.clothing) updatedConfig.outfit = overrides.clothing;
+        if (overrides.body) updatedConfig.base = overrides.body === "male" ? "male" : "female";
+        if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "female";
+        const forceRecompute = Boolean((overrides.body || overrides.base) && !overrides.catalogSpriteId);
+        const updatedSprite = overrides.catalogSpriteId || resolveSpriteForAvatar(updatedConfig, forceRecompute);
+        updatedConfig.catalogSpriteId = updatedSprite;
+        const avatarUrl = `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`;
+        return { ...a, avatarConfig: updatedConfig, avatar: avatarUrl };
+      });
+    });
+  }, [previewAgent?.key, previewAgent?.isExample, previewStore]);
 
   const handleSaveAvatar = useCallback(async () => {
     if (!previewAgent) return;
@@ -1018,7 +1035,7 @@ export default function AttendantsPage() {
             {/* Centered Live Modular 3D/2.5D Character on Turntable / Workstation Scenario */}
             <div
               className={cn(
-                "relative w-full h-[215px] sm:h-[235px] flex items-center justify-center pt-5 pb-7 my-auto select-none transition-colors",
+                "relative w-full h-[255px] sm:h-[285px] flex items-center justify-center my-auto select-none transition-colors",
                 !isAgentActive ? (isStudioDragging ? "cursor-grabbing" : "cursor-grab") : "cursor-default"
               )}
               onMouseDown={!isAgentActive ? handleInlineStageMouseDown : undefined}
@@ -1069,116 +1086,15 @@ export default function AttendantsPage() {
                 showStatusBadge={false}
               />
             </div>
-
-            {/* Bottom Layer Summary Chips (2x2 clean grid, zero pedestal overlap) */}
-            <div className="absolute bottom-1.5 inset-x-2.5 z-20 grid grid-cols-2 gap-1">
-              <span
-                title={activeHairItem.title}
-                className="px-2 py-0.5 rounded-md bg-black/85 border border-border/60 text-[9px] text-foreground font-mono truncate text-center"
-              >
-                {activeHairItem.title}
-              </span>
-              <span
-                title={activeFaceItem.title}
-                className="px-2 py-0.5 rounded-md bg-black/85 border border-border/60 text-[9px] text-foreground font-mono truncate text-center"
-              >
-                {activeFaceItem.title}
-              </span>
-              <span
-                title={activeOutfitItem.title}
-                className="px-2 py-0.5 rounded-md bg-black/85 border border-border/60 text-[9px] text-foreground font-mono truncate text-center"
-              >
-                {activeOutfitItem.title}
-              </span>
-              <span
-                title={activeAccessoryItem || "Headset Pro"}
-                className="px-2 py-0.5 rounded-md bg-emerald-950/90 border border-emerald-500/50 text-[9px] text-emerald-300 font-mono font-bold truncate text-center"
-              >
-                {activeAccessoryItem || "Headset Pro"}
-              </span>
-            </div>
           </div>
 
-          {/* 3D Rotation & Movement Controls */}
-          <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-muted/20 border border-border/60">
-            <button
-              type="button"
-              data-studio-3d="rotate-left"
-              data-avatar-3d-action="rotate-left"
-              onClick={() => {
-                const nextMovement = studioMovement3D === "spin360" ? "idle" : studioMovement3D;
-                const nextRot = (studioRotationY - 45 + 360) % 360;
-                setStudioMovement3D(nextMovement);
-                setStudioRotationY(nextRot);
-                handleUpdateAvatar({ rotationY: nextRot, movement3D: nextMovement });
-              }}
-              className="py-1 px-1.5 rounded-lg bg-card/80 hover:bg-emerald-500/15 border border-border/60 text-[10px] font-mono text-muted-foreground hover:text-emerald-300 transition-all cursor-pointer"
-              title="Girar personagem para a esquerda (-45°)"
-            >
-              ⟲ Girar Esq
-            </button>
-            <button
-              type="button"
-              data-studio-3d="front"
-              data-avatar-3d-action="rotate-front"
-              onClick={() => {
-                setStudioMovement3D("idle");
-                setStudioRotationY(0);
-                handleUpdateAvatar({ rotationY: 0, movement3D: "idle" });
-              }}
-              className={cn(
-                "py-1 px-1.5 rounded-lg border text-[10px] font-mono transition-all cursor-pointer",
-                studioRotationY === 0 && studioMovement3D === "idle"
-                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold"
-                  : "bg-card/80 border-border/60 text-muted-foreground hover:text-foreground"
-              )}
-              title="Visão Frontal (0°)"
-            >
-              Frente 0°
-            </button>
-            <button
-              type="button"
-              data-studio-3d="back"
-              data-avatar-3d-action="rotate-back"
-              onClick={() => {
-                const nextMovement = studioMovement3D === "spin360" ? "idle" : studioMovement3D;
-                setStudioMovement3D(nextMovement);
-                setStudioRotationY(180);
-                handleUpdateAvatar({ rotationY: 180, movement3D: nextMovement });
-              }}
-              className={cn(
-                "py-1 px-1.5 rounded-lg border text-[10px] font-mono transition-all cursor-pointer",
-                studioRotationY === 180 && studioMovement3D !== "spin360"
-                  ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold"
-                  : "bg-card/80 border-border/60 text-muted-foreground hover:text-foreground"
-              )}
-              title="Visão Oposta (180°)"
-            >
-              Lado 180°
-            </button>
-            <button
-              type="button"
-              data-studio-3d="rotate-right"
-              data-avatar-3d-action="rotate-right"
-              onClick={() => {
-                const nextMovement = studioMovement3D === "spin360" ? "idle" : studioMovement3D;
-                const nextRot = (studioRotationY + 45) % 360;
-                setStudioMovement3D(nextMovement);
-                setStudioRotationY(nextRot);
-                handleUpdateAvatar({ rotationY: nextRot, movement3D: nextMovement });
-              }}
-              className="py-1 px-1.5 rounded-lg bg-card/80 hover:bg-emerald-500/15 border border-border/60 text-[10px] font-mono text-muted-foreground hover:text-emerald-300 transition-all cursor-pointer"
-              title="Girar personagem para a direita (+45°)"
-            >
-              Girar Dir ⟳
-            </button>
-          </div>
+          {/* 3D Movement Controls */}
           <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-muted/15 border border-border/50">
             {([
               { id: "walk", label: "Andar 3D" },
               { id: "wave", label: "Acenar 3D" },
               { id: "pose", label: "Posar 3D" },
-              { id: "spin360", label: "Giro 360°" },
+              { id: "spin360", label: "3D Vivo" },
             ] as const).map((mv) => (
               <button
                 key={mv.id}
@@ -2193,6 +2109,363 @@ export default function AttendantsPage() {
               </div>
             </button>
           </div>
+
+          {/* Unified Link Management Panel */}
+          <details className="rounded-2xl border border-border/60 bg-card/30 mt-2">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-2xl flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <ArrowsLeftRight className="h-4 w-4 text-emerald-400" />
+                <span>Gerenciar vínculos, lojas e atendentes cadastrados</span>
+              </span>
+              <span className="text-xs text-muted-foreground font-mono">({agents.length} cadastrados)</span>
+            </summary>
+            {/* Lista Completa de Atendentes */}
+            <div className="p-3 pt-0 space-y-4">
+              <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                <div>
+                  <h3 className="text-sm font-bold text-foreground font-display">Atendentes Cadastrados</h3>
+                  <p className="text-xs text-muted-foreground">Gerencie vínculos com WhatsApp, lojas e personalização visual.</p>
+                </div>
+                <Button onClick={() => setIsWizardOpen(true)} className="gap-2 rounded-xl text-xs h-7 bg-emerald-600 hover:bg-emerald-500 text-white">
+                  <Plus weight="bold" className="h-3 w-3" />
+                  <span>Novo Atendente</span>
+                </Button>
+              </div>
+
+              {stores.length > 1 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStoreFilter("all")}
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-xl border text-xs font-medium transition-all select-none whitespace-nowrap shrink-0",
+                      selectedStoreFilter === "all"
+                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 shadow-sm"
+                        : "bg-card/50 border-border/60 text-muted-foreground hover:bg-card hover:text-foreground"
+                    )}
+                  >
+                    Todas as Lojas ({agents.length})
+                  </button>
+                  {stores.map((st) => {
+                    const isSelected = selectedStoreFilter === st.id;
+                    const count = agents.filter((a) => belongsToStore(a, st.id)).length;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => setSelectedStoreFilter(st.id)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-xs font-medium transition-all select-none shrink-0",
+                          isSelected
+                            ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 shadow-sm"
+                            : "bg-card/50 border-border/60 text-muted-foreground hover:bg-card hover:text-foreground"
+                        )}
+                      >
+                        <Storefront className="h-3.5 w-3.5" />
+                        <span>{st.name}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-44 rounded-2xl bg-card/60 border border-border/50 animate-pulse" />
+                  ))}
+                </div>
+              ) : filteredAttendants.length === 0 ? (
+                <div className="text-center py-12 rounded-2xl border border-dashed border-border/80 bg-card/40 space-y-3">
+                  <Headset weight="light" className="h-10 w-10 text-muted-foreground mx-auto" />
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-semibold">{selectedWhatsApp ? "Nenhum atendente responsável por este WhatsApp" : "Nenhum atendente neste filtro"}</h3>
+                    <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                      Crie um atendente digital vinculado ao número do WhatsApp da sua loja.
+                    </p>
+                  </div>
+                  <Button onClick={() => setIsWizardOpen(true)} className="gap-2 rounded-xl text-xs h-8">
+                    <Plus weight="bold" className="h-3.5 w-3.5" />
+                    <span>Criar Atendente</span>
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {paginatedOpCards.map((agent) => {
+                    const isSelected = previewAgent?.key === agent.key;
+                    const assignedSession = getAssignedSession(agent);
+                    const assignedStore = getAssignedStore(agent);
+                    const isActive = agent.active !== false;
+                    const isConnected = assignedSession?.status === "connected" || assignedSession?.status === "open";
+                    const presence = getPresence(agent);
+                    const storePrimaryColor = assignedStore?.settings?.primaryColor || assignedStore?.branding?.primaryColor || "#10b981";
+
+                    return (
+                      <Card
+                        key={agent.key}
+                        data-agent-key={agent.key}
+                        onClick={() => setPreviewAgent(agent)}
+                        className={cn(
+                          "rounded-2xl border transition-all duration-200 cursor-pointer overflow-hidden",
+                          isSelected
+                            ? "bg-card border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.12)] ring-1 ring-emerald-500/40"
+                            : "bg-card/75 border-border/70 hover:border-emerald-500/30 hover:bg-card/90"
+                        )}
+                      >
+                        <CardContent className="p-4 space-y-3.5">
+                          {/* Top: Avatar, Name, Role, Store & WhatsApp Chips, Active Status */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="relative shrink-0">
+                                <div className="h-12 w-12 rounded-2xl border border-emerald-500/30 bg-[#091120] flex items-center justify-center overflow-hidden">
+                                  <ZaiAvatarRenderer
+                                    avatar={agent.avatarConfig || createAgentAvatar({
+                                      agentId: agent.key || agent.name,
+                                      name: agent.name,
+                                      role: agent.role,
+                                      gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+                                    })}
+                                    renderStyle="chibi_25d"
+                                    state={isActive ? "WORKING" : "IDLE"}
+                                    size="sm"
+                                    showAura={false}
+                                    showStatusBadge={false}
+                                    showBrandingLayer={false}
+                                  />
+                                </div>
+                                <span
+                                  className={cn(
+                                    "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full ring-2 ring-card",
+                                    isActive ? "bg-emerald-500 shadow-glow" : "bg-amber-500"
+                                  )}
+                                />
+                              </div>
+
+                              <div className="min-w-0 space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-display text-base font-bold text-foreground truncate">
+                                    {agent.name}
+                                  </h3>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[11px] px-2 py-0 border-emerald-500/30 text-emerald-400 bg-emerald-500/10 font-medium"
+                                  >
+                                    {agent.role || "Especialista em Vendas"}
+                                  </Badge>
+                                </div>
+
+                                {/* Integrated Store & WhatsApp Chips */}
+                                <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                                  {/* Store Chip */}
+                                  <div
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold border"
+                                    style={{
+                                      borderColor: `${storePrimaryColor}55`,
+                                      backgroundColor: `${storePrimaryColor}15`,
+                                      color: storePrimaryColor,
+                                    }}
+                                    title={`Loja vinculada: ${assignedStore?.name || "Sem loja vinculada"}`}
+                                  >
+                                    <Storefront weight="fill" className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="truncate max-w-[180px] font-semibold">{assignedStore?.name || "Sem loja vinculada"}</span>
+                                  </div>
+
+                                  {/* WhatsApp Chip */}
+                                  <div
+                                    className={cn(
+                                      "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium border",
+                                      assignedSession
+                                        ? isConnected
+                                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                                          : "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                                        : "border-border/60 bg-muted/30 text-muted-foreground"
+                                    )}
+                                    title={assignedSession ? `WhatsApp: ${assignedSession.sessionName || assignedSession.sessionId}` : "Nenhum WhatsApp vinculado"}
+                                  >
+                                    <WhatsappLogo
+                                      weight="fill"
+                                      className={cn(
+                                        "h-3.5 w-3.5 shrink-0",
+                                        assignedSession ? (isConnected ? "text-emerald-400" : "text-amber-400") : "text-muted-foreground"
+                                      )}
+                                    />
+                                    {assignedSession ? (
+                                      <span className="truncate max-w-[150px]">
+                                        {assignedSession.phone || assignedSession.sessionName || assignedSession.sessionId}
+                                      </span>
+                                    ) : (
+                                      <span className="italic text-[11px]">Sem WhatsApp</span>
+                                    )}
+                                    {assignedSession && (
+                                      <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", isConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] uppercase font-bold px-2 py-0.5 shrink-0",
+                                isActive
+                                  ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/15"
+                                  : "border-amber-500/40 text-amber-400 bg-amber-500/15"
+                              )}
+                            >
+                              {presence.label}
+                            </Badge>
+                          </div>
+
+                          {/* Summarized Visual KPI Chips */}
+                          <div className="grid grid-cols-3 gap-2 pt-1">
+                            <div className="flex items-center gap-2 p-2 rounded-xl bg-background/50 border border-border/50">
+                              <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
+                                <ChatCircleText weight="bold" className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-[10px] text-muted-foreground block truncate">WhatsApps</span>
+                                <span className="text-xs font-bold text-foreground font-mono">{agent.sessionIds?.length ?? 0}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 p-2 rounded-xl bg-background/50 border border-border/50">
+                              <div className="p-1 rounded-lg bg-cyan-500/10 text-cyan-400 shrink-0">
+                                <Clock weight="bold" className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-[10px] text-muted-foreground block truncate">Conexão</span>
+                                <span className="text-xs font-bold text-foreground">{assignedSession ? (isConnected ? "Online" : "Offline") : "—"}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 p-2 rounded-xl bg-background/50 border border-border/50">
+                              <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
+                                <TrendUp weight="bold" className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-[10px] text-muted-foreground block truncate">Atendente</span>
+                                <span className="text-xs font-bold text-foreground">{isActive ? "Habilitado" : "Pausado"}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Quick Actions Bar */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAvatarEditorAgent(agent);
+                                }}
+                                className="h-7 text-[11px] px-2.5 rounded-lg gap-1 border-emerald-500/50 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 font-semibold shadow-xs"
+                                title="Abrir ZAI Avatar Studio para personalizar corpo, roupas, cabelo e loja DNA"
+                              >
+                                <TShirt weight="bold" className="h-3.5 w-3.5 text-emerald-400" />
+                                <span>Avatar Studio</span>
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenReassign(agent);
+                                }}
+                                className="h-7 text-[11px] px-2 rounded-lg gap-1 border-border/60 hover:border-emerald-500/40 text-foreground"
+                                title="Trocar ou vincular número WhatsApp"
+                              >
+                                <ArrowsLeftRight className="h-3 w-3 text-emerald-400" />
+                                <span>{assignedSession ? "Trocar WhatsApp" : "Vincular WhatsApp"}</span>
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCustomizerAgent(agent);
+                                }}
+                                className="h-7 text-[11px] px-2 rounded-lg gap-1 border-border/60 text-muted-foreground hover:text-foreground"
+                                title="Configurar personalidade e IA"
+                              >
+                                <Sliders className="h-3 w-3" />
+                                <span>Configurar IA</span>
+                              </Button>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleActive(agent);
+                                }}
+                                className={cn(
+                                  "h-7 text-[11px] px-2 rounded-lg gap-1 font-medium",
+                                  isActive
+                                    ? "border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                                    : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                                )}
+                                title={isActive ? "Colocar em espera (Pausar)" : "Ativar no PC"}
+                                disabled={pendingAgent !== null}
+                              >
+                                {isActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                                <span>{isActive ? "Pausar" : "Ativar"}</span>
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDuplicate(agent);
+                                }}
+                                className="h-7 w-7 p-0 rounded-lg border-border/60 text-muted-foreground hover:text-foreground"
+                                title="Duplicar atendente"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+
+                              {agents.length > 1 && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(agent);
+                                  }}
+                                  className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                  title="Excluir atendente"
+                                >
+                                  <Trash className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+
+              {totalOpCardPages > 1 && (
+                <div className="flex justify-center pt-2">
+                  <Pagination
+                    currentPage={opCardPage}
+                    totalPages={totalOpCardPages}
+                    pageSize={OP_CARDS_PER_PAGE}
+                    onPageChange={setOpCardPage}
+                  />
+                </div>
+              )}
+            </div>
+          </details>
         </section>
 
         {/* UNIFIED STREAMLINED CONTROL BAR: TABS + VIEW MODES + SAVE (EXACTLY 2 ROWS ON MOBILE) */}
@@ -2639,22 +2912,97 @@ export default function AttendantsPage() {
               </div>
             ) : null}
 
-            {/* Store Filter Tabs */}
-            <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
-              <label className="block text-sm font-semibold" htmlFor="attendant-whatsapp">WhatsApp do atendimento</label>
-              <select id="attendant-whatsapp" className="w-full rounded-xl border border-border bg-background p-3 text-sm" value={selectedWhatsApp} onChange={event => selectWhatsApp(event.target.value)}>
+            {/* Store & WhatsApp Connection Selector */}
+            <section className="rounded-2xl border border-border/70 bg-card p-4 space-y-3.5 shadow-xs">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-sm font-bold flex items-center gap-2 text-foreground font-display" htmlFor="attendant-whatsapp">
+                  <div className="p-1 rounded-lg bg-emerald-500/15 text-emerald-400">
+                    <WhatsappLogo weight="fill" className="h-4 w-4" />
+                  </div>
+                  <span>WhatsApp do atendimento</span>
+                </label>
+                {(() => {
+                  const activeConn = (selectedWhatsApp ? sessions.find(s => (s.sessionId || s.id) === selectedWhatsApp) : sessions[0]) || null;
+                  if (!activeConn) return null;
+                  const isConn = activeConn.status === "connected" || activeConn.status === "open";
+                  return (
+                    <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-400 font-medium font-mono">
+                      <span className={cn("h-1.5 w-1.5 rounded-full", isConn ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+                      <span>{isConn ? "Online" : "Aguardando"}</span>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Active Connection Highlight Card */}
+              {(() => {
+                const activeConn = (selectedWhatsApp ? sessions.find(s => (s.sessionId || s.id) === selectedWhatsApp) : sessions[0]) || null;
+                if (!activeConn) return null;
+                const isConn = activeConn.status === "connected" || activeConn.status === "open";
+                return (
+                  <div className="flex items-center justify-between p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-9 w-9 rounded-xl bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center shrink-0 text-emerald-400 shadow-xs">
+                        <WhatsappLogo weight="fill" className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-foreground truncate">
+                            {activeConn.sessionName || activeConn.sessionId || activeConn.id || "main"}
+                          </span>
+                          <span className={cn("h-2 w-2 rounded-full", isConn ? "bg-emerald-400 animate-pulse ring-2 ring-emerald-500/30" : "bg-amber-400")} />
+                        </div>
+                        <p className="text-[11px] text-emerald-400 font-mono font-medium truncate mt-0.5">
+                          {activeConn.phone || "+55 (31) 9367-2075"}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-300 bg-emerald-500/15 shrink-0 font-mono">
+                      {isConn ? "WhatsApp Ativo" : "Desconectado"}
+                    </Badge>
+                  </div>
+                );
+              })()}
+
+              <select
+                id="attendant-whatsapp"
+                className="w-full rounded-xl border border-border/80 bg-background/80 p-3 text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all cursor-pointer"
+                value={selectedWhatsApp}
+                onChange={event => selectWhatsApp(event.target.value)}
+              >
                 <option value="">Todos os atendentes</option>
-                {sessions.map(session => <option key={session.sessionId || session.id} value={session.sessionId || session.id}>{session.sessionName || session.sessionId || session.id}{session.phone ? ` · ${session.phone}` : ""}</option>)}
+                {sessions.map(session => (
+                  <option key={session.sessionId || session.id} value={session.sessionId || session.id}>
+                    {session.sessionName || session.sessionId || session.id}{session.phone ? ` · ${session.phone}` : ""}
+                  </option>
+                ))}
               </select>
-              {selectedWhatsApp && <>
-                <label className="block text-sm font-semibold" htmlFor="whatsapp-attendant">Trocar atendente responsável</label>
-                <select id="whatsapp-attendant" className="w-full rounded-xl border border-border bg-background p-3 text-sm" disabled={switchingAttendant} value={filteredAttendants.length === 1 ? filteredAttendants[0].key : ""} onChange={event => void switchAttendant(event.target.value)}>
-                  <option value="" disabled>Selecione um atendente</option>
-                  {agents.map(agent => <option key={agent.key} value={agent.key}>{agent.name}{agent.active === false ? " · Pausado" : " · Habilitado"}</option>)}
-                </select>
-                <p className="text-xs text-muted-foreground">A troca preserva loja, histórico e memória deste número. As instruções de um atendente usado em vários números são compartilhadas.</p>
-                {filteredAttendants.length > 1 && <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">Este WhatsApp tem vínculos antigos com mais de um atendente. Escolha acima o único responsável para regularizar o atendimento.</p>}
-              </>}
+
+              {selectedWhatsApp && (
+                <>
+                  <label className="block text-sm font-semibold" htmlFor="whatsapp-attendant">Trocar atendente responsável</label>
+                  <select
+                    id="whatsapp-attendant"
+                    className="w-full rounded-xl border border-border bg-background p-3 text-sm"
+                    disabled={switchingAttendant}
+                    value={filteredAttendants.length === 1 ? filteredAttendants[0].key : ""}
+                    onChange={event => void switchAttendant(event.target.value)}
+                  >
+                    <option value="" disabled>Selecione um atendente</option>
+                    {agents.map(agent => (
+                      <option key={agent.key} value={agent.key}>
+                        {agent.name}{agent.active === false ? " · Pausado" : " · Habilitado"}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">A troca preserva loja, histórico e memória deste número. As instruções de um atendente usado em vários números são compartilhadas.</p>
+                  {filteredAttendants.length > 1 && (
+                    <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                      Este WhatsApp tem vínculos antigos com mais de um atendente. Escolha acima o único responsável para regularizar o atendimento.
+                    </p>
+                  )}
+                </>
+              )}
             </section>
             {!selectedWhatsApp && assignmentConflicts.length > 0 && (
               <section role="alert" className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-2">
@@ -2676,358 +3024,6 @@ export default function AttendantsPage() {
               </React.Suspense>
             </details>}
             {!selectedWhatsApp && searchParams.get("section") === "business" && <p className="text-sm text-muted-foreground">Selecione o WhatsApp acima para configurar a loja e os dados comerciais.</p>}
-            {!selectedWhatsApp && stores.length > 1 && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                <button
-                  type="button"
-                  onClick={() => setSelectedStoreFilter("all")}
-                  className={cn(
-                    "px-3.5 py-1.5 rounded-xl border text-xs font-medium transition-all select-none whitespace-nowrap shrink-0",
-                    selectedStoreFilter === "all"
-                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 shadow-sm"
-                      : "bg-card/50 border-border/60 text-muted-foreground hover:bg-card hover:text-foreground"
-                  )}
-                >
-                  Todas as Lojas ({agents.length})
-                </button>
-                {stores.map((st) => {
-                  const isSelected = selectedStoreFilter === st.id;
-                  const count = agents.filter((a) => belongsToStore(a, st.id)).length;
-                  return (
-                    <button
-                      key={st.id}
-                      type="button"
-                      onClick={() => setSelectedStoreFilter(st.id)}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-xs font-medium transition-all select-none shrink-0",
-                        isSelected
-                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 shadow-sm"
-                          : "bg-card/50 border-border/60 text-muted-foreground hover:bg-card hover:text-foreground"
-                      )}
-                    >
-                      <Storefront className="h-3.5 w-3.5" />
-                      <span>{st.name}</span>
-                      <span className="text-[10px] text-muted-foreground font-mono">({count})</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            <details className="rounded-2xl border border-border/60 bg-card/30">
-            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-2xl">
-              Gerenciar vínculos, lojas e atendentes cadastrados
-            </summary>
-            {/* Lista Completa de Atendentes */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-foreground font-display">Atendentes Cadastrados</h3>
-                  <p className="text-xs text-muted-foreground">Gerencie vínculos com WhatsApp, lojas e personalização visual.</p>
-                </div>
-                <Button onClick={() => setIsWizardOpen(true)} className="gap-2 rounded-xl text-xs h-8 bg-emerald-600 hover:bg-emerald-500 text-white">
-                  <Plus weight="bold" className="h-3.5 w-3.5" />
-                  <span>Novo Atendente</span>
-                </Button>
-              </div>
-
-              {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="h-44 rounded-2xl bg-card/60 border border-border/50 animate-pulse" />
-                  ))}
-                </div>
-              ) : filteredAttendants.length === 0 ? (
-                <div className="text-center py-16 rounded-2xl border border-dashed border-border/80 bg-card/40 space-y-4">
-                  <Headset weight="light" className="h-12 w-12 text-muted-foreground mx-auto" />
-                  <div className="space-y-1">
-                    <h3 className="text-base font-semibold">{selectedWhatsApp ? "Nenhum atendente responsável por este WhatsApp" : "Nenhum atendente neste filtro"}</h3>
-                    <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                      Crie um atendente digital vinculado ao número do WhatsApp da sua loja.
-                    </p>
-                  </div>
-                  <Button onClick={() => setIsWizardOpen(true)} className="gap-2 rounded-xl">
-                    <Plus weight="bold" className="h-4 w-4" />
-                    <span>Criar Atendente</span>
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {paginatedOpCards.map((agent) => {
-                      const isSelected = previewAgent?.key === agent.key;
-                      const assignedSession = getAssignedSession(agent);
-                      const assignedStore = getAssignedStore(agent);
-                      const isActive = agent.active !== false;
-                      const isConnected = assignedSession?.status === "connected" || assignedSession?.status === "open";
-                      const presence = getPresence(agent);
-                      const storePrimaryColor = assignedStore?.settings?.primaryColor || assignedStore?.branding?.primaryColor || "#10b981";
-
-                      return (
-                        <Card
-                          key={agent.key}
-                          data-agent-key={agent.key}
-                          onClick={() => setPreviewAgent(agent)}
-                          className={cn(
-                            "rounded-2xl border transition-all duration-200 cursor-pointer overflow-hidden",
-                            isSelected
-                              ? "bg-card border-emerald-500/60 shadow-[0_0_20px_rgba(16,185,129,0.12)] ring-1 ring-emerald-500/40"
-                              : "bg-card/75 border-border/70 hover:border-emerald-500/30 hover:bg-card/90"
-                          )}
-                        >
-                          <CardContent className="p-4 space-y-3.5">
-                            {/* Top: Avatar, Name, Role, Store & WhatsApp Chips, Active Status */}
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="relative shrink-0">
-                                    <div className="h-12 w-12 rounded-2xl border border-emerald-500/30 bg-[#091120] flex items-center justify-center overflow-hidden">
-                                      <ZaiAvatarRenderer
-                                        avatar={agent.avatarConfig || createAgentAvatar({
-                                          agentId: agent.key || agent.name,
-                                          name: agent.name,
-                                          role: agent.role,
-                                          gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
-                                        })}
-                                        renderStyle="chibi_25d"
-                                        state={isActive ? "WORKING" : "IDLE"}
-                                        size="sm"
-                                        showAura={false}
-                                        showStatusBadge={false}
-                                        showBrandingLayer={false}
-                                      />
-                                    </div>
-                                  <span
-                                    className={cn(
-                                      "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full ring-2 ring-card",
-                                      isActive ? "bg-emerald-500 shadow-glow" : "bg-amber-500"
-                                    )}
-                                  />
-                                </div>
-
-                                <div className="min-w-0 space-y-1">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <h3 className="font-display text-base font-bold text-foreground truncate">
-                                      {agent.name}
-                                    </h3>
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[11px] px-2 py-0 border-emerald-500/30 text-emerald-400 bg-emerald-500/10 font-medium"
-                                    >
-                                      {agent.role || "Especialista em Vendas"}
-                                    </Badge>
-                                  </div>
-
-                                  {/* Integrated Store & WhatsApp Chips */}
-                                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                                    {/* Store Chip */}
-                                    <div
-                                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold border"
-                                      style={{
-                                        borderColor: `${storePrimaryColor}55`,
-                                        backgroundColor: `${storePrimaryColor}15`,
-                                        color: storePrimaryColor,
-                                      }}
-                                      title={`Loja vinculada: ${assignedStore?.name || "Sem loja vinculada"}`}
-                                    >
-                                      <Storefront weight="fill" className="h-3.5 w-3.5 shrink-0" />
-                                      <span className="truncate max-w-[180px] font-semibold">{assignedStore?.name || "Sem loja vinculada"}</span>
-                                    </div>
-
-                                    {/* WhatsApp Chip */}
-                                    <div
-                                      className={cn(
-                                        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium border",
-                                        assignedSession
-                                          ? isConnected
-                                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                                            : "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                                          : "border-border/60 bg-muted/30 text-muted-foreground"
-                                      )}
-                                      title={assignedSession ? `WhatsApp: ${assignedSession.sessionName || assignedSession.sessionId}` : "Nenhum WhatsApp vinculado"}
-                                    >
-                                      <WhatsappLogo
-                                        weight="fill"
-                                        className={cn(
-                                          "h-3.5 w-3.5 shrink-0",
-                                          assignedSession ? (isConnected ? "text-emerald-400" : "text-amber-400") : "text-muted-foreground"
-                                        )}
-                                      />
-                                      {assignedSession ? (
-                                        <span className="truncate max-w-[150px]">
-                                          {assignedSession.phone || assignedSession.sessionName || assignedSession.sessionId}
-                                        </span>
-                                      ) : (
-                                        <span className="italic text-[11px]">Sem WhatsApp</span>
-                                      )}
-                                      {assignedSession && (
-                                        <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", isConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "text-[10px] uppercase font-bold px-2 py-0.5 shrink-0",
-                                  isActive
-                                    ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/15"
-                                    : "border-amber-500/40 text-amber-400 bg-amber-500/15"
-                                )}
-                              >
-                                {presence.label}
-                              </Badge>
-                            </div>
-
-                            {/* Summarized Visual KPI Chips */}
-                            <div className="grid grid-cols-3 gap-2 pt-1">
-                              <div className="flex items-center gap-2 p-2 rounded-xl bg-background/50 border border-border/50">
-                                <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
-                                  <ChatCircleText weight="bold" className="h-3.5 w-3.5" />
-                                </div>
-                                <div className="min-w-0">
-                                  <span className="text-[10px] text-muted-foreground block truncate">WhatsApps</span>
-                                  <span className="text-xs font-bold text-foreground font-mono">{agent.sessionIds?.length ?? 0}</span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 p-2 rounded-xl bg-background/50 border border-border/50">
-                                <div className="p-1 rounded-lg bg-cyan-500/10 text-cyan-400 shrink-0">
-                                  <Clock weight="bold" className="h-3.5 w-3.5" />
-                                </div>
-                                <div className="min-w-0">
-                                  <span className="text-[10px] text-muted-foreground block truncate">Conexão</span>
-                                  <span className="text-xs font-bold text-foreground">{assignedSession ? (isConnected ? "Online" : "Offline") : "—"}</span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 p-2 rounded-xl bg-background/50 border border-border/50">
-                                <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-400 shrink-0">
-                                  <TrendUp weight="bold" className="h-3.5 w-3.5" />
-                                </div>
-                                <div className="min-w-0">
-                                  <span className="text-[10px] text-muted-foreground block truncate">Atendente</span>
-                                  <span className="text-xs font-bold text-foreground">{isActive ? "Habilitado" : "Pausado"}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Quick Actions Bar */}
-                            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setAvatarEditorAgent(agent);
-                                  }}
-                                  className="h-7 text-[11px] px-2.5 rounded-lg gap-1 border-emerald-500/50 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 font-semibold shadow-xs"
-                                  title="Abrir ZAI Avatar Studio para personalizar corpo, roupas, cabelo e loja DNA"
-                                >
-                                  <TShirt weight="bold" className="h-3.5 w-3.5 text-emerald-400" />
-                                  <span>Avatar Studio</span>
-                                </Button>
-
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenReassign(agent);
-                                  }}
-                                  className="h-7 text-[11px] px-2 rounded-lg gap-1 border-border/60 hover:border-emerald-500/40 text-foreground"
-                                  title="Trocar ou vincular número WhatsApp"
-                                >
-                                  <ArrowsLeftRight className="h-3 w-3 text-emerald-400" />
-                                  <span>{assignedSession ? "Trocar WhatsApp" : "Vincular WhatsApp"}</span>
-                                </Button>
-
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCustomizerAgent(agent);
-                                  }}
-                                  className="h-7 text-[11px] px-2 rounded-lg gap-1 border-border/60 text-muted-foreground hover:text-foreground"
-                                  title="Configurar personalidade e IA"
-                                >
-                                  <Sliders className="h-3 w-3" />
-                                  <span>Configurar IA</span>
-                                </Button>
-                              </div>
-
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleToggleActive(agent);
-                                  }}
-                                  className={cn(
-                                    "h-7 text-[11px] px-2 rounded-lg gap-1 font-medium",
-                                    isActive
-                                      ? "border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
-                                      : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
-                                  )}
-                                  title={isActive ? "Colocar em espera (Pausar)" : "Ativar no PC"}
-                                  disabled={pendingAgent !== null}
-                                >
-                                  {isActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                                  <span>{isActive ? "Pausar" : "Ativar"}</span>
-                                </Button>
-
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDuplicate(agent);
-                                  }}
-                                  className="h-7 w-7 p-0 rounded-lg border-border/60 text-muted-foreground hover:text-foreground"
-                                  title="Duplicar atendente"
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-
-                                {agents.length > 1 && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(agent);
-                                    }}
-                                    className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                    title="Excluir atendente"
-                                  >
-                                    <Trash className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {totalOpCardPages > 1 && (
-                  <div className="flex justify-center pt-2">
-                    <Pagination
-                      currentPage={opCardPage}
-                      totalPages={totalOpCardPages}
-                      pageSize={OP_CARDS_PER_PAGE}
-                      onPageChange={setOpCardPage}
-                    />
-                  </div>
-                )}
-              </div>
-            </details>
-
           </>
         )}
       </main>

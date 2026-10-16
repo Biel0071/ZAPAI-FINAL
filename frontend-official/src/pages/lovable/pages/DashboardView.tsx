@@ -469,10 +469,28 @@ export function DashboardView({
   }, [aiStatus, viewModel.conversations]);
 
   const tokensPeriodFormatted = useMemo(() => {
-    if (aiMetrics?.tokensToday === undefined || aiMetrics?.tokensToday === null) return "—";
-    const tokens = Number(aiMetrics.tokensToday);
-    return tokens > 1000 ? `${(tokens / 1000).toFixed(1)}K` : String(tokens);
-  }, [aiMetrics]);
+    const rawTokens = aiMetrics?.tokensToday ?? (
+      (Number(aiMetrics?.promptTokensToday) || 0) + (Number(aiMetrics?.completionTokensToday) || 0)
+    );
+    if (rawTokens === undefined || rawTokens === null || rawTokens === 0) {
+      if (viewModel.rawMetrics?.tokensToday !== undefined && viewModel.rawMetrics?.tokensToday !== null) {
+        const val = Number(viewModel.rawMetrics.tokensToday);
+        return val >= 1000000 ? `${(val / 1000000).toFixed(1)}M` : val >= 1000 ? `${(val / 1000).toFixed(1)}K` : String(val);
+      }
+      return "0";
+    }
+    const tokens = Number(rawTokens) || 0;
+    return tokens >= 1000000
+      ? `${(tokens / 1000000).toFixed(1)}M`
+      : tokens >= 1000
+      ? `${(tokens / 1000).toFixed(1)}K`
+      : String(tokens);
+  }, [aiMetrics, viewModel.rawMetrics]);
+
+  const memoryFactsCount = useMemo(() => {
+    const raw = aiMetrics?.memoryFacts ?? aiMetrics?.aiMemories ?? viewModel.rawMetrics?.aiMemories ?? 0;
+    return Number(raw) || 0;
+  }, [aiMetrics, viewModel.rawMetrics]);
 
   const participationLabel = safeAnalyticsViewModel.kpis[2]?.value ?? '—';
 
@@ -740,7 +758,7 @@ export function DashboardView({
               {/* Row 1: Activity Flow & Volumetry Charts Side-by-Side */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Activity Flow */}
-                <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[200px] flex flex-col">
+                <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[245px] sm:h-[255px] flex flex-col">
                   <CardHeader className="py-2 px-3 border-b border-border/40 shrink-0">
                     <CardTitle className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-muted-foreground">
                       <Clock weight="bold" className="h-3.5 w-3.5 text-primary" /> Fluxo de Atividade Comercial
@@ -774,7 +792,7 @@ export function DashboardView({
                 </Card>
 
                 {/* Volumetry By Hour */}
-                <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[200px] flex flex-col">
+                <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[245px] sm:h-[255px] flex flex-col">
                   <CardHeader className="py-2 px-3 border-b border-border/40 shrink-0 flex flex-row items-center justify-between">
                     <CardTitle className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-muted-foreground">
                       <ChartBar className="h-3.5 w-3.5 text-primary" /> Volumetria por Bloco de Horários
@@ -815,7 +833,7 @@ export function DashboardView({
               </div>
 
               {/* Row 2: Esteira Comercial (Fechamentos & Negociações) */}
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-[210px] overflow-hidden">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift flex flex-col h-[255px] sm:h-[265px] overflow-hidden">
                 <CardHeader className="py-2.5 px-3.5 border-b border-border/50 shrink-0 flex flex-row items-center justify-between">
                   <CardTitle className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
                     <CheckCircle weight="bold" className="h-3.5 w-3.5 text-success" /> Esteira Comercial (Fechamentos & Negociações)
@@ -860,7 +878,7 @@ export function DashboardView({
             {/* Right Column (5 cols): Temperature Donut + Real AI Usage */}
             <div className="lg:col-span-5 flex flex-col gap-3.5">
               {/* Temperature Donut — Horizontal Executive Split (Zero Clipping) */}
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[200px] flex flex-col">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[245px] sm:h-[255px] flex flex-col">
                 {(() => {
                   const total = safeAnalyticsViewModel.tempDistribution.reduce(
                     (acc: number, cur: any) => acc + (cur.value || 0),
@@ -1009,35 +1027,37 @@ export function DashboardView({
               </Card>
 
               {/* Real AI Usage */}
-              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[210px] flex flex-col justify-between">
+              <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[255px] sm:h-[265px] flex flex-col justify-between">
                 <CardHeader className="py-2.5 px-3.5 border-b border-border/40 shrink-0 flex flex-row items-center justify-between">
                   <CardTitle className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5 text-muted-foreground">
                     <Brain weight="bold" className="h-3.5 w-3.5 text-primary" /> Uso Real da IA
                   </CardTitle>
-                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-emerald-500/30 text-emerald-400 bg-emerald-500/10 font-mono">
                     {activeModelName}
                   </Badge>
                 </CardHeader>
-                <CardContent className="p-3 space-y-2 flex-1 flex flex-col justify-between">
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <p className="text-[9px] font-bold uppercase text-muted-foreground">Tokens Hoje</p>
-                      <p className="text-lg font-display font-bold text-foreground">{tokensPeriodFormatted}</p>
+                <CardContent className="p-3.5 space-y-3 flex-1 flex flex-col justify-between">
+                  <div className="grid grid-cols-2 gap-2.5 text-xs">
+                    <div className="p-2.5 rounded-xl bg-secondary/40 border border-border/40 flex flex-col justify-between">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Tokens Hoje</p>
+                      <p className="text-xl sm:text-2xl font-black font-display text-foreground mt-0.5">{tokensPeriodFormatted}</p>
+                      <p className="text-[9px] text-muted-foreground truncate">consumo em tempo real</p>
                     </div>
-                    <div>
-                      <p className="text-[9px] font-bold uppercase text-muted-foreground">Memória Operacional</p>
-                      <p className="text-sm font-bold text-foreground">{viewModel.rawMetrics?.aiMemories ?? 0} fatos gravados</p>
+                    <div className="p-2.5 rounded-xl bg-secondary/40 border border-border/40 flex flex-col justify-between">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Memória Operacional</p>
+                      <p className="text-sm sm:text-base font-bold font-display text-emerald-400 mt-0.5">{memoryFactsCount.toLocaleString('pt-BR')} fatos gravados</p>
+                      <p className="text-[9px] text-muted-foreground truncate">memória de longo prazo</p>
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex justify-between text-[10px] font-bold text-muted-foreground mb-1">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
                       <span>Automação IA</span>
                       <span className="text-foreground font-mono">{participationLabel}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-2 rounded-full bg-secondary/80 border border-border/30 overflow-hidden">
                       <div
-                        className="h-full bg-success rounded-full transition-all duration-500"
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                         style={{
                           width: `${Math.min(100, Math.max(0, parseInt(participationLabel, 10) || 0))}%`,
                         }}
@@ -1045,7 +1065,7 @@ export function DashboardView({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/30">
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/30">
                     <span className="text-[10px] text-muted-foreground truncate">Expediente comercial integrado</span>
                     <Button
                       size="sm"

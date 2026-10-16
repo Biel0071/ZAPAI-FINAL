@@ -231,6 +231,8 @@ export interface AIMetricsResponse {
   conversationsToday?: number;
   leadsToday?: number;
   tokensPerConversation?: Record<string, number>;
+  memoryFacts?: number;
+  aiMemories?: number;
 }
 
 export interface AIConnectionTestResult {

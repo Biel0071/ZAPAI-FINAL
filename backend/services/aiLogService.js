@@ -165,11 +165,12 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
   let promptTokensToday = 0;
   let completionTokensToday = 0;
   let messagesToday = 0;
+  let memoryFacts = 0;
   let tokensPerConversation = {};
 
   if (store?.databaseEnabled !== false) {
     try {
-      // 1. Get tokens consumed today
+      // 1. Get tokens consumed today from ai_logs
       const scope = logScope(companyId, sessionId);
       const todayRes = await query(`SELECT COALESCE(SUM(a.total_tokens), 0) AS total,
         COALESCE(SUM(a.prompt_tokens), 0) AS prompt, COALESCE(SUM(a.completion_tokens), 0) AS completion,
@@ -182,7 +183,60 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
         messagesToday = Number(row.count);
       }
 
-      // 2. Get tokens per conversation (last 30 days)
+      // If ai_logs has 0 tokens today, check today's AI messages in the messages table
+      if (tokensToday === 0 || messagesToday === 0) {
+        try {
+          const aiMsgRes = await query(
+            `SELECT
+               COUNT(*)::int AS count,
+               COALESCE(SUM(LENGTH(COALESCE(text, content, ''))), 0)::int AS total_chars
+             FROM messages
+             WHERE (sender IN ('ai', 'bot') OR message_origin = 'ai')
+               AND timestamp >= CURRENT_DATE
+               AND ($1::text IS NULL OR company_id = $1)
+               AND ($2::text IS NULL OR session_id = $2)`,
+            [companyId, sessionId && sessionId !== 'all' ? sessionId : null]
+          );
+          if (aiMsgRes?.rows?.[0]) {
+            const aiMsgCount = Number(aiMsgRes.rows[0].count || 0);
+            const totalChars = Number(aiMsgRes.rows[0].total_chars || 0);
+            if (aiMsgCount > 0) {
+              const estimatedCompletion = Math.ceil(totalChars / 4);
+              const estimatedPrompt = aiMsgCount * 1250;
+              completionTokensToday = Math.max(completionTokensToday, estimatedCompletion);
+              promptTokensToday = Math.max(promptTokensToday, estimatedPrompt);
+              tokensToday = promptTokensToday + completionTokensToday;
+              messagesToday = Math.max(messagesToday, aiMsgCount);
+            }
+          }
+        } catch (msgErr) {
+          console.warn('[aiLogService] Failed to query today messages for token estimation:', msgErr.message);
+        }
+      }
+
+      // 2. Query actual count of operational memory facts from agent_memory_nodes
+      try {
+        const memRes = await query(
+          `SELECT COUNT(*)::int AS count FROM agent_memory_nodes WHERE ($1::text IS NULL OR company_id = $1)`,
+          [companyId]
+        );
+        if (memRes?.rows?.[0]) {
+          memoryFacts = Number(memRes.rows[0].count || 0);
+        }
+      } catch (memErr) {
+        // Fallback to conversation_memories if agent_memory_nodes is unavailable
+        try {
+          const fallbackRes = await query(
+            `SELECT COUNT(*)::int AS count FROM conversation_memories WHERE ($1::text IS NULL OR company_id = $1)`,
+            [companyId]
+          );
+          if (fallbackRes?.rows?.[0]) {
+            memoryFacts = Number(fallbackRes.rows[0].count || 0);
+          }
+        } catch { /* ignore */ }
+      }
+
+      // 3. Get tokens per conversation (last 30 days)
       const convRes = await query(`SELECT a.conversation_id, COALESCE(SUM(a.total_tokens), 0) AS total
         ${scope.sql} AND a.timestamp >= NOW() - INTERVAL '30 days' GROUP BY a.conversation_id`, scope.params);
       convRes.rows.forEach((row) => {
@@ -196,7 +250,8 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
         messagesToday,
         aiResponsesToday: messagesToday,
         estimatedCostToday: null,
-        memoryFacts: null,
+        memoryFacts,
+        aiMemories: memoryFacts,
         avgLatencyMs: null,
         socketLatencyMs: null,
         model: null,
@@ -247,7 +302,8 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
     tokensPerConversation,
     aiResponsesToday: messagesToday,
     estimatedCostToday: null,
-    memoryFacts: null,
+    memoryFacts: memoryFacts || null,
+    aiMemories: memoryFacts || 0,
     avgLatencyMs: null,
     socketLatencyMs: null,
     model: null,

@@ -224,6 +224,13 @@ async function run() {
   await mobilePage.goto(`${BASE_URL}/attendants`, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await mobilePage.waitForTimeout(3000);
   await saveShot(mobilePage, 'VERIFY_08_ATTENDANTS_MOBILE_390.png');
+
+  // Also capture close-up of mobile header
+  const headerElem = mobilePage.locator('header').first();
+  if (await headerElem.isVisible()) {
+    await saveShot(headerElem, 'VERIFY_11_MOBILE_HEADER_SESSION.png');
+  }
+
   await mobileContext.close();
 
   await browser.close();
