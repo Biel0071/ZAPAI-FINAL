@@ -140,26 +140,26 @@ const CHIBI_SPRITE_ANCHORS: Record<string, { neckX: number; chinY: number; width
 const CHIBI_HAIR_SPRITES: Record<"female" | "male", Record<string, string>> = {
   female: {
     hair_01: "sprite_r2_c1",
-    hair_02: "sprite_r2_c2",
-    hair_03: "sprite_r2_c9",
+    hair_02: "sprite_r2_c7",
+    hair_03: "sprite_r2_c3",
     hair_04: "sprite_r2_c4",
-    hair_05: "sprite_r2_c7",
-    hair_06: "sprite_r2_c3",
-    hair_07: "sprite_r2_c8",
-    hair_08: "sprite_r2_c5",
-    hair_09: "sprite_r2_c6",
+    hair_05: "sprite_r2_c5",
+    hair_06: "sprite_r2_c6",
+    hair_07: "sprite_r2_c2",
+    hair_08: "sprite_r2_c9",
+    hair_09: "sprite_r2_c8",
     hair_10: "sprite_r2_c10",
   },
   male: {
-    hair_01: "sprite_r1_c3",
+    hair_01: "sprite_r1_c1",
     hair_02: "sprite_r1_c8",
-    hair_03: "sprite_r1_c9",
-    hair_04: "sprite_r1_c5",
+    hair_03: "sprite_r1_c3",
+    hair_04: "sprite_r1_c4",
     hair_05: "sprite_r1_c1",
-    hair_06: "sprite_r3_c1",
-    hair_07: "sprite_r1_c6",
-    hair_08: "sprite_r1_c2",
-    hair_09: "sprite_r3_c2",
+    hair_06: "sprite_r1_c7",
+    hair_07: "sprite_r1_c2",
+    hair_08: "sprite_r1_c3",
+    hair_09: "sprite_r1_c5",
     hair_10: "sprite_r1_c10",
   },
 };
@@ -183,10 +183,10 @@ const CHIBI_OUTFIT_SPRITES: {
     outfit_02: "sprite_r1_c8",
     outfit_03: "sprite_r3_c4",
     outfit_04: "sprite_r3_c9",
-    outfit_05: "sprite_r3_c10",
+    outfit_05: "sprite_r3_c4",
     outfit_06: "sprite_r3_c2",
     outfit_07: "sprite_r1_c2",
-    outfit_08: "sprite_r3_c10",
+    outfit_08: "sprite_r3_c4",
   },
 };
 
@@ -307,7 +307,7 @@ function ModularLayerAvatar({
 
   // Resolve 4-layer chibi sprite sources
   const hairSpriteId = CHIBI_HAIR_SPRITES[genderKey][hairId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
-  const isLongHair = isFemale && (hairId === "hair_01" || hairId === "hair_03" || hairId === "hair_06" || hairId === "hair_07" || hairId === "hair_10");
+  const isLongHair = isFemale && (hairId === "hair_01" || hairId === "hair_03" || hairId === "hair_07" || hairId === "hair_08" || hairId === "hair_09" || hairId === "hair_10");
 
   let bodySpriteId = hasTablet
     ? CHIBI_OUTFIT_SPRITES.tablet[outfitId] || "sprite_r1_c2"
@@ -487,10 +487,10 @@ function ModularLayerAvatar({
             {isBackView && (
               <g id="layer-outfit-back-cover">
                 <rect
-                  x="49"
-                  y="95"
-                  width="42"
-                  height="52"
+                  x="53"
+                  y="96"
+                  width="34"
+                  height="44"
                   rx="8"
                   fill={
                     outfitId === "outfit_02"
@@ -544,47 +544,31 @@ function ModularLayerAvatar({
           {/* ── CHIBI LAYER D: BACK-OF-HEAD HAIR CASCADE (180° Costas) ─ */}
           {isBackView && (
             <g id="layer-hair-back-view">
-              {/* Full pixel-shaded back of head covering face oval */}
-              <rect
-                x="44"
-                y="34"
-                width="52"
-                height={isLongHair ? "88" : "58"}
-                rx="22"
-                fill={`url(#hairGrad-${uid}-${hairColorKey})`}
-                stroke="#090d16"
-                strokeWidth="1.4"
-              />
-              {/* Clip the upper crown from the real chibi hair sprite so pixel texture stays 100% authentic */}
-              <g clipPath={`url(#clip-head-${uid})`} opacity="0.92">
+              {/* Seamlessly mirror the real pixel-art hair crown across y=63 into the face oval */}
+              <g clipPath={`url(#clip-face-${uid})`}>
                 <image
                   href={hairImg.href}
                   x={hairImg.x}
                   y={hairImg.y}
                   width={hairImg.width}
                   height={hairImg.height}
+                  transform="translate(0, 126) scale(1, -1)"
                 />
               </g>
-              {/* Back-of-head face mask with pixel hair strands */}
-              <rect
-                x="47"
-                y="56"
-                width="46"
-                height={isLongHair ? "66" : "38"}
-                rx="16"
-                fill={hairColor.base}
-                stroke={hairColor.shadow}
-                strokeWidth="1.2"
-              />
-              <path
-                d="M 56 58 Q 62 78 58 94 M 70 56 Q 72 78 70 96 M 84 58 Q 78 78 82 94"
-                stroke={hairColor.shadow}
-                strokeWidth="1.6"
-                fill="none"
-                strokeLinecap="round"
-              />
+              {isLongHair && (
+                <g clipPath={`url(#clip-body-${uid})`} opacity="0.95">
+                  <image
+                    href={hairImg.href}
+                    x={hairImg.x - 10}
+                    y={hairImg.y + 8}
+                    width={hairImg.width}
+                    height={hairImg.height}
+                    clipPath={`url(#clip-back-hair-${uid})`}
+                  />
+                </g>
+              )}
               {hairId === "hair_01" && isFemale && (
-                <circle cx="70" cy="68" r="4.5" fill={primaryBrandColor} stroke="#090d16" strokeWidth="1" />
+                <circle cx="70" cy="70" r="4" fill={primaryBrandColor} stroke="#090d16" strokeWidth="1" />
               )}
             </g>
           )}
