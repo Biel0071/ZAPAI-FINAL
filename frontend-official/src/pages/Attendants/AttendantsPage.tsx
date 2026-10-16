@@ -293,21 +293,85 @@ export default function AttendantsPage() {
   // Inline 4-category Avatar Studio state (Cabelo, Rosto, Roupa, Acessórios)
   const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories">("hair");
   const [studioRotationY, setStudioRotationY] = useState<number>(0);
-  const [studioMovement3D, setStudioMovement3D] = useState<"idle" | "walk" | "wave" | "spin360">("idle");
+  const [studioMovement3D, setStudioMovement3D] = useState<"idle" | "walk" | "wave" | "pose" | "spin360">("idle");
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
+  const [isStudioDragging, setIsStudioDragging] = useState(false);
+  const studioDragStartXRef = useRef<number>(0);
+  const studioDragStartAngleRef = useRef<number>(0);
 
   useEffect(() => {
     setStudioRotationY(typeof previewAgent?.avatarConfig?.rotationY === "number" ? previewAgent.avatarConfig.rotationY : 0);
     setStudioMovement3D(previewAgent?.avatarConfig?.movement3D || "idle");
   }, [previewAgent?.key]);
 
+  // Smooth continuous turntable auto-spin loop when studioMovement3D === "spin360"
   useEffect(() => {
     if (studioMovement3D !== "spin360") return;
-    const timer = window.setInterval(() => {
-      setStudioRotationY((prev) => (prev + 45) % 360);
-    }, 420);
-    return () => window.clearInterval(timer);
-  }, [studioMovement3D]);
+    let animFrame: number;
+    let lastTime = performance.now();
+    const spinLoop = (now: number) => {
+      const dt = now - lastTime;
+      if (!isStudioDragging && dt >= 25) {
+        setStudioRotationY((prev) => (prev + 1) % 360);
+        lastTime = now;
+      }
+      animFrame = requestAnimationFrame(spinLoop);
+    };
+    animFrame = requestAnimationFrame(spinLoop);
+    return () => cancelAnimationFrame(animFrame);
+  }, [studioMovement3D, isStudioDragging]);
+
+  const handleInlineStageMouseDown = (e: React.MouseEvent) => {
+    setIsStudioDragging(true);
+    studioDragStartXRef.current = e.clientX;
+    studioDragStartAngleRef.current = studioRotationY;
+  };
+
+  const handleInlineStageTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsStudioDragging(true);
+      studioDragStartXRef.current = e.touches[0].clientX;
+      studioDragStartAngleRef.current = studioRotationY;
+    }
+  };
+
+  useEffect(() => {
+    if (!isStudioDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - studioDragStartXRef.current;
+      const sensitivity = 0.85;
+      const newAngle = Math.round((((studioDragStartAngleRef.current + deltaX * sensitivity) % 360) + 360) % 360);
+      setStudioRotationY(newAngle);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        const deltaX = e.touches[0].clientX - studioDragStartXRef.current;
+        const sensitivity = 0.85;
+        const newAngle = Math.round((((studioDragStartAngleRef.current + deltaX * sensitivity) % 360) + 360) % 360);
+        setStudioRotationY(newAngle);
+      }
+    };
+
+    const handleDragEnd = () => {
+      setIsStudioDragging(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleDragEnd);
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleDragEnd);
+    window.addEventListener("touchcancel", handleDragEnd);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleDragEnd);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleDragEnd);
+      window.removeEventListener("touchcancel", handleDragEnd);
+    };
+  }, [isStudioDragging]);
 
   const handleUpdateAvatar = useCallback((overrides: Partial<AgentAvatarConfig>) => {
     if (!previewAgent) return;
@@ -929,8 +993,22 @@ export default function AttendantsPage() {
               </div>
             </div>
 
-            {/* Centered Live Modular 3D/2.5D Character on Turntable */}
-            <div className="relative w-full h-[215px] sm:h-[235px] flex items-center justify-center pt-5 pb-7 my-auto">
+            {/* Centered Live Modular 3D/2.5D Character on Turntable with Drag Orbit */}
+            <div
+              className={cn(
+                "relative w-full h-[215px] sm:h-[235px] flex items-center justify-center pt-5 pb-7 my-auto select-none transition-colors",
+                isStudioDragging ? "cursor-grabbing" : "cursor-grab"
+              )}
+              onMouseDown={handleInlineStageMouseDown}
+              onTouchStart={handleInlineStageTouchStart}
+              title="Clique e arraste para girar em 360°"
+            >
+              {/* Tripo3D Orbit Degree Indicator */}
+              <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/75 border border-emerald-500/40 text-[9px] font-mono text-emerald-300 backdrop-blur-xs shadow-md pointer-events-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>360° Orbit · {studioRotationY}°</span>
+              </div>
+
               {/* Semantic sprite img kept in DOM for legacy test selectors */}
               <img
                 src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
@@ -1060,10 +1138,11 @@ export default function AttendantsPage() {
               Girar Dir ⟳
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-muted/15 border border-border/50">
+          <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-muted/15 border border-border/50">
             {([
               { id: "walk", label: "Andar 3D" },
               { id: "wave", label: "Acenar 3D" },
+              { id: "pose", label: "Posar 3D" },
               { id: "spin360", label: "Giro 360°" },
             ] as const).map((mv) => (
               <button
@@ -1079,7 +1158,7 @@ export default function AttendantsPage() {
                   handleUpdateAvatar({ rotationY: nextRot, movement3D: nextMovement });
                 }}
                 className={cn(
-                  "py-1 px-1.5 rounded-lg border text-[10px] font-mono transition-all cursor-pointer",
+                  "py-1 px-1 rounded-lg border text-[10px] font-mono transition-all cursor-pointer text-center",
                   studioMovement3D === mv.id
                     ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold"
                     : "bg-card/70 border-border/60 text-muted-foreground hover:text-foreground"

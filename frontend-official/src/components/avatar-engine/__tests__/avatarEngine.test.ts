@@ -724,6 +724,63 @@ describe("Avatar operational state regressions", () => {
     expect(resolveItemDisplayForGender(hair03, "female").title).toBe("Ondulado Longo Elegante");
     expect(resolveItemDisplayForGender(hair03, "male").title).toBe("Loiro Texturizado");
   });
+
+  it("supports Tripo3D 360 interactive orbit, pose movement, and 5 visible character customization tabs", async () => {
+    // 1. ZaiAvatarRenderer supports pose movement & Tripo3D pedestal
+    const poseMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: { body: "female", hair: "hair_01", outfit: "outfit_01" },
+        size: "workspace",
+        rotationY: 45,
+        movement3D: "pose",
+      })
+    );
+    expect(poseMarkup).toContain('data-avatar-rotation="45"');
+    expect(poseMarkup).toContain('data-avatar-movement="pose"');
+    expect(poseMarkup).toContain("layer-pedestal");
+
+    // 2. AvatarEditorModal renders exactly 5 visible tabs (Corpo, Cabelo, Rosto, Roupas, Acessórios)
+    const agent = {
+      key: "camila",
+      name: "Camila",
+      avatarConfig: createAgentAvatar({ agentId: "camila", name: "Camila", gender: "female" }),
+    };
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(React.createElement(AvatarEditorModal, { open: true, onOpenChange: vi.fn(), agent }));
+      });
+
+      // Check visible tabs
+      const visibleTabs = Array.from(document.querySelectorAll('[role="tab"]')).filter(
+        (tab) => !tab.classList.contains("sr-only")
+      );
+      expect(visibleTabs.length).toBe(5);
+      const tabLabels = visibleTabs.map((t) => t.textContent?.trim());
+      expect(tabLabels).toEqual(["Corpo", "Cabelo", "Rosto", "Roupas", "Acessórios"]);
+
+      // Verify Loja DNA is NOT visible
+      const visibleLojaDNA = visibleTabs.find((t) => t.textContent?.includes("Loja DNA"));
+      expect(visibleLojaDNA).toBeUndefined();
+
+      // Verify 360 Orbit Indicator & Presets
+      expect(document.querySelector('[data-avatar-3d-action="rotate-iso"]')).toBeTruthy();
+      expect(document.querySelector('[data-avatar-3d-movement="pose"]')).toBeTruthy();
+
+      // Test clicking pose button
+      const poseBtn = document.querySelector<HTMLButtonElement>('[data-avatar-3d-movement="pose"]');
+      await act(async () => {
+        poseBtn?.click();
+      });
+      expect(document.querySelector('[data-avatar-movement="pose"]')).toBeTruthy();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
 });
 
 

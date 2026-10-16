@@ -112,7 +112,7 @@ export interface AgentAvatarConfig {
   personalityVisual: PersonalityVisualConfig;
   catalogSpriteId?: string;
   rotationY?: number;
-  movement3D?: "idle" | "walk" | "wave" | "spin360";
+  movement3D?: "idle" | "walk" | "wave" | "pose" | "spin360";
   renderStyle?: "3d_enterprise" | "chibi_25d";
 }
 

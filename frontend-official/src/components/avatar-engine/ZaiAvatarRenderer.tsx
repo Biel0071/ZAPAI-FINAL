@@ -42,7 +42,7 @@ export interface ZaiAvatarRendererProps {
   showStatusBadge?: boolean;
   showBrandingLayer?: boolean;
   rotationY?: number;
-  movement3D?: "idle" | "walk" | "wave" | "spin360";
+  movement3D?: "idle" | "walk" | "wave" | "pose" | "spin360";
   className?: string;
   onClick?: () => void;
 }
@@ -313,7 +313,7 @@ function ModularLayerAvatar({
   cropFocus?: AvatarCropFocus;
   showBrandingLayer: boolean;
   rotationY?: number;
-  movement3D?: "idle" | "walk" | "wave" | "spin360";
+  movement3D?: "idle" | "walk" | "wave" | "pose" | "spin360";
 }) {
   const isFemale = avatar.body !== "male" && avatar.base !== "male";
   const genderKey: "female" | "male" = isFemale ? "female" : "male";
@@ -376,6 +376,7 @@ function ModularLayerAvatar({
   const isThinking = currentState === "THINKING";
   const isWalking = currentState === "WALKING" || movement3D === "walk";
   const isWaving = movement3D === "wave";
+  const isPosing = movement3D === "pose";
   const isSpinning = movement3D === "spin360";
 
   // Resolve 4-layer chibi sprite sources
@@ -476,32 +477,62 @@ function ModularLayerAvatar({
         </clipPath>
       </defs>
 
-      {/* ── LAYER 1: ISOMETRIC PEDESTAL & 3D COMPASS RING ───────────── */}
+      {/* ── LAYER 1: TRIPO3D ISOMETRIC PEDESTAL & 360 ORBIT RING ───────────── */}
       {cropFocus === "full" && (
         <g id="layer-pedestal">
-          <ellipse cx="70" cy="221" rx="48" ry="13" fill={`url(#pedestalGlow-${uid})`} />
+          {/* Base ambient radial glow */}
+          <ellipse cx="70" cy="221" rx="52" ry="14" fill={`url(#pedestalGlow-${uid})`} />
+          
+          {/* Outer platform rim */}
           <ellipse
             cx="70"
             cy="221"
-            rx="42"
-            ry="10.5"
-            fill="#091120"
+            rx="45"
+            ry="11.5"
+            fill="#060c18"
             stroke={primaryBrandColor}
             strokeWidth="1.6"
-            strokeOpacity="0.65"
+            strokeOpacity="0.8"
           />
-          {/* 3D Rotation Compass Dot */}
+
+          {/* Inner concentric ring (Tripo3D turntable style) */}
+          <ellipse
+            cx="70"
+            cy="221"
+            rx="32"
+            ry="8"
+            fill="none"
+            stroke={primaryBrandColor}
+            strokeWidth="0.8"
+            strokeOpacity="0.45"
+            strokeDasharray="3 3"
+          />
+
+          {/* Subtle Stage Grid Axes */}
+          <line x1="38" y1="221" x2="102" y2="221" stroke={primaryBrandColor} strokeWidth="0.6" strokeOpacity="0.35" />
+          <line x1="70" y1="213" x2="70" y2="229" stroke={primaryBrandColor} strokeWidth="0.6" strokeOpacity="0.35" />
+
+          {/* 360 Dynamic Orbit Tracker Point with neon glow */}
           <circle
-            cx={70 + Math.round(sinA * 38 * 10) / 10}
-            cy={221 + Math.round(cosA * 8.8 * 10) / 10}
-            r="2.8"
-            fill="#00f090"
+            cx={70 + Math.round(sinA * 45 * 10) / 10}
+            cy={221 + Math.round(cosA * 11.5 * 10) / 10}
+            r="3.2"
+            fill="#00ff88"
+            className="animate-pulse"
           />
-          <ellipse cx="70" cy="219" rx="28" ry="6.5" fill="#000000" fillOpacity="0.5" />
+          <circle
+            cx={70 + Math.round(sinA * 45 * 10) / 10}
+            cy={221 + Math.round(cosA * 11.5 * 10) / 10}
+            r="1.4"
+            fill="#ffffff"
+          />
+
+          {/* Soft dynamic drop shadow under character feet */}
+          <ellipse cx="70" cy="219" rx="27" ry="6" fill="#000000" fillOpacity="0.55" />
         </g>
       )}
 
-      {/* ── CHARACTER 2.5D CHIBI RIG WITH BREATHING & TURNTABLE ─────── */}
+      {/* ── CHARACTER 2.5D CHIBI RIG WITH BREATHING, POSE & TURNTABLE ─────── */}
       <g id="character-3d-breathe">
         {(movement3D === "idle" || isSpinning) && (
           <animateTransform
@@ -527,6 +558,15 @@ function ModularLayerAvatar({
             type="rotate"
             values="0 70 160; -2.5 70 160; 2.5 70 160; 0 70 160"
             dur="0.7s"
+            repeatCount="indefinite"
+          />
+        )}
+        {isPosing && (
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            values="0,0; 0,-3.2; 0,0"
+            dur="1.3s"
             repeatCount="indefinite"
           />
         )}
@@ -873,15 +913,21 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
         className="sr-only"
         aria-hidden="true"
       />
-      {/* 2.5D Isometric Pedestal Accent */}
+      {/* Tripo3D Turntable Stage Pedestal Accent */}
       {size === "workspace" && (
         <div
-          className="absolute bottom-1 left-1/2 -translate-x-1/2 w-40 sm:w-48 h-7 rounded-full pointer-events-none transition-all duration-500"
+          className="absolute bottom-1 left-1/2 -translate-x-1/2 w-44 sm:w-52 h-8 rounded-full pointer-events-none transition-all duration-500 flex items-center justify-center"
           style={{
-            background: `radial-gradient(ellipse at center, ${branding.primaryColor}30 0%, ${branding.primaryColor}08 60%, transparent 80%)`,
-            border: `1px solid ${branding.primaryColor}30`,
+            background: `radial-gradient(ellipse at center, ${branding.primaryColor}35 0%, ${branding.primaryColor}12 50%, transparent 80%)`,
+            border: `1px solid ${branding.primaryColor}45`,
+            boxShadow: `0 0 20px ${branding.primaryColor}25, inset 0 0 12px ${branding.primaryColor}15`,
           }}
-        />
+        >
+          <div
+            className="w-32 sm:w-36 h-4 rounded-full border border-dashed pointer-events-none opacity-40"
+            style={{ borderColor: branding.accentColor || "#00ff88" }}
+          />
+        </div>
       )}
 
       {/* Ambient Aura Glow based on State & Store Color */}
