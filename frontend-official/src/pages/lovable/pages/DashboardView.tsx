@@ -885,36 +885,42 @@ export function DashboardView({
                   const tiers = [
                     {
                       label: "Quente",
-                      hint: "Decisão",
+                      hint: "Decisão / Compra",
                       val: hotVal,
                       pct: hotPct,
-                      color: "#ef4444",
-                      textClass: "text-red-400",
-                      bgClass: "bg-red-500/10 border-red-500/25",
+                      color: "#f43f5e",
+                      gradient: "from-rose-500 to-red-600",
+                      textClass: "text-rose-400",
+                      bgClass: "bg-rose-500/10 border-rose-500/30",
+                      segment: "lead_quente",
                     },
                     {
                       label: "Morno",
-                      hint: "Engajados",
+                      hint: "Engajados / Cotação",
                       val: warmVal,
                       pct: warmPct,
                       color: "#f59e0b",
+                      gradient: "from-amber-400 to-orange-500",
                       textClass: "text-amber-400",
-                      bgClass: "bg-amber-500/10 border-amber-500/25",
+                      bgClass: "bg-amber-500/10 border-amber-500/30",
+                      segment: "lead_morno",
                     },
                     {
                       label: "Frio",
-                      hint: "Reativar",
+                      hint: "Reativar / Base Antiga",
                       val: coldVal,
                       pct: coldPct,
-                      color: "#0ea5e9",
+                      color: "#0284c7",
+                      gradient: "from-sky-400 to-blue-600",
                       textClass: "text-sky-400",
-                      bgClass: "bg-sky-500/10 border-sky-500/25",
+                      bgClass: "bg-sky-500/10 border-sky-500/30",
+                      segment: "lead_frio",
                     },
                   ];
 
                   return (
                     <>
-                      <CardHeader className="py-2 px-3.5 border-b border-border/40 shrink-0 flex flex-row items-center justify-between">
+                      <CardHeader className="py-2.5 px-3.5 border-b border-border/40 shrink-0 flex flex-row items-center justify-between">
                         <CardTitle className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                           <ChartBar weight="bold" className="h-3.5 w-3.5 text-primary" /> Temperatura da Base de Leads
                         </CardTitle>
@@ -956,33 +962,40 @@ export function DashboardView({
                         </div>
 
                         {/* Thermal Distribution Progress Rows */}
-                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-2.5">
+                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-2">
                           {tiers.map((tier) => (
-                            <div key={tier.label} className="space-y-1">
+                            <div
+                              key={tier.label}
+                              className="group/tier space-y-1 cursor-pointer rounded-lg p-1 -mx-1 hover:bg-secondary/40 transition-colors"
+                              onClick={() => navigate(`/contacts?segment=${tier.segment}`)}
+                              title={`Filtrar leads ${tier.label.toLowerCase()} no CRM`}
+                            >
                               <div className="flex items-center justify-between gap-2 text-[11px] leading-none">
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <span
-                                    className="h-2 w-2 rounded-full shrink-0"
+                                    className="h-2 w-2 rounded-full shrink-0 group-hover/tier:scale-125 transition-transform"
                                     style={{ backgroundColor: tier.color, boxShadow: `0 0 8px ${tier.color}80` }}
                                   />
-                                  <span className={cn("font-bold", tier.textClass)}>{tier.label}:</span>
+                                  <span className={cn("font-bold", tier.textClass)}>{tier.label}</span>
                                   <span className="text-[9px] text-muted-foreground hidden sm:inline truncate">
-                                    {tier.hint}
+                                    • {tier.hint}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 font-mono">
+                                  <span className="text-[10px] font-bold text-muted-foreground px-1.5 py-0.2 rounded bg-secondary/80 border border-border/40">
+                                    {tier.val} leads
+                                  </span>
                                   <span className="text-[11px] font-bold text-foreground">
-                                    {tier.pct}% ({tier.val})
+                                    {tier.pct}%
                                   </span>
                                 </div>
                               </div>
-                              <div className="h-1.5 w-full rounded-full bg-secondary/60 overflow-hidden border border-border/30">
+                              <div className="h-2 w-full rounded-full bg-secondary/80 overflow-hidden border border-border/30">
                                 <div
-                                  className="h-full rounded-full transition-all duration-500"
+                                  className={cn("h-full rounded-full transition-all duration-500 bg-gradient-to-r", tier.gradient)}
                                   style={{
                                     width: `${total > 0 ? Math.max(tier.pct, tier.val > 0 ? 6 : 0) : 0}%`,
-                                    backgroundColor: tier.color,
-                                    boxShadow: tier.val > 0 ? `0 0 8px ${tier.color}66` : "none",
+                                    boxShadow: tier.val > 0 ? `0 0 10px ${tier.color}80` : "none",
                                   }}
                                 />
                               </div>

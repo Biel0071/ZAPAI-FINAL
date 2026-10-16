@@ -249,41 +249,42 @@ function compileSystemPrompt(agent, store, contact = null) {
     }
   }
 
-  // 4. CONTEXTO DA EMPRESA
-  compiled += `[CONTEXTO DA EMPRESA]\n`;
-  const companyName = agent?.company || store?.name || 'Não informado';
-  const companyDesc = agent?.companyDescription || store?.description || store?.companyDescription || 'Use somente o conhecimento oficial vinculado a esta conexão.';
-  const policies = agent?.policies || store?.policies || store?.deliveryPolicy || '';
-  compiled += `- Nome da Empresa: ${companyName}\n`;
-  compiled += `- Descrição da Empresa: ${companyDesc}\n`;
-  if (policies) {
-    compiled += `- Políticas da Loja: ${policies}\n`;
-  }
-  if (store?.address || store?.location) {
-    compiled += `- Endereço Oficial da Loja: ${store.address || store.location}\n`;
-  }
-  if (store?.phone || store?.contactPhone) {
-    compiled += `- Telefone / Contato Oficial: ${store.phone || store.contactPhone}\n`;
-  }
+  // 4. CONTEXTO DA EMPRESA E LOJA
+  compiled += `[CONTEXTO DA EMPRESA E LOJA]\n`;
+  const companyName = store?.name || agent?.company || 'Depósito Mais';
+  const companyDesc = store?.description || store?.companyDescription || agent?.companyDescription || 'Materiais de Construção & Reforma';
+  const policies = store?.policies || store?.deliveryPolicy || agent?.policies || 'Garantia de 90 dias em ferramentas e materiais com defeito de fabricação. Frete sob consulta de CEP/região. Pagamento facilitado em até 10x sem juros no cartão ou desconto de 5% à vista no PIX.';
+  const storeAddress = store?.address || store?.location || agent?.storeAddress || '';
+  const storePhone = store?.phone || store?.contactPhone || agent?.storePhone || '';
+  const storeHours = store?.business_hours || agent?.hours || (store?.aiConfig?.businessHours?.open ? `Seg a Sex: ${store.aiConfig.businessHours.open} às ${store.aiConfig.businessHours.close}` : '');
+
+  compiled += `- Nome Oficial da Loja: ${companyName}\n`;
+  compiled += `- Ramo e Descrição: ${companyDesc}\n`;
+  if (storeAddress) compiled += `- Endereço Oficial da Loja: ${storeAddress}\n`;
+  if (storePhone) compiled += `- Telefone / Contato Oficial: ${storePhone}\n`;
+  if (storeHours) compiled += `- Horário de Funcionamento Oficial: ${storeHours}\n`;
+  if (policies) compiled += `- Políticas da Loja (Frete/Troca/Pagamento): ${policies}\n`;
+  if (store?.knowledge) compiled += `- Base de Conhecimento Específica da Loja:\n${store.knowledge}\n`;
   compiled += `\n`;
 
   // 5. PRODUTOS/SERVIÇOS
   compiled += `[PRODUTOS/SERVIÇOS]\n`;
   let hasProductsOrServices = false;
-  if (agent?.products) {
-    compiled += `Produtos/Tabela de Preços:\n${agent.products}\n`;
+  if (store?.catalog_summary) {
+    compiled += `Catálogo e Tabela de Preços Oficiais da Loja (${companyName}):\n${store.catalog_summary}\n\n`;
     hasProductsOrServices = true;
   } else if (store?.products || store?.catalog) {
     const storeProducts = typeof store.products === 'string' ? store.products : JSON.stringify(store.products || store.catalog, null, 2);
-    compiled += `Produtos/Tabela de Preços da Loja:\n${storeProducts}\n`;
+    compiled += `Produtos/Tabela de Preços da Loja:\n${storeProducts}\n\n`;
     hasProductsOrServices = true;
   }
-  if (agent?.services) {
-    compiled += `Serviços:\n${agent.services}\n`;
+  if (agent?.products) {
+    compiled += `Catálogo Complementar do Atendente:\n${agent.products}\n\n`;
     hasProductsOrServices = true;
-  } else if (store?.services) {
-    const storeServices = typeof store.services === 'string' ? store.services : JSON.stringify(store.services, null, 2);
-    compiled += `Serviços da Loja:\n${storeServices}\n`;
+  }
+  if (agent?.services || store?.services) {
+    const srv = agent?.services || (typeof store.services === 'string' ? store.services : JSON.stringify(store.services, null, 2));
+    compiled += `Serviços:\n${srv}\n\n`;
     hasProductsOrServices = true;
   }
   if (!hasProductsOrServices) {
@@ -415,18 +416,19 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Continue o atendimento do ponto atual; não reinicie com saudações repetidas se já existe histórico.\n`;
   compiled += `- PROTOCOLO ESTRITO ANTI-ALUCINAÇÃO (ZERO INVENÇÃO DE PREÇOS, PRAZOS OU CONDIÇÕES):\n`;
   compiled += `  * NUNCA INVENTE PREÇOS: Se o cliente perguntar o preço de um item, material ou serviço que NÃO está listado explicitamente na tabela de produtos/serviços acima, NUNCA invente um preço. Em vez disso, responda com cordialidade e precisão profissional: "Vou verificar o valor atualizado desse item no estoque da nossa loja e já te confirmo!" ou acione o transbordo para um atendente da loja.\n`;
-  compiled += `  * NUNCA INVENTE PRAZOS OU ENDEREÇOS: Informe apenas prazos de entrega e horários confirmados no contexto. Não prometa entrega imediata sem confirmação da expedição.\n`;
-  compiled += `  * NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS: Se o cliente pedir desconto ou condições especiais além do cadastrado, informe que vai submeter à gerência da loja para liberação.\n`;
+  compiled += `  * NUNCA INVENTE PRAZOS OU ENDEREÇOS: Informe apenas prazos de entrega e horários confirmados no contexto da loja. Não prometa entrega imediata sem confirmação da expedição.\n`;
+  compiled += `  * NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS: Se o cliente pedir desconto ou parcelamento além do cadastrado, informe a condição oficial da loja (ex: até 10x sem juros ou 5% no PIX) e informe que exceções dependem de autorização da gerência.\n`;
   compiled += `  * COMPREENSÃO DE MÚLTIPLOS ITENS E MATERIAIS DE CONSTRUÇÃO / COMÉRCIO:\n`;
-  compiled += `    - Entenda cálculos de múltiplos materiais em uma mesma mensagem (ex: cimento, areia, brita, blocos, argamassa, tintas, tubos).\n`;
-  compiled += `    - Reconheça unidades usuais do comércio (saco, metro cúbico / m³, milheiro, barra, lata, fardo, caixa).\n`;
+  compiled += `    - Entenda pedidos de múltiplos materiais em uma mesma mensagem (ex: cimento, areia, brita, blocos, argamassa, tintas, tubos, telhas).\n`;
+  compiled += `    - Reconheça unidades usuais do comércio brasileiro (saco / sc, metro cúbico / m³, milheiro, barra, lata, fardo, caixa, peça).\n`;
   compiled += `    - Extraia todos os itens e confirme o pedido por completo antes de pedir o endereço de entrega ou dados de faturamento.\n`;
-  compiled += `- DIRETRIZ DE HUMANIZAÇÃO NATURAL & ANTI-ROBÔ (WHATSAPP REAL):\n`;
+  compiled += `- DIRETRIZ DE HUMANIZAÇÃO NATURAL & ANTI-ROBÔ (WHATSAPP REAL BRASILEIRO):\n`;
   compiled += `  * ZERO JARGÕES DE ROBÔ: NUNCA diga frases como "Sou uma inteligência artificial", "Sou o assistente virtual da Loja...", "Como posso te ajudar hoje?".\n`;
   compiled += `  * FALE COMO UM ATENDENTE REAL DE WHATSAPP: Escreva de forma acolhedora, brasileira, simpática, prática e ágil.\n`;
   compiled += `  * MENSAGENS COMPACTAS: Responda em no máximo 1 a 3 frases claras e diretas. Evite blocos cansativos de texto.\n`;
   compiled += `  * NÃO REPITA SAUDAÇÕES: Não repita "Olá", "Bom dia" se a conversa já está em andamento. Vá direto ao ponto.\n`;
-  compiled += `  * VARIAÇÃO CONTÍNUA & ANTI-REPETIÇÃO: NUNCA inicie respostas com fórmulas repetidas ("Olá tudo bem? Eu sou a Camila..."). Varie os cumprimentos de forma dinâmica ("Oi!", "Opa!", "Olá!", ou vá direto ao assunto com "Poxa, sinto muito por isso!"). Adapte o vocabulário para cada cliente para soar 100% como uma pessoa real digitando.\n`;
+  compiled += `  * VARIAÇÃO CONTÍNUA & ANTI-REPETIÇÃO: NUNCA inicie respostas com fórmulas repetidas ("Olá tudo bem? Eu sou a Camila..."). Varie os cumprimentos de forma dinâmica ("Oi!", "Opa!", "Olá!", ou vá direto ao assunto). Adapte o vocabulário para cada cliente para soar 100% como uma pessoa real digitando.\n`;
+  compiled += `  * AMPLA COMPREENSÃO LINGUÍSTICA E TOLERÂNCIA A ERROS: Compreenda gírias, abreviações (vc, qto, blz, sc, m3, pct, hj, pix, cartao) e áudios transcritos sem travar nem pedir repetições desnecessárias.\n`;
   const DYNAMIC_HUMAN_CADENCES = [
     'ESTILO DESTA RESPOSTA: Use saudação amigável e descontraída (ex: "Oi!", "Opa!"), confirme a informação solicitada de forma ágil e termine com uma pergunta prática sobre o pedido.',
     'ESTILO DESTA RESPOSTA: Vá direto ao ponto com simpatia e presteza, confirmando as opções disponíveis e oferecendo auxílio para agilizar a entrega ou cotação.',
@@ -910,7 +912,33 @@ async function processAI({ contact, history, message, store, agentName, companyI
 
   const graphPromptToAdd = (evoPrompt.includes('MEMÓRIA EVOLUTIVA EM GRAFO') || evoPrompt.includes('PERFIL DO CLIENTE EM GRAFO')) ? '' : graphMemory.prompt;
   const officialKnowledge = memorySessionId ? await aiAgentService.sessionKnowledge(resolvedCompanyId, memorySessionId) : '';
-  const systemPrompt = `${officialKnowledge}${compileSystemPrompt(resolvedAgent, {aiConfig:{memorySettings:{enabled:true}}}, {...contact,memoryContext:null})}${graphPromptToAdd}${evoPrompt}\n${require("../src/ai/evolutionary/historyLearning").GUARDRAILS}`;
+
+  let resolvedStore = null;
+  try {
+    const { query: dbQuery } = require('../src/infrastructure/config/database');
+    let targetStoreId = null;
+    if (memorySessionId) {
+      const profile = (await dbQuery('SELECT store_id FROM session_ai_profiles WHERE company_id=$1 AND session_id=$2', [resolvedCompanyId, memorySessionId])).rows[0];
+      targetStoreId = profile?.store_id || null;
+    }
+    if (!targetStoreId && resolvedAgent?.storeId) {
+      targetStoreId = resolvedAgent.storeId;
+    }
+    if (targetStoreId) {
+      resolvedStore = (await dbQuery('SELECT * FROM ai_stores WHERE company_id = $1 AND id = $2', [resolvedCompanyId, targetStoreId])).rows[0];
+    }
+    if (!resolvedStore) {
+      resolvedStore = (await dbQuery('SELECT * FROM ai_stores WHERE company_id = $1 ORDER BY created_at ASC LIMIT 1', [resolvedCompanyId])).rows[0];
+    }
+  } catch (_stErr) {
+    // Non-blocking fallback
+  }
+
+  const storeForCompile = {
+    ...(resolvedStore || {}),
+    aiConfig: { memorySettings: { enabled: true } },
+  };
+  const systemPrompt = `${officialKnowledge}${compileSystemPrompt(resolvedAgent, storeForCompile, {...contact,memoryContext:null})}${graphPromptToAdd}${evoPrompt}\n${require("../src/ai/evolutionary/historyLearning").GUARDRAILS}`;
 
   const slicedHistory = Array.isArray(history) ? history.slice(-8) : [];
 

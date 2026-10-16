@@ -224,26 +224,92 @@ export function AnalyticsView({ loading, viewModel }: AnalyticsViewProps) {
                   </CardContent>
                 </Card>
 
-                <Card className="glass-card cursor-pointer" onClick={() => navigate('/contacts?segment=lead_quente')}>
-                  <CardHeader>
-                    <CardTitle className="text-sm font-bold uppercase tracking-widest">Temperatura da Base</CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-[300px] flex items-center justify-center relative">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={safeViewModel.tempDistribution} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                          {safeViewModel.tempDistribution.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute flex flex-col items-center">
-                      <span className="text-2xl font-bold font-display">{safeViewModel.totalLeadsLabel}</span>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold">Leads Ativos</span>
-                    </div>
-                  </CardContent>
+                <Card className="glass-card flex flex-col justify-between">
+                  {(() => {
+                    const total = safeViewModel.tempDistribution.reduce((acc, cur) => acc + (cur.value || 0), 0);
+                    const hotVal = safeViewModel.tempDistribution[0]?.value || 0;
+                    const warmVal = safeViewModel.tempDistribution[1]?.value || 0;
+                    const coldVal = safeViewModel.tempDistribution[2]?.value || 0;
+                    const hotPct = total > 0 ? Math.round((hotVal / total) * 100) : 0;
+                    const warmPct = total > 0 ? Math.round((warmVal / total) * 100) : 0;
+                    const coldPct = total > 0 ? Math.round((coldVal / total) * 100) : 0;
+                    const totalLabel = total > 0 ? String(total) : safeViewModel.totalLeadsLabel || "0";
+                    const pieData = total > 0
+                      ? safeViewModel.tempDistribution
+                      : [{ name: "Sem dados", value: 1, color: "rgba(148, 163, 184, 0.2)" }];
+                    const tiers = [
+                      { label: "Quente", hint: "Decisão / Compra", val: hotVal, pct: hotPct, color: "#f43f5e", gradient: "from-rose-500 to-red-600", textClass: "text-rose-400", segment: "lead_quente" },
+                      { label: "Morno", hint: "Engajados / Cotação", val: warmVal, pct: warmPct, color: "#f59e0b", gradient: "from-amber-400 to-orange-500", textClass: "text-amber-400", segment: "lead_morno" },
+                      { label: "Frio", hint: "Reativar / Base Antiga", val: coldVal, pct: coldPct, color: "#0284c7", gradient: "from-sky-400 to-blue-600", textClass: "text-sky-400", segment: "lead_frio" },
+                    ];
+
+                    return (
+                      <>
+                        <CardHeader className="py-3 px-4 border-b border-border/40 shrink-0 flex flex-row items-center justify-between">
+                          <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                            <Flame className="h-4 w-4 text-rose-500" weight="fill" /> Temperatura da Base
+                          </CardTitle>
+                          <span className="text-xs font-mono text-muted-foreground bg-secondary/50 px-2.5 py-0.5 rounded-md border border-border/50">
+                            {totalLabel} leads ativos
+                          </span>
+                        </CardHeader>
+                        <CardContent className="h-[250px] flex items-center gap-6 px-5 py-3">
+                          {/* Donut */}
+                          <div className="w-[140px] h-[140px] shrink-0 relative flex items-center justify-center">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={42} outerRadius={62} paddingAngle={total > 0 ? 4 : 0} dataKey="value" stroke="none">
+                                  {pieData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                  ))}
+                                </Pie>
+                                <Tooltip />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                              <span className="text-2xl font-extrabold font-display leading-none text-foreground">{totalLabel}</span>
+                              <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider mt-0.5">Leads Base</span>
+                            </div>
+                          </div>
+
+                          {/* Thermal Progress Rows */}
+                          <div className="flex-1 min-w-0 flex flex-col justify-center gap-3">
+                            {tiers.map((tier) => (
+                              <div
+                                key={tier.label}
+                                className="group/tier space-y-1.5 cursor-pointer rounded-lg p-1.5 -mx-1.5 hover:bg-secondary/40 transition-colors"
+                                onClick={() => navigate(`/contacts?segment=${tier.segment}`)}
+                                title={`Filtrar leads ${tier.label.toLowerCase()} no CRM`}
+                              >
+                                <div className="flex items-center justify-between gap-2 text-xs leading-none">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="h-2.5 w-2.5 rounded-full shrink-0 group-hover/tier:scale-125 transition-transform" style={{ backgroundColor: tier.color, boxShadow: `0 0 8px ${tier.color}80` }} />
+                                    <span className={cn("font-bold", tier.textClass)}>{tier.label}</span>
+                                    <span className="text-[10px] text-muted-foreground hidden sm:inline truncate">• {tier.hint}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0 font-mono">
+                                    <span className="text-[11px] font-bold text-muted-foreground px-2 py-0.5 rounded bg-secondary/80 border border-border/40">
+                                      {tier.val} leads
+                                    </span>
+                                    <span className="text-xs font-bold text-foreground">{tier.pct}%</span>
+                                  </div>
+                                </div>
+                                <div className="h-2 w-full rounded-full bg-secondary/80 overflow-hidden border border-border/30">
+                                  <div
+                                    className={cn("h-full rounded-full transition-all duration-500 bg-gradient-to-r", tier.gradient)}
+                                    style={{
+                                      width: `${total > 0 ? Math.max(tier.pct, tier.val > 0 ? 6 : 0) : 0}%`,
+                                      boxShadow: tier.val > 0 ? `0 0 10px ${tier.color}80` : "none",
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </>
+                    );
+                  })()}
                 </Card>
               </div>
 
