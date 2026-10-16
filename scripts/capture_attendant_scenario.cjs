@@ -188,6 +188,26 @@ async function run() {
     await page.waitForTimeout(1000);
   }
 
+  // 5. CLICK 3D Hi-End ON THE MAIN ATTENDANTS PAGE
+  console.log('5. Clicking 3D Hi-End on the main attendants page...');
+  const main3dBtn = page.locator('button[data-studio-rendermode="3d"]').first();
+  if (await main3dBtn.isVisible()) {
+    await main3dBtn.click();
+    await page.waitForTimeout(2000);
+    console.log('Capturing: VERIFY_09_ATTENDANTS_PAGE_3D_BLENDER.png');
+    await saveShot(page, 'VERIFY_09_ATTENDANTS_PAGE_3D_BLENDER.png');
+
+    // Click Male button
+    console.log('Clicking ♂ Masc on the main attendants page...');
+    const maleBtn = page.locator('button[data-studio-gender="male"]').first();
+    if (await maleBtn.isVisible()) {
+      await maleBtn.click();
+      await page.waitForTimeout(2000);
+      console.log('Capturing: VERIFY_10_ATTENDANTS_PAGE_MALE_3D.png');
+      await saveShot(page, 'VERIFY_10_ATTENDANTS_PAGE_MALE_3D.png');
+    }
+  }
+
   await browser.close();
   console.log('--- ALL ATTENDANT VERIFICATIONS COMPLETED SUCCESSFULLY ---');
 }
