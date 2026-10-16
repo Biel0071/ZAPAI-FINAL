@@ -245,7 +245,7 @@ function formatInputDateTime(value?: string | null) {
   return new Date(parsed.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
 }
 
-function checkBusinessHours(targetDate?: Date | string | null): {
+export function checkBusinessHours(targetDate?: Date | string | null): {
   isOutside: boolean;
   currentHour: number;
   currentMinute: number;
