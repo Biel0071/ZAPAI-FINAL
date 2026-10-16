@@ -483,39 +483,21 @@ function ModularLayerAvatar({
               </g>
             )}
 
-            {/* Back-of-Torso Turnaround Shading & ZAI Emblem when at 180° Costas */}
+            {/* Back-of-Torso ZAI Emblem when at 180° Costas */}
             {isBackView && (
               <g id="layer-outfit-back-cover">
-                <rect
-                  x="53"
-                  y="96"
-                  width="34"
-                  height="44"
-                  rx="8"
-                  fill={
-                    outfitId === "outfit_02"
-                      ? "#e2e8f0"
-                      : outfitId === "outfit_04"
-                      ? "#1e3a8a"
-                      : outfitId === "outfit_06"
-                      ? "#eab308"
-                      : "#18181b"
-                  }
-                  stroke="#090d16"
-                  strokeWidth="1.2"
-                />
                 <g id="outfit-back-emblem">
                   <rect
-                    x="59"
-                    y="108"
-                    width="22"
-                    height="11"
-                    rx="2.5"
+                    x="61"
+                    y="102"
+                    width="18"
+                    height="9"
+                    rx="2"
                     fill="#091120"
                     stroke={primaryBrandColor}
                     strokeWidth="1"
                   />
-                  <circle cx="70" cy="113.5" r="3" fill={primaryBrandColor} />
+                  <circle cx="70" cy="106.5" r="2.4" fill={primaryBrandColor} />
                 </g>
               </g>
             )}
@@ -544,8 +526,15 @@ function ModularLayerAvatar({
           {/* ── CHIBI LAYER D: BACK-OF-HEAD HAIR CASCADE (180° Costas) ─ */}
           {isBackView && (
             <g id="layer-hair-back-view">
-              {/* Seamlessly mirror the real pixel-art hair crown across y=63 into the face oval */}
+              {/* Seamlessly fill 100% of the face oval with real pixel-art hair crown texture */}
               <g clipPath={`url(#clip-face-${uid})`}>
+                <image
+                  href={hairImg.href}
+                  x={hairImg.x + 14}
+                  y={hairImg.y + 34}
+                  width={hairImg.width}
+                  height={hairImg.height}
+                />
                 <image
                   href={hairImg.href}
                   x={hairImg.x}
