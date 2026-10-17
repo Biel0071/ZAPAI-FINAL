@@ -220,14 +220,28 @@ async function deactivateFollowupForConversation(conversationId, reason = 'auto_
         'followup_desativado',
       ])
     );
-    await query(
-      `UPDATE conversations
-       SET tags = $2::text[],
-           ai_last_followup_at = NOW(),
-           updated_at = NOW()
-       WHERE id = $1`,
-      [conversationId, nextTags]
-    );
+    try {
+      await query(
+        `UPDATE conversations
+         SET tags = $2::text[],
+             ai_last_followup_at = NOW(),
+             updated_at = NOW()
+         WHERE id = $1`,
+        [conversationId, nextTags]
+      );
+    } catch (updateErr) {
+      if (updateErr.message && updateErr.message.includes('ai_last_followup_at')) {
+        await query(
+          `UPDATE conversations
+           SET tags = $2::text[],
+               updated_at = NOW()
+           WHERE id = $1`,
+          [conversationId, nextTags]
+        );
+      } else {
+        throw updateErr;
+      }
+    }
     console.log(`[AIFollowupEngine] Follow-up desativado para conversa ${conversationId} (motivo: ${reason})`);
     return { ok: true, conversationId, tags: nextTags, deactivated: true };
   } catch (err) {
@@ -360,16 +374,32 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
     ])
   );
 
-  await query(
-    `UPDATE conversations
-     SET ai_enabled = true,
-         agent_name = COALESCE(NULLIF(agent_name, ''), 'Camila'),
-         tags = $2::text[],
-         ai_last_followup_at = NOW(),
-         updated_at = NOW()
-     WHERE id = $1`,
-    [conversation.id, nextTags]
-  );
+  try {
+    await query(
+      `UPDATE conversations
+       SET ai_enabled = true,
+           agent_name = COALESCE(NULLIF(agent_name, ''), 'Camila'),
+           tags = $2::text[],
+           ai_last_followup_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [conversation.id, nextTags]
+    );
+  } catch (updateErr) {
+    if (updateErr.message && updateErr.message.includes('ai_last_followup_at')) {
+      await query(
+        `UPDATE conversations
+         SET ai_enabled = true,
+             agent_name = COALESCE(NULLIF(agent_name, ''), 'Camila'),
+             tags = $2::text[],
+             updated_at = NOW()
+         WHERE id = $1`,
+        [conversation.id, nextTags]
+      );
+    } else {
+      throw updateErr;
+    }
+  }
 
   const outboundQueueService = require('./outboundQueueService');
   const delayMs = Math.floor(Math.random() * (18000 - 9000 + 1)) + 9000;

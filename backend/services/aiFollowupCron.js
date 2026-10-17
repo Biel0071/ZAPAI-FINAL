@@ -16,30 +16,62 @@ let cronStatus = {
 
 async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {}) {
   cronStatus.lastRunAt = new Date().toISOString();
-  try {
-    const { rows: conversations } = await query(
-      `SELECT c.id, c.remote_jid, COALESCE(l.phone, c.remote_jid) AS phone,
-              COALESCE(NULLIF(l.name, ''), 'Cliente') AS lead_name,
-              c.agent_name, c.company_id, c.updated_at, c.session_id,
-              c.funnel_stage, c.lead_temperature, c.tags, c.ai_enabled, c.last_message,
-              c.ai_last_followup_at
-       FROM conversations c
-       LEFT JOIN leads l ON l.id = c.lead_id
-       WHERE c.status = 'open'
-         AND c.ai_enabled = true
-         AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte', 'aguardando_pix', 'finalizado', 'pago', 'concluido', 'pedido_confirmado', 'won')
-         AND NOT ('followup_esgotado' = ANY(COALESCE(c.tags, '{}')))
-         AND NOT ('followup_desativado' = ANY(COALESCE(c.tags, '{}')))
-         AND c.updated_at < NOW() - INTERVAL '2 hours'
-         AND c.updated_at > NOW() - INTERVAL '14 days'
-         AND c.remote_jid NOT LIKE '%@g.us%'
-         AND c.remote_jid NOT LIKE '%@broadcast%'
-         AND c.remote_jid NOT LIKE '%status%'
-       ORDER BY
-         CASE WHEN 'campanha_50_leads_ia' = ANY(COALESCE(c.tags, '{}')) THEN 0 ELSE 1 END ASC,
-         c.updated_at DESC
-       LIMIT 15`
-    );
+    let conversations;
+    try {
+      const res = await query(
+        `SELECT c.id, c.remote_jid, COALESCE(l.phone, c.remote_jid) AS phone,
+                COALESCE(NULLIF(l.name, ''), 'Cliente') AS lead_name,
+                c.agent_name, c.company_id, c.updated_at, c.session_id,
+                c.funnel_stage, c.lead_temperature, c.tags, c.ai_enabled, c.last_message,
+                c.ai_last_followup_at
+         FROM conversations c
+         LEFT JOIN leads l ON l.id = c.lead_id
+         WHERE c.status = 'open'
+           AND c.ai_enabled = true
+           AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte', 'aguardando_pix', 'finalizado', 'pago', 'concluido', 'pedido_confirmado', 'won')
+           AND NOT ('followup_esgotado' = ANY(COALESCE(c.tags, '{}')))
+           AND NOT ('followup_desativado' = ANY(COALESCE(c.tags, '{}')))
+           AND c.updated_at < NOW() - INTERVAL '2 hours'
+           AND c.updated_at > NOW() - INTERVAL '14 days'
+           AND c.remote_jid NOT LIKE '%@g.us%'
+           AND c.remote_jid NOT LIKE '%@broadcast%'
+           AND c.remote_jid NOT LIKE '%status%'
+         ORDER BY
+           CASE WHEN 'campanha_50_leads_ia' = ANY(COALESCE(c.tags, '{}')) THEN 0 ELSE 1 END ASC,
+           c.updated_at DESC
+         LIMIT 15`
+      );
+      conversations = res.rows;
+    } catch (queryErr) {
+      if (queryErr.message && queryErr.message.includes('ai_last_followup_at')) {
+        const res = await query(
+          `SELECT c.id, c.remote_jid, COALESCE(l.phone, c.remote_jid) AS phone,
+                  COALESCE(NULLIF(l.name, ''), 'Cliente') AS lead_name,
+                  c.agent_name, c.company_id, c.updated_at, c.session_id,
+                  c.funnel_stage, c.lead_temperature, c.tags, c.ai_enabled, c.last_message,
+                  NULL::timestamp with time zone AS ai_last_followup_at
+           FROM conversations c
+           LEFT JOIN leads l ON l.id = c.lead_id
+           WHERE c.status = 'open'
+             AND c.ai_enabled = true
+             AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte', 'aguardando_pix', 'finalizado', 'pago', 'concluido', 'pedido_confirmado', 'won')
+             AND NOT ('followup_esgotado' = ANY(COALESCE(c.tags, '{}')))
+             AND NOT ('followup_desativado' = ANY(COALESCE(c.tags, '{}')))
+             AND c.updated_at < NOW() - INTERVAL '2 hours'
+             AND c.updated_at > NOW() - INTERVAL '14 days'
+             AND c.remote_jid NOT LIKE '%@g.us%'
+             AND c.remote_jid NOT LIKE '%@broadcast%'
+             AND c.remote_jid NOT LIKE '%status%'
+           ORDER BY
+             CASE WHEN 'campanha_50_leads_ia' = ANY(COALESCE(c.tags, '{}')) THEN 0 ELSE 1 END ASC,
+             c.updated_at DESC
+           LIMIT 15`
+        );
+        conversations = res.rows;
+      } else {
+        throw queryErr;
+      }
+    }
 
     cronStatus.lastEvaluatedCount = conversations.length;
     if (!conversations.length) {
