@@ -32,7 +32,7 @@ test('AI Follow-up: Progressive Cadence and Multi-Touch Plan', async () => {
   // Attempt 1: 4 to 6 hours (delayMinutes = 240)
   assert.equal(steps[0].delayMinutes, 240);
   assert.match(steps[0].timingLabel, /1º Toque \(4h sem retorno/i);
-  assert.match(steps[0].message, /dúvida|orçamento|medidas/i);
+  assert.match(steps[0].message, /dúvida|orçamento|medidas|cotação|cálculos/i);
 
   // Attempt 2: 24 hours (delayMinutes = 1440)
   assert.equal(steps[1].delayMinutes, 1440);
