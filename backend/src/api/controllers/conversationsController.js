@@ -925,6 +925,19 @@ async function upsertConversationControl(req, res) {
 
     if (fields.aiEnabled === true) {
       fields.ai_reactivate_at = null;
+      if (!Array.isArray(tags)) {
+        const currentTags = Array.isArray(existing.tags) ? existing.tags : [];
+        fields.tags = currentTags.filter(t => {
+          const l = String(t).toLowerCase();
+          return !['intervencao_humana', 'precisa_humano', 'delirio_evitado', 'atencao_humana', 'needs_human', 'intervenção', 'intervencao'].some(k => l.includes(k));
+        });
+      }
+      if (existing.status === 'pending_human' || existing.status === 'intervencao_humana' || existing.status === 'needs_human') {
+        fields.status = 'open';
+      }
+      if (existing.funnel_stage === 'intervencao_humana' || existing.funnel_stage === 'precisa_humano') {
+        fields.funnel_stage = 'em_atendimento';
+      }
     }
     if (typeof summary !== 'undefined') fields.summary = summary;
     if (typeof notes !== 'undefined') fields.notes = notes;

@@ -94,16 +94,31 @@ async function persistOutgoingMessageRecord(store, payload) {
     return null;
   }
 
+  const updateFields = {
+    lastMessage: messagePreview,
+    lastMessageType: payload.mediaType || 'text',
+    last_message_at: new Date().toISOString(),
+    status: 'open',
+    unreadCount: 0,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (payload.source !== 'ai' && Array.isArray(conversation.tags)) {
+    const cleanedTags = conversation.tags.filter((t) => {
+      const l = String(t).toLowerCase();
+      return !['intervencao_humana', 'precisa_humano', 'delirio_evitado', 'atencao_humana', 'needs_human', 'intervenção', 'intervencao'].some((k) => l.includes(k));
+    });
+    if (cleanedTags.length !== conversation.tags.length) {
+      updateFields.tags = cleanedTags;
+    }
+    if (conversation.funnel_stage === 'intervencao_humana' || conversation.funnel_stage === 'precisa_humano') {
+      updateFields.funnel_stage = 'em_atendimento';
+    }
+  }
+
   const updatedConversation = await conversationRepository.updateConversationState(
     conversation.id,
-    {
-      lastMessage: messagePreview,
-      lastMessageType: payload.mediaType || 'text',
-      last_message_at: new Date().toISOString(),
-      status: 'open',
-      unreadCount: 0,
-      updatedAt: new Date().toISOString(),
-    },
+    updateFields,
     payload.companyId
   );
 

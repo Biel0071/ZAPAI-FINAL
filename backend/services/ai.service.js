@@ -800,7 +800,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     }
     try {
       const aiAntiRepetitionService = require('./aiAntiRepetitionService');
-      const testBotReplies = aiAntiRepetitionService.extractRecentBotReplies(history, 3);
+      const testBotReplies = aiAntiRepetitionService.extractRecentBotReplies(history, 20);
       replyClean = aiAntiRepetitionService.sanitizeAndVaryBotReply(replyClean, testBotReplies);
     } catch (_) {}
     result.response = enforceResponseWordLimit(replyClean, finalAgent);
@@ -949,7 +949,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
   const aiAntiRepetitionService = require('./aiAntiRepetitionService');
 
   const slicedHistory = Array.isArray(history) ? history.slice(-30) : [];
-  const recentBotReplies = contact?.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(slicedHistory, 3);
+  const recentBotReplies = contact?.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(slicedHistory, 20);
   contact = { ...contact, recentBotReplies };
 
   let convMemory = null;

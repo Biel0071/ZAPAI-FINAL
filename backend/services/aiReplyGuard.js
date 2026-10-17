@@ -34,8 +34,9 @@ async function getAutomatedReplyPermission(item, dependencies = {}) {
     return { allowed: false, reason: 'conversation_context_mismatch' };
   }
 
-  // Per-contact override: If explicitly disabled for this contact, deny it.
-  if (conversation && (conversation.aiEnabled === false || conversation.ai_enabled === false)) {
+  // Per-contact override: If explicitly disabled for this contact, deny it (unless it is an authorized graceful handoff)
+  const isCircuitBreakerHandoff = item?.metadata?.circuitBreakerHandoff === true || item?.metadata?.systemTag === 'circuit_breaker_handoff';
+  if (!isCircuitBreakerHandoff && conversation && (conversation.aiEnabled === false || conversation.ai_enabled === false)) {
     return { allowed: false, reason: 'conversation_ai_off' };
   }
 

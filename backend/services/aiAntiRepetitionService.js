@@ -51,7 +51,7 @@ const VARIED_CTAS = {
  * Extracts the last N bot messages from history or message array.
  * Handles diverse formats: [{ role, content }], [{ from, text }], [{ from_me, text }], [{ fromMe, text }].
  */
-function extractRecentBotReplies(history = [], limit = 15) {
+function extractRecentBotReplies(history = [], limit = 20) {
   if (!Array.isArray(history) || history.length === 0) return [];
 
   const botReplies = [];
@@ -205,23 +205,40 @@ function areCtasSimilar(ctaA = '', ctaB = '') {
 
 /**
  * Generates an alternate closing CTA when a repetition is detected,
- * excluding any recent CTAs across the last 3 bot replies.
+ * excluding any recent CTAs across the last bot replies and respecting known customer preferences.
  */
-function getAlternativeCta(recentCtas = [], topic = 'closing_advance') {
+function getAlternativeCta(recentCtas = [], topic = 'closing_advance', knownPreferences = {}) {
   const ctaList = Array.isArray(recentCtas) ? recentCtas : [recentCtas].filter(Boolean);
-  const pool = VARIED_CTAS[topic] || VARIED_CTAS.closing_advance;
-  const filtered = pool.filter(c => !ctaList.some(prev => areCtasSimilar(c, prev)));
+
+  // Steer topic away from already known facts
+  let effectiveTopic = topic;
+  if (effectiveTopic === 'freight_location' && (knownPreferences.neighborhood || knownPreferences.city)) {
+    effectiveTopic = !knownPreferences.paymentPreference ? 'payment' : 'closing_advance';
+  } else if (effectiveTopic === 'payment' && knownPreferences.paymentPreference) {
+    effectiveTopic = (!knownPreferences.neighborhood && !knownPreferences.city) ? 'freight_location' : 'closing_advance';
+  } else if (effectiveTopic === 'dimensions_capacity' && knownPreferences.capacity) {
+    effectiveTopic = (!knownPreferences.neighborhood && !knownPreferences.city) ? 'freight_location' : (!knownPreferences.paymentPreference ? 'payment' : 'closing_advance');
+  }
+
+  const pool = VARIED_CTAS[effectiveTopic] || VARIED_CTAS.closing_advance;
+  const filtered = pool.filter(c => {
+    if (ctaList.some(prev => areCtasSimilar(c, prev))) return false;
+    const intent = getCtaIntent(c);
+    if (intent === 'LOCALIZACAO_FRETE' && (knownPreferences.neighborhood || knownPreferences.city)) return false;
+    if (intent === 'PAGAMENTO' && knownPreferences.paymentPreference) return false;
+    if (intent === 'MEDIDAS_CAPACIDADE' && knownPreferences.capacity) return false;
+    return true;
+  });
   if (filtered.length > 0) {
     return filtered[Math.floor(Math.random() * filtered.length)];
   }
-  // Try fallback topic
-  const fallbackTopic = topic === 'freight_location' ? 'payment' : (topic === 'payment' ? 'closing_advance' : 'freight_location');
-  const fallbackPool = VARIED_CTAS[fallbackTopic] || VARIED_CTAS.closing_advance;
-  const fallbackFiltered = fallbackPool.filter(c => !ctaList.some(prev => areCtasSimilar(c, prev)));
-  if (fallbackFiltered.length > 0) {
-    return fallbackFiltered[Math.floor(Math.random() * fallbackFiltered.length)];
+
+  // Fallback to closing_advance without already asked CTAs
+  const fallbackPool = (VARIED_CTAS.closing_advance || []).filter(c => !ctaList.some(prev => areCtasSimilar(c, prev)));
+  if (fallbackPool.length > 0) {
+    return fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
   }
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pool[0] || 'Como posso te ajudar com o seu pedido hoje?';
 }
 
 /**
@@ -387,17 +404,13 @@ function sanitizeAndVaryBotReply(replyText = '', recentBotReplies = [], options 
 
     if (pastSentences.size > 0 || recentBotReplies.length > 0) {
       const currentSentences = cleaned.split(/(?<=[.!?])\s+/).filter(Boolean);
-      if (currentSentences.length > 1) {
-        const filtered = currentSentences.filter(s => {
-          const normS = s.trim().toLowerCase();
-          if (pastSentences.has(normS)) return false;
-          if (isSentenceRepeated(normS, recentBotReplies)) return false;
-          return true;
-        });
-        if (filtered.length >= 1) {
-          cleaned = filtered.join(' ');
-        }
-      }
+      const filtered = currentSentences.filter(s => {
+        const normS = s.trim().toLowerCase();
+        if (normS.length > 15 && pastSentences.has(normS)) return false;
+        if (isSentenceRepeated(normS, recentBotReplies)) return false;
+        return true;
+      });
+      cleaned = filtered.join(' ').trim();
     }
   }
 
@@ -531,20 +544,55 @@ function detectRepetitionLoop({
 
   // 3. Repeated CTA across turns without progression or re-asking already answered fact
   const currentCta = extractClosingCta(cleanCandidate);
-  if (currentCta && lastBotMsg && lastBotMsg.cta) {
-    if (areCtasSimilar(currentCta, lastBotMsg.cta)) {
-      const ctaIntent = getCtaIntent(currentCta);
-      if (
-        (ctaIntent === 'MEDIDAS_CAPACIDADE' && knownPreferences.capacity) ||
-        (ctaIntent === 'LOCALIZACAO_FRETE' && (knownPreferences.neighborhood || knownPreferences.city)) ||
-        (ctaIntent === 'PAGAMENTO' && knownPreferences.paymentPreference)
-      ) {
+
+  // Check if candidate asks a question demanding a fact that is already known
+  const isDemandingLocation = (s) =>
+    /(?:qual|onde|me passa|passa|informa|me diz|qual [eé]|qual o|qual seu)\b.*(?:bairro|cidade|cep|endere[cç]o|localidade)/i.test(s) ||
+    /(?:para qual bairro|qual o seu bairro|qual seu bairro|qual o cep)/i.test(s);
+
+  const isDemandingPayment = (s) =>
+    /(?:qual|como|prefere|vai pagar|forma de pagamento|condi[cç][aã]o de pagamento|pix ou cart[aã]o|cart[aã]o ou pix)/i.test(s) &&
+    /(?:pagamento|pagar|pix|cart[aã]o)/i.test(s);
+
+  const isDemandingCapacity = (s) =>
+    /(?:qual|quantos|quantas|qual tamanho|qual capacidade|quantos litros)\b/i.test(s) &&
+    /(?:capacidade|litros|tamanho|medida|dimens)/i.test(s);
+
+  const candidateSentences = cleanCandidate.split(/(?<=[.!?])\s+/).filter(Boolean);
+  for (const s of candidateSentences) {
+    if (s.includes('?')) {
+      if (knownPreferences.capacity && isDemandingCapacity(s)) {
         return {
           loopDetected: true,
           reason: 'repetition_reasking_known_fact',
-          detail: `Perguntando novamente sobre ${ctaIntent}, dado já informado pelo cliente.`
+          detail: `Pergunta repetida sobre capacidade já informada: "${s}"`
         };
       }
+      if ((knownPreferences.neighborhood || knownPreferences.city) && isDemandingLocation(s)) {
+        return {
+          loopDetected: true,
+          reason: 'repetition_reasking_known_fact',
+          detail: `Pergunta repetida sobre localização já informada: "${s}"`
+        };
+      }
+      if (knownPreferences.paymentPreference && isDemandingPayment(s)) {
+        return {
+          loopDetected: true,
+          reason: 'repetition_reasking_known_fact',
+          detail: `Pergunta repetida sobre forma de pagamento já informada: "${s}"`
+        };
+      }
+    }
+  }
+
+  // Check if candidate CTA is identical or substantially similar to the last bot CTA
+  if (currentCta && lastBotMsg && lastBotMsg.cta) {
+    if (areCtasSimilar(currentCta, lastBotMsg.cta)) {
+      return {
+        loopDetected: true,
+        reason: 'repeated_cta_loop',
+        detail: `Pergunta repetida consecutivamente: "${currentCta}"`
+      };
     }
   }
 
@@ -557,10 +605,15 @@ const UNKNOWN_ANSWER_PATTERNS = [
   /n[aã]o sei (?:te |lhe )?responder/i,
   /n[aã]o consta no (?:nosso )?(?:cat[aá]logo|sistema|estoque)/i,
   /infelizmente n[aã]o (?:trabalhamos|temos esse produto|temos essa informa[cç][aã]o|possuo|disponho)/i,
-  /n[aã]o trabalhamos com esse produto/i,
-  /n[aã]o temos esse produto/i,
+  /n[aã]o trabalhamos com esse (?:produto|material|item)/i,
+  /n[aã]o temos esse (?:produto|modelo|item)/i,
+  /n[aã]o (?:vendemos|comercializamos|trabalhamos com|temos) (?:esse|este|essa|esta|esse tipo de|outros tipos de|esse modelo)/i,
+  /n[aã]o (?:localizei|encontrei|achei) (?:no (?:sistema|cat[aá]logo|estoque)|essa informa[cç][aã]o|esse item|esse produto)/i,
+  /est[aá] (?:em falta|esgotado|indispon[ií]vel)/i,
   /n[aã]o tenho como confirmar/i,
   /n[aã]o possuo (?:essa|esta) informa[cç][aã]o/i,
+  /n[aã]o tenho (?:certeza|como confirmar|acesso|essa resposta)/i,
+  /n[aã]o consigo (?:confirmar|verificar|te responder)/i,
   /como (?:um )?modelo de linguagem/i,
   /como (?:uma )?intelig[eê]ncia artificial/i,
   /minha base de dados n[aã]o/i,
@@ -568,14 +621,20 @@ const UNKNOWN_ANSWER_PATTERNS = [
   /n[aã]o posso ajudar com isso/i,
   /n[aã]o compreendi sua mensagem/i,
   /desculpe(?:-me)?,? mas n[aã]o consigo entender/i,
+  /consulte (?:um|o) atendente/i,
+  /falar com (?:um )?atendente humano/i,
+  /vou transferir para um atendente/i,
 ];
 
 const REPETITIVE_TOKEN_DELIRIUM = /(\b\w+\b)(?:\s+\1){3,}/i;
+const REPETITIVE_PHRASE_DELIRIUM = /(\b(?:\w+\s+){1,4}\w+\b)(?:[\s,.?!]+\1){2,}/i;
 
 const ABSURD_PROMISES_PATTERNS = [
-  /parcelam(?:os|ento) em (?:at[eé]\s+)?(?:2[4-9]|[3-9]\d)\s*x/i,
+  /parcelam(?:os|ento)? (?:em (?:at[eé]\s+)?)?(?:1[89]|2[0-9]|[3-9]\d)\s*x/i,
   /frete gr[aá]tis para todo o (?:brasil|pa[ií]s)/i,
-  /(?:7[5-9]|[89]\d)%\s*de\s*desconto/i,
+  /(?:4[5-9]|[5-9]\d)%\s*de\s*desconto/i,
+  /(?:desconto de\s+)?(?:4[5-9]|[5-9]\d)%/i,
+  /garantia vital[ií]cia/i,
 ];
 
 /**
@@ -605,14 +664,14 @@ function detectDeliriumOrUnknownAnswer({
     }
   }
 
-  // 2. Token repetition / delirium loop (e.g. "caixa caixa caixa caixa")
-  if (REPETITIVE_TOKEN_DELIRIUM.test(clean)) {
+  // 2. Token repetition / delirium loop (e.g. "caixa caixa caixa caixa" or phrase repeats)
+  if (REPETITIVE_TOKEN_DELIRIUM.test(clean) || REPETITIVE_PHRASE_DELIRIUM.test(clean)) {
     return {
       isDelirium: true,
       isUnknownAnswer: false,
       shouldHandoff: true,
       reason: 'repetitive_token_delirium',
-      detail: 'IA entrou em loop de repetição de palavras (delírio).',
+      detail: 'IA entrou em loop de repetição de palavras ou frases (delírio).',
     };
   }
 
@@ -682,10 +741,20 @@ function evaluateCandidateReply({
   knownPreferences = {},
   validationIssues = [],
 } = {}) {
-  if (!candidateReply || typeof candidateReply !== 'string' || !candidateReply.trim()) {
-    const alreadyHandoffSent = recentBotReplies.some(r =>
-      r.text && (r.text.includes('confirmar esse detalhe com a nossa equipe') || r.text.includes('um atendente já te responde'))
+  const isHandoffText = (txt) => {
+    if (!txt || typeof txt !== 'string') return false;
+    return (
+      txt.includes('confirmar esse detalhe com a nossa equipe') ||
+      txt.includes('um atendente já te responde') ||
+      (txt.includes('vou confirmar') && txt.includes('atendente'))
     );
+  };
+
+  const alreadyHandoffSent =
+    recentBotReplies.some(r => isHandoffText(r.text)) ||
+    (Array.isArray(history) && history.some(h => isHandoffText(h.content || h.text)));
+
+  if (!candidateReply || typeof candidateReply !== 'string' || !candidateReply.trim()) {
     return {
       valid: false,
       sanitizedReply: '',
@@ -705,9 +774,6 @@ function evaluateCandidateReply({
   });
 
   if (deliriumCheck.shouldHandoff) {
-    const alreadyHandoffSent = recentBotReplies.some(r =>
-      r.text && (r.text.includes('confirmar esse detalhe com a nossa equipe') || r.text.includes('um atendente já te responde'))
-    );
     return {
       valid: false,
       sanitizedReply: '',
@@ -728,9 +794,6 @@ function evaluateCandidateReply({
   });
 
   if (loopCheck.loopDetected) {
-    const alreadyHandoffSent = recentBotReplies.some(r =>
-      r.text && (r.text.includes('confirmar esse detalhe com a nossa equipe') || r.text.includes('um atendente já te responde'))
-    );
     return {
       valid: false,
       sanitizedReply: '',
@@ -747,9 +810,6 @@ function evaluateCandidateReply({
 
   // If sanitized reply became empty or stripped down to nothing (< 8 chars)
   if (!sanitized || sanitized.length < 8) {
-    const alreadyHandoffSent = recentBotReplies.some(r =>
-      r.text && (r.text.includes('confirmar esse detalhe com a nossa equipe') || r.text.includes('um atendente já te responde'))
-    );
     return {
       valid: false,
       sanitizedReply: '',

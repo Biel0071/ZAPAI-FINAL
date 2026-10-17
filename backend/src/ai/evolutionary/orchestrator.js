@@ -155,7 +155,7 @@ class EvolutionaryAgentOrchestrator {
     try {
       const aiAntiRepetitionService = require('../../../services/aiAntiRepetitionService');
       const histToScan = history && history.length > 0 ? history : (contact.history || []);
-      recentBotReplies = contact.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(histToScan, 3);
+      recentBotReplies = contact.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(histToScan, 20);
       
       // Extract direct facts from the current message and merge with customer memory
       const directFacts = this.customerMemoryEngine.extractFactsLocally(cleanMsg);
@@ -325,7 +325,7 @@ class EvolutionaryAgentOrchestrator {
     // Step 4: If LLM produced no text, construct an intelligent Playbook-guided fallback
     const aiAntiRepetitionService = require('../../../services/aiAntiRepetitionService');
     const histToScan = conversationHistory && conversationHistory.length > 0 ? conversationHistory : [];
-    const recentBotReplies = evoData.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(histToScan, 3);
+    const recentBotReplies = evoData.recentBotReplies || aiAntiRepetitionService.extractRecentBotReplies(histToScan, 20);
     const hasPastBotMessages = recentBotReplies.length > 0;
     const recentCtas = recentBotReplies.map(r => r.cta).filter(Boolean);
 
@@ -409,41 +409,54 @@ class EvolutionaryAgentOrchestrator {
         }
       }
 
+      const knownPrefs = {
+        capacity,
+        neighborhood,
+        city: evoData.customerContext?.city,
+        paymentPreference: paymentPref,
+      };
+
       if (lowerMsg.includes('frete') || lowerMsg.includes('entrega')) {
-        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'freight_location');
+        const topic = !neighborhood ? 'freight_location' : (!paymentPref ? 'payment' : 'closing_advance');
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
         responseText = hasPastBotMessages
           ? `Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km da loja. ${nextCta}`
           : `Olá! Aqui é a ${agentName} da loja. Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km. ${nextCta}`;
       } else if (extractedFacts.capacity || lowerMsg.includes('caixa') || lowerMsg.includes('litros') || lowerMsg.includes('reservatorio')) {
         const capLabel = extractedFacts.capacity || evoData.customerContext?.capacity || "5 mil litros";
-        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'freight_location');
+        const topic = !neighborhood ? 'freight_location' : (!paymentPref ? 'payment' : 'closing_advance');
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
         responseText = hasPastBotMessages
           ? `Temos a caixa d'água de ${capLabel} em polietileno com tampa de rosca pronta para entrega. ${nextCta}`
           : `Olá! Aqui é a ${agentName}. Temos a caixa d'água de ${capLabel} em polietileno com tampa de rosca pronta para entrega. ${nextCta}`;
       } else if (extractedFacts.neighborhood || lowerMsg.includes('bairro') || lowerMsg.includes('cep')) {
         const bairro = extractedFacts.neighborhood || evoData.customerContext?.neighborhood || 'seu bairro';
-        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'payment');
+        const topic = !paymentPref ? 'payment' : 'closing_advance';
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
         responseText = hasPastBotMessages
           ? `Perfeito! Para entrega no ${bairro} temos rota rápida e conseguimos agilizar o frete. ${nextCta}`
           : `Olá! Aqui é a ${agentName}. Para entrega no ${bairro} temos rota rápida e conseguimos agilizar o frete. ${nextCta}`;
       } else if (extractedFacts.paymentPreference || lowerMsg.includes('pix') || lowerMsg.includes('cartao') || lowerMsg.includes('cartão') || lowerMsg.includes('pagar')) {
         const isPix = lowerMsg.includes('pix') || (extractedFacts.paymentPreference && extractedFacts.paymentPreference.includes('PIX'));
-        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'closing_advance');
+        const topic = !neighborhood ? 'freight_location' : 'closing_advance';
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
         responseText = hasPastBotMessages
           ? `Excelente! No ${isPix ? 'PIX' : 'cartão'} conseguimos as melhores condições comerciais à vista. ${nextCta}`
           : `Olá! Aqui é a ${agentName}. No ${isPix ? 'PIX' : 'cartão'} conseguimos as melhores condições comerciais à vista. ${nextCta}`;
       } else if (lowerMsg.includes('tijolo') || lowerMsg.includes('milheiro')) {
-        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'freight_location');
+        const topic = !neighborhood ? 'freight_location' : (!paymentPref ? 'payment' : 'closing_advance');
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
         responseText = hasPastBotMessages
           ? `O milheiro do tijolo 8 furos está saindo por R$ 720,00 (com desconto no PIX). ${nextCta}`
           : `Olá! Aqui é a ${agentName}. O milheiro do tijolo 8 furos está saindo por R$ 720,00 (com desconto no PIX). ${nextCta}`;
       } else if (lowerMsg.includes('churrasqueira') || lowerMsg.includes('trio')) {
-        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'freight_location');
+        const topic = !neighborhood ? 'freight_location' : (!paymentPref ? 'payment' : 'closing_advance');
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
         responseText = hasPastBotMessages
           ? `A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou parcelada (com desconto no PIX). ${nextCta}`
           : `Olá! A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou parcelada (com desconto no PIX). ${nextCta}`;
       } else {
-        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'closing_advance');
+        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'closing_advance', knownPrefs);
         responseText = hasPastBotMessages
           ? `Com certeza! ${nextCta}`
           : `Olá! Aqui é a ${agentName} da loja. ${nextCta}`;
@@ -496,19 +509,21 @@ class EvolutionaryAgentOrchestrator {
       }
     }
 
-    // Step 6: Learn into Active Agent Memory Graph
-    try {
-      const agentMemoryGraphService = require('../../../services/agentMemoryGraphService');
-      agentMemoryGraphService.learnFromInteraction({
-        agentKey: agent?.key || 'camila',
-        agentName: agent?.name || 'Camila',
-        companyId: cleanCompany,
-        contact: { ...store?.contact, phone, id: conversation?.lead_id, conversationId: convId, sessionId: sessionId || conversation?.sessionId },
-        message: customerMessage,
-        reply: responseText,
-        sessionId: sessionId || conversation?.sessionId,
-      }).catch(e => console.warn('[Orchestrator] learnFromInteraction error:', e.message));
-    } catch (_) {}
+    // Step 6: Learn into Active Agent Memory Graph (only on valid non-circuit-breaker replies)
+    if (!circuitBreakerTriggered && responseText) {
+      try {
+        const agentMemoryGraphService = require('../../../services/agentMemoryGraphService');
+        agentMemoryGraphService.learnFromInteraction({
+          agentKey: agent?.key || 'camila',
+          agentName: agent?.name || 'Camila',
+          companyId: cleanCompany,
+          contact: { ...store?.contact, phone, id: conversation?.lead_id, conversationId: convId, sessionId: sessionId || conversation?.sessionId },
+          message: customerMessage,
+          reply: responseText,
+          sessionId: sessionId || conversation?.sessionId,
+        }).catch(e => console.warn('[Orchestrator] learnFromInteraction error:', e.message));
+      } catch (_) {}
+    }
 
     // Step 7: Asynchronously record Experience Event (Layer 4)
     this.experienceEngine.recordExperienceEvent({

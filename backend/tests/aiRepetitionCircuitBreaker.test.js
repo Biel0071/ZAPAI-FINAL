@@ -201,3 +201,108 @@ test('Natural Attendant Flow: Valid candidate reply is cleanly sanitized and var
   assert.doesNotMatch(evalResult.sanitizedReply, /^Olá/i);
   assert.match(evalResult.sanitizedReply, /Para o Centro temos entrega rápida/);
 });
+
+test('Circuit Breaker: All-sentence duplicates trigger repetition_exhaustion circuit breaker', () => {
+  const recentBotReplies = [
+    { text: 'A caixa de 5.000L em polietileno com tampa de rosca está disponível pronta entrega.' },
+    { text: 'Para o Centro temos rota diária com frete rápido e seguro.' }
+  ];
+
+  // Bot candidate repeats sentences from recent replies
+  const candidate = 'A caixa de 5.000L em polietileno com tampa de rosca está disponível pronta entrega. Para o Centro temos rota diária com frete rápido e seguro.';
+
+  const evalResult = aiAntiRepetitionService.evaluateCandidateReply({
+    candidateReply: candidate,
+    recentBotReplies,
+    customerMessage: 'Vocês entregam?',
+    knownPreferences: { neighborhood: 'Centro', capacity: '5.000L' },
+  });
+
+  assert.equal(evalResult.valid, false);
+  assert.equal(evalResult.circuitBreakerTriggered, true);
+  assert.equal(evalResult.circuitBreakerReason, 'repetition_exhaustion');
+  assert.equal(evalResult.handoffReply, aiAntiRepetitionService.GRACEFUL_HANDOFF_MESSAGE);
+});
+
+test('Circuit Breaker: Phrase repetition delirium triggers circuit breaker', () => {
+  const deliriousReply = 'Temos o produto sim com certeza com certeza com certeza temos sim.';
+  const evalResult = aiAntiRepetitionService.evaluateCandidateReply({
+    candidateReply: deliriousReply,
+    recentBotReplies: [{ text: 'Olá!' }],
+    customerMessage: 'Tem a pronta entrega?',
+  });
+
+  assert.equal(evalResult.valid, false);
+  assert.equal(evalResult.circuitBreakerTriggered, true);
+  assert.equal(evalResult.circuitBreakerReason, 'repetitive_token_delirium');
+});
+
+test('Circuit Breaker: Re-asking known fact anywhere in candidate message triggers repetition_reasking_known_fact', () => {
+  const recentBotReplies = [
+    { text: 'Temos a pronta entrega na loja.' }
+  ];
+
+  const candidate = 'Temos a caixa de 5.000L disponível. Qual o seu bairro para calcularmos o frete? O pagamento pode ser no PIX.';
+
+  const loopResult = aiAntiRepetitionService.detectRepetitionLoop({
+    candidateReply: candidate,
+    recentBotReplies,
+    customerMessage: 'Moro no Centro',
+    knownPreferences: { neighborhood: 'Centro' },
+  });
+
+  assert.equal(loopResult.loopDetected, true);
+  assert.equal(loopResult.reason, 'repetition_reasking_known_fact');
+});
+
+test('aiReplyGuard: permits circuit breaker handoff even when conversation AI toggle is off', async () => {
+  const { getAutomatedReplyPermission } = require('../services/aiReplyGuard');
+  const handoffItem = {
+    companyId: 'default',
+    phone: '5531999990001',
+    sessionId: 'main',
+    metadata: {
+      ai_response: true,
+      circuitBreakerHandoff: true,
+      conversationId: 'conv-cb-123',
+    },
+  };
+
+  const permission = await getAutomatedReplyPermission(handoffItem, {
+    isAIEnabled: () => true,
+    getAutomationScope: async () => ({ mode: 'all', sessionId: null, phones: [] }),
+    sessionManager: { getSession: () => null },
+    conversationRepository: {
+      getConversationById: async () => ({ aiEnabled: false, companyId: 'default', sessionId: 'main' }),
+      getConversationByPhone: async () => null,
+    },
+  });
+
+  assert.deepEqual(permission, { allowed: true, reason: 'ai_enabled' });
+});
+
+test('aiReplyGuard: blocks regular AI reply when conversation AI toggle is off', async () => {
+  const { getAutomatedReplyPermission } = require('../services/aiReplyGuard');
+  const regularAiItem = {
+    companyId: 'default',
+    phone: '5531999990001',
+    sessionId: 'main',
+    metadata: {
+      ai_response: true,
+      conversationId: 'conv-cb-123',
+    },
+  };
+
+  const permission = await getAutomatedReplyPermission(regularAiItem, {
+    isAIEnabled: () => true,
+    getAutomationScope: async () => ({ mode: 'all', sessionId: null, phones: [] }),
+    sessionManager: { getSession: () => null },
+    conversationRepository: {
+      getConversationById: async () => ({ aiEnabled: false, companyId: 'default', sessionId: 'main' }),
+      getConversationByPhone: async () => null,
+    },
+  });
+
+  assert.deepEqual(permission, { allowed: false, reason: 'conversation_ai_off' });
+});
+

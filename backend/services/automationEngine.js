@@ -338,7 +338,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
   const tags = crmContext.tags || [];
   const salesStrategy = generateSalesStrategy(leadAnalysis);
   const aiAntiRepetitionService = require('./aiAntiRepetitionService');
-  const recentBotReplies = aiAntiRepetitionService.extractRecentBotReplies(leadHistory, 3);
+  const recentBotReplies = aiAntiRepetitionService.extractRecentBotReplies(leadHistory, 20);
 
   console.log(`[AutomationEngine] Calling AI Engine for conversation ${conversationId} (algo=${leadAlgorithm?.algorithmId || 'default'}, style=${leadAlgorithm?.conversationStyle || 'default'})`);
   publishProgress('generating', {
@@ -374,7 +374,7 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
       companyId,
     });
 
-    if (ai && ai.reply) {
+    if (ai && ai.reply && !ai.circuitBreakerTriggered) {
       ai.reply = aiAntiRepetitionService.sanitizeAndVaryBotReply(ai.reply, recentBotReplies);
     }
   } catch (error) {
@@ -507,8 +507,8 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     return { success: false, reason: 'ai_empty_reply' };
   }
 
-  // 7. Process AI metadata (funnel stage and tags) if available
-  if (ai.analysis) {
+  // 7. Process AI metadata (funnel stage and tags) if available (skip on circuit breaker to preserve intervention status)
+  if (ai.analysis && !ai.circuitBreakerTriggered) {
     try {
       let finalFunnelStage = ai.analysis.funnel_stage;
       let tagsToAdd = Array.isArray(ai.analysis.tags_to_add) ? ai.analysis.tags_to_add : [];
@@ -674,6 +674,8 @@ function splitLongMessage(text) {
       text: chunk,
       metadata: {
         ai_response: true,
+        circuitBreakerHandoff: Boolean(ai?.circuitBreakerTriggered),
+        systemTag: ai?.circuitBreakerTriggered ? 'circuit_breaker_handoff' : undefined,
         conversationId,
         source: 'ai',
         agentName: matchedAgent?.name || conversation?.agent_name || 'Camila',

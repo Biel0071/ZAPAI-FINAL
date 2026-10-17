@@ -28,7 +28,7 @@ function buildFallbackResponse(agent, leadAnalysis = {}, strategy = {}, options 
   const resolvedAgent = ensureAgent(agent);
   const aiAntiRepetitionService = require('./aiAntiRepetitionService');
   const history = options.conversationHistory || [];
-  const recentBotReplies = aiAntiRepetitionService.extractRecentBotReplies(history, 3);
+  const recentBotReplies = aiAntiRepetitionService.extractRecentBotReplies(history, 20);
   const hasPastBotMessages = recentBotReplies.length > 0;
   const recentCtas = recentBotReplies.map(r => r.cta).filter(Boolean);
 

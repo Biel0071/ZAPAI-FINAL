@@ -2325,6 +2325,21 @@ export function useInboxState() {
                 ai_reactivate_at: reactivateAt,
                 aiReactivateAt: reactivateAt,
                 aiPausedUntil: reactivateAt,
+                ...(persistedEnabled
+                  ? {
+                      status: conversation.status === "pending_human" || conversation.status === "intervencao_humana" ? "open" : conversation.status,
+                      funnel_stage: conversation.funnel_stage === "intervencao_humana" ? "em_atendimento" : conversation.funnel_stage,
+                      funnelStage: conversation.funnelStage === "intervencao_humana" ? "em_atendimento" : conversation.funnelStage,
+                      needsHuman: false,
+                      needs_human: false,
+                      tags: Array.isArray(conversation.tags)
+                        ? conversation.tags.filter((t) => {
+                            const lower = String(t).toLowerCase();
+                            return !["intervencao", "intervenção", "precisa_humano", "delirio", "delírio", "atencao_humana", "atenção_humana", "needs_human"].some((k) => lower.includes(k));
+                          })
+                        : conversation.tags,
+                    }
+                  : {}),
               }
             : conversation,
         ),
