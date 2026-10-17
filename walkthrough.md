@@ -83,3 +83,63 @@ cd frontend-official && npm run build
     "error": null
   }
   ```
+
+## 5. AI Follow-up Cadence, WhatsApp Brevity & Anti-Delirium Hardening
+
+### Changes Implemented
+1. **AI Follow-up Progressive Cadence & Auto-Deactivation**:
+   - Fixed short-delay trigger bug by strictly requiring at least 4-6 hours without customer reply for Attempt 1.
+   - Enforced progressive intervals: Attempt 1 (4-6h), Attempt 2 (min 24h after Attempt 1), Attempt 3 (min 48h after Attempt 2).
+   - Maximum 3 attempts capped strictly; automatically applies `followup_esgotado` and `followup_desativado` on exhaustion and deactivates follow-up (`deactivateFollowupForConversation`).
+   - Progressive angle rotation: Attempt 1 (consultative check-in on product/quote), Attempt 2 (value/freight/payment terms), Attempt 3 (soft closing leaving attendance open without pressure).
+   - Immediate stop & reset: Automatically resets follow-up on customer reply (`resetFollowupOnCustomerResponse`) and halts if lead is in terminal purchase stages (`aguardando_pix`, `finalizado`, `pago`, `concluido`, `pedido_confirmado`).
+
+2. **WhatsApp Attendant Brevity (Camila)**:
+   - Configured prompt guidelines and runtime enforcement (`enforceResponseWordLimit` in `backend/services/ai.service.js` and orchestrator) to restrict responses to 1-3 short conversational sentences (35-50 words / 180-260 characters).
+   - Automatically collapses multi-paragraph walls of text and unsolicited bulleted essay lists into concise natural WhatsApp messages.
+
+3. **Anti-Delirium & Grounding in Store Facts**:
+   - Grounded Camila strictly in store facts (`Depósito Mais`).
+   - Added negative constraints against hallucinating arbitrary prices, fake discounts, or unauthorized installment terms. If details are missing, the attendant tells the customer they are checking stock/system with the team rather than inventing numbers.
+
+4. **Migration 043 & Schema Resilience**:
+   - Created `backend/migrations/043_add_ai_last_followup_at_to_conversations.js`.
+   - Applied DDL and registered migration on production PostgreSQL.
+   - Added defensive column fallbacks in `backend/services/aiFollowupEngine.js` and `backend/services/aiFollowupCron.js`.
+
+### Deep Verification Evidence
+1. **Targeted Integration Tests (`backend/tests/aiFollowupCadenceAndConciseness.test.js`)**:
+   - Ran on production VPS `root@209.50.241.22`:
+     ```bash
+     cd /opt/zapai && node --test backend/tests/aiFollowupCadenceAndConciseness.test.js
+     ```
+   - **Result**: 7/7 tests passed:
+     - `ok 1 - AI Follow-up: Progressive Cadence and Multi-Touch Plan`
+     - `ok 2 - AI Follow-up: Progressive Angles across Attempts 1, 2, and 3`
+     - `ok 3 - AI Follow-up: Purchase & Terminal Stages Stop Follow-up Immediately`
+     - `ok 4 - Attendant Response Brevity: enforceResponseWordLimit enforces concise WhatsApp length`
+     - `ok 5 - System Prompt Grounding: Contains strict anti-delirium & WhatsApp brevity constraints`
+     - `ok 6 - AI Follow-up: Deactivation & Customer Response Reset Logic`
+     - `ok 7 - AI Follow-up: executeAlgorithmicFollowupForLead auto-deactivates when 3 attempts exceeded`
+
+2. **Backend Regression Test Suites**:
+   - Ran on production VPS:
+     ```bash
+     node --test backend/tests/orderSheetAndAttendantQuality.test.js backend/tests/humanDelays.test.js backend/tests/aiEvolutionOverviewHonesty.test.js backend/tests/aiConversationalContinuity.test.js
+     ```
+   - **Result**: 26/26 tests passed (0 failures).
+
+3. **VPS PM2 Service & Health Check**:
+   - PM2 Process: `zapflow-api` (PID 3202695, status: `online`).
+   - Healthcheck URL: `curl -s http://localhost:4025/health`
+   - Output:
+     ```json
+     {
+       "status": "online",
+       "backend": true,
+       "db": true,
+       "whatsapp": { "status": "online", "sessionStatus": "connected" },
+       "system": { "aiEngine": "healthy", "campaignQueue": "running", "database": "connected" },
+       "success": true
+     }
+     ```
