@@ -105,37 +105,41 @@ async function generateFollowupPlan({ conversationId, phone, companyId = 'defaul
 
   const steps = [
     {
-      delay: '2 horas',
-      delayMinutes: 120,
-      timingLabel: '1º Toque (2h sem retorno — Algoritmo do Lead)',
+      delay: '4 a 6 horas',
+      delayMinutes: 240,
+      timingLabel: '1º Toque (4h sem retorno — Check-in Consultivo)',
       message:
-        leadAlgorithm.followupHook ||
+        (leadAlgorithm.getProgressiveHook ? leadAlgorithm.getProgressiveHook(1) : leadAlgorithm.followupHook) ||
         `Olá ${name}, tudo bem? Fiquei pensando sobre o orçamento de ${productLabel} que conversamos. Ficou alguma dúvida sobre medidas ou entrega que eu possa esclarecer?`,
       type: 'algoritmo_lead_imediato',
       algorithmId: leadAlgorithm.algorithmId,
       recommendedQuickReplyId: leadAlgorithm.recommendedQuickReplyId,
       recommendedQuickReplyTitle: leadAlgorithm.recommendedQuickReplyTitle,
-      goal: `Retomar conversa no estilo ${leadAlgorithm.styleLabel}`,
+      goal: 'Check-in consultivo e acolhedor sobre o produto e dúvidas',
     },
     {
       delay: '24 horas',
       delayMinutes: 1440,
-      timingLabel: '2º Toque (24h — Resposta Rápida + Catálogo Técnico)',
-      message: `Oi ${name}! Separei as fotos e especificações atualizadas de ${productLabel} no padrão da nossa loja. Quer que eu calcule o frete certinho para o seu CEP?`,
+      timingLabel: '2º Toque (24h após Toque 1 — Frete e Condição de Pagamento)',
+      message:
+        (leadAlgorithm.getProgressiveHook ? leadAlgorithm.getProgressiveHook(2) : null) ||
+        `Oi ${name}! Passando rapidinho: conseguimos condições facilitadas para ${productLabel} esta semana, com desconto no PIX ou parcelamento no cartão, além de agilizar o frete para a sua região. Quer que eu veja o frete certinho pra você?`,
       type: 'envio_catalogo_padrao_loja',
       algorithmId: 'ALGO_CONSULTIVO_TECNICO',
       recommendedQuickReplyId: leadAlgorithm.recommendedQuickReplyId,
       recommendedQuickReplyTitle: leadAlgorithm.recommendedQuickReplyTitle,
-      goal: 'Agregar valor técnico com mídia oficial da loja sem pressionar',
+      goal: 'Agregar valor comercial com opções de frete e pagamento facilitado',
     },
     {
-      delay: '3 dias',
-      delayMinutes: 4320,
-      timingLabel: '3º Toque (3 dias — Condição Especial PIX / 10x)',
-      message: `${name}, conseguimos manter a condição promocional de ${productLabel} (desconto à vista no PIX ou parcelamento facilitado e pagamento na entrega) nesta semana! Posso reservar no seu nome?`,
+      delay: '48 horas',
+      delayMinutes: 2880,
+      timingLabel: '3º Toque (48h após Toque 2 — Encerramento Suave & Finalização)',
+      message:
+        (leadAlgorithm.getProgressiveHook ? leadAlgorithm.getProgressiveHook(3) : null) ||
+        `Oi ${name}! Para não ficar te incomodando, estou deixando seu atendimento em aberto por aqui. Se precisar de algo para a sua obra ou quiser retomar a cotação de ${productLabel}, é só me chamar! Um abraço e boa semana!`,
       type: 'oferta_condicao_fechamento',
       algorithmId: 'ALGO_QUEBRA_OBJECAO_VALOR',
-      goal: 'Ativar gatilho de benefício financeiro e segurança na entrega',
+      goal: 'Encerramento suave e respeitoso deixando canal aberto sem pressão',
     },
   ];
 
@@ -201,16 +205,104 @@ const recentFollowupDispatches = new Map();
 const FOLLOWUP_DEDUP_WINDOW_MS = 60 * 1000;
 
 /**
- * Executes an algorithmic follow-up for a stalled lead if they haven't purchased yet.
+ * Deactivates follow-up for a conversation, setting tags 'followup_esgotado' and 'followup_desativado'
+ * and removing 'followup_ia_ativo'.
  */
-async function executeAlgorithmicFollowupForLead({ conversationId, companyId = 'default', sessionId = null }) {
-  const { conversation, leadAlgorithm } = await loadConversationWithHistory({
+async function deactivateFollowupForConversation(conversationId, reason = 'auto_deactivated') {
+  if (!conversationId) return { ok: false };
+  try {
+    const { rows } = await query(`SELECT tags FROM conversations WHERE id = $1`, [conversationId]);
+    const currentTags = Array.isArray(rows[0]?.tags) ? rows[0].tags : [];
+    const nextTags = Array.from(
+      new Set([
+        ...currentTags.filter((t) => t !== 'followup_ia_ativo'),
+        'followup_esgotado',
+        'followup_desativado',
+      ])
+    );
+    await query(
+      `UPDATE conversations
+       SET tags = $2::text[],
+           ai_last_followup_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [conversationId, nextTags]
+    );
+    console.log(`[AIFollowupEngine] Follow-up desativado para conversa ${conversationId} (motivo: ${reason})`);
+    return { ok: true, conversationId, tags: nextTags, deactivated: true };
+  } catch (err) {
+    console.warn(`[AIFollowupEngine] Erro ao desativar follow-up para conversa ${conversationId}:`, err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+/**
+ * Resets / cancels follow-up when the customer sends a message, stopping further touches.
+ */
+async function resetFollowupOnCustomerResponse(conversationId) {
+  if (!conversationId) return { ok: false };
+  try {
+    const { rows } = await query(`SELECT tags FROM conversations WHERE id = $1`, [conversationId]);
+    const currentTags = Array.isArray(rows[0]?.tags) ? rows[0].tags : [];
+    const hasFollowupTags = currentTags.some((t) =>
+      ['followup_ia_ativo', 'followup_esgotado', 'followup_desativado', 'followup_toque_3'].includes(t)
+    );
+    if (hasFollowupTags) {
+      const nextTags = currentTags.filter(
+        (t) => !['followup_ia_ativo', 'followup_esgotado', 'followup_desativado', 'followup_toque_3'].includes(t)
+      );
+      await query(
+        `UPDATE conversations
+         SET tags = $2::text[],
+             updated_at = NOW()
+         WHERE id = $1`,
+        [conversationId, nextTags]
+      );
+      console.log(`[AIFollowupEngine] Follow-up resetado para conversa ${conversationId} pois cliente respondeu.`);
+      return { ok: true, conversationId, tags: nextTags, reset: true };
+    }
+    return { ok: true, reset: false };
+  } catch (err) {
+    console.warn(`[AIFollowupEngine] Erro ao resetar follow-up para conversa ${conversationId}:`, err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+/**
+ * Executes an algorithmic follow-up for a stalled lead if they haven't purchased yet.
+ * Respects progressive touches (Attempt 1: check-in, Attempt 2: value/freight/payment, Attempt 3: soft closing)
+ * and strictly caps at 3 attempts maximum, automatically deactivating on attempt 3 exhaustion.
+ */
+async function executeAlgorithmicFollowupForLead({ conversationId, companyId = 'default', sessionId = null, attempt = null }) {
+  const { conversation, history, leadAlgorithm } = await loadConversationWithHistory({
     conversationId,
     companyId,
   });
 
   if (!conversation) {
     return { ok: false, reason: 'conversation_not_found' };
+  }
+
+  // Count consecutive agent/bot messages without customer reply
+  let consecutiveAgentMsgs = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].from === 'agent' || history[i].role === 'assistant') {
+      consecutiveAgentMsgs++;
+    } else {
+      break;
+    }
+  }
+
+  // Auto-deactivate if maximum 3 attempts were already reached without customer response
+  if (consecutiveAgentMsgs >= 3) {
+    await deactivateFollowupForConversation(conversation.id, 'max_attempts_exceeded_3');
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'max_attempts_exceeded',
+      deactivated: true,
+      consecutiveAgentMsgs,
+    };
   }
 
   if (leadAlgorithm.hasPurchased) {
@@ -223,9 +315,23 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
     };
   }
 
+  const currentAttempt = attempt || (consecutiveAgentMsgs + 1);
   const targetJid = conversation.remote_jid || conversation.phone;
   const resolvedSessionId = sessionId || conversation.session_id || 'default';
-  const followupText = (leadAlgorithm.followupHook || '').trim();
+
+  // Progressive angle selection:
+  // Attempt 1: Check-in on product/quote
+  // Attempt 2: Value / freight / payment options
+  // Attempt 3: Soft closing
+  let followupText = '';
+  if (typeof leadAlgorithm.getProgressiveHook === 'function') {
+    followupText = leadAlgorithm.getProgressiveHook(currentAttempt);
+  } else if (leadAlgorithm.progressiveHooks?.[currentAttempt]) {
+    followupText = leadAlgorithm.progressiveHooks[currentAttempt];
+  } else {
+    followupText = leadAlgorithm.followupHook || '';
+  }
+  followupText = (followupText || '').trim();
 
   // Strict anti-empty message guard: never send blank bubbles
   if (!followupText) {
@@ -248,6 +354,7 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
     new Set([
       ...existingTags,
       'followup_ia_ativo',
+      `followup_toque_${currentAttempt}`,
       leadAlgorithm.algorithmCode.toLowerCase(),
       `estilo_${leadAlgorithm.conversationStyle}`,
     ])
@@ -258,6 +365,7 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
      SET ai_enabled = true,
          agent_name = COALESCE(NULLIF(agent_name, ''), 'Camila'),
          tags = $2::text[],
+         ai_last_followup_at = NOW(),
          updated_at = NOW()
      WHERE id = $1`,
     [conversation.id, nextTags]
@@ -272,7 +380,7 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
     companyId: conversation.company_id || companyId,
     phone: targetJid,
     sessionId: resolvedSessionId,
-    correlationId: `algo_followup_${conversation.id}_${dateKey}`,
+    correlationId: `algo_followup_${conversation.id}_t${currentAttempt}_${dateKey}`,
     text: followupText,
     delayMs,
     typingMs,
@@ -280,6 +388,8 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
       systemTag: 'ai_algorithmic_followup',
       ai_response: true,
       conversationId: conversation.id,
+      attempt: currentAttempt,
+      maxAttempts: 3,
       algorithmId: leadAlgorithm.algorithmId,
       conversationStyle: leadAlgorithm.conversationStyle,
       source: 'ai_followup',
@@ -290,6 +400,8 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
     ok: true,
     conversationId: conversation.id,
     phone: targetJid,
+    attempt: currentAttempt,
+    maxAttempts: 3,
     followupText,
     leadAlgorithm,
     queueResult,
@@ -300,5 +412,7 @@ module.exports = {
   generateFollowupPlan,
   generateRecoveryApproach,
   executeAlgorithmicFollowupForLead,
+  deactivateFollowupForConversation,
+  resetFollowupOnCustomerResponse,
   loadConversationWithHistory,
 };

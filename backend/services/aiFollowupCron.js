@@ -21,12 +21,15 @@ async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {
       `SELECT c.id, c.remote_jid, COALESCE(l.phone, c.remote_jid) AS phone,
               COALESCE(NULLIF(l.name, ''), 'Cliente') AS lead_name,
               c.agent_name, c.company_id, c.updated_at, c.session_id,
-              c.funnel_stage, c.lead_temperature, c.tags, c.ai_enabled, c.last_message
+              c.funnel_stage, c.lead_temperature, c.tags, c.ai_enabled, c.last_message,
+              c.ai_last_followup_at
        FROM conversations c
        LEFT JOIN leads l ON l.id = c.lead_id
        WHERE c.status = 'open'
          AND c.ai_enabled = true
-         AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte')
+         AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte', 'aguardando_pix', 'finalizado', 'pago', 'concluido', 'pedido_confirmado', 'won')
+         AND NOT ('followup_esgotado' = ANY(COALESCE(c.tags, '{}')))
+         AND NOT ('followup_desativado' = ANY(COALESCE(c.tags, '{}')))
          AND c.updated_at < NOW() - INTERVAL '2 hours'
          AND c.updated_at > NOW() - INTERVAL '14 days'
          AND c.remote_jid NOT LIKE '%@g.us%'
@@ -62,12 +65,6 @@ async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {
         continue;
       }
 
-      const delayMinutes = Number(agent?.followUp?.delayMinutes) || (Number(agent?.followUp?.intervalHours || 2) * 60);
-      const minutesSinceUpdate = (Date.now() - new Date(conv.updated_at).getTime()) / (1000 * 60);
-      if (minutesSinceUpdate < Math.max(60, delayMinutes)) {
-        continue;
-      }
-
       if (!ignoreBusinessHours && agent?.followUp?.respectBusinessHours !== false) {
         const brHour = Number(
           new Intl.DateTimeFormat('en-US', {
@@ -88,31 +85,77 @@ async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {
          FROM messages
          WHERE conversation_id = $1
          ORDER BY timestamp DESC
-         LIMIT 6`,
+         LIMIT 10`,
         [conv.id]
       );
       const recentMsgs = recentMsgsRes.rows || [];
       if (recentMsgs.length === 0) continue;
 
       let consecutiveAgentMsgs = 0;
+      let lastAgentMsgTime = null;
+      let lastCustomerMsgTime = null;
+
       for (const m of recentMsgs) {
-        if (m.sender === 'agent' || m.sender === 'bot' || m.sender === 'system') {
-          consecutiveAgentMsgs++;
+        const isAgent = m.sender === 'agent' || m.sender === 'bot' || m.sender === 'system';
+        if (isAgent) {
+          if (lastCustomerMsgTime === null) {
+            consecutiveAgentMsgs++;
+            if (!lastAgentMsgTime && m.timestamp) {
+              lastAgentMsgTime = new Date(m.timestamp).getTime();
+            }
+          }
         } else {
-          break;
+          if (!lastCustomerMsgTime && m.timestamp) {
+            lastCustomerMsgTime = new Date(m.timestamp).getTime();
+          }
         }
       }
+
+      // Cap at 3 attempts: auto-deactivate follow-up after 3 attempts without response
       if (consecutiveAgentMsgs >= maxAttempts) {
+        const { deactivateFollowupForConversation } = require('./aiFollowupEngine');
+        await deactivateFollowupForConversation(conv.id, `max_attempts_exceeded_${maxAttempts}`);
         continue;
+      }
+
+      const now = Date.now();
+      const currentAttempt = consecutiveAgentMsgs + 1; // 1, 2, or 3
+
+      // Progressive Human Cadence:
+      // Attempt 1: Minimum 4 to 6 hours after last customer message (never < 2 hours)
+      // Attempt 2: Minimum 24 hours after Attempt 1
+      // Attempt 3: Minimum 48 hours after Attempt 2
+      if (currentAttempt === 1) {
+        const customerRefTime = lastCustomerMsgTime || new Date(conv.updated_at).getTime();
+        const minutesSinceCustomerMsg = (now - customerRefTime) / (1000 * 60);
+        const minFirstAttemptMinutes = Math.max(120, Number(agent?.followUp?.intervalHours || 4) * 60);
+        if (minutesSinceCustomerMsg < minFirstAttemptMinutes) {
+          continue;
+        }
+      } else if (currentAttempt === 2) {
+        const agentRefTime = lastAgentMsgTime || (conv.ai_last_followup_at ? new Date(conv.ai_last_followup_at).getTime() : new Date(conv.updated_at).getTime());
+        const minutesSinceAttempt1 = (now - agentRefTime) / (1000 * 60);
+        // Minimum 24 hours = 1440 minutes
+        if (minutesSinceAttempt1 < 1440) {
+          continue;
+        }
+      } else if (currentAttempt === 3) {
+        const agentRefTime = lastAgentMsgTime || (conv.ai_last_followup_at ? new Date(conv.ai_last_followup_at).getTime() : new Date(conv.updated_at).getTime());
+        const minutesSinceAttempt2 = (now - agentRefTime) / (1000 * 60);
+        // Minimum 48 hours = 2880 minutes
+        if (minutesSinceAttempt2 < 2880) {
+          continue;
+        }
       }
 
       const result = await executeAlgorithmicFollowupForLead({
         conversationId: conv.id,
         companyId,
         sessionId: conv.session_id,
+        attempt: currentAttempt,
       });
 
-      if (result.skipped && result.reason === 'already_purchased') {
+      if (result.skipped && (result.reason === 'already_purchased' || result.reason === 'max_attempts_exceeded')) {
         skippedPurchased++;
         continue;
       }
@@ -121,7 +164,7 @@ async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {
         dispatched++;
         cronStatus.totalDispatched++;
         console.log(
-          `[FollowUpCron] Follow-up algorítmico enfileirado para ${conv.lead_name} (${conv.remote_jid}) [${result.leadAlgorithm?.algorithmCode}]`
+          `[FollowUpCron] Follow-up algorítmico (Toque ${currentAttempt}/3) enfileirado para ${conv.lead_name} (${conv.remote_jid}) [${result.leadAlgorithm?.algorithmCode}]`
         );
       }
     }

@@ -152,34 +152,92 @@ function adjustPromptIdentity(basePrompt, agent) {
 }
 
 const RESPONSE_STYLE_DEFAULT_WORDS = Object.freeze({
-  one_sentence: 20,
-  ultra_short: 45,
-  short_natural: 90,
-  elaborate: 220,
+  one_sentence: 18,
+  ultra_short: 28,
+  short_natural: 45, // WhatsApp natural concise length: 1 to 3 short sentences, ~35-50 words (180-260 chars)
+  elaborate: 65,     // Kept concise for WhatsApp, never giant essays
 });
 
 function resolveResponseWordLimit(agent = {}) {
   const style = String(agent.responseStyle || 'short_natural');
   const customLimit = Number(agent.maxWords);
-  const limit = customLimit > 0
-    ? customLimit
-    : (RESPONSE_STYLE_DEFAULT_WORDS[style] || RESPONSE_STYLE_DEFAULT_WORDS.short_natural);
-  return Math.min(Math.max(Math.round(limit), 5), 500);
+  const defaultLimit = RESPONSE_STYLE_DEFAULT_WORDS[style] || RESPONSE_STYLE_DEFAULT_WORDS.short_natural;
+  const limit = customLimit > 0 ? Math.min(customLimit, 65) : defaultLimit;
+  return Math.min(Math.max(Math.round(limit), 5), 65);
 }
 
 function enforceResponseWordLimit(text, agent = {}) {
-  const normalized = String(text || '').trim();
-  const words = normalized.split(/\s+/).filter(Boolean);
+  let normalized = String(text || '').trim();
+  if (!normalized) return '';
+
+  // 1. Strip unsolicited bulleted essay lists unless it's a confirmed order sheet summary
+  if (!normalized.includes('Ficha de Pedido') && !normalized.includes('Resumo do Pedido')) {
+    const lines = normalized.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const bulletLines = lines.filter(l => /^[•\-\*]\s+/.test(l));
+    if (bulletLines.length >= 2) {
+      const nonBullets = lines.filter(l => !/^[•\-\*]\s+/.test(l));
+      if (nonBullets.length > 0) {
+        normalized = nonBullets.join(' ');
+      } else {
+        normalized = bulletLines.slice(0, 2).map(b => b.replace(/^[•\-\*]\s+/, '')).join(', ');
+      }
+    } else {
+      normalized = lines.join(' ');
+    }
+  }
+
+  // 2. Eliminate multi-paragraph walls of text: collapse multiple spaces/newlines
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+
+  // 3. Sentence cap: strict limit 1 to 3 short sentences
+  const sentenceRegex = /[^.!?]+[.!?]+(?:[\s"'\u{1F300}-\u{1F9FF}]|$)/gu;
+  const rawSentences = normalized.match(sentenceRegex) || [normalized];
+  const cleanSentences = rawSentences.map(s => s.trim()).filter(Boolean);
+
   const limit = resolveResponseWordLimit(agent);
-  if (words.length <= limit) return normalized;
-  return `${words.slice(0, limit).join(' ').replace(/[,:;\-]+$/, '')}...`;
+
+  if (cleanSentences.length > 3) {
+    let combined = '';
+    for (let i = 0; i < Math.min(cleanSentences.length, 3); i++) {
+      const candidate = combined ? `${combined} ${cleanSentences[i]}` : cleanSentences[i];
+      const wordCount = candidate.split(/\s+/).filter(Boolean).length;
+      if (wordCount <= limit + 5) {
+        combined = candidate;
+      } else {
+        if (!combined) combined = cleanSentences[0];
+        break;
+      }
+    }
+    normalized = combined || cleanSentences[0];
+  }
+
+  // 4. Word limit cap
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length <= limit) {
+    return normalized;
+  }
+
+  // If words exceed limit, find the last sentence boundary within limit
+  const truncatedWords = words.slice(0, limit);
+  const truncatedText = truncatedWords.join(' ');
+  const lastPunctuation = Math.max(
+    truncatedText.lastIndexOf('.'),
+    truncatedText.lastIndexOf('!'),
+    truncatedText.lastIndexOf('?')
+  );
+
+  if (lastPunctuation > 20) {
+    return truncatedText.slice(0, lastPunctuation + 1).trim();
+  }
+
+  return `${truncatedText.replace(/[,:;\-]+$/, '')}...`;
 }
 
 
 
 function compileSystemPrompt(agent, store, contact = null) {
-  const agentName = agent?.name || 'Atendente';
-  const sector = agent?.sector || 'Geral';
+  const agentName = agent?.name || 'Camila';
+  const sector = agent?.sector || 'Vendas & Atendimento';
   const objective = agent?.objective || 'Atendimento comercial';
   const personality = agent?.personality || agent?.prompt || '';
   const responseStyle = agent?.responseStyle || 'short_natural';
@@ -188,16 +246,13 @@ function compileSystemPrompt(agent, store, contact = null) {
   let styleInstruction = '';
   if (responseStyle === 'ultra_short') {
     const limit = maxWords;
-    styleInstruction = `- Diretriz de Tamanho: Seja extremamente objetivo, curto e direto ao ponto. Responda em no máximo 1 ou 2 parágrafos curtos, com um limite máximo estrito de ${limit} palavras. Não faça rodeios e evite explicações longas.\n`;
+    styleInstruction = `- Diretriz de Tamanho: Seja extremamente objetivo, curto e direto ao ponto. Responda em no máximo 1 frase curta (máximo de ${limit} palavras). Não faça rodeios.\n`;
   } else if (responseStyle === 'one_sentence') {
     const limit = maxWords;
-    styleInstruction = `- Diretriz de Tamanho: Seja ultracurto. Responda com no máximo uma ou duas frases curtas, com um limite máximo estrito de ${limit} palavras. Não faça saudações repetidas e vá direto ao ponto.\n`;
-  } else if (responseStyle === 'elaborate') {
-    const limit = maxWords;
-    styleInstruction = `- Diretriz de Tamanho: Responda de forma detalhada, completa e explicativa. Traga o máximo de contexto e detalhes necessários, com um limite sugerido de até ${limit} palavras para esclarecer completamente o cliente.\n`;
+    styleInstruction = `- Diretriz de Tamanho: Seja ultracurto. Responda com no máximo 1 frase curta (máximo de ${limit} palavras). Vá direto ao ponto sem saudações repetidas.\n`;
   } else {
     const limit = maxWords;
-    styleInstruction = `- Diretriz de Tamanho: Responda de forma equilibrada, mantendo uma conversa natural, amigável e direta ao ponto, com um limite máximo estrito de ${limit} palavras.\n`;
+    styleInstruction = `- Diretriz de Tamanho (PADRÃO WHATSAPP HUMANO CONCISO): Responda OBRIGATORIAMENTE em no máximo 1 a 3 frases curtas (limite estrito de ${limit} palavras, cerca de 180 a 260 caracteres). É TERMINANTEMENTE PROIBIDO enviar blocos de texto, cartas, parágrafos longos ou listas com marcadores desnecessárias. Escreva de forma ágil, simpática e objetiva.\n`;
   }
 
   // 1. IDENTIDADE DO ATENDENTE
@@ -414,11 +469,12 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Nunca mencione que você é um robô ou inteligência artificial, a menos que seja estritamente necessário para realizar o transbordo humano.\n`;
   compiled += `- Se o cliente solicitar atendimento humano ou se a IA não souber responder sobre preços ou condições críticas que você não tem acesso, acione o transbordo imediatamente.\n`;
   compiled += `- Continue o atendimento do ponto atual; não reinicie com saudações repetidas se já existe histórico.\n`;
-  compiled += `- PROTOCOLO ESTRITO ANTI-ALUCINAÇÃO (ZERO INVENÇÃO DE PREÇOS, PRAZOS OU CONDIÇÕES):\n`;
-  compiled += `  * NUNCA INVENTE PREÇOS: Se o cliente perguntar o preço de um item, material ou serviço que NÃO está listado explicitamente na tabela de produtos/serviços acima, NUNCA invente um preço. Em vez disso, responda com cordialidade e precisão profissional: "Vou verificar o valor atualizado desse item no estoque da nossa loja e já te confirmo!" ou acione o transbordo para um atendente da loja.\n`;
+  compiled += `- PROTOCOLO ESTRITO ANTI-DELÍRIO E ANTI-ALUCINAÇÃO (FIXAÇÃO NA LOJA DEPÓSITO MAIS):\n`;
+  compiled += `  * NUNCA INVENTE PREÇOS: Se o cliente perguntar o preço de um item, material ou serviço que NÃO está listado explicitamente na tabela de produtos/serviços acima, NUNCA invente números, descontos ou valores aproximados. Em vez disso, responda com naturalidade: "Vou verificar o valor atualizado desse item no estoque da loja e já te confirmo!" ou acione o transbordo para a equipe.\n`;
   compiled += `  * NUNCA INVENTE PRAZOS OU ENDEREÇOS: Informe apenas prazos de entrega e horários confirmados no contexto da loja. Não prometa entrega imediata sem confirmação da expedição.\n`;
-  compiled += `  * NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS: Se o cliente pedir desconto ou parcelamento além do cadastrado, informe a condição oficial da loja (conforme políticas cadastradas) e informe que exceções dependem de autorização da gerência.\n`;
-  compiled += `  * NÃO INVENTE COISAS FORA DO CONTEXTO: Se o cliente perguntar algo completamente fora do escopo ou enviar mensagens sem sentido, responda com simpatia breve e reoriente com presteza para os produtos e atendimento da loja.\n`;
+  compiled += `  * NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS: Nunca invente percentuais de desconto fictícios (ex: 20%, 30%) nem parcelamentos que não constem na loja. Informe apenas as condições oficiais (desconto à vista no PIX ou até 10x no cartão) e informe que condições especiais dependem de autorização da gerência.\n`;
+  compiled += `  * ZERO CENÁRIOS FICTÍCIOS OU DELÍRIOS: Responda ESTRITAMENTE ao que o cliente perguntou. NUNCA crie histórias, situações imaginárias, marcas não citadas, brindes fictícios ou hipóteses fantasiosas. Foco 100% no pedido real de materiais de construção.\n`;
+  compiled += `  * SE NÃO SOUBER DETALHE TÉCNICO: NUNCA invente medidas ou especificações. Diga: "Vou confirmar essa medida certinho no estoque para você!".\n`;
   compiled += `  * MEMÓRIA DAS CONVERSAS: Se o cliente já informou itens, medidas ou endereço em mensagens anteriores, RESPEITE o que já foi dito. Nunca reinicie o atendimento do zero nem pergunte o que o cliente já respondeu.\n`;
   compiled += `  * COMPREENSÃO DE MÚLTIPLOS ITENS E MATERIAIS DE CONSTRUÇÃO / COMÉRCIO:\n`;
   compiled += `    - Entenda pedidos de múltiplos materiais em uma mesma mensagem (ex: cimento, areia, brita, blocos, argamassa, tintas, tubos, telhas).\n`;
@@ -427,9 +483,9 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- DIRETRIZ DE HUMANIZAÇÃO NATURAL & ANTI-ROBÔ (WHATSAPP REAL BRASILEIRO):\n`;
   compiled += `  * ZERO JARGÕES DE ROBÔ: NUNCA diga frases como "Sou uma inteligência artificial", "Sou o assistente virtual da Loja...", "Como posso te ajudar hoje?".\n`;
   compiled += `  * FALE COMO UM ATENDENTE REAL DE WHATSAPP: Escreva de forma acolhedora, brasileira, simpática, prática e ágil.\n`;
-  compiled += `  * MENSAGENS COMPACTAS: Responda em no máximo 1 a 3 frases claras e diretas. Evite blocos cansativos de texto.\n`;
+  compiled += `  * MENSAGENS COMPACTAS OBRIGATÓRIAS (MÁXIMO 1 A 3 FRASES, 35 A 50 PALAVRAS): Responda em no máximo 1 a 3 frases curtas e diretas (cerca de 180 a 260 caracteres). É expressamente proibido enviar blocos de texto, cartas, monólogos ou redações cansativas.\n`;
   compiled += `  * NÃO REPITA SAUDAÇÕES: Não repita "Olá", "Bom dia" se a conversa já está em andamento. Vá direto ao ponto.\n`;
-  compiled += `  * VARIAÇÃO CONTÍNUA & ANTI-REPETIÇÃO: NUNCA inicie respostas com fórmulas repetidas ("Olá tudo bem? Eu sou a Camila..."). Varie os cumprimentos de forma dinâmica ("Oi!", "Opa!", "Olá!", ou vá direto ao assunto). Adapte o vocabulário para cada cliente para soar 100% como uma pessoa real digitando.\n`;
+  compiled += `  * VARIAÇÃO CONTÍNUA & ANTI-REPETIÇÃO: NUNCA inicie respostas com fórmulas repetidas ("Olá tudo bem? Eu sou a Camila..."). Varie os cumprimentos de forma dinâmica ("Oi!", "Opa!", "Olá!", ou vá direto ao assunto). Adapte o vocabulário para cada cliente para soar 100% como uma pessoa real digitando no celular.\n`;
   compiled += `  * AMPLA COMPREENSÃO LINGUÍSTICA E TOLERÂNCIA A ERROS: Compreenda gírias, abreviações (vc, qto, blz, sc, m3, pct, hj, pix, cartao) e áudios transcritos sem travar nem pedir repetições desnecessárias.\n`;
   const DYNAMIC_HUMAN_CADENCES = [
     'ESTILO DESTA RESPOSTA: Use saudação amigável e descontraída (ex: "Oi!", "Opa!"), confirme a informação solicitada de forma ágil e termine com uma pergunta prática sobre o pedido.',
@@ -1538,4 +1594,18 @@ async function analyzeHistoryText({ companyId, prompt, message, history = [] }) 
   return result.response;
 }
 
-module.exports = { processAI, compileSystemPrompt, testAIConnection, testProviderConnection, getAIIntegrationStatus, clearResponseCache, refineAgentPrompt, transcribeAudio, describeImage, analyzeHistoryText, resolveHistoryMediaPath };
+module.exports = {
+  processAI,
+  compileSystemPrompt,
+  testAIConnection,
+  testProviderConnection,
+  getAIIntegrationStatus,
+  clearResponseCache,
+  refineAgentPrompt,
+  transcribeAudio,
+  describeImage,
+  analyzeHistoryText,
+  resolveHistoryMediaPath,
+  enforceResponseWordLimit,
+  resolveResponseWordLimit,
+};

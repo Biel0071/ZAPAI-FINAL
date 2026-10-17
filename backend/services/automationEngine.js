@@ -106,6 +106,14 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
 
   console.log(`[AutomationEngine] Starting pipeline for ${phone}: "${incomingText}"`);
 
+  // Reset / cancel active follow-up sequence since the customer has actively responded
+  if (conversationId) {
+    try {
+      const { resetFollowupOnCustomerResponse } = require('./aiFollowupEngine');
+      void resetFollowupOnCustomerResponse(conversationId).catch(() => {});
+    } catch (_) {}
+  }
+
   // 1. Rules Engine: Blocked Contact Check
   const isBlocked = await checkLeadBlocked(phone, companyId);
   if (isBlocked) {

@@ -361,13 +361,13 @@ function detectPurchaseStatus(message = '', conversationHistory = [], conversati
     ? conversationMeta.tags.map((t) => normalizeText(t))
     : [];
 
-  if (['closed', 'fechamento', 'agendado', 'cancelado', 'suporte', 'won'].includes(funnel)) {
+  if (['closed', 'fechamento', 'agendado', 'cancelado', 'suporte', 'won', 'aguardando_pix', 'finalizado', 'pago', 'concluido', 'pedido_confirmado'].includes(funnel)) {
     return { hasPurchased: true, reason: `funnel_${funnel}` };
   }
   if (['paid', 'scheduled', 'delivered', 'completed', 'confirmed'].includes(orderStatus)) {
     return { hasPurchased: true, reason: `order_${orderStatus}` };
   }
-  if (tags.some((t) => ['fechado', 'pago', 'comprou', 'pedido_confirmado', 'entregue'].includes(t))) {
+  if (tags.some((t) => ['fechado', 'pago', 'comprou', 'pedido_confirmado', 'entregue', 'aguardando_pix', 'finalizado', 'followup_esgotado', 'followup_desativado'].includes(t))) {
     return { hasPurchased: true, reason: 'tag_purchased' };
   }
 
@@ -476,6 +476,12 @@ function buildLeadAlgorithm(message = '', conversationHistory = [], conversation
     ? generateFluidHumanHook(selectedAlgo, rawName, primaryProductObj.label, seed)
     : null;
 
+  const progressiveHooks = {
+    1: getProgressiveFollowupHook({ algorithm: selectedAlgo, rawName, productLabel: primaryProductObj.label, attempt: 1, seed }),
+    2: getProgressiveFollowupHook({ algorithm: selectedAlgo, rawName, productLabel: primaryProductObj.label, attempt: 2, seed }),
+    3: getProgressiveFollowupHook({ algorithm: selectedAlgo, rawName, productLabel: primaryProductObj.label, attempt: 3, seed }),
+  };
+
   const personalizedDirective = selectedAlgo.directive.replace(/\{\{\s*product\s*\}\}/g, primaryProductObj.label);
 
   return {
@@ -487,6 +493,8 @@ function buildLeadAlgorithm(message = '', conversationHistory = [], conversation
     storeStandardRule: selectedAlgo.storeStandardRule,
     directive: personalizedDirective,
     followupHook: personalizedFollowup,
+    progressiveHooks,
+    getProgressiveHook: (attempt = 1) => getProgressiveFollowupHook({ algorithm: selectedAlgo, rawName, productLabel: primaryProductObj.label, attempt, seed }),
     hasPurchased: purchaseCheck.hasPurchased,
     purchaseReason: purchaseCheck.reason,
     shouldFollowUp: !purchaseCheck.hasPurchased,
@@ -544,6 +552,50 @@ function generateFluidHumanHook(selectedAlgo, rawName, productLabel, seed = 0) {
     .trim();
 }
 
+/**
+ * Generates progressive touches for stalled leads:
+ * - Attempt 1: Helpful check-in on the specific product/quote discussed (4-6h cadence)
+ * - Attempt 2: Value proposition / freight condition / payment options check (24h cadence)
+ * - Attempt 3: Soft closing ("Estou deixando seu atendimento em aberto..."), then STOP (48h cadence)
+ */
+function getProgressiveFollowupHook({ algorithm, rawName = '', productLabel = 'seus materiais', attempt = 1, seed = 0 } = {}) {
+  const formattedName = formatHumanClientName(rawName);
+  const prod = productLabel || 'materiais para sua obra';
+
+  let greeting = formattedName ? `Oi ${formattedName}!` : 'Olá! Tudo bem?';
+  if (Math.abs(seed) % 2 === 1) {
+    greeting = formattedName ? `Olá ${formattedName}, tudo bem?` : 'Oi! Tudo joia?';
+  }
+
+  // Attempt 1: Helpful check-in on specific product/quote discussed
+  if (attempt === 1) {
+    const templates = [
+      `${greeting} Fiquei pensando sobre a cotação de ${prod} que conversamos. Ficou alguma dúvida sobre medidas ou entrega que eu possa te ajudar a esclarecer?`,
+      `${greeting} Passando para ver como ficou a sua cotação de ${prod}. Se precisar de ajuda com cálculos ou especificações, estou por aqui!`,
+      `${greeting} Tudo bem por aí? Sobre o orçamento de ${prod} que você viu com a gente, conseguiu dar uma olhadinha com calma?`,
+    ];
+    return templates[Math.abs(seed) % templates.length];
+  }
+
+  // Attempt 2: Value proposition / freight condition / payment options check
+  if (attempt === 2) {
+    const templates = [
+      `${greeting} Passando rapidinho: conseguimos condições facilitadas para ${prod} esta semana, com desconto especial à vista no PIX ou parcelamento no cartão, além de agilizar o frete para a sua região. Quer que eu veja o frete certinho pra você?`,
+      `${greeting} Tava conferindo as rotas de entrega de ${prod} por aqui. Conseguimos incluir na programação com condição especial de pagamento (à vista ou no cartão). O que acha de aproveitarmos?`,
+      `${greeting} Sobre ${prod}: se o ponto era prazo ou frete, consigo falar com a logística para otimizar sua entrega e segurar a melhor condição comercial. Quer que eu simule para o seu endereço?`,
+    ];
+    return templates[Math.abs(seed) % templates.length];
+  }
+
+  // Attempt 3: Soft closing ("Estou deixando seu atendimento em aberto, se precisar de algo na sua obra é só chamar!"), then STOP.
+  const softClosingTemplates = [
+    `${greeting} Para não ficar te incomodando, estou deixando seu atendimento em aberto por aqui. Se precisar de algo para a sua obra ou quiser retomar o orçamento de ${prod}, é só me chamar! Um abraço e boa semana!`,
+    `${greeting} Passando só para deixar seu atendimento em aberto na loja. Se você ainda precisar de ${prod} ou de outros materiais mais adiante, estou à disposição na sua obra. Muito sucesso!`,
+    `${greeting} Não quero ser inconveniente, então estou concluindo este contato por aqui. Qualquer novidade ou se quiser fechar ${prod} depois, é só me mandar uma mensagem! Até mais!`,
+  ];
+  return softClosingTemplates[Math.abs(seed) % softClosingTemplates.length];
+}
+
 module.exports = {
   analyzeLeadIntent,
   buildLeadAlgorithm,
@@ -552,5 +604,6 @@ module.exports = {
   detectPurchaseStatus,
   formatHumanClientName,
   generateFluidHumanHook,
+  getProgressiveFollowupHook,
   STORE_EVOLUTION_ALGORITHMS,
 };

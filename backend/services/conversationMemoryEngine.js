@@ -507,11 +507,12 @@ function buildContextualPrompt(memory) {
     sections.push(`PENDÊNCIAS DA CONVERSA: ${memory.pendingQuestions.join('; ')}`);
   }
 
-  // Regras de Ouro de Continuidade e Seguimento Real
+  // Regras de Ouro de Continuidade, Verdade Oficial e Concisão
   sections.push(
     'REGRA CRÍTICA DE CONTINUIDADE E SEGUIMENTO REAL: Você JAMAIS deve pedir informações que já constam na memória acima. ' +
     'Se o cliente fornecer um dado ou responder sua pergunta (como "De 5 mil litros", "no pix" ou o bairro dele), você DEVE responder e confirmar diretamente esse dado primeiro, e só então fazer uma pergunta de próximo passo. ' +
-    'Não responda de forma genérica nem reinicie a conversa com saudações repetidas!'
+    'Mantenha as respostas estritamente concisas (1 a 3 frases curtas, no padrão natural do WhatsApp pelo celular). ' +
+    'NUNCA invente preços, descontos, estoques ou prazos não cadastrados; atenha-se aos dados reais da loja Depósito Mais!'
   );
 
   return sections.join('\n');

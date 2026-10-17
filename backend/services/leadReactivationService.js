@@ -103,7 +103,9 @@ async function analyzeLeadsForReactivation(companyId = 'default') {
      LEFT JOIN leads l ON l.id = c.lead_id
      WHERE c.company_id = $1
        AND c.status = 'open'
-       AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte')
+       AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte', 'aguardando_pix', 'finalizado', 'pago', 'concluido', 'pedido_confirmado', 'won')
+       AND NOT ('followup_esgotado' = ANY(COALESCE(c.tags, '{}')))
+       AND NOT ('followup_desativado' = ANY(COALESCE(c.tags, '{}')))
        AND c.updated_at < NOW() - INTERVAL '4 hours'
      ORDER BY c.updated_at DESC
      LIMIT $2`,
