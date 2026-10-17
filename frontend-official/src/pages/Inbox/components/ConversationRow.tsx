@@ -207,11 +207,10 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
 
     // 1. AZUL PISCANDO: Atendimento finalizado / Ficha gerada aguardando PIX
     const isFinalizado =
-      hasSheet ||
       tags.some((t) => {
         const lower = String(t).toLowerCase();
         return (
-          lower.includes("ficha") ||
+          lower.includes("aguarda_pix") ||
           lower.includes("pix") ||
           lower.includes("finalizado") ||
           lower.includes("fechamento")
@@ -325,9 +324,10 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         className={cn(
-          "inbox-message w-full text-left rounded-lg flex items-center gap-3 px-3 py-2 group/row",
+          "inbox-message w-full text-left rounded-lg flex items-center gap-3 px-3 py-2 group/row transition-all duration-200",
           "h-full min-h-0",
-          !isMultiSelectMode && normalizeId(selectedId) === normalizeId(conversation.id) && "inbox-message-active"
+          !isMultiSelectMode && normalizeId(selectedId) === normalizeId(conversation.id) && "inbox-message-active",
+          leadStatus.state === "finalizado" && "border border-blue-500/50 bg-blue-500/[0.06] shadow-[0_0_14px_rgba(59,130,246,0.25)]"
         )}
       >
         {isMultiSelectMode && (
@@ -386,9 +386,9 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
               {leadStatus.state === "finalizado" && (
                 <span
                   title={leadStatus.tooltip}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/50 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)] shrink-0"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500 text-white border border-blue-400 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.6)] shrink-0"
                 >
-                  <Sparkle weight="fill" className="h-2.5 w-2.5" />
+                  <Sparkle weight="fill" className="h-2.5 w-2.5 text-yellow-300" />
                   AGUARDA PIX
                 </span>
               )}

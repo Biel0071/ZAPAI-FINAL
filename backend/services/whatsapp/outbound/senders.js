@@ -157,11 +157,15 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
   // Sending directly to @lid breaks WhatsApp Web companion synchronization,
   // showing "Aguardando mensagem. Essa ação pode levar alguns instantes".
   if (jid.endsWith('@lid')) {
-    const rawLid = jid.split('@')[0].split(':')[0];
-    const mappedPhone = await lidMapper.getPhoneForLid(rawLid);
-    if (mappedPhone) {
-      console.log(`[JID-RESOLVE] Resolved incoming LID ${rawLid} -> phone JID ${mappedPhone}@s.whatsapp.net`);
-      jid = `${mappedPhone}@s.whatsapp.net`;
+    if (options.resolveLidToPhone) {
+      const rawLid = jid.split('@')[0].split(':')[0];
+      const mappedPhone = await lidMapper.getPhoneForLid(rawLid);
+      if (mappedPhone) {
+        console.log(`[JID-RESOLVE] Resolved incoming LID ${rawLid} -> phone JID ${mappedPhone}@s.whatsapp.net`);
+        jid = `${mappedPhone}@s.whatsapp.net`;
+      } else {
+        return jid;
+      }
     } else {
       return jid;
     }
@@ -199,10 +203,9 @@ async function resolveRegisteredJid(sock, jid, options = {}) {
         global.phoneToLidMap?.set(clean, lidClean);
         global.lidToPhoneMap?.set(lidClean, clean);
         lidMapper.saveMapping(lidClean, clean).catch(() => {});
-        // CRITICAL FIX: DO NOT overwrite resolvedJid with lidStr!
-        // Sending directly to @lid breaks WhatsApp Web companion synchronization,
-        // displaying "Aguardando mensagem. Essa ação pode levar alguns instantes".
-        // Always send 1-to-1 messages to @s.whatsapp.net.
+        if (options?.preferLid !== false) {
+          resolvedJid = lidStr;
+        }
       }
       setCachedJid(clean, resolvedJid);
       if (resolvedJid !== jid || reason) {

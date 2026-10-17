@@ -162,7 +162,7 @@ class CustomerMemoryEngine {
 
     // Detect payment preference
     if (text.includes('pix')) {
-      facts.paymentPreference = 'PIX (com desconto à vista)';
+      facts.paymentPreference = 'PIX';
     } else if (text.includes('cartao') || text.includes('cartão') || text.includes('parcel')) {
       facts.paymentPreference = 'Cartão de Crédito';
     }

@@ -663,9 +663,9 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.unread_count,
           conv.created_at,
           conv.updated_at,
-          GREATEST(
+          COALESCE(
             conv.last_message_at,
-            conv.updated_at AT TIME ZONE 'UTC',
+            (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
             conv.created_at AT TIME ZONE 'UTC'
           ) as last_message_at,
           COALESCE(lid_map.phone, l.phone, conv.remote_jid) as phone,
@@ -680,7 +680,11 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.company_id,
           COALESCE(conv.remote_jid, l.phone, conv.id::text),
           COALESCE(NULLIF(conv.session_id, ''), 'main'),
-          GREATEST(conv.last_message_at, conv.updated_at AT TIME ZONE 'UTC', conv.created_at AT TIME ZONE 'UTC') DESC,
+          COALESCE(
+            conv.last_message_at,
+            (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
+            conv.created_at AT TIME ZONE 'UTC'
+          ) DESC,
           conv.id DESC
       ),
       filtered AS (

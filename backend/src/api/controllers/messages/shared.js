@@ -40,7 +40,11 @@ async function resolveOutboundContext(req, { requireConnected = true } = {}) {
   const normalizedPhone = whatsappService.normalizePhone(targetJidOrPhone);
   if (!normalizedPhone || (shortId && !conversation)) reject(400, 'INVALID_RECIPIENT', 'Selecione um destino válido para enviar.');
   const requestedSession = String(payload.sessionName || payload.sessionId || req.headers?.['x-session-id'] || req.query?.sessionId || '').trim();
+  const explicitRequestedSession = String(payload.sessionName || payload.sessionId || '').trim();
   const conversationSession = conversation?.session_id || conversation?.sessionId;
+  if (explicitRequestedSession && conversationSession && sessionManager.normalizeSessionName(explicitRequestedSession) !== sessionManager.normalizeSessionName(conversationSession)) {
+    reject(409, 'SESSION_MISMATCH', 'A conexão não corresponde à conversa selecionada.');
+  }
 
   const requestedName = sessionManager.normalizeSessionName(requestedSession || conversationSession || sessionManager.DEFAULT_SESSION);
   let ownedSession = (await query(

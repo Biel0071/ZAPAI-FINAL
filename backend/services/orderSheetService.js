@@ -109,7 +109,7 @@ async function extractSheetDataFromConversation(conversationId, companyId = 'def
     customerName = 'Cliente';
   }
 
-  // Extrai endereço, bairro, cidade, CEP
+  // Extrai endereço, bairro, cidade, CEP (mensagens mais recentes têm precedência em caso de revisão)
   let neighborhood = memoryCommercial.neighborhood || memoryCommercial.deliveryCity || null;
   let city = memoryCommercial.deliveryCity || null;
   let cep = null;
@@ -117,29 +117,43 @@ async function extractSheetDataFromConversation(conversationId, companyId = 'def
 
   for (const msg of messages.filter(m => !m.from_me)) {
     const text = String(msg.text || msg.content || '');
-    if (!cep) {
-      const cepMatch = text.match(/\b\d{5}-?\d{3}\b/);
-      if (cepMatch) cep = cepMatch[0];
-    }
-    if (!neighborhood) {
-      const bMatch = text.match(/(?:bairro|moro no|entrega no|fica no|sou do)\s+([a-zA-ZÀ-ÿ\s]{3,30})/i);
-      if (bMatch && bMatch[1]) {
-        const cand = bMatch[1].trim();
-        if (!cand.toLowerCase().includes('qual') && !cand.toLowerCase().includes('quanto') && !cand.toLowerCase().includes('preco')) {
-          neighborhood = cand;
-        }
+    const cepMatch = text.match(/\b\d{5}-?\d{3}\b/);
+    if (cepMatch) cep = cepMatch[0];
+
+    const bMatch = text.match(/(?:bairro|moro no|entrega no|fica no|sou do|agora [eé] no|vai ser no)\s+([a-zA-ZÀ-ÿ\s]{3,30})/i);
+    if (bMatch && bMatch[1]) {
+      const cand = bMatch[1].trim();
+      if (!cand.toLowerCase().includes('qual') && !cand.toLowerCase().includes('quanto') && !cand.toLowerCase().includes('preco')) {
+        neighborhood = cand;
       }
     }
-    if (!fullAddress) {
-      const addrMatch = text.match(/(?:rua|av\.|avenida|estrada|travessa)\s+[^,\n]+(?:,\s*\d+)?/i);
-      if (addrMatch) {
-        fullAddress = addrMatch[0].trim();
-      }
+
+    const addrMatch = text.match(/(?:rua|av\.|avenida|estrada|travessa)\s+[^,\n]+(?:,\s*\d+)?/i);
+    if (addrMatch) {
+      fullAddress = addrMatch[0].trim();
     }
   }
 
   // Se tem bairro e cidade, monta endereço de entrega sugerido
   const deliveryAddress = fullAddress || [neighborhood, city, cep].filter(Boolean).join(', ') || 'A combinar com o atendente';
+
+  // Helper para extrair quantidades dinâmicas (dígitos ou por extenso)
+  const parseItemQuantity = (text = '', keywords = []) => {
+    const wordNums = { 'uma': 1, 'um': 1, 'duas': 2, 'dois': 2, 'tres': 3, 'três': 3, 'quatro': 4, 'cinco': 5, 'seis': 6, 'dez': 10 };
+    for (const [w, n] of Object.entries(wordNums)) {
+      for (const kw of keywords) {
+        if (new RegExp(`\\b${w}\\s+${kw}`, 'i').test(text)) return n;
+      }
+      if (new RegExp(`(?:quero|preciso de|manda|leva|seriam?)\\s+${w}\\b`, 'i').test(text)) return n;
+    }
+    for (const kw of keywords) {
+      const m = text.match(new RegExp(`(\\d+)\\s*(?:unidades?|un|pe[çc]as?)?\\s*${kw}`, 'i'));
+      if (m && Number(m[1]) > 0 && Number(m[1]) < 1000) return Number(m[1]);
+    }
+    const general = text.match(/(?:quero|comprar|preciso de|seriam?|manda)\s+(\d+)\b/i);
+    if (general && Number(general[1]) > 0 && Number(general[1]) < 1000) return Number(general[1]);
+    return 1;
+  };
 
   // Identifica itens do pedido e quantidade
   const items = [];
@@ -158,24 +172,26 @@ async function extractSheetDataFromConversation(conversationId, companyId = 'def
     }
     const catKey = capacity.includes('5.000') ? 'caixa_5000' : capacity.includes('3.000') ? 'caixa_3000' : capacity.includes('1.000') ? 'caixa_1000' : 'caixa_500';
     const def = DEFAULT_CATALOG_PRICES[catKey] || DEFAULT_CATALOG_PRICES.caixa_5000;
+    const qty = parseItemQuantity(normalizedAll, ['caixas?', 'reservat[oó]rios?']);
     items.push({
       item: def.name,
       specification: `Capacidade ${capacity}`,
-      quantity: 1,
+      quantity: qty,
       unitPrice: def.defaultPrice,
-      totalPrice: def.defaultPrice,
+      totalPrice: def.defaultPrice * qty,
     });
   }
 
   // 2. Churrasqueira
   if (normalizedAll.includes('churrasqueira') || normalizedAll.includes('trio') || memoryCommercial.activeProduct?.toLowerCase().includes('churrasqueira')) {
     const def = DEFAULT_CATALOG_PRICES.churrasqueira;
+    const qty = parseItemQuantity(normalizedAll, ['churrasqueiras?', 'trios?']);
     items.push({
       item: def.name,
       specification: 'Modelo Tijolinho 3 em 1 (Churrasqueira + Forno + Fogão)',
-      quantity: 1,
+      quantity: qty,
       unitPrice: def.defaultPrice,
-      totalPrice: def.defaultPrice,
+      totalPrice: def.defaultPrice * qty,
     });
   }
 
@@ -276,39 +292,103 @@ async function saveConversationSheet(sheetData, companyId = 'default') {
     status,
   });
 
-  const res = await query(
-    `INSERT INTO conversation_sheets (
-      company_id, conversation_id, lead_id, phone, customer_name,
-      delivery_address, delivery_neighborhood, delivery_city, delivery_cep,
-      items, total_price, payment_method, status, summary_text, sheet_data,
-      updated_at
-    ) VALUES (
-      $1, $2, $3, $4, $5,
-      $6, $7, $8, $9,
-      $10::jsonb, $11, $12, $13, $14, $15::jsonb,
-      NOW()
-    )
-    RETURNING *`,
-    [
-      cleanCompany,
-      conversationId,
-      leadId || null,
-      phone,
-      customerName,
-      deliveryAddress,
-      deliveryNeighborhood,
-      deliveryCity,
-      deliveryCep,
-      JSON.stringify(items || []),
-      totalPrice || 0,
-      paymentMethod || 'pix',
-      status,
-      summaryText,
-      JSON.stringify(sheetData),
-    ]
+  // Procura se já existe uma ficha aberta/gerada para esta conversa
+  const existingRes = await query(
+    `SELECT id FROM conversation_sheets
+     WHERE conversation_id = $1 AND company_id = $2 AND status IN ('generated', 'draft')
+     ORDER BY created_at DESC LIMIT 1`,
+    [conversationId, cleanCompany]
   );
 
-  return res.rows[0];
+  let sheetRow;
+  if (existingRes.rows.length > 0) {
+    const existingId = existingRes.rows[0].id;
+    const updRes = await query(
+      `UPDATE conversation_sheets SET
+        lead_id = COALESCE($3, lead_id),
+        phone = $4,
+        customer_name = $5,
+        delivery_address = $6,
+        delivery_neighborhood = $7,
+        delivery_city = $8,
+        delivery_cep = $9,
+        items = $10::jsonb,
+        total_price = $11,
+        payment_method = $12,
+        status = $13,
+        summary_text = $14,
+        sheet_data = $15::jsonb,
+        updated_at = NOW()
+       WHERE id = $1 AND company_id = $2
+       RETURNING *`,
+      [
+        existingId,
+        cleanCompany,
+        leadId || null,
+        phone,
+        customerName,
+        deliveryAddress,
+        deliveryNeighborhood,
+        deliveryCity,
+        deliveryCep,
+        JSON.stringify(items || []),
+        totalPrice || 0,
+        paymentMethod || 'pix',
+        status,
+        summaryText,
+        JSON.stringify(sheetData),
+      ]
+    );
+    sheetRow = updRes.rows[0];
+  } else {
+    const insRes = await query(
+      `INSERT INTO conversation_sheets (
+        company_id, conversation_id, lead_id, phone, customer_name,
+        delivery_address, delivery_neighborhood, delivery_city, delivery_cep,
+        items, total_price, payment_method, status, summary_text, sheet_data,
+        updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9,
+        $10::jsonb, $11, $12, $13, $14, $15::jsonb,
+        NOW()
+      )
+      RETURNING *`,
+      [
+        cleanCompany,
+        conversationId,
+        leadId || null,
+        phone,
+        customerName,
+        deliveryAddress,
+        deliveryNeighborhood,
+        deliveryCity,
+        deliveryCep,
+        JSON.stringify(items || []),
+        totalPrice || 0,
+        paymentMethod || 'pix',
+        status,
+        summaryText,
+        JSON.stringify(sheetData),
+      ]
+    );
+    sheetRow = insRes.rows[0];
+  }
+
+  // Tag conversa com 'ficha_gerada'
+  try {
+    const conv = await conversationRepository.getConversationById(conversationId, cleanCompany);
+    if (conv) {
+      const currentTags = Array.isArray(conv.tags) ? conv.tags : [];
+      if (!currentTags.includes('ficha_gerada')) {
+        await conversationRepository.updateConversationState(conversationId, {
+          tags: Array.from(new Set([...currentTags, 'ficha_gerada'])),
+        }, cleanCompany);
+      }
+    }
+  } catch (_) {}
+
+  return sheetRow;
 }
 
 /**

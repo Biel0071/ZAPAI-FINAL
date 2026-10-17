@@ -135,3 +135,67 @@ test('3. Evaluate conversation quality and run analysis sweep', async () => {
   assert.ok(metrics.sheetsGeneratedCount >= 1);
   assert.equal(metrics.leadsBreakdown.finalizado >= 1, true);
 });
+
+test('4. Conversational revision: handles dynamic quantities and updated address in later messages', async () => {
+  const leadRes = await query(
+    `INSERT INTO leads (company_id, phone, name) VALUES ($1, $2, $3) RETURNING id`,
+    [TEST_TENANT, '5511988887777', 'Mariana Silva']
+  );
+  const leadId = leadRes.rows[0].id;
+
+  const convRes = await query(
+    `INSERT INTO conversations (company_id, lead_id, remote_jid, status, lead_temperature, funnel_stage, ai_enabled)
+     VALUES ($1, $2, $3, 'open', 'hot', 'negociacao', TRUE) RETURNING id`,
+    [TEST_TENANT, leadId, '5511988887777@s.whatsapp.net']
+  );
+  const convId = convRes.rows[0].id;
+
+  // Dialogo inicial com 1 caixa no Campolim
+  await query(
+    `INSERT INTO messages (company_id, conversation_id, phone, text, from_me, created_at) VALUES
+     ($1, $2, $3, 'Oi, quero a caixa dagua 5000 litros no bairro Campolim', FALSE, NOW() - INTERVAL '5 minutes'),
+     ($1, $2, $3, 'Olá Mariana! A caixa de 5.000L sai R$ 2.490 no PIX.', TRUE, NOW() - INTERVAL '4 minutes'),
+     ($1, $2, $3, 'Mudei de ideia, quero duas caixas ao invés de uma e a entrega agora é no bairro Trujillo', FALSE, NOW() - INTERVAL '2 minutes')`,
+    [TEST_TENANT, convId, '5511988887777']
+  );
+
+  const sheetData = await orderSheetService.extractSheetDataFromConversation(convId, TEST_TENANT);
+  assert.ok(sheetData);
+  assert.equal(sheetData.customerName, 'Mariana Silva');
+  assert.ok(sheetData.deliveryAddress.includes('Trujillo'), 'Must adopt revised neighborhood Trujillo');
+  assert.equal(sheetData.items[0].quantity, 2, 'Must detect 2 units from "duas caixas"');
+  assert.equal(sheetData.items[0].totalPrice, 4980.00, 'Total price must be 2x unit price');
+
+  // Salva ficha e verifica idempotência
+  const sheet1 = await orderSheetService.saveConversationSheet(sheetData, TEST_TENANT);
+  assert.ok(sheet1.id);
+  const sheet2 = await orderSheetService.saveConversationSheet(sheetData, TEST_TENANT);
+  assert.equal(sheet1.id, sheet2.id, 'Idempotent save must update existing open sheet without duplicate records');
+});
+
+test('5. Customer confirmation auto-finalization in attendantQualityDaemon sweep', async () => {
+  const convRes = await query(
+    `SELECT id FROM conversations WHERE company_id = $1 AND remote_jid = '5511988887777@s.whatsapp.net' LIMIT 1`,
+    [TEST_TENANT]
+  );
+  const convId = convRes.rows[0].id;
+
+  // Cliente envia mensagem confirmando o fechamento
+  await query(
+    `INSERT INTO messages (company_id, conversation_id, phone, text, from_me, created_at) VALUES
+     ($1, $2, $3, 'Sim, confirmo! Pode agendar e mandar o pix para pagamento', FALSE, NOW())`,
+    [TEST_TENANT, convId, '5511988887777']
+  );
+
+  // Executa o sweep do daemon
+  await attendantQualityDaemon.runAnalysisSweep({ companyId: TEST_TENANT });
+
+  // A conversa agora deve estar finalizada e AI pausada para atendente humano com PIX
+  const updatedConv = await conversationRepository.getConversationById(convId);
+  assert.ok(updatedConv);
+  assert.equal(updatedConv.aiEnabled, false, 'AI must be disabled for human takeover');
+  assert.equal(updatedConv.status, 'aguarda_pix');
+  const tags = updatedConv.tags || [];
+  assert.ok(tags.includes('aguarda_pix'));
+  assert.ok(tags.includes('atendimento_finalizado'));
+});

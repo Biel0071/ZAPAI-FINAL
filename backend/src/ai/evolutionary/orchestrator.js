@@ -360,6 +360,54 @@ class EvolutionaryAgentOrchestrator {
         }
       }
 
+      // Fechamento de Venda e Confirmação de Ficha de Pedido com Camila
+      const orderSheetService = require('../../../services/orderSheetService');
+      const isConfirming =
+        /^(?:sim|ok|pode ser|confirmo|confirmado|fechado|pode fechar|t[aá] certo|t[aá] bom|beleza|perfeito|pode agendar|manda o pix|chave pix|quero sim)\b/i.test(lowerMsg) ||
+        lowerMsg.includes('pode fechar') ||
+        lowerMsg.includes('manda o pix') ||
+        lowerMsg.includes('pode agendar') ||
+        lowerMsg.includes('confirmo o pedido') ||
+        lowerMsg.includes('fechar pedido');
+
+      let existingSheet = null;
+      try {
+        existingSheet = await orderSheetService.getLatestSheetForConversation(convId, cleanCompany);
+      } catch (_) {}
+
+      if (isConfirming && (existingSheet || (neighborhood && paymentPref))) {
+        try {
+          await orderSheetService.finalizeAttendanceWithSheet({
+            conversationId: convId,
+            companyId: cleanCompany,
+            sheetId: existingSheet?.id,
+            store,
+            io: store?.io || global.io,
+          });
+          responseText = [
+            '✅ *Seu pedido foi registrado com sucesso no sistema!*',
+            '',
+            'Nosso atendente humano está conferindo sua rota e aguardando o comprovante do PIX para liberação imediata da entrega.',
+            'Muito obrigado pela confiança e preferência!',
+          ].join('\n');
+        } catch (finErr) {
+          console.warn('[Orchestrator] finalization error:', finErr.message);
+        }
+      } else if (
+        (lowerMsg.includes('ficha') || lowerMsg.includes('orçamento') || lowerMsg.includes('orcamento') || lowerMsg.includes('fechar') || lowerMsg.includes('quanto fica tudo')) &&
+        (neighborhood || paymentPref || capacity || lowerMsg.includes('churrasqueira'))
+      ) {
+        try {
+          const sheetData = await orderSheetService.extractSheetDataFromConversation(convId, cleanCompany);
+          if (sheetData && sheetData.items && sheetData.items.length > 0 && sheetData.totalPrice > 0) {
+            const savedSheet = await orderSheetService.saveConversationSheet(sheetData, cleanCompany);
+            responseText = savedSheet.summary_text;
+          }
+        } catch (shErr) {
+          console.warn('[Orchestrator] sheet generation error:', shErr.message);
+        }
+      }
+
       if (lowerMsg.includes('frete') || lowerMsg.includes('entrega')) {
         const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'freight_location');
         responseText = hasPastBotMessages

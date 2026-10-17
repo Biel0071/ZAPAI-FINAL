@@ -2352,61 +2352,6 @@
     "favorite": false
   },
   {
-    "id": "test_qr_caixa_5000",
-    "title": "Caixa d'água 5000L Fortlev",
-    "content": "Caixa d'água de 5.000L em polietileno por R$ 2.490 à vista com tampa roscável.",
-    "items": [
-      {
-        "type": "text",
-        "value": "Caixa d'água de 5.000L em polietileno por R$ 2.490 à vista com tampa roscável.",
-        "delayMs": 0,
-        "typingMs": 1500
-      }
-    ],
-    "category": "caixa dagua",
-    "tags": [
-      "caixa",
-      "dagua",
-      "5000l",
-      "5000 litros"
-    ],
-    "favorite": false,
-    "isFlow": false,
-    "companyId": "test-tenant-ctx-a",
-    "steps": [],
-    "updatedAt": "2026-10-14T21:39:51.060Z",
-    "createdAt": "2026-10-14T21:39:51.060Z"
-  },
-  {
-    "id": "test_qr_churrasqueira",
-    "title": "Churrasqueira Pré-Moldada Completa",
-    "content": "Churrasqueira pré-moldada modelo Tijolinho por R$ 1.250 à vista com grelha inclusa.",
-    "items": [
-      {
-        "type": "text",
-        "value": "Churrasqueira pré-moldada modelo Tijolinho por R$ 1.250 à vista com grelha inclusa.",
-        "delayMs": 0,
-        "typingMs": 1500
-      }
-    ],
-    "category": "churrasqueira",
-    "tags": [
-      "churrasqueira",
-      "carvao",
-      "grelha"
-    ],
-    "favorite": false,
-    "isFlow": false,
-    "companyId": "test-tenant-ctx-a",
-    "steps": [],
-    "updatedAt": "2026-10-14T18:39:50.970Z",
-    "createdAt": "2026-10-14T18:39:50.970Z",
-    "mediaUrl": null,
-    "mediaType": null,
-    "aiMemory": null,
-    "filename": null
-  },
-  {
     "id": "qr-1792071161272-dqqe1",
     "title": "Atendimento",
     "content": "Olá",
@@ -2468,5 +2413,99 @@
     "steps": [],
     "updatedAt": "2026-10-15T13:32:36.292Z",
     "createdAt": "2026-10-15T13:32:36.292Z"
+  },
+  {
+    "id": "test_qr_multimodal_caixa",
+    "title": "Fotos da Caixa d'água 5000L",
+    "content": "Acompanha flange e adaptador de saída.",
+    "items": [
+      {
+        "type": "image",
+        "value": "https://storage.zapai.app/media/caixa5000.jpg",
+        "delayMs": 0,
+        "typingMs": 1500,
+        "caption": "Caixa 5000L com tampa"
+      },
+      {
+        "type": "text",
+        "value": "Acompanha flange e adaptador de saída.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "fotos",
+    "tags": [
+      "foto",
+      "imagem",
+      "caixa",
+      "5000l"
+    ],
+    "favorite": false,
+    "isFlow": false,
+    "mediaUrl": "https://storage.zapai.app/media/caixa5000.jpg",
+    "mediaType": "image",
+    "companyId": "test-tenant-ctx-a",
+    "steps": [],
+    "updatedAt": "2026-10-17T01:33:56.391Z",
+    "createdAt": "2026-10-17T01:33:56.391Z"
+  },
+  {
+    "id": "test_qr_caixa_5000",
+    "title": "Caixa d'água 5000L Fortlev",
+    "content": "Caixa d'água de 5.000L em polietileno por R$ 2.490 à vista com tampa roscável.",
+    "items": [
+      {
+        "type": "text",
+        "value": "Caixa d'água de 5.000L em polietileno por R$ 2.490 à vista com tampa roscável.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "caixa dagua",
+    "tags": [
+      "caixa",
+      "dagua",
+      "5000l",
+      "5000 litros"
+    ],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "test-tenant-ctx-a",
+    "steps": [],
+    "updatedAt": "2026-10-16T22:33:56.299Z",
+    "createdAt": "2026-10-16T22:33:56.248Z",
+    "mediaUrl": null,
+    "mediaType": null,
+    "aiMemory": null,
+    "filename": null
+  },
+  {
+    "id": "test_qr_churrasqueira",
+    "title": "Churrasqueira Pré-Moldada Completa",
+    "content": "Churrasqueira pré-moldada modelo Tijolinho por R$ 1.250 à vista com grelha inclusa.",
+    "items": [
+      {
+        "type": "text",
+        "value": "Churrasqueira pré-moldada modelo Tijolinho por R$ 1.250 à vista com grelha inclusa.",
+        "delayMs": 0,
+        "typingMs": 1500
+      }
+    ],
+    "category": "churrasqueira",
+    "tags": [
+      "churrasqueira",
+      "carvao",
+      "grelha"
+    ],
+    "favorite": false,
+    "isFlow": false,
+    "companyId": "test-tenant-ctx-a",
+    "steps": [],
+    "updatedAt": "2026-10-16T22:33:56.301Z",
+    "createdAt": "2026-10-16T22:33:56.252Z",
+    "mediaUrl": null,
+    "mediaType": null,
+    "aiMemory": null,
+    "filename": null
   }
 ]

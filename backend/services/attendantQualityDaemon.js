@@ -136,7 +136,7 @@ async function runAnalysisSweep({ companyId = 'default', io = null } = {}) {
 
     for (const conv of conversations) {
       const tags = Array.isArray(conv.tags) ? conv.tags : [];
-      const isFinalized = tags.includes('ficha_gerada') || tags.includes('aguarda_pix') || tags.includes('atendimento_finalizado') || conv.funnel_stage === 'fechamento' || conv.status === 'aguarda_pix';
+      const isFinalized = tags.includes('aguarda_pix') || tags.includes('atendimento_finalizado') || conv.funnel_stage === 'fechamento' || conv.funnel_stage === 'aguarda_pix' || conv.status === 'aguarda_pix';
       const isPaused = conv.ai_enabled === false || conv.status === 'pending_human' || conv.status === 'paused';
       const isChegou = conv.funnel_stage === 'new_lead' || conv.lead_temperature === 'cold' || tags.includes('novo_lead');
 
@@ -172,6 +172,38 @@ async function runAnalysisSweep({ companyId = 'default', io = null } = {}) {
             console.log(`[ATTENDANT_QUALITY] Auto-generated order sheet for conversation ${conv.id} (${conv.phone})`);
           }
         } catch (_) {}
+      }
+
+      // Se já tem ficha gerada mas ainda não foi finalizada, checa se cliente já confirmou o pedido
+      const hasGeneratedSheet = tags.includes('ficha_gerada') || evaluation.readyForOrderSheet;
+      if (hasGeneratedSheet && !isFinalized) {
+        const lastCustomerMsg = msgResult.rows.slice().reverse().find(m => !m.from_me);
+        if (lastCustomerMsg) {
+          const cText = String(lastCustomerMsg.text || lastCustomerMsg.content || '').toLowerCase().trim();
+          const isCustomerConfirmed =
+            /^(?:sim|ok|pode ser|confirmo|confirmado|fechado|pode fechar|t[aá] certo|t[aá] bom|beleza|perfeito|pode agendar|manda o pix|chave pix|quero sim)\b/i.test(cText) ||
+            cText.includes('pode fechar') ||
+            cText.includes('manda o pix') ||
+            cText.includes('pode agendar') ||
+            cText.includes('confirmo');
+
+          if (isCustomerConfirmed) {
+            try {
+              const activeIo = io || global.io;
+              await orderSheetService.finalizeAttendanceWithSheet({
+                conversationId: conv.id,
+                companyId: cleanCompany,
+                io: activeIo,
+              });
+              breakdown.finalizado += 1;
+              if (breakdown.rodando > 0) breakdown.rodando -= 1;
+              awaitingPix += 1;
+              console.log(`[ATTENDANT_QUALITY] Auto-finalized attendance for confirmed conversation ${conv.id} (${conv.phone})`);
+            } catch (finErr) {
+              console.warn('[ATTENDANT_QUALITY] Finalization error:', finErr.message);
+            }
+          }
+        }
       }
     }
 

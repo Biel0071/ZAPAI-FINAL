@@ -30,11 +30,25 @@ else {
     await pool.query(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;
       CREATE TABLE sessions(company_id TEXT,session_id TEXT PRIMARY KEY,session_name TEXT,status TEXT,created_at TIMESTAMPTZ DEFAULT NOW());
       CREATE TABLE messages(id BIGSERIAL PRIMARY KEY,company_id TEXT,session_id TEXT,phone TEXT,remote_jid TEXT,conversation_id TEXT,
-        whatsapp_message_id TEXT,text TEXT,content TEXT,from_me BOOLEAN,media_type TEXT,message_origin TEXT,timestamp TIMESTAMPTZ DEFAULT NOW(),created_at TIMESTAMPTZ DEFAULT NOW());
+        whatsapp_message_id TEXT,history_item_id TEXT,text TEXT,content TEXT,from_me BOOLEAN,media_type TEXT,message_origin TEXT,timestamp TIMESTAMPTZ DEFAULT NOW(),created_at TIMESTAMPTZ DEFAULT NOW());
       CREATE TABLE system_settings(key TEXT PRIMARY KEY,value TEXT,updated_at TIMESTAMPTZ DEFAULT NOW());
       INSERT INTO sessions(company_id,session_id,session_name) VALUES('a','1','Um'),('a','2','Dois'),('b','3','Três');`);
     const migration=require('../migrations/035_session_agent_memory');
     await migration.up(pool); await migration.up(pool);
+    await pool.query(`
+      ALTER TABLE ai_stores 
+        ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS website TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS business_hours TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS policies TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS catalog_summary TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS theme_color TEXT DEFAULT '#10b981',
+        ADD COLUMN IF NOT EXISTS address TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS attendant_name TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS attendant_role TEXT DEFAULT 'Assistente de Vendas',
+        ADD COLUMN IF NOT EXISTS attendant_config JSONB DEFAULT '{}'::jsonb,
+        ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'::jsonb;
+    `);
     const express=require('express');
     const {createHistoryRouter}=require('../src/ai/evolutionary/historyRoutes');
     const app=express(); app.use(express.json());
