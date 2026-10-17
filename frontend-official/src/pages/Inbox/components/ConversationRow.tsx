@@ -13,6 +13,7 @@ import {
   ImageSquare,
   VideoCamera,
   Microphone,
+  Sparkle,
 } from "@phosphor-icons/react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -197,6 +198,104 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
         ? "Desativar IA" 
         : "Ativar IA";
 
+  const leadStatus = useMemo(() => {
+    const tags = Array.isArray(conversation.tags) ? conversation.tags : [];
+    const status = String(conversation.status || "").toLowerCase();
+    const funnelStage = String((conversation as any).funnel_stage || (conversation as any).funnelStage || "").toLowerCase();
+    const leadTemp = String((conversation as any).lead_temperature || (conversation as any).leadTemperature || "").toLowerCase();
+    const hasSheet = Boolean((conversation as any).hasSheet || (conversation as any).orderSheet);
+
+    // 1. AZUL PISCANDO: Atendimento finalizado / Ficha gerada aguardando PIX
+    const isFinalizado =
+      hasSheet ||
+      tags.some((t) => {
+        const lower = String(t).toLowerCase();
+        return (
+          lower.includes("ficha") ||
+          lower.includes("pix") ||
+          lower.includes("finalizado") ||
+          lower.includes("fechamento")
+        );
+      }) ||
+      status === "aguarda_pix" ||
+      status === "finalizado" ||
+      status === "closed_won" ||
+      funnelStage === "fechamento" ||
+      funnelStage === "aguarda_pix";
+
+    if (isFinalizado) {
+      return {
+        state: "finalizado" as const,
+        label: "Aguarda PIX",
+        tooltip: "Atendimento finalizado com Ficha de Pedido — Aguardando PIX do cliente",
+        dotColor: "bg-blue-500",
+        ping: true,
+      };
+    }
+
+    // 2. VERMELHO: Pausado / Atendimento Humano
+    const isPaused =
+      humanActive ||
+      !globalAiEnabled ||
+      !conversationAiAllowed ||
+      status === "paused" ||
+      status === "pending_human" ||
+      tags.some((t) => String(t).toLowerCase().includes("pausado") || String(t).toLowerCase().includes("humano"));
+
+    if (isPaused) {
+      return {
+        state: "pausado" as const,
+        label: "Pausado",
+        tooltip: "Atendimento pausado — Operador humano no controle",
+        dotColor: "bg-rose-500",
+        ping: false,
+      };
+    }
+
+    // 3. VERDE: Chegou / Novo Lead / Frio
+    const isChegou =
+      (conversation.unread ?? 0) > 0 ||
+      funnelStage === "new_lead" ||
+      funnelStage === "lead" ||
+      leadTemp === "cold" ||
+      tags.some((t) => {
+        const lower = String(t).toLowerCase();
+        return lower.includes("novo") || lower.includes("chegou") || lower.includes("primeiro");
+      });
+
+    if (isChegou) {
+      return {
+        state: "chegou" as const,
+        label: "Chegou",
+        tooltip: "Novo lead recebido do tráfego / Mensagem não lida",
+        dotColor: "bg-emerald-500",
+        ping: false,
+      };
+    }
+
+    // 4. AMARELO: Rodando / IA em Atendimento Ativo
+    return {
+      state: "rodando" as const,
+      label: "Rodando",
+      tooltip: "Atendimento em andamento pela IA (anúncio rodando)",
+      dotColor: "bg-amber-400",
+      ping: false,
+    };
+  }, [
+    conversation.tags,
+    conversation.status,
+    (conversation as any).funnel_stage,
+    (conversation as any).funnelStage,
+    (conversation as any).lead_temperature,
+    (conversation as any).leadTemperature,
+    (conversation as any).hasSheet,
+    (conversation as any).orderSheet,
+    humanActive,
+    globalAiEnabled,
+    conversationAiAllowed,
+    conversation.unread,
+  ]);
+
   const handleClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-radix-menu-content]") || (e.target as HTMLElement).closest("[data-dropdown-trigger]")) {
       return;
@@ -257,12 +356,42 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
               {getInitials(cleanDisplayName)}
             </AvatarFallback>
           </Avatar>
+
+          {/* Indicador Visual: Verde (Chegou), Amarelo (Rodando), Vermelho (Pausado), Azul Piscando (Finalizado / Aguarda PIX) */}
+          <div className="absolute -bottom-0.5 -right-0.5 z-10 flex items-center justify-center pointer-events-none">
+            {leadStatus.ping ? (
+              <span className="relative flex h-3.5 w-3.5" title={leadStatus.tooltip}>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-80" />
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-600 border-2 border-background shadow-[0_0_10px_rgba(37,99,235,0.9)]" />
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  "inline-flex rounded-full h-3.5 w-3.5 border-2 border-background",
+                  leadStatus.dotColor,
+                  leadStatus.state === "chegou" && "shadow-[0_0_6px_rgba(16,185,129,0.7)]",
+                  leadStatus.state === "rodando" && "shadow-[0_0_6px_rgba(251,191,36,0.7)]",
+                  leadStatus.state === "pausado" && "shadow-[0_0_6px_rgba(244,63,94,0.7)]"
+                )}
+                title={leadStatus.tooltip}
+              />
+            )}
+          </div>
         </div>
 
         <div className="min-w-0 flex-1 flex flex-col justify-between h-full py-0.5">
           <div className="flex items-center justify-between gap-1.5">
             <h4 className="text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0 flex-1">
               <span className="truncate min-w-0">{cleanDisplayName}</span>
+              {leadStatus.state === "finalizado" && (
+                <span
+                  title={leadStatus.tooltip}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/50 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)] shrink-0"
+                >
+                  <Sparkle weight="fill" className="h-2.5 w-2.5" />
+                  AGUARDA PIX
+                </span>
+              )}
               {tagEmojis.length > 0 && (
                 <span className="inline-flex items-center gap-1 shrink-0 ml-0.5">
                   {tagEmojis.slice(0, 3).map((item, idx) => (

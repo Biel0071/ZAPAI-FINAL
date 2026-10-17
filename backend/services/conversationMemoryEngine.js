@@ -180,7 +180,7 @@ function setCustomerFact(memory, { key, value, category = MEMORY_CATEGORIES.CUST
   } else if (normKey.includes('quantidade') || normKey === 'quantity') {
     memory.commercial.quantity = String(value).trim();
   } else if (normKey.includes('cidade') || normKey.includes('bairro') || normKey === 'city' || normKey.includes('endereco') || normKey === 'address') {
-    memory.commercial.deliveryCity = memory.commercial.deliveryCity || String(value).trim();
+    memory.commercial.deliveryCity = String(value).trim();
     memory.commercial.neighborhood = String(value).trim();
   } else if (normKey.includes('pagamento') || normKey === 'payment') {
     memory.commercial.paymentPreference = String(value).trim();

@@ -9,6 +9,8 @@ const inboxConversationRepository = require('../../messaging/inbox/inbox/reposit
 const inboxRealtimeService = require('../../messaging/inbox/inbox/events/InboxRealtimeService');
 const conversationRuntimeService = require('../../messaging/inbox/inbox/services/ConversationRuntimeService');
 const { getCompanyId } = require('../../../services/tenantContext');
+const orderSheetService = require('../../../services/orderSheetService');
+const attendantQualityDaemon = require('../../../services/attendantQualityDaemon');
 
 const avatarCache = new Map();
 const AVATAR_TTL_MS = 24 * 60 * 60 * 1000;
@@ -654,14 +656,131 @@ async function generateProfileCard(req, res) {
     const salesStore = getSalesStore(getStore(req));
     salesStore.profileCards[conversationId] = profile;
 
+    let sheet = null;
+    try {
+      const companyId = req.authTenantId || getCompanyId(req) || 'default';
+      const sheetData = await orderSheetService.extractSheetDataFromConversation(conversationId, companyId);
+      sheet = await orderSheetService.saveConversationSheet(sheetData, companyId);
+    } catch (sheetErr) {
+      console.warn('[CONVERSATIONS] Sheet auto-save warning:', sheetErr?.message || sheetErr);
+    }
+
     return res.status(200).json({
       profile,
-      suggestedText,
+      sheet,
+      suggestedText: sheet?.summary_text || suggestedText,
       success: true,
     });
   } catch (error) {
     return res.status(error.status || 500).json({
       error: error.message || 'Failed to generate profile card.',
+      success: false,
+    });
+  }
+}
+
+async function getConversationSheet(req, res) {
+  try {
+    const { conversationId } = req.params;
+    const companyId = req.authTenantId || getCompanyId(req) || 'default';
+    const sheet = await orderSheetService.getLatestSheetForConversation(conversationId, companyId);
+    return res.status(200).json({
+      success: true,
+      sheet,
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.message || 'Failed to load sheet.',
+      success: false,
+    });
+  }
+}
+
+async function listSheets(req, res) {
+  try {
+    const companyId = req.authTenantId || getCompanyId(req) || 'default';
+    const sheets = await orderSheetService.listConversationSheets({
+      companyId,
+      status: req.query?.status,
+      limit: req.query?.limit,
+      offset: req.query?.offset,
+    });
+    return res.status(200).json({
+      success: true,
+      sheets,
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.message || 'Failed to list sheets.',
+      success: false,
+    });
+  }
+}
+
+async function confirmAndFinalizeSheet(req, res) {
+  try {
+    const { conversationId } = req.params;
+    const companyId = req.authTenantId || getCompanyId(req) || 'default';
+    const autoSend = req.body?.autoSend !== false;
+    const store = getStore(req);
+    const result = await orderSheetService.finalizeAttendanceWithSheet({
+      conversationId,
+      companyId,
+      sheetId: req.body?.sheetId,
+      store,
+      io: store?.io || req.app?.locals?.store?.io || global.io,
+    });
+
+    if (!result) {
+      return res.status(404).json({ error: 'Conversation not found for finalization.', success: false });
+    }
+
+    let sentMessage = null;
+    if (autoSend && result.sheet?.summary_text) {
+      const conversation = await loadConversationForOperation(conversationId);
+      const confirmationMsg = [
+        result.sheet.summary_text,
+        '',
+        '✅ *Seu pedido foi registrado no sistema!*',
+        'Nosso atendente humano está conferindo sua rota e aguardando o comprovante do PIX para liberação imediata da entrega. Muito obrigado pela preferência!',
+      ].join('\n');
+
+      try {
+        sentMessage = await sendAutomatedConversationMessage({
+          conversation,
+          store,
+          text: confirmationMsg,
+        });
+      } catch (sendErr) {
+        console.warn('[CONVERSATIONS] Automatic WhatsApp confirmation send skipped:', sendErr?.message || sendErr);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      sheet: result.sheet,
+      conversation: result.conversation,
+      sentMessage,
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.message || 'Failed to confirm and finalize sheet.',
+      success: false,
+    });
+  }
+}
+
+async function getAttendantQualityMetrics(req, res) {
+  try {
+    const companyId = req.authTenantId || getCompanyId(req) || 'default';
+    const metrics = attendantQualityDaemon.getLatestQualityMetrics();
+    return res.status(200).json({
+      success: true,
+      metrics,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || 'Failed to get attendant quality metrics.',
       success: false,
     });
   }
@@ -1110,4 +1229,9 @@ module.exports = {
   getConversationControl,
   updateConversationMeta,
   syncConversationHistory,
+  confirmAndFinalizeSheet,
+  getAttendantQualityMetrics,
+  getConversationSheet,
+  listSheets,
+  generateSheet: generateProfileCard,
 };

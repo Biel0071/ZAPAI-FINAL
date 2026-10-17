@@ -110,7 +110,7 @@ class HistoryRepository {
         AND (remote_jid=$4 OR (remote_jid IS NULL AND conversation_id=$5)) LIMIT 1`, [item.company_id, item.session_id, item.message_key, item.chat_jid, conversation.id])).rows[0];
       if (!message) {
         message = (await client.query(`INSERT INTO messages(company_id,session_id,conversation_id,phone,text,content,media_type,type,from_me,sender,direction,status,timestamp,created_at,whatsapp_message_id,remote_jid,history_item_id)
-          VALUES($1,$2,$3,$4,$5,$5,$6,$6,$7,$8,$9,$10,$11::timestamp,$11::timestamp,$12,$13,$14) RETURNING id`,
+          VALUES($1,$2,$3,$4,$5,$5,$6,$6,$7,$8,$9,$10,$11::timestamp,NOW(),$12,$13,$14) RETURNING id`,
         [item.company_id, item.session_id, conversation.id, phone, payload.text || '', payload.mediaType || 'text', item.from_me,
           item.from_me ? 'agent' : 'client', item.from_me ? 'outgoing' : 'incoming', item.from_me ? 'sent' : 'received', item.occurred_at || new Date(), item.message_key, item.chat_jid, item.id])).rows[0];
       }

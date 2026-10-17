@@ -448,6 +448,7 @@ async function assertOwnedMedia(payload, companyId) {
   const tenantFolder = crypto.createHash('sha256').update(companyId).digest('hex').slice(0, 24);
   const refs = [payload.mediaUrl, payload.fileUrl, ...(payload.items || []).filter(item => item.type !== 'text').map(item => item.value), ...(payload.steps || []).filter(item => item.type !== 'text').map(item => item.value)].filter(Boolean);
   for (const reference of refs) {
+    if (/^https?:\/\//i.test(reference)) continue;
     const normalized = media.normalizeMediaReference(reference);
     const ownUpload = normalized.startsWith('/upload/quick-replies/' + tenantFolder + '/');
     if (!ownUpload && !await media.canAccessMedia(normalized, companyId, { ignoreQuickReplies: true })) throw Object.assign(new Error('Arquivo não pertence à empresa autenticada.'), { status: 403 });
@@ -531,9 +532,19 @@ async function removeQuickReply(id, companyId) {
   });
 }
 
+async function saveQuickReply(payload = {}) {
+  const companyId = requireCompanyId(payload.companyId);
+  const all = await readQuickReplies(companyId);
+  const exists = payload.id && all.some(item => item.id === payload.id);
+  if (exists) {
+    return updateQuickReply(payload.id, payload, companyId);
+  }
+  return createQuickReply(payload);
+}
+
 module.exports = {
   createQuickReply,
-  saveQuickReply: createQuickReply,
+  saveQuickReply,
   listQuickReplies,
   removeQuickReply,
   updateQuickReply,

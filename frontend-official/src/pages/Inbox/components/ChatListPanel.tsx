@@ -140,6 +140,29 @@ export function ChatListPanel({
           </TabsList>
         </Tabs>
 
+        {/* Status Legend Bar: Chegou (Verde), Rodando (Amarelo), Pausado (Vermelho), Aguarda PIX (Azul Piscando) */}
+        <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-medium text-muted-foreground/80 bg-muted/25 rounded-md border border-border/40 select-none">
+          <span className="flex items-center gap-1.5" title="Novo lead recebido do anúncio / não lida">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.7)]" />
+            <span className="hidden min-[380px]:inline">Chegou</span>
+          </span>
+          <span className="flex items-center gap-1.5" title="Atendimento em andamento ativo pela IA">
+            <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.7)]" />
+            <span className="hidden min-[380px]:inline">Rodando</span>
+          </span>
+          <span className="flex items-center gap-1.5" title="Atendimento pausado / operador humano">
+            <span className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.7)]" />
+            <span className="hidden min-[380px]:inline">Pausado</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-blue-400 font-semibold" title="Atendimento finalizado com ficha — aguardando PIX">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-80" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
+            </span>
+            <span>Aguarda PIX</span>
+          </span>
+        </div>
+
         {isMultiSelectMode && (
           <div className="flex items-center justify-between px-2 py-1.5 text-xs text-muted-foreground border-b border-border/40 animate-fade-in bg-muted/10 rounded-md">
             <span>{selectedChatIds.length} selecionadas</span>

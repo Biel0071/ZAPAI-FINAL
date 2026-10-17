@@ -1883,6 +1883,10 @@ async function bootstrap() {
         const contactIntelligenceDaemon = require('./services/contactIntelligenceDaemon');
         contactIntelligenceDaemon.runDailyContactDetection({ io });
       }, 30 * 60_000);
+      workerSupervisor.registerWorker('attendant_quality_analysis', () => {
+        const attendantQualityDaemon = require('./services/attendantQualityDaemon');
+        attendantQualityDaemon.runAnalysisSweep({ io });
+      }, 3 * 60_000);
       workerSupervisor.startAll();
 
       // Phase 5: Start SocketSafety periodic audit
