@@ -16,6 +16,7 @@ let cronStatus = {
 
 async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {}) {
   cronStatus.lastRunAt = new Date().toISOString();
+  try {
     let conversations;
     try {
       const res = await query(
