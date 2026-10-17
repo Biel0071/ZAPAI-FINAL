@@ -170,17 +170,37 @@ function enforceResponseWordLimit(text, agent = {}) {
   let normalized = String(text || '').trim();
   if (!normalized) return '';
 
+  // 0. Strip robotic boilerplate phrases
+  normalized = normalized
+    .replace(/\b(?:como posso (?:te\s+|lhe\s+|)ajudar\s+(?:voc[eê]\s+)?hoje\??|em que posso (?:te\s+|lhe\s+|)ajudar\s+(?:voc[eê]\s+)?hoje\??)\b/gi, '')
+    .replace(/\b(?:espero ter ajudado!?|qualquer d[uú]vida estou [aà] disposi[cç][aã]o\.?|fico [aà] disposi[cç][aã]o\.?)\b/gi, '')
+    .replace(/\b(?:sou (?:o|a) assistente virtual.*?[.!?]|sou uma intelig[eê]ncia artificial.*?[.!?])\b/gi, '')
+    .replace(/\b(?:prezado(?:a)? cliente,?\s*|caro(?:a)? cliente,?\s*)\b/gi, '');
+
   // 1. Strip unsolicited bulleted essay lists unless it's a confirmed order sheet summary
   if (!normalized.includes('Ficha de Pedido') && !normalized.includes('Resumo do Pedido')) {
     const lines = normalized.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const bulletLines = lines.filter(l => /^[•\-\*]\s+/.test(l));
-    if (bulletLines.length >= 2) {
-      const nonBullets = lines.filter(l => !/^[•\-\*]\s+/.test(l));
-      if (nonBullets.length > 0) {
-        normalized = nonBullets.join(' ');
-      } else {
-        normalized = bulletLines.slice(0, 2).map(b => b.replace(/^[•\-\*]\s+/, '')).join(', ');
+    const hasBullets = lines.some(l => /^[•\-\*]\s+/.test(l));
+    if (hasBullets) {
+      const parts = [];
+      const bulletItems = [];
+      for (const line of lines) {
+        if (/^[•\-\*]\s+/.test(line)) {
+          bulletItems.push(line.replace(/^[•\-\*]\s+/, '').trim());
+        } else {
+          if (bulletItems.length > 0) {
+            const joined = bulletItems.join(', ');
+            parts.push(/[.!?]$/.test(joined) ? joined : joined + '.');
+            bulletItems.length = 0;
+          }
+          parts.push(line);
+        }
       }
+      if (bulletItems.length > 0) {
+        const joined = bulletItems.join(', ');
+        parts.push(/[.!?]$/.test(joined) ? joined : joined + '.');
+      }
+      normalized = parts.join(' ');
     } else {
       normalized = lines.join(' ');
     }

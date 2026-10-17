@@ -129,7 +129,7 @@ async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {
       let lastCustomerMsgTime = null;
 
       for (const m of recentMsgs) {
-        const isAgent = m.sender === 'agent' || m.sender === 'bot' || m.sender === 'system';
+        const isAgent = m.sender === 'agent' || m.sender === 'bot' || m.sender === 'system' || m.sender === 'ai';
         if (isAgent) {
           if (lastCustomerMsgTime === null) {
             consecutiveAgentMsgs++;
@@ -144,36 +144,65 @@ async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {
         }
       }
 
+      // Check if customer replied after the last follow-up was dispatched
+      if (lastCustomerMsgTime && conv.ai_last_followup_at) {
+        const lastFollowupTime = new Date(conv.ai_last_followup_at).getTime();
+        if (lastCustomerMsgTime > lastFollowupTime) {
+          const { resetFollowupOnCustomerResponse } = require('./aiFollowupEngine');
+          await resetFollowupOnCustomerResponse(conv.id);
+          conv.tags = (conv.tags || []).filter((t) => !t.startsWith('followup_'));
+        }
+      }
+
+      const convTags = Array.isArray(conv.tags) ? conv.tags : [];
+      let followupsSent = 0;
+      if (convTags.includes('followup_toque_3')) {
+        followupsSent = 3;
+      } else if (convTags.includes('followup_toque_2')) {
+        followupsSent = 2;
+      } else if (convTags.includes('followup_toque_1')) {
+        followupsSent = 1;
+      } else {
+        const hasAnyCustomerMsg = recentMsgs.some(
+          (m) => !['agent', 'bot', 'system', 'assistant', 'operator', 'ai'].includes(m.sender)
+        );
+        if (!hasAnyCustomerMsg) {
+          followupsSent = consecutiveAgentMsgs;
+        } else {
+          followupsSent = 0;
+        }
+      }
+
       // Cap at 3 attempts: auto-deactivate follow-up after 3 attempts without response
-      if (consecutiveAgentMsgs >= maxAttempts) {
+      if (followupsSent >= maxAttempts) {
         const { deactivateFollowupForConversation } = require('./aiFollowupEngine');
         await deactivateFollowupForConversation(conv.id, `max_attempts_exceeded_${maxAttempts}`);
         continue;
       }
 
       const now = Date.now();
-      const currentAttempt = consecutiveAgentMsgs + 1; // 1, 2, or 3
+      const currentAttempt = followupsSent + 1; // 1, 2, or 3
 
       // Progressive Human Cadence:
-      // Attempt 1: Minimum 4 to 6 hours after last customer message (never < 2 hours)
+      // Attempt 1: Minimum 4 to 6 hours after last customer message/interaction (never < 2 hours)
       // Attempt 2: Minimum 24 hours after Attempt 1
       // Attempt 3: Minimum 48 hours after Attempt 2
       if (currentAttempt === 1) {
-        const customerRefTime = lastCustomerMsgTime || new Date(conv.updated_at).getTime();
-        const minutesSinceCustomerMsg = (now - customerRefTime) / (1000 * 60);
+        const interactionRefTime = Math.max(lastCustomerMsgTime || 0, lastAgentMsgTime || 0) || new Date(conv.updated_at).getTime();
+        const minutesSinceInteraction = (now - interactionRefTime) / (1000 * 60);
         const minFirstAttemptMinutes = Math.max(120, Number(agent?.followUp?.intervalHours || 4) * 60);
-        if (minutesSinceCustomerMsg < minFirstAttemptMinutes) {
+        if (minutesSinceInteraction < minFirstAttemptMinutes) {
           continue;
         }
       } else if (currentAttempt === 2) {
-        const agentRefTime = lastAgentMsgTime || (conv.ai_last_followup_at ? new Date(conv.ai_last_followup_at).getTime() : new Date(conv.updated_at).getTime());
+        const agentRefTime = conv.ai_last_followup_at ? new Date(conv.ai_last_followup_at).getTime() : (lastAgentMsgTime || new Date(conv.updated_at).getTime());
         const minutesSinceAttempt1 = (now - agentRefTime) / (1000 * 60);
         // Minimum 24 hours = 1440 minutes
         if (minutesSinceAttempt1 < 1440) {
           continue;
         }
       } else if (currentAttempt === 3) {
-        const agentRefTime = lastAgentMsgTime || (conv.ai_last_followup_at ? new Date(conv.ai_last_followup_at).getTime() : new Date(conv.updated_at).getTime());
+        const agentRefTime = conv.ai_last_followup_at ? new Date(conv.ai_last_followup_at).getTime() : (lastAgentMsgTime || new Date(conv.updated_at).getTime());
         const minutesSinceAttempt2 = (now - agentRefTime) / (1000 * 60);
         // Minimum 48 hours = 2880 minutes
         if (minutesSinceAttempt2 < 2880) {

@@ -156,20 +156,19 @@ async function checkAndDispatchReactivationQueue() {
         }
 
         // Generate warm opening follow-up via AI
-        const prompt = `Você é o atendente virtual da loja. A loja ACABOU DE ABRIR no horário comercial (${businessHours.open}).
-O cliente enviou a mensagem "${contact.last_message || 'Olá'}" enquanto a loja estava fechada.
-Crie uma mensagem amigável de bom dia/saudação informando que a loja abriu agora e pergunte como pode ajudá-lo com o pedido dele.
-Seja natural, simpático e curto (máximo 2 a 3 frases no WhatsApp). Use emojis adequados.`;
+        const prompt = `Você é a Camila, atendente da loja Depósito Mais. A loja acabou de abrir no horário comercial (${businessHours.open}).
+O cliente enviou a mensagem "${contact.last_message || 'Olá'}" fora do expediente.
+Escreva uma mensagem curta, acolhedora e natural em português brasileiro (1 a 2 frases curtas, máximo 35 palavras). NUNCA use jargões de robô como "assistente virtual" ou "Como posso te ajudar hoje?". Diga que a loja abriu e dê continuidade ao atendimento com simpatia.`;
 
         const aiRes = await processAI({
           contact: { name: 'Cliente', phone: contact.phone, sessionId: contact.session_id },
           history: [],
           message: prompt,
-          agentName: 'Atendente',
+          agentName: 'Camila',
           companyId,
         });
 
-        const replyMessage = aiRes?.reply || `Oi! Bom dia! 😊 Abrimos a loja agora. Vi que você nos mandou mensagem fora do horário. Como posso te ajudar hoje?`;
+        const replyMessage = aiRes?.reply || `Oi! Bom dia! Passando para dar continuidade ao seu atendimento aqui na loja. Ficou alguma dúvida sobre o seu pedido?`;
 
         // Enqueue outbound message via WhatsApp with deterministic correlationId
         const dateKey = new Date().toISOString().slice(0, 10);

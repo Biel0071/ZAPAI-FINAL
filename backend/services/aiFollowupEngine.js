@@ -258,13 +258,9 @@ async function resetFollowupOnCustomerResponse(conversationId) {
   try {
     const { rows } = await query(`SELECT tags FROM conversations WHERE id = $1`, [conversationId]);
     const currentTags = Array.isArray(rows[0]?.tags) ? rows[0].tags : [];
-    const hasFollowupTags = currentTags.some((t) =>
-      ['followup_ia_ativo', 'followup_esgotado', 'followup_desativado', 'followup_toque_3'].includes(t)
-    );
+    const hasFollowupTags = currentTags.some((t) => t.startsWith('followup_'));
     if (hasFollowupTags) {
-      const nextTags = currentTags.filter(
-        (t) => !['followup_ia_ativo', 'followup_esgotado', 'followup_desativado', 'followup_toque_3'].includes(t)
-      );
+      const nextTags = currentTags.filter((t) => !t.startsWith('followup_'));
       await query(
         `UPDATE conversations
          SET tags = $2::text[],
@@ -307,8 +303,52 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
     }
   }
 
+  const convTags = Array.isArray(conversation.tags) ? conversation.tags : [];
+
+  // If already deactivated/exhausted, skip immediately
+  if (convTags.includes('followup_esgotado') || convTags.includes('followup_desativado')) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'max_attempts_exceeded',
+      deactivated: true,
+      consecutiveAgentMsgs,
+    };
+  }
+
+  // Check terminal purchase status: cancel follow-up immediately
+  if (leadAlgorithm.hasPurchased) {
+    await deactivateFollowupForConversation(conversation.id, `already_purchased_${leadAlgorithm.purchaseReason}`);
+    return {
+      ok: false,
+      skipped: true,
+      reason: 'already_purchased',
+      purchaseReason: leadAlgorithm.purchaseReason,
+      leadAlgorithm,
+    };
+  }
+
+  // Accurately determine follow-up attempts sent so far
+  let followupsSent = 0;
+  if (convTags.includes('followup_toque_3')) {
+    followupsSent = 3;
+  } else if (convTags.includes('followup_toque_2')) {
+    followupsSent = 2;
+  } else if (convTags.includes('followup_toque_1')) {
+    followupsSent = 1;
+  } else {
+    const hasAnyCustomerMsg = history.some((m) => m.from === 'client' || m.role === 'user');
+    if (!hasAnyCustomerMsg) {
+      followupsSent = consecutiveAgentMsgs;
+    } else {
+      followupsSent = 0;
+    }
+  }
+
+  const currentAttempt = attempt || (followupsSent + 1);
+
   // Auto-deactivate if maximum 3 attempts were already reached without customer response
-  if (consecutiveAgentMsgs >= 3) {
+  if (followupsSent >= 3 || currentAttempt > 3) {
     await deactivateFollowupForConversation(conversation.id, 'max_attempts_exceeded_3');
     return {
       ok: false,
@@ -319,17 +359,6 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
     };
   }
 
-  if (leadAlgorithm.hasPurchased) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: 'already_purchased',
-      purchaseReason: leadAlgorithm.purchaseReason,
-      leadAlgorithm,
-    };
-  }
-
-  const currentAttempt = attempt || (consecutiveAgentMsgs + 1);
   const targetJid = conversation.remote_jid || conversation.phone;
   const resolvedSessionId = sessionId || conversation.session_id || 'default';
 
@@ -363,11 +392,16 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
   }
   recentFollowupDispatches.set(dedupKey, now);
 
-  const existingTags = Array.isArray(conversation.tags) ? conversation.tags : [];
+  const existingTags = convTags;
+  const isFinalAttempt = currentAttempt >= 3;
+  const filteredTags = isFinalAttempt
+    ? existingTags.filter((t) => t !== 'followup_ia_ativo')
+    : existingTags;
+
   const nextTags = Array.from(
     new Set([
-      ...existingTags,
-      'followup_ia_ativo',
+      ...filteredTags,
+      ...(isFinalAttempt ? ['followup_esgotado', 'followup_desativado'] : ['followup_ia_ativo']),
       `followup_toque_${currentAttempt}`,
       leadAlgorithm.algorithmCode.toLowerCase(),
       `estilo_${leadAlgorithm.conversationStyle}`,
