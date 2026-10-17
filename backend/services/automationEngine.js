@@ -381,11 +381,108 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     console.error('[AutomationEngine] processAI failed:', error.message);
   }
 
+  // Circuit Breaker Handling: Delirium, Unknown Catalog Answer, or Repetition Loop
+  if (ai && ai.circuitBreakerTriggered) {
+    console.log(`[AutomationEngine] Circuit breaker active for ${phone}: reason=${ai.circuitBreakerReason}`);
+
+    // 1. Auto-deactivate AI in PostgreSQL for this conversation
+    try {
+      await conversationRepository.updateConversationAIEnabled(phone, false, companyId);
+    } catch (e) {
+      console.warn('[AutomationEngine] Error updating AI enabled:', e.message);
+    }
+
+    // 2. Add human intervention tags and update conversation status
+    const cbTags = ['intervencao_humana', 'precisa_humano', 'delirio_evitado'];
+    const mergedTags = Array.from(new Set([...tags, ...cbTags]));
+
+    try {
+      await conversationRepository.updateConversationState(conversationId, {
+        aiEnabled: false,
+        tags: mergedTags,
+        status: 'pending_human',
+        funnel_stage: 'intervencao_humana',
+      });
+    } catch (e) {
+      console.warn('[AutomationEngine] Error updating conversation state:', e.message);
+    }
+
+    // 3. Emit realtime socket notifications for instant sidebar flashing red indicator
+    const io = store?.io || global.io;
+    io?.emit('conversation:update', {
+      id: conversationId,
+      aiEnabled: false,
+      ai_enabled: false,
+      phone,
+      tags: mergedTags,
+      status: 'pending_human',
+      funnel_stage: 'intervencao_humana',
+      needsHuman: true,
+      needs_human: true,
+      circuitBreakerReason: ai.circuitBreakerReason,
+      sessionId,
+    });
+    io?.emit('conversation_updated', {
+      id: conversationId,
+      aiEnabled: false,
+      ai_enabled: false,
+      phone,
+      tags: mergedTags,
+      status: 'pending_human',
+      funnel_stage: 'intervencao_humana',
+      needsHuman: true,
+      needs_human: true,
+    });
+    io?.emit('lead_updated', {
+      conversationId,
+      phone,
+      tags: mergedTags,
+      status: 'pending_human',
+    });
+
+    // 4. If graceful handoff message was produced, enqueue it once. Otherwise, stop responding silently.
+    if (!ai.reply || !ai.reply.trim()) {
+      console.log(`[AutomationEngine] Circuit breaker: Stopped responding silently for ${phone}.`);
+      return { success: true, circuitBreaker: true, reason: ai.circuitBreakerReason, replySent: false };
+    }
+  }
+
   if (!ai || !ai.reply) {
     publishProgress('failed', {
       agentName: matchedAgent.name,
       message: 'A IA nao conseguiu gerar uma resposta. Verifique o provedor e o agente.',
     });
+
+    // Mark conversation for human intervention
+    const cbTags = ['intervencao_humana', 'precisa_humano'];
+    const mergedTags = Array.from(new Set([...tags, ...cbTags]));
+    try {
+      await conversationRepository.updateConversationAIEnabled(phone, false, companyId);
+      await conversationRepository.updateConversationState(conversationId, {
+        aiEnabled: false,
+        tags: mergedTags,
+        status: 'pending_human',
+      });
+      const io = store?.io || global.io;
+      io?.emit('conversation:update', {
+        id: conversationId,
+        aiEnabled: false,
+        phone,
+        tags: mergedTags,
+        status: 'pending_human',
+        needsHuman: true,
+        sessionId,
+      });
+      io?.emit('conversation_updated', {
+        id: conversationId,
+        aiEnabled: false,
+        phone,
+        tags: mergedTags,
+        status: 'pending_human',
+        needsHuman: true,
+      });
+    } catch (_) {}
+
     if (matchedAgent.escalationActive && matchedAgent.escalationTriggers.includes("IA sem resposta")) {
       const fallbackTrigger = "IA sem resposta";
       await logEscalation({
@@ -405,14 +502,6 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
         console.log('[AutomationEngine] Escalation alert blocked: destination outside automation scope or AI paused.');
       }
 
-      await conversationRepository.updateConversationAIEnabled(phone, false, companyId);
-      const io = store?.io || global.io;
-      io?.emit('conversation:update', {
-        id: conversationId,
-        aiEnabled: false,
-        phone,
-        sessionId
-      });
       console.log(`[AutomationEngine] Escalated to human due to "IA sem resposta". AI disabled.`);
     }
     return { success: false, reason: 'ai_empty_reply' };

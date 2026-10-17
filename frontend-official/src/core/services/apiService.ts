@@ -111,6 +111,8 @@ export interface Conversation {
   isBlocked?: boolean;
   assigned_to?: string;
   lid?: string;
+  needsHuman?: boolean;
+  needs_human?: boolean;
 }
 
 export interface ChatMessage {

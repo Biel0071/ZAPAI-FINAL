@@ -20,6 +20,7 @@ import {
   WifiHigh,
   File as FileIcon,
   Warning,
+  WarningCircle,
   Info,
   UserSwitch,
   UserCircle,
@@ -591,6 +592,34 @@ export function ActiveChatPane({
     );
   }, [messageInput, quickReplies, slashMenuDismissed]);
 
+  const isInterventionNeeded = useMemo(() => {
+    if (!selectedConversation) return false;
+    const tags = Array.isArray(selectedConversation.tags) ? selectedConversation.tags : [];
+    const status = String(selectedConversation.status || "").toLowerCase();
+    const funnelStage = String((selectedConversation as any).funnel_stage || (selectedConversation as any).funnelStage || "").toLowerCase();
+    return (
+      tags.some((t) => {
+        const lower = String(t).toLowerCase();
+        return (
+          lower.includes("intervencao") ||
+          lower.includes("intervenção") ||
+          lower.includes("precisa_humano") ||
+          lower.includes("delirio") ||
+          lower.includes("delírio") ||
+          lower.includes("atencao_humana") ||
+          lower.includes("atenção_humana") ||
+          lower.includes("needs_human")
+        );
+      }) ||
+      status === "intervencao_humana" ||
+      status === "pending_human" ||
+      status === "needs_human" ||
+      funnelStage === "intervencao_humana" ||
+      funnelStage === "precisa_humano" ||
+      Boolean((selectedConversation as any).needsHuman || (selectedConversation as any).needs_human)
+    );
+  }, [selectedConversation]);
+
   useEffect(() => {
     setActiveSlashIndex(0);
   }, [slashSuggestions.length]);
@@ -601,6 +630,14 @@ export function ActiveChatPane({
       {selectedConversation ? (
         <div className="flex flex-1 flex-col h-full min-w-0 overflow-hidden">
           <ChatHeaderBar
+            statusBadges={
+              isInterventionNeeded ? (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white border border-red-400 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.7)] shrink-0">
+                  <WarningCircle weight="fill" className="h-3 w-3 text-white" />
+                  ATENÇÃO HUMANA
+                </span>
+              ) : null
+            }
             contactName={(() => {
               const rawName = (selectedConversation.contactName || "").trim();
               const rawPhone = (selectedConversation.phone || "").trim();
@@ -836,6 +873,29 @@ export function ActiveChatPane({
             }
 
           />
+
+          {isInterventionNeeded && (
+            <div className="bg-red-500/15 border-b border-red-500/30 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 text-xs text-red-100 backdrop-blur-sm animate-pulse">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-90" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600 shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
+                </span>
+                <span className="truncate text-xs">
+                  <strong className="text-red-200">Intervenção Humana Necessária:</strong> A IA pausou as respostas para evitar informações incorretas ou repetições. Assuma o atendimento pelo chat abaixo.
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-[10px] font-semibold border-red-400/50 hover:bg-red-500/20 text-white shrink-0"
+                onClick={() => void handleSetConversationAiEnabled(true)}
+              >
+                Reativar IA
+              </Button>
+            </div>
+          )}
 
           {conversationSearchOpen && (
             <div className="flex items-center gap-2 border-b border-border bg-card/70 px-3 py-2">

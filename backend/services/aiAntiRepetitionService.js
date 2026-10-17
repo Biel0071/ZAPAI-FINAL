@@ -51,7 +51,7 @@ const VARIED_CTAS = {
  * Extracts the last N bot messages from history or message array.
  * Handles diverse formats: [{ role, content }], [{ from, text }], [{ from_me, text }], [{ fromMe, text }].
  */
-function extractRecentBotReplies(history = [], limit = 3) {
+function extractRecentBotReplies(history = [], limit = 15) {
   if (!Array.isArray(history) || history.length === 0) return [];
 
   const botReplies = [];
@@ -79,8 +79,10 @@ function extractRecentBotReplies(history = [], limit = 3) {
     if (isBot) {
       const text = String(msg.content || msg.text || '').trim();
       if (text && !text.startsWith(':::analysis') && !text.startsWith('[Áudio Transcrito]')) {
+        const sents = text.split(/(?<=[.!?])\s+/).map(s => s.trim().toLowerCase()).filter(s => s.length > 15);
         botReplies.unshift({
           text,
+          sentences: sents,
           greeting: detectGreeting(text),
           cta: extractClosingCta(text),
           timestamp: msg.timestamp || msg.createdAt || null
@@ -375,20 +377,22 @@ function sanitizeAndVaryBotReply(replyText = '', recentBotReplies = [], options 
     }
   }
 
-  // 3. Sentence-level deduplication: prevent repeating identical substantive sentences from last 3 bot replies
+  // 3. Sentence-level deduplication: prevent repeating identical or paraphrased sentences from bot replies
   if (hasPastBotMessages) {
     const pastSentences = new Set();
     recentBotReplies.forEach(r => {
-      const sents = (r.text || '').split(/(?<=[.!?])\s+/).map(s => s.trim().toLowerCase()).filter(s => s.length > 25);
+      const sents = (r.text || '').split(/(?<=[.!?])\s+/).map(s => s.trim().toLowerCase()).filter(s => s.length > 20);
       sents.forEach(s => pastSentences.add(s));
     });
 
-    if (pastSentences.size > 0) {
+    if (pastSentences.size > 0 || recentBotReplies.length > 0) {
       const currentSentences = cleaned.split(/(?<=[.!?])\s+/).filter(Boolean);
       if (currentSentences.length > 1) {
         const filtered = currentSentences.filter(s => {
           const normS = s.trim().toLowerCase();
-          return !pastSentences.has(normS);
+          if (pastSentences.has(normS)) return false;
+          if (isSentenceRepeated(normS, recentBotReplies)) return false;
+          return true;
         });
         if (filtered.length >= 1) {
           cleaned = filtered.join(' ');
@@ -405,6 +409,369 @@ function sanitizeAndVaryBotReply(replyText = '', recentBotReplies = [], options 
   return cleaned.trim();
 }
 
+/**
+ * Normalizes text for similarity comparison (lowercase, accent-free, alphanumeric)
+ */
+function normalizeTextForComparison(text = '') {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Calculates word-level Jaccard similarity between two texts
+ */
+function calculateTextSimilarity(textA = '', textB = '') {
+  const normA = normalizeTextForComparison(textA);
+  const normB = normalizeTextForComparison(textB);
+  if (!normA || !normB) return 0;
+  if (normA === normB) return 1.0;
+
+  const wordsA = new Set(normA.split(' ').filter(w => w.length > 2));
+  const wordsB = new Set(normB.split(' ').filter(w => w.length > 2));
+  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+
+  let intersection = 0;
+  for (const w of wordsA) {
+    if (wordsB.has(w)) intersection++;
+  }
+  const union = new Set([...wordsA, ...wordsB]).size;
+  const jaccard = union > 0 ? (intersection / union) : 0;
+
+  // Substring containment boost if length is similar
+  if ((normA.includes(normB) || normB.includes(normA)) && (Math.min(normA.length, normB.length) / Math.max(normA.length, normB.length) > 0.75)) {
+    return Math.max(jaccard, 0.85);
+  }
+
+  return jaccard;
+}
+
+/**
+ * Checks if a candidate sentence is substantially similar to any sentence previously sent by the bot
+ */
+function isSentenceRepeated(sentence = '', recentBotReplies = [], threshold = 0.70) {
+  if (!sentence || typeof sentence !== 'string') return false;
+  const normS = normalizeTextForComparison(sentence);
+  if (normS.length < 15) return false;
+
+  for (const botMsg of recentBotReplies) {
+    const pastText = botMsg.text || '';
+    const normPastText = normalizeTextForComparison(pastText);
+    if (normPastText.includes(normS) && normS.length > 25) return true;
+
+    const sents = botMsg.sentences || (pastText.split(/(?<=[.!?])\s+/).map(s => s.trim().toLowerCase()).filter(Boolean));
+    for (const pastSentence of sents) {
+      const normPastSent = normalizeTextForComparison(pastSentence);
+      if (normPastSent === normS) return true;
+      if (calculateTextSimilarity(normS, normPastSent) >= threshold) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Detects if the candidate reply is caught in a repetitive loop or re-asking answered facts
+ */
+function detectRepetitionLoop({
+  candidateReply = '',
+  recentBotReplies = [],
+  customerMessage = '',
+  knownPreferences = {},
+} = {}) {
+  if (!candidateReply || typeof candidateReply !== 'string') {
+    return { loopDetected: false };
+  }
+
+  const cleanCandidate = candidateReply.trim();
+  const hasPast = Array.isArray(recentBotReplies) && recentBotReplies.length > 0;
+  if (!hasPast) return { loopDetected: false };
+
+  // 1. Direct or Near-Identical Repetition of the Last Bot Message (>= 0.75 similarity)
+  const lastBotMsg = recentBotReplies[recentBotReplies.length - 1];
+  if (lastBotMsg && lastBotMsg.text) {
+    const sim = calculateTextSimilarity(cleanCandidate, lastBotMsg.text);
+    if (sim >= 0.75) {
+      return {
+        loopDetected: true,
+        reason: 'repetition_last_message',
+        similarity: sim,
+        detail: `Resposta tem similaridade de ${(sim * 100).toFixed(0)}% com o último envio do bot.`
+      };
+    }
+  }
+
+  // 2. Exact match with ANY bot reply in the recent window
+  const normCandidate = normalizeTextForComparison(cleanCandidate);
+  for (const prev of recentBotReplies) {
+    if (prev.text) {
+      const normPrev = normalizeTextForComparison(prev.text);
+      if (normPrev === normCandidate && normCandidate.length > 25) {
+        return {
+          loopDetected: true,
+          reason: 'identical_message_loop',
+          detail: 'Mensagem idêntica a um envio anterior do bot.'
+        };
+      }
+      const sim = calculateTextSimilarity(cleanCandidate, prev.text);
+      if (sim >= 0.85 && cleanCandidate.length > 30) {
+        return {
+          loopDetected: true,
+          reason: 'repetitive_echo_loop',
+          detail: `Mensagem tem similaridade de ${(sim * 100).toFixed(0)}% com mensagem anterior.`
+        };
+      }
+    }
+  }
+
+  // 3. Repeated CTA across turns without progression or re-asking already answered fact
+  const currentCta = extractClosingCta(cleanCandidate);
+  if (currentCta && lastBotMsg && lastBotMsg.cta) {
+    if (areCtasSimilar(currentCta, lastBotMsg.cta)) {
+      const ctaIntent = getCtaIntent(currentCta);
+      if (
+        (ctaIntent === 'MEDIDAS_CAPACIDADE' && knownPreferences.capacity) ||
+        (ctaIntent === 'LOCALIZACAO_FRETE' && (knownPreferences.neighborhood || knownPreferences.city)) ||
+        (ctaIntent === 'PAGAMENTO' && knownPreferences.paymentPreference)
+      ) {
+        return {
+          loopDetected: true,
+          reason: 'repetition_reasking_known_fact',
+          detail: `Perguntando novamente sobre ${ctaIntent}, dado já informado pelo cliente.`
+        };
+      }
+    }
+  }
+
+  return { loopDetected: false };
+}
+
+const UNKNOWN_ANSWER_PATTERNS = [
+  /n[aã]o tenho (?:essa|esta|acesso a essa|informa[cç][aã]o sobre essa|certeza sobre essa) informa[cç][aã]o/i,
+  /n[aã]o sei (?:te |lhe )?informar/i,
+  /n[aã]o sei (?:te |lhe )?responder/i,
+  /n[aã]o consta no (?:nosso )?(?:cat[aá]logo|sistema|estoque)/i,
+  /infelizmente n[aã]o (?:trabalhamos|temos esse produto|temos essa informa[cç][aã]o|possuo|disponho)/i,
+  /n[aã]o trabalhamos com esse produto/i,
+  /n[aã]o temos esse produto/i,
+  /n[aã]o tenho como confirmar/i,
+  /n[aã]o possuo (?:essa|esta) informa[cç][aã]o/i,
+  /como (?:um )?modelo de linguagem/i,
+  /como (?:uma )?intelig[eê]ncia artificial/i,
+  /minha base de dados n[aã]o/i,
+  /sou apenas um (?:bot|atendente virtual|assistente virtual)/i,
+  /n[aã]o posso ajudar com isso/i,
+  /n[aã]o compreendi sua mensagem/i,
+  /desculpe(?:-me)?,? mas n[aã]o consigo entender/i,
+];
+
+const REPETITIVE_TOKEN_DELIRIUM = /(\b\w+\b)(?:\s+\1){3,}/i;
+
+const ABSURD_PROMISES_PATTERNS = [
+  /parcelam(?:os|ento) em (?:at[eé]\s+)?(?:2[4-9]|[3-9]\d)\s*x/i,
+  /frete gr[aá]tis para todo o (?:brasil|pa[ií]s)/i,
+  /(?:7[5-9]|[89]\d)%\s*de\s*desconto/i,
+];
+
+/**
+ * Detects if candidate reply represents a delirium, unknown catalog answer, or severe hallucination
+ */
+function detectDeliriumOrUnknownAnswer({
+  candidateReply = '',
+  customerMessage = '',
+  validationIssues = [],
+} = {}) {
+  if (!candidateReply || typeof candidateReply !== 'string') {
+    return { isDelirium: false, isUnknownAnswer: false, shouldHandoff: false };
+  }
+
+  const clean = candidateReply.trim();
+
+  // 1. Unknown answer patterns
+  for (const pattern of UNKNOWN_ANSWER_PATTERNS) {
+    if (pattern.test(clean)) {
+      return {
+        isDelirium: false,
+        isUnknownAnswer: true,
+        shouldHandoff: true,
+        reason: 'unknown_answer',
+        detail: `IA detectou ausência de resposta oficial no catálogo: "${clean.substring(0, 60)}..."`,
+      };
+    }
+  }
+
+  // 2. Token repetition / delirium loop (e.g. "caixa caixa caixa caixa")
+  if (REPETITIVE_TOKEN_DELIRIUM.test(clean)) {
+    return {
+      isDelirium: true,
+      isUnknownAnswer: false,
+      shouldHandoff: true,
+      reason: 'repetitive_token_delirium',
+      detail: 'IA entrou em loop de repetição de palavras (delírio).',
+    };
+  }
+
+  // 3. Official knowledge rule violations (severe price discrepancies)
+  if (Array.isArray(validationIssues) && validationIssues.length > 0) {
+    const hasMajorIssue = validationIssues.some(iss => {
+      if (iss.mentionedPrice && iss.officialPrice) {
+        const diff = Math.abs(iss.mentionedPrice - iss.officialPrice);
+        return diff > 100;
+      }
+      return true;
+    });
+    if (hasMajorIssue) {
+      return {
+        isDelirium: true,
+        isUnknownAnswer: false,
+        shouldHandoff: true,
+        reason: 'official_knowledge_conflict',
+        detail: `Divergência severa com regras oficiais: ${validationIssues[0]?.message || 'preço inventado'}`,
+      };
+    }
+  }
+
+  // 4. Absurd / hallucinated promises
+  for (const pattern of ABSURD_PROMISES_PATTERNS) {
+    if (pattern.test(clean)) {
+      return {
+        isDelirium: true,
+        isUnknownAnswer: false,
+        shouldHandoff: true,
+        reason: 'hallucinated_policy',
+        detail: 'IA inventou condição comercial inexistente (delírio).',
+      };
+    }
+  }
+
+  // 5. Incoherent / code snippet / leaked JSON
+  if (
+    (clean.startsWith('{') && clean.endsWith('}') && clean.includes('"')) ||
+    clean.startsWith('```') ||
+    clean.includes(':::analysis')
+  ) {
+    return {
+      isDelirium: true,
+      isUnknownAnswer: false,
+      shouldHandoff: true,
+      reason: 'raw_code_or_json_leak',
+      detail: 'IA vazou bloco de código ou JSON cru para o cliente.',
+    };
+  }
+
+  return { isDelirium: false, isUnknownAnswer: false, shouldHandoff: false };
+}
+
+const GRACEFUL_HANDOFF_MESSAGE = 'Vou confirmar esse detalhe com a nossa equipe aqui no balcão e um atendente já te responde por aqui! 😊';
+const CIRCUIT_BREAKER_TAGS = ['intervencao_humana', 'precisa_humano', 'delirio_evitado'];
+
+/**
+ * Full master evaluation of candidate reply:
+ * Delirium check -> Repetition Loop check -> Sanitize & Vary -> Circuit Breaker trip if needed
+ */
+function evaluateCandidateReply({
+  candidateReply = '',
+  recentBotReplies = [],
+  customerMessage = '',
+  history = [],
+  knownPreferences = {},
+  validationIssues = [],
+} = {}) {
+  if (!candidateReply || typeof candidateReply !== 'string' || !candidateReply.trim()) {
+    const alreadyHandoffSent = recentBotReplies.some(r =>
+      r.text && (r.text.includes('confirmar esse detalhe com a nossa equipe') || r.text.includes('um atendente já te responde'))
+    );
+    return {
+      valid: false,
+      sanitizedReply: '',
+      circuitBreakerTriggered: true,
+      circuitBreakerReason: 'empty_reply',
+      handoffReply: alreadyHandoffSent ? null : GRACEFUL_HANDOFF_MESSAGE,
+      tagsToAdd: CIRCUIT_BREAKER_TAGS,
+      action: alreadyHandoffSent ? 'silent_deactivate' : 'handoff',
+    };
+  }
+
+  // 1. Delirium & Unknown Answer Check
+  const deliriumCheck = detectDeliriumOrUnknownAnswer({
+    candidateReply,
+    customerMessage,
+    validationIssues,
+  });
+
+  if (deliriumCheck.shouldHandoff) {
+    const alreadyHandoffSent = recentBotReplies.some(r =>
+      r.text && (r.text.includes('confirmar esse detalhe com a nossa equipe') || r.text.includes('um atendente já te responde'))
+    );
+    return {
+      valid: false,
+      sanitizedReply: '',
+      circuitBreakerTriggered: true,
+      circuitBreakerReason: deliriumCheck.reason,
+      handoffReply: alreadyHandoffSent ? null : GRACEFUL_HANDOFF_MESSAGE,
+      tagsToAdd: CIRCUIT_BREAKER_TAGS,
+      action: alreadyHandoffSent ? 'silent_deactivate' : 'handoff',
+    };
+  }
+
+  // 2. Repetition Loop Check
+  const loopCheck = detectRepetitionLoop({
+    candidateReply,
+    recentBotReplies,
+    customerMessage,
+    knownPreferences,
+  });
+
+  if (loopCheck.loopDetected) {
+    const alreadyHandoffSent = recentBotReplies.some(r =>
+      r.text && (r.text.includes('confirmar esse detalhe com a nossa equipe') || r.text.includes('um atendente já te responde'))
+    );
+    return {
+      valid: false,
+      sanitizedReply: '',
+      circuitBreakerTriggered: true,
+      circuitBreakerReason: loopCheck.reason,
+      handoffReply: alreadyHandoffSent ? null : GRACEFUL_HANDOFF_MESSAGE,
+      tagsToAdd: CIRCUIT_BREAKER_TAGS,
+      action: alreadyHandoffSent ? 'silent_deactivate' : 'handoff',
+    };
+  }
+
+  // 3. Normal Sanitize & Vary
+  let sanitized = sanitizeAndVaryBotReply(candidateReply, recentBotReplies, { knownPreferences });
+
+  // If sanitized reply became empty or stripped down to nothing (< 8 chars)
+  if (!sanitized || sanitized.length < 8) {
+    const alreadyHandoffSent = recentBotReplies.some(r =>
+      r.text && (r.text.includes('confirmar esse detalhe com a nossa equipe') || r.text.includes('um atendente já te responde'))
+    );
+    return {
+      valid: false,
+      sanitizedReply: '',
+      circuitBreakerTriggered: true,
+      circuitBreakerReason: 'repetition_exhaustion',
+      handoffReply: alreadyHandoffSent ? null : GRACEFUL_HANDOFF_MESSAGE,
+      tagsToAdd: CIRCUIT_BREAKER_TAGS,
+      action: alreadyHandoffSent ? 'silent_deactivate' : 'handoff',
+    };
+  }
+
+  return {
+    valid: true,
+    sanitizedReply: sanitized,
+    circuitBreakerTriggered: false,
+    circuitBreakerReason: null,
+    handoffReply: null,
+    tagsToAdd: [],
+    action: 'send',
+  };
+}
+
 module.exports = {
   extractRecentBotReplies,
   detectGreeting,
@@ -415,5 +782,13 @@ module.exports = {
   stripGreetingsAndIntroductions,
   buildAntiRepetitionPromptBlock,
   sanitizeAndVaryBotReply,
+  normalizeTextForComparison,
+  calculateTextSimilarity,
+  isSentenceRepeated,
+  detectRepetitionLoop,
+  detectDeliriumOrUnknownAnswer,
+  evaluateCandidateReply,
+  GRACEFUL_HANDOFF_MESSAGE,
+  CIRCUIT_BREAKER_TAGS,
   VARIED_CTAS,
 };

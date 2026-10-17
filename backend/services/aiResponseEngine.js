@@ -76,7 +76,7 @@ async function generateAIResponse({
       companyId: conversation?.company_id || store?.activeCompanyId || 'default'
     });
 
-    if (result && result.response) {
+    if (result && (result.response || result.circuitBreakerTriggered)) {
       return result;
     }
   } catch (err) {

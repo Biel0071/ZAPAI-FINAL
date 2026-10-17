@@ -450,20 +450,50 @@ class EvolutionaryAgentOrchestrator {
       }
     }
 
-    if (responseText) {
-      try {
-        responseText = aiAntiRepetitionService.sanitizeAndVaryBotReply(responseText, recentBotReplies);
-      } catch (_) {}
-      try {
-        const { enforceResponseWordLimit } = require('../../../services/ai.service');
-        responseText = enforceResponseWordLimit(responseText, agent);
-      } catch (_) {}
-    }
-
     // Step 5: Rule Validation against Layer 1 (Ensure no hallucinated prices)
-    const validation = await this.knowledgeEngine.validateAgainstOfficialRules(cleanCompany, responseText);
-    if (!validation.isValid) {
-      console.warn('[Orchestrator] Rule conflict detected in response:', validation.issues);
+    let validation = { isValid: true, valid: true, issues: [] };
+    try {
+      validation = await this.knowledgeEngine.validateAgainstOfficialRules(cleanCompany, responseText || '');
+      if (!validation.isValid && !validation.valid) {
+        console.warn('[Orchestrator] Rule conflict detected in response:', validation.issues);
+      }
+    } catch (_) {}
+
+    // Step 5.1: Strict Anti-Repetition, Loop & Delirium Evaluation (Circuit Breaker)
+    let circuitBreakerTriggered = false;
+    let circuitBreakerReason = null;
+    let needsHuman = false;
+    let tagsToAdd = [];
+
+    if (responseText) {
+      const evalResult = aiAntiRepetitionService.evaluateCandidateReply({
+        candidateReply: responseText,
+        recentBotReplies,
+        customerMessage,
+        history: conversationHistory,
+        knownPreferences: {
+          product: evoData.customerContext?.product || evoData.customerContext?.activeProduct,
+          capacity: evoData.customerContext?.capacity,
+          neighborhood: evoData.customerContext?.neighborhood || evoData.customerContext?.deliveryCity,
+          paymentPreference: evoData.customerContext?.paymentPreference,
+        },
+        validationIssues: validation.issues || [],
+      });
+
+      if (evalResult.circuitBreakerTriggered) {
+        console.log(`[Orchestrator] Circuit Breaker triggered for conversation ${convId}: ${evalResult.circuitBreakerReason}`);
+        circuitBreakerTriggered = true;
+        circuitBreakerReason = evalResult.circuitBreakerReason;
+        needsHuman = true;
+        tagsToAdd = evalResult.tagsToAdd || ['intervencao_humana', 'precisa_humano', 'delirio_evitado'];
+        responseText = evalResult.handoffReply;
+      } else {
+        responseText = evalResult.sanitizedReply;
+        try {
+          const { enforceResponseWordLimit } = require('../../../services/ai.service');
+          responseText = enforceResponseWordLimit(responseText, agent);
+        } catch (_) {}
+      }
     }
 
     // Step 6: Learn into Active Agent Memory Graph
@@ -499,6 +529,11 @@ class EvolutionaryAgentOrchestrator {
 
     return {
       response: responseText,
+      reply: responseText,
+      circuitBreakerTriggered,
+      circuitBreakerReason,
+      needsHuman,
+      tagsToAdd,
       provider: providerUsed,
       model: modelUsed,
       responseTimeMs,

@@ -14,6 +14,7 @@ import {
   VideoCamera,
   Microphone,
   Sparkle,
+  WarningCircle,
 } from "@phosphor-icons/react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -70,25 +71,26 @@ export interface ConversationRowData {
 const BUSINESS_TAG_OPTIONS = ["Novo Lead", "Cliente", "Orçamento", "Venda", "Suporte", "VIP", "Urgente"] as const;
 
 export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
-  const { index, style, ...data } = props;
+  const { index, style } = props;
+  const data: ConversationRowData = ((props as any).data || props) as ConversationRowData;
   const {
-    conversations,
-    conversationControls,
-    globalAiEnabled,
-    selectedId,
-    onSelect,
+    conversations = [],
+    conversationControls = {},
+    globalAiEnabled = true,
+    selectedId = null,
+    onSelect = () => {},
     typingByConversationId,
     draftsByConversationId,
-    pinnedChatIds,
-    onTogglePin,
-    archivedChatIds,
-    onToggleArchive,
-    onDeleteConversation,
-    onSetConversationAiEnabled,
-    isMultiSelectMode,
-    selectedChatIds,
-    onToggleSelect,
-    onUpdateTags,
+    pinnedChatIds = [],
+    onTogglePin = () => {},
+    archivedChatIds = [],
+    onToggleArchive = () => {},
+    onDeleteConversation = () => {},
+    onSetConversationAiEnabled = () => {},
+    isMultiSelectMode = false,
+    selectedChatIds = [],
+    onToggleSelect = () => {},
+    onUpdateTags = () => {},
   } = data;
 
   const conversation = conversations[index];
@@ -205,6 +207,38 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
     const leadTemp = String((conversation as any).lead_temperature || (conversation as any).leadTemperature || "").toLowerCase();
     const hasSheet = Boolean((conversation as any).hasSheet || (conversation as any).orderSheet);
 
+    // 0. PISCANTE VERMELHO: Intervenção Humana Necessária / Delírio ou Repetição Evitado / Precisa de Atendente
+    const isIntervencao =
+      tags.some((t) => {
+        const lower = String(t).toLowerCase();
+        return (
+          lower.includes("intervencao") ||
+          lower.includes("intervenção") ||
+          lower.includes("precisa_humano") ||
+          lower.includes("delirio") ||
+          lower.includes("delírio") ||
+          lower.includes("atencao_humana") ||
+          lower.includes("atenção_humana") ||
+          lower.includes("needs_human")
+        );
+      }) ||
+      status === "intervencao_humana" ||
+      status === "pending_human" ||
+      status === "needs_human" ||
+      funnelStage === "intervencao_humana" ||
+      funnelStage === "precisa_humano" ||
+      Boolean((conversation as any).needsHuman || (conversation as any).needs_human);
+
+    if (isIntervencao) {
+      return {
+        state: "intervencao" as const,
+        label: "Intervenção",
+        tooltip: "Intervenção humana necessária: IA pausada automaticamente para evitar repetição/delírio. Atendente humano deve responder!",
+        dotColor: "bg-red-600",
+        ping: true,
+      };
+    }
+
     // 1. AZUL PISCANDO: Atendimento finalizado / Ficha gerada aguardando PIX
     const isFinalizado =
       tags.some((t) => {
@@ -232,14 +266,13 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
       };
     }
 
-    // 2. VERMELHO: Pausado / Atendimento Humano
+    // 2. VERMELHO: Pausado Normal (Sem Intervenção Crítica)
     const isPaused =
       humanActive ||
       !globalAiEnabled ||
       !conversationAiAllowed ||
       status === "paused" ||
-      status === "pending_human" ||
-      tags.some((t) => String(t).toLowerCase().includes("pausado") || String(t).toLowerCase().includes("humano"));
+      tags.some((t) => String(t).toLowerCase().includes("pausado"));
 
     if (isPaused) {
       return {
@@ -327,6 +360,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
           "inbox-message w-full text-left rounded-lg flex items-center gap-3 px-3 py-2 group/row transition-all duration-200",
           "h-full min-h-0",
           !isMultiSelectMode && normalizeId(selectedId) === normalizeId(conversation.id) && "inbox-message-active",
+          leadStatus.state === "intervencao" && "border-2 border-red-500/80 bg-red-500/[0.12] shadow-[0_0_18px_rgba(239,68,68,0.4)] animate-pulse",
           leadStatus.state === "finalizado" && "border border-blue-500/50 bg-blue-500/[0.06] shadow-[0_0_14px_rgba(59,130,246,0.25)]"
         )}
       >
@@ -357,9 +391,14 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
             </AvatarFallback>
           </Avatar>
 
-          {/* Indicador Visual: Verde (Chegou), Amarelo (Rodando), Vermelho (Pausado), Azul Piscando (Finalizado / Aguarda PIX) */}
+          {/* Indicador Visual: Vermelho Piscando (Intervenção), Azul Piscando (Finalizado / Aguarda PIX), Verde (Chegou), Amarelo (Rodando), Vermelho (Pausado) */}
           <div className="absolute -bottom-0.5 -right-0.5 z-10 flex items-center justify-center pointer-events-none">
-            {leadStatus.ping ? (
+            {leadStatus.state === "intervencao" ? (
+              <span className="relative flex h-3.5 w-3.5" title={leadStatus.tooltip}>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-90" />
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-600 border-2 border-background shadow-[0_0_12px_rgba(239,68,68,1)] ring-2 ring-red-400/80 animate-pulse" />
+              </span>
+            ) : leadStatus.ping ? (
               <span className="relative flex h-3.5 w-3.5" title={leadStatus.tooltip}>
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-80" />
                 <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-600 border-2 border-background shadow-[0_0_10px_rgba(37,99,235,0.9)]" />
@@ -383,6 +422,15 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
           <div className="flex items-center justify-between gap-1.5">
             <h4 className="text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0 flex-1">
               <span className="truncate min-w-0">{cleanDisplayName}</span>
+              {leadStatus.state === "intervencao" && (
+                <span
+                  title={leadStatus.tooltip}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-600 text-white border border-red-400 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)] shrink-0"
+                >
+                  <WarningCircle weight="fill" className="h-2.5 w-2.5 text-white" />
+                  INTERVENÇÃO
+                </span>
+              )}
               {leadStatus.state === "finalizado" && (
                 <span
                   title={leadStatus.tooltip}

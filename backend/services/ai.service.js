@@ -1221,10 +1221,39 @@ async function processAI({ contact, history, message, store, agentName, companyI
     }
 
     // Customer facts are projected from persisted inbound messages, never generated replies.
+    let circuitBreakerTriggered = false;
+    let circuitBreakerReason = null;
+    let needsHuman = false;
+    let tagsToAdd = [];
+
     try {
-      replyClean = aiAntiRepetitionService.sanitizeAndVaryBotReply(replyClean, recentBotReplies);
-    } catch (_) {}
-    replyClean = enforceResponseWordLimit(replyClean, resolvedAgent);
+      const evalResult = aiAntiRepetitionService.evaluateCandidateReply({
+        candidateReply: replyClean,
+        recentBotReplies,
+        customerMessage: message,
+        history: slicedHistory,
+        knownPreferences: {
+          product: contact?.conversationMemory?.commercial?.activeProduct || contact?.leadAlgorithm?.primaryProductLabel,
+          capacity: contact?.conversationMemory?.commercial?.capacity,
+          neighborhood: contact?.neighborhood || contact?.conversationMemory?.commercial?.neighborhood,
+          paymentPreference: contact?.conversationMemory?.commercial?.paymentPreference,
+        },
+      });
+
+      if (evalResult.circuitBreakerTriggered) {
+        console.log(`[AI SERVICE] Circuit Breaker triggered for ${contact?.phone}: ${evalResult.circuitBreakerReason}`);
+        circuitBreakerTriggered = true;
+        circuitBreakerReason = evalResult.circuitBreakerReason;
+        needsHuman = true;
+        tagsToAdd = evalResult.tagsToAdd || ['intervencao_humana', 'precisa_humano', 'delirio_evitado'];
+        replyClean = evalResult.handoffReply;
+      } else {
+        replyClean = evalResult.sanitizedReply;
+        replyClean = enforceResponseWordLimit(replyClean, resolvedAgent);
+      }
+    } catch (_) {
+      replyClean = enforceResponseWordLimit(replyClean, resolvedAgent);
+    }
 
     await aiLogService.saveLogEntry(
       {
@@ -1284,6 +1313,11 @@ async function processAI({ contact, history, message, store, agentName, companyI
       intent: analysisResult?.intent || convMemory?.intent || 'information',
       leadScore: 0.5,
       reply: replyClean,
+      response: replyClean,
+      circuitBreakerTriggered,
+      circuitBreakerReason,
+      needsHuman,
+      tagsToAdd,
       analysis: analysisResult,
       quickReplyTriggered: analysisResult?.trigger_quick_reply || null,
       matchedCapability: bestQuickReplyMatch,
