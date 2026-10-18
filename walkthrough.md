@@ -114,3 +114,55 @@ cd frontend-official && npm run build
      - PM2 process `zapflow-api`: online.
      - Health check `curl -s http://localhost:4025/health`: HTTP 200 (`whatsapp: connected`, `db: true`, `aiEngine: healthy`).
 
+
+
+## 6. Real Evolutionary Scoring (XP) per Conversation & Per-Customer Algorithm (ALGO-01 to ALGO-05)
+
+### Architecture & Components
+1. **Database Persistence (`backend/migrations/044_create_conversation_evolution_scores.js`)**:
+   - Table `conversation_evolution_scores`: stores per-conversation audited scoring (`cadastral_xp`, `product_xp`, `sheet_xp`, `conversion_xp`, `quality_xp`, `total_xp`, `milestones`, `breakdown`, `algorithm_code`, `algorithm_name`, `funnel_stage`, `has_order_sheet`).
+   - Table `agent_metrics`: stores aggregated metrics per agent key.
+   - Indexes on `(company_id, conversation_id)`, `(company_id, algorithm_code)`, `(company_id, total_xp DESC)`.
+
+2. **Milestone Scoring Engine (`backend/services/conversationEvolutionService.js`)**:
+   - Pure milestone evaluation logic (`evaluateConversationMilestones`):
+     * **Cadastral Data Collection (+15 to +25 XP)**: +10 XP for confirmed name, +5 XP for phone, +10 XP for neighborhood/address.
+     * **Product Specification (+20 XP)**: Canonical product/capacity identification (e.g. "Caixa d'água 5.000 Litros").
+     * **Order Sheet / Quotation (+40 XP)**: Formal order sheet generated from catalog.
+     * **Funnel Conversion (+50 XP)**: Funnel stage advance to `negociacao`, `aguarda_pix`, `fechamento`, or `pago`.
+     * **Service Quality (+15 XP)**: Penalizes bot repetition loops and hallucinations; awards +15 XP for clean service.
+     * Total score strictly ranges between 0 and 150 XP per conversation with zero mock data.
+   - Idempotent persistence (`scoreConversationAndPersist`) with multi-tenant scoping.
+   - Automated background sweep in `attendantQualityDaemon.js` ensures every analyzed conversation is dynamically scored.
+
+3. **Per-Customer Algorithm Grounding & Anti-Delirium**:
+   - Algorithms `ALGO-01` (Lead Frio / Apresentação), `ALGO-02` (Consultivo Técnico), `ALGO-03` (Quebra de Objeção / Parcelamento), `ALGO-04` (Foco em Fechamento / Ficha), `ALGO-05` (Pós-Venda Protegido / Não Vender).
+   - Injected into prompt contexts across `backend/services/ai.service.js`, `backend/src/ai/evolutionary/customerMemoryEngine.js`, and `backend/services/conversationMemoryEngine.js`.
+   - Strict catalog grounding: prevents hallucinating fictional capacities, models, or unverified terms.
+
+4. **Frontend Interactive Inspection UI (`frontend-official/src/components/evolution/ConversationScoresSection.tsx`)**:
+   - Integrated as the 5th subtab in `frontend-official/src/pages/AI/EvolutionTab.tsx`.
+   - Displays KPI cards (Total XP Real, Conversas Auditadas, Média por Atendimento, Conversões).
+   - Filter chips for all algorithms (`Todos`, `ALGO-01` to `ALGO-05`) and real-time search.
+   - 5 interactive milestone badges with itemized score indicators (`+25 XP`, `+20 XP`, `+40 XP`, `+50 XP`, `+15 XP`).
+   - Audit modal with complete milestone breakdown and direct deep-link to the Inbox conversation (`/inbox?conversationId=...`).
+
+### Deep Verification Evidence
+1. **Targeted Backend Integration Tests**:
+   - `backend/tests/aiConversationEvolutionScoring.test.js`: **7/7 passed** (full 150 XP, ALGO-02, ALGO-03, ALGO-05, anti-repetition penalty, canonical capacity anti-delirium, persistence structure).
+   - `backend/tests/evolutionaryAgent.test.js`: **8/8 passed** (5-layer system tests, PostgreSQL integration, orchestrator prompt compilation).
+   - `backend/tests/evolutionaryRoutesTenant.test.js`: **4/4 passed** (tenant authentication isolation and error handling).
+
+2. **Frontend Test Suites**:
+   - `frontend-official/src/test/conversationScoresInteractivity.test.tsx`: **2/2 passed** (renders milestone badges and opens audit modal).
+   - `frontend-official/src/test/evolutionTabHonesty.test.tsx`: **8/8 passed** (honesty checks, renders zero states without fake mock data).
+
+3. **Production VPS Deployment & Live Verification (`root@209.50.241.22`)**:
+   - Git commits `03792064` + `f73bd841` (fixed SQL reference to invalid `c.name` and `c.phone` in conversation fetch) deployed and pulled.
+   - Migration `044` applied in PostgreSQL `zapai_crm`.
+   - OpenResty bundle `/assets/index-CxDu1f2o.js` synced to `/etc/icontainer/apps/openresty/openresty/www/zapai/` and responding HTTP 200.
+   - PM2 service `zapflow-api`: online and stable (PID 3653476).
+   - Live endpoint verification:
+     * `GET /health`: HTTP 200 (`status: online`, `db: true`, `whatsapp: connected`, `aiEngine: healthy`).
+     * `GET /api/ai/evolution/conversation-scores`: HTTP 200, returned **150 real conversations scored** with **13,530 total XP** and **90.2 average XP**.
+     * `GET /api/ai/evolution/agent-evolution-metrics`: HTTP 200, dynamic level calculation derived **Master Closer Nível 7** (34,710 total XP, 87% progress).
