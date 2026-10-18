@@ -149,20 +149,25 @@ cd frontend-official && npm run build
 
 ### Deep Verification Evidence
 1. **Targeted Backend Integration Tests**:
-   - `backend/tests/aiConversationEvolutionScoring.test.js`: **7/7 passed** (full 150 XP, ALGO-02, ALGO-03, ALGO-05, anti-repetition penalty, canonical capacity anti-delirium, persistence structure).
+   - `backend/tests/aiConversationEvolutionScoring.test.js`: **10/10 passed** (full 150 XP, ALGO-02, ALGO-03, ALGO-05, anti-repetition penalty, canonical capacity anti-delirium, persistence structure, null/corrupted safety, zero mock XP on unattended conversations, and realtime WebSocket event emission).
    - `backend/tests/evolutionaryAgent.test.js`: **8/8 passed** (5-layer system tests, PostgreSQL integration, orchestrator prompt compilation).
    - `backend/tests/evolutionaryRoutesTenant.test.js`: **4/4 passed** (tenant authentication isolation and error handling).
+   - `backend/tests/evolutionMetricsHonesty.test.js`: **3/3 passed** (honesty checks and continuity from observed experiences).
+   - `backend/tests/humanLearningMetrics.test.js`: **5/5 passed** (tenant-scoped zero and unmeasured quality).
 
 2. **Frontend Test Suites**:
    - `frontend-official/src/test/conversationScoresInteractivity.test.tsx`: **2/2 passed** (renders milestone badges and opens audit modal).
    - `frontend-official/src/test/evolutionTabHonesty.test.tsx`: **8/8 passed** (honesty checks, renders zero states without fake mock data).
+   - `frontend-official` build: `npm run build` completed in 14.54s without warnings or errors.
 
 3. **Production VPS Deployment & Live Verification (`root@209.50.241.22`)**:
-   - Git commits `03792064` + `f73bd841` (fixed SQL reference to invalid `c.name` and `c.phone` in conversation fetch) deployed and pulled.
+   - Git commits `03792064` + `f73bd841` + `48df4be2` (zero mock XP on unattended conversations, null safety, `ai_experience_events` persistence, and websocket realtime) deployed and pulled on VPS.
    - Migration `044` applied in PostgreSQL `zapai_crm`.
-   - OpenResty bundle `/assets/index-CxDu1f2o.js` synced to `/etc/icontainer/apps/openresty/openresty/www/zapai/` and responding HTTP 200.
-   - PM2 service `zapflow-api`: online and stable (PID 3653476).
+   - OpenResty bundle `/assets/EvolutionTab-CrSkFv-P.js` (98.2 kB) synced to `/etc/icontainer/apps/openresty/openresty/www/zapai/` and responding HTTP/2 200.
+   - PM2 service `zapflow-api`: online and stable (PID 3684456).
    - Live endpoint verification:
      * `GET /health`: HTTP 200 (`status: online`, `db: true`, `whatsapp: connected`, `aiEngine: healthy`).
      * `GET /api/ai/evolution/conversation-scores`: HTTP 200, returned **150 real conversations scored** with **13,530 total XP** and **90.2 average XP**.
-     * `GET /api/ai/evolution/agent-evolution-metrics`: HTTP 200, dynamic level calculation derived **Master Closer Nível 7** (34,710 total XP, 87% progress).
+     * `GET /api/ai/evolution/agent-evolution-metrics`: HTTP 200, dynamic level calculation derived **Master Closer Nível 7** (34,630 total XP, 87% progress).
+     * `GET /api/ai/evolution/conversation-scores/16861`: HTTP 200, top scored conversation (150 XP, ALGO-05) audited with all 5 milestones.
+
