@@ -1330,6 +1330,17 @@ async function processAI({ contact, history, message, store, agentName, companyI
       }
     }
 
+    // Real-time conversation scoring & milestone XP evolution
+    if (contact?.conversationId) {
+      try {
+        const convEvoService = require('./conversationEvolutionService');
+        convEvoService.scoreConversationAndPersist(contact.conversationId, resolvedCompanyId, {
+          agentKey: resolvedAgentKey,
+          io: store?.io || global.io,
+        }).catch(scoreErr => console.warn('[AI SERVICE] Real score evaluation error:', scoreErr.message));
+      } catch (_) {}
+    }
+
     const finalResult = {
       intent: analysisResult?.intent || convMemory?.intent || 'information',
       leadScore: 0.5,

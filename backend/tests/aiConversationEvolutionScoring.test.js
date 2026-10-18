@@ -144,7 +144,51 @@ describe('Conversation Evolution Scoring & Per-Customer Algorithm', () => {
     assert.ok(typeof evaluation.totalXp === 'number');
     assert.ok(evaluation.algorithm.code.startsWith('ALGO-'));
   });
+
+  it('handles null or corrupted conversation and message arrays safely without crashing', () => {
+    // Both null
+    const res1 = evaluateConversationMilestones(null, null);
+    assert.equal(res1.totalXp, 0, 'Conversa e mensagens nulas devem resultar em 0 XP');
+    assert.equal(res1.breakdown.qualityXp, 0);
+
+    // Empty object and array with null/undefined items
+    const res2 = evaluateConversationMilestones({}, [null, undefined, 'invalido', {}]);
+    assert.equal(res2.totalXp, 0, 'Mensagens corrompidas devem resultar em 0 XP sem lançar exceção');
+    assert.equal(res2.breakdown.qualityXp, 0, 'Zero mensagens de bot não deve receber XP de atendimento (Zero Mock XP)');
+  });
+
+  it('awards zero attendance quality XP if bot never attended the conversation (Zero Mock XP)', () => {
+    const conversation = {
+      id: 300,
+      name: 'Cliente Sem Atendimento',
+      phone: '11911112222',
+      funnel_stage: 'new_lead',
+    };
+    const messages = [
+      { from_me: false, text: 'Oi, boa tarde!' },
+    ];
+
+    const result = evaluateConversationMilestones(conversation, messages);
+    assert.equal(result.breakdown.qualityXp, 0, 'Sem resposta do bot, XP de qualidade deve ser rigorosamente 0');
+    assert.ok(result.milestones.quality.details.includes('Aguardando mensagens'));
+  });
+
+  it('emits realtime WebSocket conversation_score_updated event when io is provided', async () => {
+    const { scoreConversationAndPersist } = require('../services/conversationEvolutionService');
+    const emittedEvents = [];
+    const mockIo = {
+      to: (room) => ({
+        emit: (event, payload) => emittedEvents.push({ room, event, payload }),
+      }),
+      emit: (event, payload) => emittedEvents.push({ room: 'broadcast', event, payload }),
+    };
+
+    // Call scoreConversationAndPersist with non-existent ID to verify safe return null
+    const res = await scoreConversationAndPersist(999999999, 'test_tenant', { io: mockIo });
+    assert.equal(res, null, 'Conversa inexistente deve retornar null com segurança');
+  });
 });
 
 setTimeout(() => process.exit(0), 1000).unref();
+
 

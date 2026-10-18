@@ -319,7 +319,7 @@ class HumanAttendanceLearner {
           const convScoresRes2 = await this.pool.query(
             `SELECT COALESCE(SUM(total_xp), 0)::int AS real_conv_xp, COUNT(*)::int AS scored_count
              FROM conversation_evolution_scores
-             WHERE company_id = $1`,
+             WHERE (company_id = $1 OR ($1 = 'default' AND company_id IS NULL))`,
             [cleanCompany]
           );
           realConvXp = Number(convScoresRes2.rows[0]?.real_conv_xp || 0);
@@ -327,11 +327,27 @@ class HumanAttendanceLearner {
         } catch (_) {}
       }
 
+      // If no conversations have been scored yet for this tenant, sweep recent ones dynamically
+      if (realConvXp === 0 && scoredConversationsCount === 0) {
+        try {
+          const convEvoService = require('../../../services/conversationEvolutionService');
+          const sweep = await convEvoService.sweepRecentConversations({ companyId: cleanCompany, limit: 30 });
+          if (sweep && sweep.scoredCount > 0) {
+            const convScoresRes3 = await this.pool.query(
+              `SELECT COALESCE(SUM(total_xp), 0)::int AS real_conv_xp, COUNT(*)::int AS scored_count
+               FROM conversation_evolution_scores
+               WHERE (company_id = $1 OR ($1 = 'default' AND company_id IS NULL))`,
+              [cleanCompany]
+            );
+            realConvXp = Number(convScoresRes3.rows[0]?.real_conv_xp || 0);
+            scoredConversationsCount = Number(convScoresRes3.rows[0]?.scored_count || 0);
+          }
+        } catch (_) {}
+      }
+
       const samplesXp = humanSamples * 20;
       const playbooksXp = activePlaybooks * 50;
-      const totalXp = realConvXp > 0
-        ? (realConvXp + samplesXp + playbooksXp)
-        : (Math.min(12000, Math.round(totalHumanMessages * 2)) + samplesXp + playbooksXp);
+      const totalXp = realConvXp + samplesXp + playbooksXp;
 
       // 5. Tier System (Nível 1 a 5+) with dynamically scaling targets
       const TIERS = [

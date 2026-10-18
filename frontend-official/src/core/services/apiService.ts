@@ -1878,6 +1878,26 @@ export const apiService = {
       body: { limit, agentKey },
     }),
 
+  getAgentEvolutionMetrics: (agentKey: string = "camila") =>
+    request<{
+      success: boolean;
+      data: {
+        agentLevel: any;
+        summary: {
+          totalConversations: number;
+          totalEarnedXp: number;
+          averageScore: number;
+          totalConversions: number;
+          totalSheets: number;
+          algorithmDistribution: Array<{ algorithm_code: string; count: number; total_xp: number }>;
+        };
+        recentScores: any[];
+      };
+    }>({
+      endpoint: `/ai/evolution/agent-evolution-metrics?agentKey=${encodeURIComponent(agentKey)}`,
+      method: "GET",
+    }),
+
   detectAgentGaps: (agentKey: string) =>
     request<{ success: boolean; createdCount: number }>({
       endpoint: `/ai/agent-detect-gaps/${encodeURIComponent(agentKey)}`,

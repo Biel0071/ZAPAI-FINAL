@@ -347,7 +347,7 @@ function detectPreferredPayment(rawText = '') {
 }
 
 function isClientMessage(m) {
-  if (!m || typeof m !== 'object') return true;
+  if (!m || typeof m !== 'object') return false;
   if (m.fromMe === true || m.from_me === true) return false;
   const sender = String(m.sender || m.from || m.role || '').toLowerCase();
   if (['agent', 'bot', 'system', 'assistant', 'operator'].includes(sender)) return false;

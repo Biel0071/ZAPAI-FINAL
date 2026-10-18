@@ -89,15 +89,14 @@ async function ensureTables() {
   }
 }
 
-/**
- * Pure evaluation function for a conversation and its messages
- */
 function evaluateConversationMilestones(conversation = {}, messages = [], options = {}) {
-  const convTags = Array.isArray(conversation.tags) ? conversation.tags : [];
-  const funnelStage = String(conversation.funnel_stage || conversation.funnelStage || '').toLowerCase();
-  const rawName = String(conversation.name || conversation.lead_name || '').trim();
-  const rawPhone = String(conversation.phone || conversation.remote_jid || '').trim();
-  const allTexts = messages.map(m => String(m.text || m.content || '')).join(' ');
+  const conv = conversation && typeof conversation === 'object' ? conversation : {};
+  const convTags = Array.isArray(conv.tags) ? conv.tags : [];
+  const funnelStage = String(conv.funnel_stage || conv.funnelStage || '').toLowerCase();
+  const rawName = String(conv.name || conv.lead_name || '').trim();
+  const rawPhone = String(conv.phone || conv.remote_jid || '').trim();
+  const safeMessages = Array.isArray(messages) ? messages.filter(m => m && typeof m === 'object') : [];
+  const allTexts = safeMessages.map(m => String(m.text || m.content || '')).join(' ');
   const lowerTexts = allTexts.toLowerCase();
 
   // 1. MILESTONE: Coleta de Dados Cadastrais (+15 a +25 XP)
@@ -136,7 +135,7 @@ function evaluateConversationMilestones(conversation = {}, messages = [], option
       addressConfirmed = true;
       cadastralDetails.push(`Bairro/Endereço: ${b}`);
     }
-  } else if (conversation.delivery_neighborhood || conversation.delivery_address) {
+  } else if (conv.delivery_neighborhood || conv.delivery_address) {
     addressConfirmed = true;
     cadastralDetails.push(`Endereço registrado na ficha`);
   }
@@ -195,8 +194,8 @@ function evaluateConversationMilestones(conversation = {}, messages = [], option
     options.hasOrderSheet ||
     convTags.includes('ficha_gerada') ||
     convTags.includes('orcamento_gerado') ||
-    conversation.has_order_sheet ||
-    conversation.sheet_id ||
+    conv.has_order_sheet ||
+    conv.sheet_id ||
     /ficha de pedido|orçamento oficial|pedido nº|total do pedido|resumo do pedido/i.test(allTexts)
   );
 
@@ -216,7 +215,7 @@ function evaluateConversationMilestones(conversation = {}, messages = [], option
     convTags.includes('pedido_confirmado') ||
     convTags.includes('comprou') ||
     convTags.includes('fechado') ||
-    conversation.status === 'aguarda_pix' ||
+    conv.status === 'aguarda_pix' ||
     /(?:chave pix|manda o pix|comprovante|pedido fechado|confirmado o agendamento|pode agendar)/i.test(allTexts)
   );
 
@@ -229,7 +228,7 @@ function evaluateConversationMilestones(conversation = {}, messages = [], option
   // Zero repetições e zero delírios/alucinações na conversa
   let qualityXp = 0;
   let qualityDetails = [];
-  const botMessages = messages.filter(m => m.from_me === true || m.fromMe === true);
+  const botMessages = safeMessages.filter(m => m.from_me === true || m.fromMe === true);
   let hasRepetition = false;
   let hasHallucination = false;
 
@@ -251,28 +250,29 @@ function evaluateConversationMilestones(conversation = {}, messages = [], option
     hasHallucination = true;
   }
 
-  if (!hasRepetition && !hasHallucination && botMessages.length > 0) {
-    qualityXp = 15;
-    qualityDetails.push('Zero repetições em loop e zero delírios/alucinações detectados');
+  if (botMessages.length === 0) {
+    qualityXp = 0;
+    qualityDetails.push('Aguardando mensagens de atendimento do assistente');
   } else if (hasRepetition) {
+    qualityXp = 0;
     qualityDetails.push('Penalidade de qualidade: repetição de mensagens detectada');
   } else if (hasHallucination) {
+    qualityXp = 0;
     qualityDetails.push('Penalidade de qualidade: inconsistência com o catálogo detectada');
   } else {
-    // If no bot messages yet, neutral pass
     qualityXp = 15;
-    qualityDetails.push('Conformidade padrão mantida');
+    qualityDetails.push('Zero repetições em loop e zero delírios/alucinações detectados');
   }
 
   const totalXp = cadastralXp + productXp + sheetXp + conversionXp + qualityXp;
 
   // 6. PER-CUSTOMER CONVERSATION ALGORITHM
-  const lastClientMsg = messages.slice().reverse().find(m => !m.from_me && !m.fromMe);
-  const clientText = String(lastClientMsg?.text || lastClientMsg?.content || conversation.last_message || '');
-  const leadAlgorithm = buildLeadAlgorithm(clientText, messages, conversation);
+  const lastClientMsg = safeMessages.slice().reverse().find(m => !m.from_me && !m.fromMe);
+  const clientText = String(lastClientMsg?.text || lastClientMsg?.content || conv.last_message || '');
+  const leadAlgorithm = buildLeadAlgorithm(clientText, safeMessages, conv);
 
   return {
-    conversationId: conversation.id,
+    conversationId: conv.id || null,
     contactName: validName || rawName || 'Cliente',
     contactPhone: rawPhone,
     algorithm: {
@@ -354,7 +354,7 @@ async function scoreConversationAndPersist(conversationId, companyId = 'default'
               COALESCE(l.phone, c.remote_jid, '') as phone
        FROM conversations c
        LEFT JOIN leads l ON c.lead_id = l.id
-       WHERE c.id = $1 AND c.company_id = $2
+       WHERE c.id = $1 AND (c.company_id = $2 OR ($2 = 'default' AND c.company_id IS NULL))
        LIMIT 1`,
       [numId, cleanCompany]
     );
@@ -366,10 +366,10 @@ async function scoreConversationAndPersist(conversationId, companyId = 'default'
     const msgRes = await query(
       `SELECT id, conversation_id, text, content, from_me, sender, created_at
        FROM messages
-       WHERE conversation_id = $1
+       WHERE conversation_id = $1 AND (company_id = $2 OR ($2 = 'default' AND company_id IS NULL))
        ORDER BY created_at ASC
        LIMIT 50`,
-      [numId]
+      [numId, cleanCompany]
     );
     const messages = msgRes.rows;
 
@@ -378,7 +378,7 @@ async function scoreConversationAndPersist(conversationId, companyId = 'default'
     try {
       const sheetRes = await query(
         `SELECT id, total_price, status FROM conversation_sheets
-         WHERE conversation_id = $1 AND company_id = $2
+         WHERE conversation_id = $1 AND (company_id = $2 OR ($2 = 'default' AND company_id IS NULL))
          LIMIT 1`,
         [numId, cleanCompany]
       );
@@ -461,8 +461,89 @@ async function scoreConversationAndPersist(conversationId, companyId = 'default'
       } catch (_) {}
     }
 
+    // 6b. Persist or update in ai_experience_events (Layer 4 Experience Tracker)
+    try {
+      const lastClientMsg = messages.slice().reverse().find(m => m && !m.from_me && !m.fromMe);
+      const lastBotMsg = messages.slice().reverse().find(m => m && (m.from_me || m.fromMe));
+      const customerUtterance = String(lastClientMsg?.text || lastClientMsg?.content || conv.last_message || '');
+      const aiReply = String(lastBotMsg?.text || lastBotMsg?.content || '');
+
+      const expRes = await query(
+        `SELECT id FROM ai_experience_events WHERE conversation_id = $1 AND company_id = $2 ORDER BY id DESC LIMIT 1`,
+        [String(numId), cleanCompany]
+      );
+
+      if (expRes.rows.length > 0) {
+        await query(
+          `UPDATE ai_experience_events
+           SET strategy_applied = $1,
+               feedback_rating = $2,
+               metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb
+           WHERE id = $4`,
+          [
+            evaluation.algorithm.code,
+            evaluation.totalXp >= 100 ? 5 : (evaluation.totalXp >= 40 ? 4 : 3),
+            JSON.stringify({
+              realScoreXp: evaluation.totalXp,
+              milestones: evaluation.breakdown,
+              algorithm: evaluation.algorithm,
+              evaluatedAt: evaluation.evaluatedAt,
+            }),
+            expRes.rows[0].id,
+          ]
+        );
+      } else if (customerUtterance || aiReply) {
+        await query(
+          `INSERT INTO ai_experience_events (
+            conversation_id, lead_id, company_id, customer_utterance,
+            intent_detected, strategy_applied, ai_reply, customer_replied,
+            feedback_rating, metadata, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, NOW())`,
+          [
+            String(numId),
+            conv.lead_id || null,
+            cleanCompany,
+            customerUtterance,
+            evaluation.funnelStage,
+            evaluation.algorithm.code,
+            aiReply,
+            Boolean(lastClientMsg),
+            evaluation.totalXp >= 100 ? 5 : (evaluation.totalXp >= 40 ? 4 : 3),
+            JSON.stringify({
+              realScoreXp: evaluation.totalXp,
+              milestones: evaluation.breakdown,
+              algorithm: evaluation.algorithm,
+              evaluatedAt: evaluation.evaluatedAt,
+              source: 'conversation_evolution_scorer',
+            }),
+          ]
+        );
+      }
+    } catch (expErr) {
+      console.warn('[ConversationEvolution] ai_experience_events update warning:', expErr.message);
+    }
+
     // 7. Update aggregated agent_metrics in PostgreSQL
     await updateAggregatedMetrics(cleanCompany, agentKey);
+
+    // 8. Emit realtime websocket event if active io instance is available
+    try {
+      const activeIo = options.io || global.io;
+      if (activeIo) {
+        const payload = {
+          conversationId: numId,
+          companyId: cleanCompany,
+          agentKey,
+          evaluation,
+        };
+        if (typeof activeIo.to === 'function') {
+          activeIo.to(`company_${cleanCompany}`).emit('conversation_score_updated', payload);
+        }
+        if (typeof activeIo.emit === 'function') {
+          activeIo.emit('conversation_score_updated', payload);
+        }
+      }
+    } catch (_) {}
 
     return evaluation;
   } catch (err) {
@@ -526,7 +607,7 @@ async function sweepRecentConversations({ companyId = 'default', agentKey = 'cam
        FROM conversations c
        LEFT JOIN conversation_evolution_scores s
          ON s.conversation_id = c.id AND s.company_id = c.company_id
-       WHERE c.company_id = $1
+       WHERE (c.company_id = $1 OR ($1 = 'default' AND c.company_id IS NULL))
        ORDER BY (s.updated_at IS NULL) DESC, c.updated_at DESC
        LIMIT $2`,
       [cleanCompany, Math.min(Math.max(Number(limit) || 50, 1), 200)]
