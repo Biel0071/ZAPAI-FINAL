@@ -46,6 +46,7 @@ import { useToast } from "@/state/hooks/use-toast";
 import { cn } from "@/core/lib/utils";
 import { ActiveBrainGraph } from "@/components/evolution/ActiveBrainGraph";
 import { MemoryDetailDrawer, type MemoryNodeData } from "@/components/evolution/MemoryDetailDrawer";
+import { ConversationScoresSection } from "@/components/evolution/ConversationScoresSection";
 import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
 import { createAgentAvatar } from "@/components/avatar-engine/CharacterFactory";
 
@@ -189,7 +190,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
   const [customDateEnd, setCustomDateEnd] = useState<string>("");
 
   // View sub-tabs & Active Brain Graph state
-  const [evolutionSubTab, setEvolutionSubTab] = useState<"graph" | "list" | "timeline" | "cognitive">("graph");
+  const [evolutionSubTab, setEvolutionSubTab] = useState<"graph" | "list" | "timeline" | "cognitive" | "conversations">("graph");
   const [selectedMemoryNode, setSelectedMemoryNode] = useState<MemoryNodeData | null>(null);
   const [graphCategoryFilter, setGraphCategoryFilter] = useState<string>("todos");
 
@@ -927,6 +928,20 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
           >
             <Sparkles className="h-4 w-4 text-purple-400" />
             <span>Evolução Cognitiva</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setEvolutionSubTab("conversations")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
+              evolutionSubTab === "conversations"
+                ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+            )}
+          >
+            <Award className="h-4 w-4 text-purple-400" />
+            <span>Pontuação Real & Conversas</span>
           </button>
         </div>
 
@@ -1963,6 +1978,16 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
         </CardContent>
       </Card>
         </div>
+      )}
+
+      {/* MODE 5: CONVERSAS & PONTUAÇÃO REAL (XP TRANSPARENTE) */}
+      {evolutionSubTab === "conversations" && (
+        <ConversationScoresSection
+          agentKey={selectedAgentKey}
+          onJumpToInbox={(convId) => {
+            navigate(`/inbox?conversationId=${convId}`);
+          }}
+        />
       )}
       </>}
     </div>

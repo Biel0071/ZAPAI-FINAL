@@ -1811,6 +1811,73 @@ export const apiService = {
       method: "GET",
     }),
 
+  getConversationScores: (params?: {
+    agentKey?: string;
+    limit?: number;
+    offset?: number;
+    search?: string;
+    algorithm?: string;
+    minXp?: number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.agentKey) searchParams.set("agentKey", params.agentKey);
+    if (params?.limit) searchParams.set("limit", String(params.limit));
+    if (params?.offset) searchParams.set("offset", String(params.offset));
+    if (params?.search) searchParams.set("search", params.search);
+    if (params?.algorithm && params.algorithm !== "todos") searchParams.set("algorithm", params.algorithm);
+    if (params?.minXp !== undefined && params.minXp !== null) searchParams.set("minXp", String(params.minXp));
+    const qs = searchParams.toString();
+    return request<{
+      success: boolean;
+      data: {
+        totalConversations: number;
+        totalEarnedXp: number;
+        averageScore: number;
+        totalConversions: number;
+        totalSheets: number;
+        algorithmDistribution: Array<{ algorithm_code: string; count: number; total_xp: number }>;
+        scores: Array<{
+          conversationId: number;
+          contactName: string;
+          contactPhone: string;
+          algorithmCode: string;
+          algorithmName: string;
+          conversationStyle: string;
+          algorithm: { code: string; name: string; style: string };
+          cadastralXp: number;
+          productXp: number;
+          sheetXp: number;
+          conversionXp: number;
+          qualityXp: number;
+          totalXp: number;
+          milestones: {
+            cadastral: { xp: number; max: number; achieved: boolean; details: string; nameConfirmed?: boolean; addressConfirmed?: boolean; phoneConfirmed?: boolean };
+            product: { xp: number; max: number; achieved: boolean; details: string };
+            sheet: { xp: number; max: number; achieved: boolean; details: string };
+            conversion: { xp: number; max: number; achieved: boolean; details: string };
+            quality: { xp: number; max: number; achieved: boolean; details: string; zeroRepetitions?: boolean; zeroDelirium?: boolean };
+          };
+          breakdown: { cadastralXp: number; productXp: number; sheetXp: number; conversionXp: number; qualityXp: number };
+          evaluationSummary: string;
+          funnelStage: string;
+          hasOrderSheet: boolean;
+          evaluatedAt: string;
+          updatedAt: string;
+        }>;
+      };
+    }>({
+      endpoint: `/ai/evolution/conversation-scores${qs ? `?${qs}` : ""}`,
+      method: "GET",
+    });
+  },
+
+  sweepConversationScores: (limit: number = 50, agentKey?: string) =>
+    request<{ success: boolean; scoredCount?: number; totalChecked?: number; error?: string }>({
+      endpoint: "/ai/evolution/conversation-scores/sweep",
+      method: "POST",
+      body: { limit, agentKey },
+    }),
+
   detectAgentGaps: (agentKey: string) =>
     request<{ success: boolean; createdCount: number }>({
       endpoint: `/ai/agent-detect-gaps/${encodeURIComponent(agentKey)}`,

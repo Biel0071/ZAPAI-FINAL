@@ -174,6 +174,14 @@ async function runAnalysisSweep({ companyId = 'default', io = null } = {}) {
         } catch (_) {}
       }
 
+      // Pontua transparentemente a evolução e XP real desta conversa
+      try {
+        const convEvoService = require('./conversationEvolutionService');
+        await convEvoService.scoreConversationAndPersist(conv.id, cleanCompany, {
+          hasOrderSheet: tags.includes('ficha_gerada') || evaluation.readyForOrderSheet,
+        });
+      } catch (_) {}
+
       // Se já tem ficha gerada mas ainda não foi finalizada, checa se cliente já confirmou o pedido
       const hasGeneratedSheet = tags.includes('ficha_gerada') || evaluation.readyForOrderSheet;
       if (hasGeneratedSheet && !isFinalized) {

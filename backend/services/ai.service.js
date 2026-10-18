@@ -540,6 +540,27 @@ function compileSystemPrompt(agent, store, contact = null) {
     compiled += aiAntiRepetitionService.buildAntiRepetitionPromptBlock({ recentBotReplies, knownPreferences });
   } catch (_) {}
 
+  // Algoritmo Específico de Conversa por Cliente e Grounding Anti-Delírio
+  if (contact?.leadAlgorithm) {
+    const algo = contact.leadAlgorithm;
+    compiled += `\n[ALGORITMO DINÂMICO DE ATENDIMENTO DESTE CLIENTE (${algo.algorithmCode} - ${algo.algorithmName})]\n`;
+    compiled += `- Perfil e Estilo de Conversa: ${algo.styleLabel} (${algo.conversationStyle})\n`;
+    compiled += `- Regra Oficial da Loja: ${algo.storeStandardRule}\n`;
+    compiled += `- Diretriz Específica para Este Lead: ${algo.directive}\n`;
+    if (algo.primaryProductLabel) {
+      compiled += `- Produto em Foco: ${algo.primaryProductLabel}\n`;
+    }
+    if (algo.preferredPayment && algo.preferredPayment !== 'indefinido') {
+      compiled += `- Forma de Pagamento Preferida: ${algo.preferredPayment}\n`;
+    }
+    compiled += `- PROTOCOLO ESTUDADO ANTI-DELÍRIO (Grounding Oficial Depósito Mais):\n`;
+    compiled += `  * Direto / Objetivo: respostas em 1 a 2 frases curtas com o valor exato oficial e confirmação imediata da rota de entrega pelo CEP/bairro.\n`;
+    compiled += `  * Consultivo Técnico: dimensões e especificações reais do catálogo (capacidades canônicas de 500L a 10.000L), fotos oficiais da resposta rápida, sem inventar medidas.\n`;
+    compiled += `  * Negociador / Preço: desconto à vista no PIX e parcelamento em até 10x sem juros no cartão; sem prometer descontos fictícios fora da política.\n`;
+    compiled += `  * Pós-Venda / Suporte: prioridade máxima para entrega e logística, zero ofertas comerciais a clientes que já compraram.\n`;
+    compiled += `  * Mantenha 100% de aderência aos dados reais da loja Depósito Mais sem alucinar!\n\n`;
+  }
+
   // 11. ANÁLISE DE CONTEXTO E METADADOS DO FUNIL
   compiled += `[ANÁLISE DE CONTEXTO E METADADOS DO FUNIL]\n`;
   compiled += `Ao final da sua resposta, você DEVE analisar a mensagem recebida e o histórico para definir o estágio do funil do lead e marcadores (tags). Você DEVE obrigatoriamente anexar um bloco JSON de metadados no formato exato abaixo:\n`;

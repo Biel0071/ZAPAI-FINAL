@@ -466,9 +466,16 @@ Retorne APENAS um bloco de código JSON válido contendo:
   return { targetField, formattedContent };
 }
 
+const conversationEvolutionService = require('./conversationEvolutionService');
+
 module.exports = {
   detectUnansweredQuestions,
   refineWholeAgent,
   applyAgentChanges,
   learnFromAnswer,
+  conversationEvolutionService,
+  evaluateConversationMilestones: conversationEvolutionService.evaluateConversationMilestones,
+  scoreConversationAndPersist: conversationEvolutionService.scoreConversationAndPersist,
+  getConversationScores: conversationEvolutionService.getConversationScores,
 };
+

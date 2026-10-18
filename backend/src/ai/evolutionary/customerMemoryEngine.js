@@ -121,6 +121,18 @@ class CustomerMemoryEngine {
       console.error('[CustomerMemoryEngine] loadCustomerContext error:', err.message);
     }
 
+    try {
+      const { buildLeadAlgorithm } = require('../../../services/leadAnalyzer');
+      context.leadAlgorithm = buildLeadAlgorithm(context.lastInteractionSummary || '', [], {
+        funnel_stage: context.stage,
+        lead_temperature: context.leadTemperature,
+        lead_intent: context.leadIntent,
+        name: context.name,
+        phone: context.phone,
+        summary: context.lastInteractionSummary,
+      });
+    } catch (_) {}
+
     return context;
   }
 
@@ -262,6 +274,12 @@ class CustomerMemoryEngine {
     }
     if (context.lastInteractionSummary) {
       prompt += `\n- Resumo de interações anteriores: ${context.lastInteractionSummary}`;
+    }
+    if (context.leadAlgorithm) {
+      prompt += `\n- ALGORITMO ESPECÍFICO DO CLIENTE: [${context.leadAlgorithm.algorithmCode} - ${context.leadAlgorithm.algorithmName}]`;
+      prompt += `\n  * Perfil: ${context.leadAlgorithm.styleLabel} (${context.leadAlgorithm.conversationStyle})`;
+      prompt += `\n  * Regra da Loja: ${context.leadAlgorithm.storeStandardRule}`;
+      prompt += `\n  * Diretriz Estrita Anti-Delírio: ${context.leadAlgorithm.directive}`;
     }
 
     prompt += '\n\n';

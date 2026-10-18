@@ -297,12 +297,41 @@ class HumanAttendanceLearner {
       );
       const activePlaybooks = parseInt(pbRes.rows[0]?.total || 0, 10);
 
-      // 4. Calculate Experience Points (XP)
-      // Base XP from historical volume + direct learned samples + active playbooks
-      const baseVolumeXp = Math.min(12000, Math.round(totalHumanMessages * 2));
+      // 4. Calculate Experience Points (XP) from REAL conversation milestones
+      let realConvXp = 0;
+      let scoredConversationsCount = 0;
+      try {
+        const convScoresRes = await this.pool.query(
+          `SELECT COALESCE(SUM(total_xp), 0)::int AS real_conv_xp, COUNT(*)::int AS scored_count
+           FROM conversation_evolution_scores
+           WHERE company_id = $1`,
+          [cleanCompany]
+        );
+        realConvXp = Number(convScoresRes.rows[0]?.real_conv_xp || 0);
+        scoredConversationsCount = Number(convScoresRes.rows[0]?.scored_count || 0);
+      } catch (_) {}
+
+      // If no conversations scored yet but messages exist, run on-demand sweep
+      if (scoredConversationsCount === 0 && totalHumanMessages > 0) {
+        try {
+          const convEvoService = require('../../../services/conversationEvolutionService');
+          await convEvoService.sweepRecentConversations({ companyId: cleanCompany, agentKey, limit: 30 });
+          const convScoresRes2 = await this.pool.query(
+            `SELECT COALESCE(SUM(total_xp), 0)::int AS real_conv_xp, COUNT(*)::int AS scored_count
+             FROM conversation_evolution_scores
+             WHERE company_id = $1`,
+            [cleanCompany]
+          );
+          realConvXp = Number(convScoresRes2.rows[0]?.real_conv_xp || 0);
+          scoredConversationsCount = Number(convScoresRes2.rows[0]?.scored_count || 0);
+        } catch (_) {}
+      }
+
       const samplesXp = humanSamples * 20;
       const playbooksXp = activePlaybooks * 50;
-      const totalXp = baseVolumeXp + samplesXp + playbooksXp;
+      const totalXp = realConvXp > 0
+        ? (realConvXp + samplesXp + playbooksXp)
+        : (Math.min(12000, Math.round(totalHumanMessages * 2)) + samplesXp + playbooksXp);
 
       // 5. Tier System (Nível 1 a 5+) with dynamically scaling targets
       const TIERS = [
@@ -378,6 +407,8 @@ class HumanAttendanceLearner {
         objectionsLearned: humanSamples,
         successRate,
         totalAnalyzed: totalHumanMessages,
+        realConversationXp: realConvXp,
+        scoredConversationsCount,
       };
     } catch (err) {
       console.error('[HumanAttendanceLearner] calculateAgentLevel error:', err.message);

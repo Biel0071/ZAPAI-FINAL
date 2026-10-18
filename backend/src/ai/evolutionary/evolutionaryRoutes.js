@@ -492,4 +492,86 @@ router.put('/zai-assistant-config', async (req, res) => {
   }
 });
 
+// 19. GET /api/ai/evolution/conversation-scores (Real Milestone XP per conversation & Algorithm breakdown)
+router.get('/conversation-scores', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const convEvoService = require('../../../services/conversationEvolutionService');
+    const result = await convEvoService.getConversationScores({
+      companyId,
+      agentKey: req.query.agentKey || 'camila',
+      limit: Number(req.query.limit) || 50,
+      offset: Number(req.query.offset) || 0,
+      search: req.query.search || req.query.q || '',
+      algorithm: req.query.algorithm || '',
+      minXp: req.query.minXp !== undefined ? Number(req.query.minXp) : null,
+    });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('[EvolutionaryRoutes] Failed to fetch conversation scores:', err);
+    res.status(500).json({ success: false, error: 'Falha ao buscar pontuação real de conversas.' });
+  }
+});
+
+// 20. GET /api/ai/evolution/agent-evolution-metrics (Aggregated real XP & Level overview)
+router.get('/agent-evolution-metrics', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const agentKey = req.query.agentKey || 'camila';
+    const convEvoService = require('../../../services/conversationEvolutionService');
+    const levelData = await humanAttendanceLearner.calculateAgentLevel({ companyId, agentKey });
+    const scoreData = await convEvoService.getConversationScores({ companyId, agentKey, limit: 10 });
+    res.json({
+      success: true,
+      data: {
+        agentLevel: levelData,
+        summary: {
+          totalConversations: scoreData.totalConversations,
+          totalEarnedXp: scoreData.totalEarnedXp,
+          averageScore: scoreData.averageScore,
+          totalConversions: scoreData.totalConversions,
+          totalSheets: scoreData.totalSheets,
+          algorithmDistribution: scoreData.algorithmDistribution,
+        },
+        recentScores: scoreData.scores,
+      },
+    });
+  } catch (err) {
+    console.error('[EvolutionaryRoutes] Failed to fetch agent evolution metrics:', err);
+    res.status(500).json({ success: false, error: 'Falha ao carregar métricas de evolução do atendente.' });
+  }
+});
+
+// 21. POST /api/ai/evolution/conversation-scores/sweep (Trigger manual/batch evaluation sweep)
+router.post('/conversation-scores/sweep', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const convEvoService = require('../../../services/conversationEvolutionService');
+    const sweepResult = await convEvoService.sweepRecentConversations({
+      companyId,
+      agentKey: req.body?.agentKey || 'camila',
+      limit: Number(req.body?.limit) || 50,
+    });
+    res.json({ success: sweepResult.ok, ...sweepResult });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 22. GET /api/ai/evolution/conversation-scores/:conversationId (Single conversation detailed score)
+router.get('/conversation-scores/:conversationId', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const convEvoService = require('../../../services/conversationEvolutionService');
+    const score = await convEvoService.scoreConversationAndPersist(req.params.conversationId, companyId);
+    if (!score) {
+      return res.status(404).json({ success: false, error: 'Conversa não encontrada para pontuação.' });
+    }
+    res.json({ success: true, data: score });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
+

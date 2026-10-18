@@ -503,6 +503,15 @@ function buildContextualPrompt(memory) {
     sections.push(factsList.join('\n'));
   }
 
+  if (memory.metrics?.algorithm || memory.algorithm) {
+    const algo = memory.metrics?.algorithm || memory.algorithm;
+    sections.push(
+      `ALGORITMO VINCULADO AO CLIENTE (${algo.code || algo.algorithmCode || 'ALGO-01'} - ${algo.name || algo.algorithmName || 'Padrão'}):\n` +
+      `- Estilo: ${algo.styleLabel || algo.style || 'Direto & Objetivo'}\n` +
+      `- Diretriz Estrita Anti-Delírio: ${algo.directive || 'Atenha-se 100% aos dados oficiais da loja Depósito Mais.'}`
+    );
+  }
+
   if (memory.pendingQuestions && memory.pendingQuestions.length > 0) {
     sections.push(`PENDÊNCIAS DA CONVERSA: ${memory.pendingQuestions.join('; ')}`);
   }

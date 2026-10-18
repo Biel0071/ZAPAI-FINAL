@@ -440,12 +440,21 @@ function buildLeadAlgorithm(message = '', conversationHistory = [], conversation
 
   const clientProducts = detectProductsFromText(clientOnlyTexts);
   const detectedProducts = clientProducts.length > 0 ? clientProducts : detectProductsFromText(allTexts);
-  const primaryProductObj = detectedProducts[0] || {
+  const primaryProductObj = detectedProducts[0] ? { ...detectedProducts[0] } : {
     key: 'geral',
     label: 'Churrasqueiras & Materiais de Construção',
     quickReplyId: '196b2abf-3d1d-4841-95cb-4ccc65097708',
     quickReplyTitle: 'CHURRAS',
   };
+
+  try {
+    const { normalizeCapacity } = require('./conversationMemoryEngine');
+    const cap = normalizeCapacity(allTexts);
+    if (cap && (primaryProductObj.key.includes('caixa') || primaryProductObj.key === 'geral')) {
+      primaryProductObj.label = `Caixa d'água ${cap}`;
+      primaryProductObj.key = 'caixa_dagua';
+    }
+  } catch (_) {}
 
   const preferredPayment = detectPreferredPayment(allTexts);
   const purchaseCheck = detectPurchaseStatus(message, conversationHistory, conversationMeta);
