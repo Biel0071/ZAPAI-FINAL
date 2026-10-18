@@ -350,8 +350,8 @@ async function scoreConversationAndPersist(conversationId, companyId = 'default'
       `SELECT c.id, c.company_id, c.session_id, c.lead_id, c.status, c.funnel_stage,
               c.lead_temperature, c.tags, c.summary, c.last_message, c.agent_name,
               c.created_at, c.updated_at,
-              COALESCE(l.name, c.name, 'Cliente') as name,
-              COALESCE(l.phone, c.remote_jid, c.phone, '') as phone
+              COALESCE(l.name, 'Cliente') as name,
+              COALESCE(l.phone, c.remote_jid, '') as phone
        FROM conversations c
        LEFT JOIN leads l ON c.lead_id = l.id
        WHERE c.id = $1 AND c.company_id = $2
