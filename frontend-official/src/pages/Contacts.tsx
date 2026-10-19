@@ -316,8 +316,14 @@ export default function Contacts() {
     [filteredContacts],
   );
 
-  const groupCount = useMemo(() => contacts.filter((contact) => contact.isGroup).length, [contacts]);
-  const individualCount = useMemo(() => contacts.filter((contact) => !contact.isGroup).length, [contacts]);
+  const groupCount = useMemo(
+    () => (!isSessionConnected ? 0 : sessionScopedContacts.filter((contact) => contact.isGroup).length),
+    [sessionScopedContacts, isSessionConnected],
+  );
+  const individualCount = useMemo(
+    () => (!isSessionConnected ? 0 : sessionScopedContacts.filter((contact) => !contact.isGroup).length),
+    [sessionScopedContacts, isSessionConnected],
+  );
 
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -478,7 +484,7 @@ export default function Contacts() {
       conversationId: contact.conversationId,
       funnelStage: contact.funnelStage,
     })),
-    totalContacts: contacts.length,
+    totalContacts: !isSessionConnected ? 0 : sessionScopedContacts.length,
     groupCount,
     individualCount,
   });
