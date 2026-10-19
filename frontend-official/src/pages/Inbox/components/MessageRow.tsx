@@ -519,11 +519,15 @@ export const MessageRow = memo(function MessageRow({
           <div className={cn("mt-1 flex flex-nowrap items-center justify-end gap-1.5 whitespace-nowrap text-[10px]", message.fromMe ? "text-primary-foreground/70" : "text-muted-foreground")}>
             {message.fromMe && (
               <span
-                className="inline-flex items-center justify-center text-[11px] leading-none select-none shrink-0"
+                className="inline-flex items-center justify-center leading-none select-none shrink-0"
                 title={isAiMessage ? "Atendente IA" : "Atendente Humano"}
                 aria-label={isAiMessage ? "Atendente IA" : "Atendente Humano"}
               >
-                {isAiMessage ? "🤖" : "👤"}
+                {isAiMessage ? (
+                  <Robot className="h-3 w-3 text-emerald-200/90 dark:text-emerald-300/90" weight="bold" />
+                ) : (
+                  <User className="h-3.5 w-3.5 text-blue-400 drop-shadow-sm" weight="fill" />
+                )}
               </span>
             )}
             <time dateTime={typeof messageTime === "string" ? messageTime || undefined : undefined} title={timeDescription}>{formatTime(messageTime)}</time>
@@ -657,12 +661,6 @@ export const MessageRow = memo(function MessageRow({
         )}
         </AnimatePresence>
       </div>
-
-      {message.fromMe && isAiMessage && (
-        <div className="flex-shrink-0 self-end mb-3 flex items-center justify-center h-6 w-6 rounded-full bg-background border border-border shadow-sm">
-          <Robot className="h-3.5 w-3.5 text-emerald-400" weight="fill" aria-label="Enviado pela IA" />
-        </div>
-      )}
     </div>
   );
 });

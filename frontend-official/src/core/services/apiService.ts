@@ -2429,6 +2429,20 @@ export const apiService = {
       body: { phone, ...context },
     });
   },
+  async pauseQuickReplyFlow(phone: string, context: { conversationId: string; sessionId?: string }) {
+    return request<{ success: boolean; paused: number }>({
+      endpoint: "/api/quick-replies/pause-flow",
+      method: "POST",
+      body: { phone, ...context },
+    });
+  },
+  async resumeQuickReplyFlow(phone: string, context: { conversationId: string; sessionId?: string }) {
+    return request<{ success: boolean; resumed: number }>({
+      endpoint: "/api/quick-replies/resume-flow",
+      method: "POST",
+      body: { phone, ...context },
+    });
+  },
   async getActiveQuickReplyFlow(phone: string, context: { conversationId: string; sessionId?: string }) {
     return request<any>({
       endpoint: withQuery(`/api/quick-replies/active-flow/${encodeURIComponent(phone)}`, context),

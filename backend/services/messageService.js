@@ -274,10 +274,12 @@ function toPublicMediaPath(resolvedPath = '') {
   const extractedUploadTokenPath = extractUploadTokenPath(rawValue);
 
   if (/^uploads:/i.test(rawValue) || /^\/?uploads[/\\]/i.test(rawValue)) {
-    return `/uploads/${path.basename(extractedUploadTokenPath)}`;
+    const rel = extractedUploadTokenPath.replace(/^uploads:?/i, '').replace(/^[/\\]+/, '').replace(/\\/g, '/');
+    return `/uploads/${rel}`;
   }
   if (/^upload:/i.test(rawValue) || /^\/?upload[/\\]/i.test(rawValue)) {
-    return `/upload/${path.basename(extractedUploadTokenPath)}`;
+    const rel = extractedUploadTokenPath.replace(/^upload:?/i, '').replace(/^[/\\]+/, '').replace(/\\/g, '/');
+    return `/upload/${rel}`;
   }
 
   const normalized = toSystemPathFromPublicPath(extractedUploadTokenPath);
@@ -294,10 +296,12 @@ function toPublicMediaPath(resolvedPath = '') {
   const lowerClean = cleanPath.toLowerCase();
 
   if (lowerClean.startsWith('/uploads/') || lowerClean.startsWith('uploads/')) {
-    return `/uploads/${path.basename(cleanPath)}`;
+    const rel = cleanPath.replace(/^\/?uploads\//i, '');
+    return `/uploads/${rel}`;
   }
   if (lowerClean.startsWith('/upload/') || lowerClean.startsWith('upload/')) {
-    return `/upload/${path.basename(cleanPath)}`;
+    const rel = cleanPath.replace(/^\/?upload\//i, '');
+    return `/upload/${rel}`;
   }
   if (lowerClean.startsWith('/media/') || lowerClean.startsWith('media/')) {
     return lowerClean.startsWith('/') ? cleanPath : '/' + cleanPath;
@@ -310,10 +314,12 @@ function toPublicMediaPath(resolvedPath = '') {
   const lowerStorageMediaPrefix = path.resolve(PROJECT_ROOT, '..', 'storage', 'media').toLowerCase().replace(/\\/g, '/') + '/';
 
   if (lowerNormalized.startsWith(lowerUploadsPrefix)) {
-    return `/uploads/${path.basename(normalized)}`;
+    const relative = normalized.replace(/\\/g, '/').slice(lowerUploadsPrefix.length);
+    return `/uploads/${relative}`;
   }
   if (lowerNormalized.startsWith(lowerUploadPrefix)) {
-    return `/upload/${path.basename(normalized)}`;
+    const relative = normalized.replace(/\\/g, '/').slice(lowerUploadPrefix.length);
+    return `/upload/${relative}`;
   }
 
   if (lowerNormalized.startsWith(lowerMediaPrefix)) {

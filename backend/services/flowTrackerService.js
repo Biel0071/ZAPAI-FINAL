@@ -103,6 +103,48 @@ function finishFlow(chatId, scope = {}) {
 }
 
 /**
+ * Pauses a running flow for a chat
+ */
+function pauseFlow(chatId, scope = {}) {
+  if (!chatId) return false;
+  const key = scopeKey(chatId, scope);
+  const flowData = runningFlows.get(key);
+  if (flowData) {
+    flowData.isPaused = true;
+    flowData.status = 'paused';
+    flowData.updatedAt = Date.now();
+
+    const io = global.io;
+    if (io) {
+      emitToTenant(io, flowData.companyId, 'flow:paused', snapshot(flowData));
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Resumes a paused flow for a chat
+ */
+function resumeFlow(chatId, scope = {}) {
+  if (!chatId) return false;
+  const key = scopeKey(chatId, scope);
+  const flowData = runningFlows.get(key);
+  if (flowData) {
+    flowData.isPaused = false;
+    flowData.status = 'running';
+    flowData.updatedAt = Date.now();
+
+    const io = global.io;
+    if (io) {
+      emitToTenant(io, flowData.companyId, 'flow:resumed', snapshot(flowData));
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
  * Gets the current running flow for a chat
  */
 function getRunningFlow(chatId, scope = {}) {
@@ -113,6 +155,8 @@ function getRunningFlow(chatId, scope = {}) {
 module.exports = {
   startFlow,
   updateFlowStep,
+  pauseFlow,
+  resumeFlow,
   cancelFlow,
   finishFlow,
   getRunningFlow,

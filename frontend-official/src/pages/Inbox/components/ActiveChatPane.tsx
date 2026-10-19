@@ -346,9 +346,24 @@ export function ActiveChatPane({
     if (!socket) return () => { active = false; };
     const started = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] started", data); setActiveFlowData(data); } };
     const updated = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] updated", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data })); } };
+    const paused = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] paused", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: true, status: "paused" })); } };
+    const resumed = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] resumed", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: false, status: "running" })); } };
     const ended = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] completed", data); setActiveFlowData(null); } };
-    socket.on("flow:started", started); socket.on("flow:step_updated", updated); socket.on("flow:cancelled", ended); socket.on("flow:finished", ended);
-    return () => { active = false; socket.off("flow:started", started); socket.off("flow:step_updated", updated); socket.off("flow:cancelled", ended); socket.off("flow:finished", ended); };
+    socket.on("flow:started", started);
+    socket.on("flow:step_updated", updated);
+    socket.on("flow:paused", paused);
+    socket.on("flow:resumed", resumed);
+    socket.on("flow:cancelled", ended);
+    socket.on("flow:finished", ended);
+    return () => {
+      active = false;
+      socket.off("flow:started", started);
+      socket.off("flow:step_updated", updated);
+      socket.off("flow:paused", paused);
+      socket.off("flow:resumed", resumed);
+      socket.off("flow:cancelled", ended);
+      socket.off("flow:finished", ended);
+    };
   }, [selectedConversation?.id, selectedConversation?.phone, selectedConversation?.sessionId]);
 
   const targetReactivateAt = selectedConversation?.ai_reactivate_at || selectedConversation?.aiReactivateAt || selectedConversation?.aiPausedUntil;

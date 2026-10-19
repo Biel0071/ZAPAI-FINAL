@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Clock, StopCircle, Sparkles, AlertTriangle, Zap } from "lucide-react";
+import { Clock, StopCircle, Play, Pause, AlertTriangle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { apiService } from "@/core/services/apiService";
@@ -13,11 +13,16 @@ export interface FlowExecutionData {
   currentStep: number;
   totalSteps: number;
   stepDescription?: string;
+  stepDelaySeconds?: number;
   startedAt?: number;
-  status?: "preparing" | "running" | "sent" | "delivered" | "cancelled" | "completed";
+  isPaused?: boolean;
+  status?: "preparing" | "running" | "paused" | "sent" | "delivered" | "cancelled" | "completed";
 }
 
-export function matchesConversationFlow(flow: Partial<FlowExecutionData> | null | undefined, context: { conversationId: string; sessionId?: string }): boolean {
+export function matchesConversationFlow(
+  flow: Partial<FlowExecutionData> | null | undefined,
+  context: { conversationId: string; sessionId?: string }
+): boolean {
   if (!flow || String(flow.conversationId ?? "") !== context.conversationId) return false;
   return !context.sessionId || String(flow.sessionId ?? "") === context.sessionId;
 }
@@ -29,50 +34,92 @@ interface FlowExecutionBannerProps {
 
 export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBannerProps) {
   const { toast } = useToast();
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [cancelling, setCancelling] = useState(false);
+  const [togglingPause, setTogglingPause] = useState(false);
+  const [isPaused, setIsPaused] = useState(Boolean(flowData?.isPaused || flowData?.status === "paused"));
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+  // Step delay countdown in seconds ("S")
+  const defaultStepDelay = flowData?.stepDelaySeconds || 6;
+  const [remainingDelaySeconds, setRemainingDelaySeconds] = useState(defaultStepDelay);
+
   useEffect(() => {
-    if (!flowData || !flowData.startedAt) {
-      setElapsedSeconds(0);
+    setIsPaused(Boolean(flowData?.isPaused || flowData?.status === "paused"));
+  }, [flowData?.isPaused, flowData?.status]);
+
+  // Reset countdown whenever currentStep advances
+  useEffect(() => {
+    setRemainingDelaySeconds(flowData?.stepDelaySeconds || 6);
+  }, [flowData?.currentStep, flowData?.stepDelaySeconds]);
+
+  useEffect(() => {
+    if (!flowData || isPaused || flowData.status === "completed" || flowData.status === "cancelled") {
       return;
     }
 
-    const interval = setInterval(() => {
-      const seconds = Math.floor((Date.now() - (flowData.startedAt || Date.now())) / 1000);
-      setElapsedSeconds(seconds >= 0 ? seconds : 0);
+    const timer = setInterval(() => {
+      setRemainingDelaySeconds((prev) => (prev > 0 ? prev - 1 : defaultStepDelay));
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [flowData]);
+    return () => clearInterval(timer);
+  }, [flowData, isPaused, defaultStepDelay]);
 
   if (!flowData) {
     return null;
   }
-
-  const formatTimer = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
 
   const progressPercent = Math.min(
     100,
     Math.round(((flowData.currentStep || 1) / (flowData.totalSteps || 1)) * 100)
   );
 
-  const estimatedSecondsLeft = Math.max(0, (flowData.totalSteps - flowData.currentStep) * 1.5);
-  const isPaused = false; // Placeholder for future state
+  const handleTogglePause = async () => {
+    if (!flowData.chatId || !flowData.conversationId) return;
+    setTogglingPause(true);
+    try {
+      if (isPaused) {
+        await apiService.resumeQuickReplyFlow(flowData.chatId, {
+          conversationId: flowData.conversationId,
+          sessionId: flowData.sessionId,
+        });
+        setIsPaused(false);
+        toast({
+          title: "Fluxo Retomado",
+          description: `Disparo do fluxo "${flowData.flowName}" ativado.`,
+        });
+      } else {
+        await apiService.pauseQuickReplyFlow(flowData.chatId, {
+          conversationId: flowData.conversationId,
+          sessionId: flowData.sessionId,
+        });
+        setIsPaused(true);
+        toast({
+          title: "Fluxo Pausado",
+          description: `Disparo do fluxo "${flowData.flowName}" pausado temporariamente.`,
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao alterar estado do fluxo",
+        description: err.message || "Não foi possível pausar ou ativar o fluxo.",
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingPause(false);
+    }
+  };
 
   const confirmCancel = async () => {
     setCancelling(true);
     try {
-      if (!flowData.conversationId) throw new Error("Atualize a conversa para identificar o fluxo antes de cancelar.");
-      await apiService.cancelQuickReplyFlow(flowData.chatId, { conversationId: flowData.conversationId, sessionId: flowData.sessionId });
+      if (!flowData.conversationId) throw new Error("Identificador da conversa não encontrado.");
+      await apiService.cancelQuickReplyFlow(flowData.chatId, {
+        conversationId: flowData.conversationId,
+        sessionId: flowData.sessionId,
+      });
       toast({
         title: "Fluxo Cancelado com Sucesso",
-        description: `A execução do fluxo "${flowData.flowName}" foi interrompida.`,
+        description: `A execução do fluxo "${flowData.flowName}" foi cancelada.`,
       });
       setShowConfirmModal(false);
       if (onCancelFlow) onCancelFlow();
@@ -89,116 +136,114 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
 
   return (
     <>
-      <div className="w-full bg-gradient-to-r from-emerald-950/90 via-card to-emerald-950/90 border-b border-emerald-500/40 p-2.5 px-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs shadow-md animate-fade-in z-20">
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex h-3 w-3 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+      {/* Sleek single-line progress bar mounted directly below customer header */}
+      <div className="w-full h-9 bg-card/95 backdrop-blur-md border-b border-emerald-500/30 px-3 flex items-center justify-between gap-2 text-xs shadow-sm select-none z-20 overflow-x-auto no-scrollbar">
+        {/* Left: Indicator + Flow name + Steps badge */}
+        <div className="flex items-center gap-2 shrink-0 min-w-0">
+          <div className="relative flex h-2.5 w-2.5 shrink-0">
+            {isPaused ? (
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+            ) : (
+              <>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </>
+            )}
           </div>
 
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-foreground truncate max-w-[200px] sm:max-w-[300px]">
-                ⚡ Fluxo em Execução: {flowData.flowName}
-              </span>
-              <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold text-[10px] border border-emerald-500/30">
-                Etapa {flowData.currentStep}/{flowData.totalSteps}
-              </span>
-            </div>
-            <p className="text-[10px] text-muted-foreground truncate max-w-[320px]">
-              {flowData.stepDescription || "Enviando conteúdo e mídias do fluxo..."}
-            </p>
-          </div>
+          <span className="font-semibold text-foreground truncate max-w-[140px] sm:max-w-[200px] flex items-center gap-1 text-[11px]">
+            <Zap className="h-3 w-3 text-emerald-400 shrink-0" />
+            <span className="truncate">{flowData.flowName}</span>
+          </span>
+
+          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-[10px] whitespace-nowrap">
+            Passo {flowData.currentStep} de {flowData.totalSteps}
+          </span>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-border/30 pt-1.5 sm:pt-0">
-          <div className="flex flex-col items-end mr-2">
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Tempo Decorrido</span>
-            <div className="flex items-center gap-1.5 text-emerald-400 font-mono font-bold text-xs bg-emerald-950/60 px-2 py-1 rounded border border-emerald-800/50">
-              <Clock className="h-3 w-3" />
-              <span>{formatTimer(elapsedSeconds)}</span>
-            </div>
+        {/* Center / Right: Delay countdown in seconds ("S") + Percentage ("%") */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div
+            className="flex items-center gap-1 px-2 py-0.5 rounded bg-muted/60 border border-border/60 text-[10px] font-mono text-muted-foreground whitespace-nowrap"
+            title="Delay de envio restante da etapa atual"
+          >
+            <Clock className="h-3 w-3 text-emerald-400" />
+            <span>
+              {isPaused ? "Pausado" : `Delay: ${remainingDelaySeconds}s`}
+            </span>
           </div>
 
-          <div className="flex flex-col items-end mr-2">
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Tempo até o final</span>
-            <div className="flex items-center gap-1.5 text-blue-400 font-mono font-bold text-xs bg-blue-950/60 px-2 py-1 rounded border border-blue-800/50">
-              <Clock className="h-3 w-3" />
-              <span>{formatTimer(Math.round(estimatedSecondsLeft))}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1 items-end mr-4 hidden md:flex w-24">
-            <div className="flex justify-between w-full text-[10px] text-muted-foreground font-bold">
-              <span>Progresso</span>
-              <span>{progressPercent}%</span>
-            </div>
-            <div className="w-full bg-muted/50 rounded-full h-1.5 overflow-hidden border border-border/40">
+          <div className="flex items-center gap-1.5" title={`Progresso do fluxo: ${progressPercent}%`}>
+            <span className="text-[10px] font-mono font-bold text-foreground">{progressPercent}%</span>
+            <div className="w-14 sm:w-20 h-1.5 rounded-full bg-muted/80 overflow-hidden border border-border/50">
               <div
-                className="bg-emerald-500 h-full transition-all duration-300 ease-out"
+                className={`h-full rounded-full transition-all duration-300 ease-out ${
+                  isPaused ? "bg-amber-400" : "bg-emerald-500"
+                }`}
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
           </div>
 
-          <div className="flex gap-1.5 items-center">
+          {/* Action buttons: [ Pausar / Ativar ] and [ Cancelar ] */}
+          <div className="flex items-center gap-1.5 pl-1">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => toast({ title: "Pausar", description: "Função de pausar em breve." })}
-              className="h-7 text-[11px] px-2.5 rounded-lg font-semibold bg-background hover:bg-muted"
+              onClick={handleTogglePause}
+              disabled={togglingPause}
+              className={`h-6 px-2 text-[10px] font-medium rounded transition-all ${
+                isPaused
+                  ? "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/15"
+                  : "border-amber-500/40 text-amber-400 hover:bg-amber-500/15"
+              }`}
             >
-              Pausar
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => toast({ title: "Reiniciar", description: "Função de reiniciar em breve." })}
-              className="h-7 text-[11px] px-2.5 rounded-lg font-semibold bg-background hover:bg-muted"
-            >
-              Reiniciar
-            </Button>
-          </div>
-
-              {flowData.status === "cancelled" ? (
-                <span className="text-red-400 font-bold px-2 py-1 bg-red-500/20 rounded">Cancelado</span>
-              ) : flowData.status === "completed" ? (
-                <span className="text-blue-400 font-bold px-2 py-1 bg-blue-500/20 rounded">Concluído</span>
+              {isPaused ? (
+                <>
+                  <Play className="h-2.5 w-2.5 mr-1 fill-current" />
+                  <span>Ativar</span>
+                </>
               ) : (
+                <>
+                  <Pause className="h-2.5 w-2.5 mr-1 fill-current" />
+                  <span>Pausar</span>
+                </>
+              )}
+            </Button>
+
             <Button
               type="button"
               variant="destructive"
               size="sm"
               onClick={() => setShowConfirmModal(true)}
               disabled={cancelling}
-              className="h-7 text-[11px] px-2.5 rounded-lg flex items-center gap-1 shrink-0 bg-red-600/90 hover:bg-red-600 font-semibold"
+              className="h-6 px-2 text-[10px] font-medium rounded bg-red-600/85 hover:bg-red-600 text-white transition-all flex items-center gap-1"
             >
-              <StopCircle className="h-3.5 w-3.5" />
-              <span>Cancelar Fluxo</span>
+              <StopCircle className="h-2.5 w-2.5" />
+              <span>Cancelar</span>
             </Button>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Pop-up Modal de Confirmação de Cancelamento de Disparo */}
+      {/* Confirmation modal for cancellation */}
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
         <DialogContent className="max-w-md rounded-2xl border-border bg-card">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-2 text-red-400">
-              <AlertTriangle className="h-4 w-4" /> Interromper Disparo de Fluxo?
+              <AlertTriangle className="h-4 w-4" /> Cancelar envio do fluxo?
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground pt-1">
-              Você está prestes a cancelar o disparo do fluxo <strong className="text-foreground">{flowData.flowName}</strong>. 
-              Atualmente na etapa <strong className="text-emerald-400">{flowData.currentStep} de {flowData.totalSteps}</strong>.
+              Deseja cancelar o disparo do fluxo <strong className="text-foreground">{flowData.flowName}</strong>?
+              Atualmente na etapa <strong className="text-emerald-400">{flowData.currentStep} de {flowData.totalSteps}</strong> ({progressPercent}%).
             </DialogDescription>
           </DialogHeader>
 
           <div className="p-3 bg-red-950/20 border border-red-500/30 rounded-xl space-y-1 text-xs my-2">
             <span className="font-bold text-red-300 block">Atenção:</span>
             <p className="text-muted-foreground text-[11px]">
-              O cancelamento irá interromper o envio das etapas restantes da fila de disparo para este atendimento no WhatsApp.
+              O cancelamento irá interromper o envio das etapas restantes da fila de disparo para este cliente no WhatsApp.
             </p>
           </div>
 

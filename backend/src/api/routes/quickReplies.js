@@ -10,5 +10,7 @@ router.put('/api/quick-replies/:id', quickRepliesController.updateQuickReply);
 router.delete('/api/quick-replies/:id', quickRepliesController.deleteQuickReply);
 router.post('/api/quick-replies/:id/execute', quickRepliesController.executeQuickReplyFlow);
 router.post('/api/quick-replies/cancel-flow', quickRepliesController.cancelQuickReplyFlow);
+router.post('/api/quick-replies/pause-flow', quickRepliesController.pauseQuickReplyFlow);
+router.post('/api/quick-replies/resume-flow', quickRepliesController.resumeQuickReplyFlow);
 router.get('/api/quick-replies/active-flow/:phone', quickRepliesController.getActiveQuickReplyFlow);
 module.exports = router;

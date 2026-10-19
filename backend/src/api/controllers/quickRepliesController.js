@@ -177,6 +177,26 @@ async function cancelQuickReplyFlow(req, res) {
   } catch (error) { return fail(res, error, 'Não foi possível cancelar o fluxo.'); }
 }
 
+async function pauseQuickReplyFlow(req, res) {
+  try {
+    const context = await resolveOutboundContext(req, { requireConnected: false });
+    const scope = { companyId: context.companyId, sessionId: context.targetSessionName, conversationId: context.conversationId, phone: context.normalizedPhone };
+    const paused = await outboundQueueService.pauseFlowItems(scope);
+    flowTrackerService.pauseFlow(context.normalizedPhone, scope);
+    return res.status(200).json({ success: true, paused });
+  } catch (error) { return fail(res, error, 'Não foi possível pausar o fluxo.'); }
+}
+
+async function resumeQuickReplyFlow(req, res) {
+  try {
+    const context = await resolveOutboundContext(req, { requireConnected: false });
+    const scope = { companyId: context.companyId, sessionId: context.targetSessionName, conversationId: context.conversationId, phone: context.normalizedPhone };
+    const resumed = await outboundQueueService.resumeFlowItems(scope);
+    flowTrackerService.resumeFlow(context.normalizedPhone, scope);
+    return res.status(200).json({ success: true, resumed });
+  } catch (error) { return fail(res, error, 'Não foi possível retomar o fluxo.'); }
+}
+
 async function getActiveQuickReplyFlow(req, res) {
   try {
     const context = await resolveOutboundContext(req, { requireConnected: false });
@@ -186,4 +206,16 @@ async function getActiveQuickReplyFlow(req, res) {
   } catch (error) { return fail(res, error, 'Não foi possível carregar o fluxo ativo.'); }
 }
 
-module.exports = { createQuickReply, deleteQuickReply, listQuickReplies, updateQuickReply, executeQuickReplyFlow, cancelQuickReplyFlow, getActiveQuickReplyFlow, getQuickReplyCategories, saveQuickReplyCategory };
+module.exports = {
+  createQuickReply,
+  deleteQuickReply,
+  listQuickReplies,
+  updateQuickReply,
+  executeQuickReplyFlow,
+  cancelQuickReplyFlow,
+  pauseQuickReplyFlow,
+  resumeQuickReplyFlow,
+  getActiveQuickReplyFlow,
+  getQuickReplyCategories,
+  saveQuickReplyCategory,
+};

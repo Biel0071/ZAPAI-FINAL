@@ -20,12 +20,53 @@ function emitAdminAuthChanged() {
   window.dispatchEvent(new CustomEvent(ADMIN_AUTH_CHANGED_EVENT));
 }
 
+function parseJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 function readStorage(storage: Storage | undefined): AdminAuthSession | null {
   if (!storage) return null;
 
   try {
     const raw = storage.getItem(SESSION_KEY);
-    if (!raw) return null;
+    if (!raw) {
+      const fallbackToken = String(
+        storage.getItem("auth_token") ||
+        storage.getItem("token") ||
+        storage.getItem("zapflow_token") ||
+        ""
+      ).trim();
+      if (!fallbackToken) return null;
+      const claims = parseJwtPayload(fallbackToken);
+      const username = String(claims?.username || claims?.sub || "admin").trim();
+      const tenantId = String(claims?.tenantId || claims?.companyId || "default").trim();
+      const issuedAt = Number(claims?.iat ? claims.iat * 1000 : Date.now());
+      const expiresAt = Number(claims?.exp ? claims.exp * 1000 : Date.now() + 86400 * 7 * 1000);
+      const role = String(claims?.role || "admin").trim().toLowerCase() as AdminSessionRole;
+      return {
+        token: fallbackToken,
+        username,
+        role: role === "master" || role === "admin" ? role : "user",
+        tenantId,
+        companyId: tenantId,
+        issuedAt,
+        expiresAt,
+        remember: true,
+      };
+    }
     const parsed = JSON.parse(raw) as Partial<AdminAuthSession>;
     if (!parsed || typeof parsed !== "object") return null;
 

@@ -493,31 +493,55 @@ async function canAccessMedia(reference, tenantId, dependencies = {}) {
   if (!tenantId) return false;
   const mediaPath = normalizeMediaReference(reference);
   const parts = mediaPath.split('/');
-  if (parts[1] === 'upload' && parts[2] === 'quick-replies' && parts.length >= 5) {
-    const companyFolder = crypto.createHash('sha256').update(String(tenantId)).digest('hex').slice(0, 24);
-    return parts[3] === companyFolder;
+  if ((parts[1] === 'upload' || parts[1] === 'uploads') && (parts[2] === 'quick-replies' || parts[2] === 'quick_replies')) {
+    if (parts.length >= 5) {
+      const companyFolder = crypto.createHash('sha256').update(String(tenantId)).digest('hex').slice(0, 24);
+      return parts[3] === companyFolder;
+    }
+    if (parts.length === 4) {
+      return true;
+    }
   }
   const legacyFolders = ['temp', 'images', 'videos', 'audios', 'documents', 'stickers', 'thumbnails'];
   if (parts[1] === 'media' && parts.length >= 5 && !legacyFolders.includes(parts[2])) {
     // Files saved by the canonical service are partitioned by verified company.
-    return parts[2] === String(tenantId) && String(tenantId) === normalizeTenantId(tenantId);
+    if (parts[2] === String(tenantId) && String(tenantId) === normalizeTenantId(tenantId)) {
+      return true;
+    }
+    if (parts[2] === 'default' && (String(tenantId) === '1' || String(tenantId) === 'default')) {
+      return true;
+    }
   }
   const query = dependencies.query || require('../../src/infrastructure/config/database').query;
   const fileName = path.posix.basename(mediaPath).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = `(^|[/\\\\])${fileName}([?#].*)?$`;
-  for (const [table, columns] of [['messages', ['media_path', 'media_url']], ['whatsapp_history_items', ['media_path']]]) {
-    try {
-      const result = await query(`SELECT ${columns.join(', ')} FROM ${table} WHERE company_id = $1 AND (${columns.map(column => `${column} ~ $2`).join(' OR ')}) LIMIT 200`, [String(tenantId), pattern]);
-      if (result.rows.some(row => columns.some(column => matchesMediaReference(mediaPath, row[column])))) return true;
-    } catch (error) {
-      // Older installations may predate the history table. Other failures fail closed.
-      if (!['42P01', '42703'].includes(error.code)) throw error;
+  const candidateTenants = (String(tenantId) === '1' || String(tenantId) === 'default')
+    ? [String(tenantId), String(tenantId) === '1' ? 'default' : '1']
+    : [String(tenantId)];
+  const uniqueTenants = [...new Set(candidateTenants)];
+
+  for (const tid of uniqueTenants) {
+    for (const [table, columns] of [['messages', ['media_path', 'media_url']], ['whatsapp_history_items', ['media_path']]]) {
+      try {
+        const result = await query(`SELECT ${columns.join(', ')} FROM ${table} WHERE company_id = $1 AND (${columns.map(column => `${column} ~ $2`).join(' OR ')}) LIMIT 200`, [tid, pattern]);
+        if (result.rows.some(row => columns.some(column => matchesMediaReference(mediaPath, row[column]) || (row[column] && path.posix.basename(mediaPath) === path.posix.basename(String(row[column]).replace(/\\/g, '/')))))) return true;
+      } catch (error) {
+        // Older installations may predate the history table. Other failures fail closed.
+        if (!['42P01', '42703'].includes(error.code)) throw error;
+      }
     }
   }
   if (dependencies.ignoreQuickReplies) return false;
   const quickReplies = dependencies.quickReplies || (companyId => require('../quickReplyService').listQuickReplies({ companyId }));
-  const replies = await quickReplies(String(tenantId));
-  return replies.some(reply => String(reply.companyId || reply.company_id || '') === String(tenantId) && [reply.mediaUrl, reply.fileUrl, ...(reply.items || []).flatMap(item => [item.value, item.mediaUrl, item.fileUrl]), ...(reply.steps || []).flatMap(step => [step.value, step.mediaUrl, step.fileUrl])].some(value => matchesMediaReference(mediaPath, value)));
+  for (const tid of uniqueTenants) {
+    try {
+      const replies = await quickReplies(tid);
+      if (replies.some(reply => [reply.mediaUrl, reply.fileUrl, ...(reply.items || []).flatMap(item => [item.value, item.mediaUrl, item.fileUrl]), ...(reply.steps || []).flatMap(step => [step.value, step.mediaUrl, step.fileUrl])].some(value => value && (matchesMediaReference(mediaPath, value) || path.posix.basename(mediaPath) === path.posix.basename(String(value).replace(/\\/g, '/')))))) return true;
+    } catch {
+      // Continue to next tenant candidate
+    }
+  }
+  return false;
 }
 
 async function findMediaFile(reference) {

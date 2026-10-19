@@ -446,6 +446,7 @@ function pickNextProcessableItem() {
   const candidates = queueState.items
     .filter((item) => {
       if (uncommittedItems.has(item.id)) return false;
+      if (item.isPaused) return false;
       if (item.state === STATES.QUEUED) {
         return new Date(item.nextAttemptAt || item.createdAt).getTime() <= now;
       }
@@ -547,6 +548,42 @@ async function cancelFlowItems({ companyId, sessionId, conversationId, phone }) 
   }
   if (cancelled) await saveQueueState();
   return cancelled;
+}
+
+async function pauseFlowItems({ companyId, sessionId, conversationId, phone }) {
+  if (!companyId || !sessionId) throw new Error('Company and session are required to pause a flow.');
+  let paused = 0;
+  for (const item of queueState.items) {
+    if (item.companyId !== companyId || item.sessionId !== sessionId || !item.metadata?.isFlowStep) continue;
+    if (conversationId ? String(item.metadata?.conversationId) !== String(conversationId) : normalizePhone(item.phone) !== normalizePhone(phone)) continue;
+    if ([STATES.QUEUED, STATES.FAILED].includes(item.state)) {
+      item.isPaused = true;
+      item.updatedAt = nowIso();
+      paused++;
+    }
+  }
+  if (paused) await saveQueueState();
+  return paused;
+}
+
+async function resumeFlowItems({ companyId, sessionId, conversationId, phone }) {
+  if (!companyId || !sessionId) throw new Error('Company and session are required to resume a flow.');
+  let resumed = 0;
+  for (const item of queueState.items) {
+    if (item.companyId !== companyId || item.sessionId !== sessionId || !item.metadata?.isFlowStep) continue;
+    if (conversationId ? String(item.metadata?.conversationId) !== String(conversationId) : normalizePhone(item.phone) !== normalizePhone(phone)) continue;
+    if (item.isPaused) {
+      item.isPaused = false;
+      item.nextAttemptAt = nowIso();
+      item.updatedAt = nowIso();
+      resumed++;
+    }
+  }
+  if (resumed) {
+    await saveQueueState();
+    queueMicrotask(() => processOneItem().catch(error => console.error('[OUTBOUND_QUEUE] Resumed worker cycle failed:', error.message)));
+  }
+  return resumed;
 }
 
 function getActiveFlow({ companyId, sessionId, conversationId, phone }) {
@@ -831,6 +868,8 @@ module.exports = {
   enqueueBatch,
   findByCorrelation,
   cancelFlowItems,
+  pauseFlowItems,
+  resumeFlowItems,
   getActiveFlow,
   findById: (id, companyId) => { const item = queueState.items.find(entry => entry.id === id && entry.companyId === companyId); return item ? cloneItem(item) : null; },
   initializeOutboundQueue,
