@@ -16,6 +16,7 @@ import {
   Lightning,
   Tag,
   Archive,
+  ArrowClockwise,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import InboxView from "@/pages/lovable/pages/InboxPageView";
@@ -117,28 +118,26 @@ export default function Inbox() {
     const phoneSearch = /^[+\d\s().-]+$/.test(normalizedSearch) ? normalizedSearch.replace(/\D/g, "") : "";
     const archivedSet = new Set(state.archivedChatIds.map(String));
     const pinnedSet = new Set(state.pinnedChatIds.map(String));
-    const targetSessionId = activeSessionId ? String(activeSessionId).trim().toLowerCase() : "";
+    const targetSessionId = activeSessionId && activeSessionId !== "all" ? String(activeSessionId).trim().toLowerCase() : "";
 
     const baseConversations = [...state.conversations];
     if (
       state.selectedConversation &&
       !baseConversations.some((conversation) => String(conversation.id) === String(state.selectedConversation?.id))
     ) {
-      baseConversations.unshift(state.selectedConversation);
+      const selectedSession = String(state.selectedConversation.sessionId || "main").trim().toLowerCase();
+      if (!targetSessionId || selectedSession === targetSessionId) {
+        baseConversations.unshift(state.selectedConversation);
+      }
     }
 
-    const selectedSessionHasConversations = Boolean(
-      targetSessionId &&
-      baseConversations.some((conversation) => String(conversation.sessionId || "main").trim().toLowerCase() === targetSessionId),
-    );
-
-    const applyVisibleFilters = (respectSession: boolean) =>
+    const applyVisibleFilters = () =>
       baseConversations.filter((conversation) => {
         const conversationId = String(conversation.id);
-        const convSessionId = String(conversation.sessionId || "main").trim().toLowerCase();
-        const isSelectedConversation = String(state.selectedConversation?.id ?? "") === conversationId;
+        const rawSession = conversation.sessionId ?? (conversation as any).session_id;
+        const convSessionId = rawSession ? String(rawSession).trim().toLowerCase() : "";
 
-        if (respectSession && selectedSessionHasConversations && convSessionId !== targetSessionId && !isSelectedConversation) {
+        if (targetSessionId && convSessionId && convSessionId !== targetSessionId) {
           return false;
         }
 
@@ -199,14 +198,8 @@ export default function Inbox() {
         return bActivityTime - aActivityTime;
       });
 
-    const sessionScopedConversations = applyVisibleFilters(true);
-    const hasActiveSubFilter = state.filter !== "all" || Boolean(normalizedSearch);
-    const visibleConversations =
-      sessionScopedConversations.length > 0 || !selectedSessionHasConversations || hasActiveSubFilter
-        ? sessionScopedConversations
-        : applyVisibleFilters(false);
-
-    return sortConversations(visibleConversations);
+    const sessionScopedConversations = applyVisibleFilters();
+    return sortConversations(sessionScopedConversations);
   }, [
     activeSessionId,
     state.archivedChatIds,
@@ -550,7 +543,25 @@ export default function Inbox() {
     },
   };
 
-  const leadPanelContent = state.selectedConversation ? (
+  const leadPanelContent = !state.isWhatsappConnected ? (
+    <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-sm text-muted-foreground select-none">
+      <div className="rounded-2xl bg-amber-500/10 p-4 ring-1 ring-amber-500/20 mb-3">
+        <ArrowClockwise className="h-8 w-8 text-amber-500/70" />
+      </div>
+      <p className="font-semibold text-foreground">Conexão Offline</p>
+      <p className="mt-1 text-xs text-muted-foreground/80 max-w-[240px] leading-relaxed">
+        Os detalhes do cliente ficam protegidos enquanto a sessão do WhatsApp estiver desconectada.
+      </p>
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-4 text-xs"
+        onClick={() => state.setShowLeadPanel(false)}
+      >
+        Fechar
+      </Button>
+    </div>
+  ) : state.selectedConversation ? (
     <SidebarPanel 
       {...sidebarProps} 
       isDrawer={true} 

@@ -255,6 +255,7 @@ export function useInboxState() {
 
   // Session management
   const sessions = useAppStore((state) => state.sessions);
+  const storeActiveSessionId = useAppStore((state) => state.activeSessionId);
   const setSessions = useCallback((sessionsOrUpdater: SessionInfo[] | ((prev: SessionInfo[]) => SessionInfo[])) => {
     const store = useAppStore.getState();
     const previous = store.sessions as unknown as SessionInfo[];
@@ -676,11 +677,32 @@ export function useInboxState() {
 
   const activeSession = useMemo(() => {
     if (!Array.isArray(sessions)) return null;
+    const targetId = storeActiveSessionId && storeActiveSessionId !== "all"
+      ? String(storeActiveSessionId).trim().toLowerCase()
+      : preferredSessionId
+        ? String(preferredSessionId).trim().toLowerCase()
+        : null;
+
+    if (targetId) {
+      return sessions.find((s) => s && String(s.id).trim().toLowerCase() === targetId) ?? null;
+    }
     if (selectedConversation?.sessionId) {
-      return sessions.find((s) => s && s.id === selectedConversation.sessionId) ?? null;
+      return sessions.find((s) => s && String(s.id).trim().toLowerCase() === String(selectedConversation.sessionId).trim().toLowerCase()) ?? null;
     }
     return pickActiveSession(sessions, preferredSessionId) ?? sessions[0] ?? null;
-  }, [sessions, selectedConversation?.sessionId, preferredSessionId]);
+  }, [sessions, storeActiveSessionId, preferredSessionId, selectedConversation?.sessionId]);
+
+  // Deselect conversation if it belongs to another session
+  useEffect(() => {
+    if (!storeActiveSessionId || storeActiveSessionId === "all") return;
+    const target = String(storeActiveSessionId).trim().toLowerCase();
+    if (selectedConversation) {
+      const convSession = String(selectedConversation.sessionId || "main").trim().toLowerCase();
+      if (convSession !== target) {
+        setSelectedConversationId(null);
+      }
+    }
+  }, [storeActiveSessionId, selectedConversation, setSelectedConversationId]);
 
   const conversationSearch = useConversationSearch(
     searchQuery,
@@ -1136,17 +1158,19 @@ export function useInboxState() {
           storeSnapshot.sessions.length > 0
             ? (storeSnapshot.sessions as unknown as SessionInfo[])
             : await refreshSessions();
-        const conversationSessionId = getPreferredSessionIdForConversations(
+        const targetSessionSnapshot =
+          storeSnapshot.activeSessionId && storeSnapshot.activeSessionId !== "all"
+            ? String(storeSnapshot.activeSessionId).trim()
+            : null;
+        const conversationSessionId = targetSessionSnapshot || getPreferredSessionIdForConversations(
           Array.isArray(sessionsData) ? sessionsData : [],
           preferredSessionIdRef.current,
         );
         const conversationsData =
-          storeSnapshot.conversations.length > 0
-            ? storeSnapshot.conversations
-            : await apiService.getConversations(false, {
-                limit: CONVERSATIONS_PAGE_SIZE,
-                sessionId: conversationSessionId ?? undefined,
-              });
+          await apiService.getConversations(false, {
+            limit: CONVERSATIONS_PAGE_SIZE,
+            sessionId: conversationSessionId ?? undefined,
+          });
         const persistedConversations = filterConversationsForSession(loadPersistedConversations(), conversationSessionId);
         const combinedConversations = [...persistedConversations, ...conversationsData]
           .filter((conversation) => !isOwnSessionConversation(conversation));
@@ -1205,6 +1229,42 @@ export function useInboxState() {
 
     void loadInitial();
   }, [isOwnSessionConversation, loadConversationControls, markBackendOffline, markBackendOnline, refreshSessions, showErrorToast, setConversations, setSelectedConversationId, setSessions]);
+
+  // Re-fetch conversations strictly for current session when session filter changes
+  useEffect(() => {
+    if (!hasLoadedInitialRef.current) return;
+    const targetSession = storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : undefined;
+
+    let cancelled = false;
+    setLoadingConversations(true);
+
+    apiService
+      .getConversations(true, {
+        limit: CONVERSATIONS_PAGE_SIZE,
+        sessionId: targetSession,
+      })
+      .then((data) => {
+        if (cancelled) return;
+        markBackendOnline();
+        const sessionScoped = filterConversationsForSession(data, targetSession);
+        const visibleIncoming = sessionScoped.filter((c) => !isOwnSessionConversation(c));
+        const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, visibleIncoming);
+        contactDirectoryRef.current = mergedDirectory;
+        persistContactDirectory(mergedDirectory);
+        setConversations(dedupeConversationsByScope(visibleIncoming, mergedDirectory));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn("Failed to load conversations for session:", targetSession, err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingConversations(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storeActiveSessionId, isOwnSessionConversation, markBackendOnline, setConversations]);
 
   const hydrateConversationHistoryForAnalysis = useCallback(async (conversationId: string, seedMessages: ChatMessage[]) => {
     if (!seedMessages.length) return;

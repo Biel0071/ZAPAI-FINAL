@@ -25,6 +25,8 @@ import {
   UserSwitch,
   UserCircle,
   CheckCircle,
+  WhatsappLogo,
+  ArrowsClockwise,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -61,7 +63,7 @@ import { cn } from "@/core/lib/utils";
 import { apiService, requestApiEndpoint } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
 import type { ChatMessage, Conversation } from "@/core/services/apiService";
-import type { AIResponseProgress } from "@/state/stores/appStore";
+import { useAppStore, type AIResponseProgress } from "@/state/stores/appStore";
 import type { ComposerAttachment, PreviewMediaState, QuickReplyItem } from "../types";
 import {
   toConversationDateLabel,
@@ -320,16 +322,17 @@ export function ActiveChatPane({
   const handleReconnectWhatsApp = useCallback(async () => {
     setIsReconnectingSession(true);
     try {
-      const targetSessionId = selectedConversation?.sessionId || "main";
+      const storeActiveSessionId = useAppStore.getState().activeSessionId;
+      const targetSessionId = (storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : selectedConversation?.sessionId) || "main";
       await apiService.reconnectSession(targetSessionId);
       toast({
         title: "Tentando reconectar WhatsApp...",
-        description: "Aguardando sincronização com a rede WhatsApp.",
+        description: `Enviando comando de reconexão para a sessão "${targetSessionId}". Aguardando sincronização com a rede WhatsApp.`,
       });
     } catch (_err: any) {
       toast({
         title: "Falha ao reconectar",
-        description: "Não foi possível restabelecer a conexão automaticamente. Tente pela tela de Conexões.",
+        description: "Não foi possível restabelecer a conexão automaticamente. Acesse a tela de Conexões para escanear o QR code.",
         variant: "destructive",
       });
     } finally {
@@ -670,7 +673,45 @@ export function ActiveChatPane({
   return (
     <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
     <div className="flex flex-1 flex-col h-full min-w-0 overflow-hidden relative bg-background">
-      {selectedConversation ? (
+      {!isWhatsappConnected ? (
+        <div className="flex flex-1 flex-col items-center justify-center p-6 text-center animate-fade-in h-full bg-background select-none">
+          <div className="relative mb-6">
+            <div className="rounded-3xl bg-amber-500/10 p-6 ring-1 ring-amber-500/20 shadow-2xl backdrop-blur-md">
+              <WhatsappLogo className="h-16 w-16 text-amber-400" weight="duotone" />
+            </div>
+            <span className="absolute -top-1 -right-1 flex h-4 w-4">
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border-2 border-background"></span>
+            </span>
+          </div>
+          <h3 className="text-xl font-bold text-foreground">Sessão WhatsApp Desconectada</h3>
+          <p className="mt-2 text-xs sm:text-sm text-muted-foreground max-w-md leading-relaxed">
+            Esta conexão de WhatsApp está offline. Para sua segurança e privacidade, os dados e mensagens de atendimento não são exibidos até que a sessão seja restabelecida.
+          </p>
+          <div className="mt-3 text-xs text-muted-foreground/80 bg-muted/40 px-3 py-1.5 rounded-lg border border-border/40">
+            As conversas e o histórico continuam salvos com segurança no banco de dados.
+          </div>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Button
+              size="default"
+              disabled={isReconnectingSession}
+              onClick={handleReconnectWhatsApp}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold gap-2 shadow-lg shadow-emerald-900/30 px-5"
+            >
+              <ArrowsClockwise className={cn("h-4 w-4", isReconnectingSession && "animate-spin")} />
+              {isReconnectingSession ? "Reconectando..." : "Reconectar WhatsApp"}
+            </Button>
+            <Button
+              size="default"
+              variant="outline"
+              onClick={() => navigate("/connections")}
+              className="border-amber-500/30 text-amber-300 hover:bg-amber-500/10 gap-2 px-5"
+            >
+              <UserSwitch className="h-4 w-4" />
+              Conectar Outro Número
+            </Button>
+          </div>
+        </div>
+      ) : selectedConversation ? (
         <div className="flex flex-1 flex-col h-full min-w-0 overflow-hidden">
           <ChatHeaderBar
             statusBadges={

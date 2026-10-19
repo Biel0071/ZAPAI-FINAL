@@ -378,7 +378,7 @@ export function SidebarPanel({
   isDrawer = false,
   onClose,
   onAttachMedia,
-  isWhatsappConnected = false,
+  isWhatsappConnected = true,
 }: SidebarPanelProps) {
   const [fileFilter, setFileFilter] = useState("all");
   const [showAllFiles, setShowAllFiles] = useState(false);
@@ -713,7 +713,17 @@ export function SidebarPanel({
     return name || (rawPhone ? formatPhoneNumber(rawPhone) : "Contato");
   }, [selectedConversation?.contactName, selectedConversation?.phone]);
 
-  const panelContent = selectedConversation ? (
+  const panelContent = !isWhatsappConnected ? (
+    <div className="flex h-full min-h-0 w-full flex-col items-center justify-center p-6 text-center text-muted-foreground select-none">
+      <div className="rounded-2xl bg-amber-500/10 p-4 ring-1 ring-amber-500/20 mb-3">
+        <ArrowClockwise className="h-8 w-8 text-amber-500/70" />
+      </div>
+      <p className="text-sm font-semibold text-foreground">Conexão Offline</p>
+      <p className="mt-1 text-xs text-muted-foreground/80 max-w-[220px] leading-relaxed">
+        Os detalhes do cliente ficam protegidos enquanto a sessão do WhatsApp estiver desconectada.
+      </p>
+    </div>
+  ) : selectedConversation ? (
     <Tabs
       value={activeTab}
       onValueChange={(value) => setRightPanelTab(value as "ai" | "lead" | "files" | "qr" | "history")}

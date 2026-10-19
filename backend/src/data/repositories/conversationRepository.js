@@ -646,9 +646,7 @@ async function listConversations(companyId, limit = 50, options = {}) {
 
   if (requestedSessionId) {
     values.push(requestedSessionId);
-    whereClause += strictSession
-      ? ` AND conv.session_id = $${values.length}`
-      : ` AND (conv.session_id = $${values.length} OR NOT EXISTS (SELECT 1 FROM conversations c_active WHERE c_active.company_id = $1 AND c_active.session_id = $${values.length}))`;
+    whereClause += ` AND conv.session_id = $${values.length}`;
   }
 
 

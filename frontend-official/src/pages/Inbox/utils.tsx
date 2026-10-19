@@ -648,12 +648,13 @@ export function getPreferredSessionIdForConversations(sessions: SessionInfo[], p
 }
 
 export function filterConversationsForSession(conversations: Conversation[], sessionId?: string | null): Conversation[] {
-  const normalizedSessionId = String(sessionId ?? "").trim();
-  if (!normalizedSessionId) return conversations;
+  const normalizedSessionId = String(sessionId ?? "").trim().toLowerCase();
+  if (!normalizedSessionId || normalizedSessionId === "all") return conversations;
 
   return conversations.filter((conversation) => {
-    const conversationSessionId = String(conversation.sessionId ?? "").trim();
-    return !conversationSessionId || conversationSessionId === normalizedSessionId;
+    const rawSession = conversation.sessionId ?? (conversation as any).session_id;
+    if (!rawSession) return true;
+    return String(rawSession).trim().toLowerCase() === normalizedSessionId;
   });
 }
 
