@@ -46,6 +46,7 @@ import {
 } from "../utils";
 import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
+import { StackedTagsBadge } from "@/components/inbox/StackedTagsBadge";
 import { getTagEmoji, cleanTagName } from "@/core/utils/tagEmojis";
 
 export interface ConversationRowData {
@@ -345,23 +346,30 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
               {leadStatus.state === "finalizado" && (
                 <span className="sr-only" title={leadStatus.tooltip}>AGUARDA PIX</span>
               )}
-              {tagEmojis.length > 0 && (
-                <span className="inline-flex items-center gap-1 shrink-0 ml-1">
-                  {tagEmojis.slice(0, 4).map((item, idx) => (
-                    <span
-                      key={idx}
-                      title={`${item.name} (Etiqueta de Lead)`}
-                      className="text-xs md:text-sm leading-none select-none inline-block hover:scale-125 transition-transform cursor-default drop-shadow-xs"
-                    >
-                      {item.emoji}
-                    </span>
-                  ))}
-                  {tagEmojis.length > 4 && (
-                    <span className="text-[10px] text-muted-foreground/70 font-mono font-normal">
-                      +{tagEmojis.length - 4}
-                    </span>
-                  )}
-                </span>
+              {conversation.tags && conversation.tags.length > 0 && (
+                <div
+                  className="inline-flex items-center shrink-0 ml-1.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <StackedTagsBadge
+                    tags={conversation.tags}
+                    maxVisible={3}
+                    size="xs"
+                    interactive={true}
+                    side="right"
+                    align="start"
+                    onAddTag={(tag) => {
+                      const currentTags = conversation.tags ?? [];
+                      if (!currentTags.includes(tag)) {
+                        onUpdateTags(conversation.id, [...currentTags, tag]);
+                      }
+                    }}
+                    onRemoveTag={(tag) => {
+                      const currentTags = conversation.tags ?? [];
+                      onUpdateTags(conversation.id, currentTags.filter((t) => t !== tag));
+                    }}
+                  />
+                </div>
               )}
             </h4>
             <div className="flex items-center gap-1.5 shrink-0 ml-1">

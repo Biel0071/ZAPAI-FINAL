@@ -150,11 +150,12 @@ export function TagIconBadge({
 
     // Emoji type
     const emojiSize = size === "xs" ? "text-[10px]" : size === "sm" ? "text-xs" : "text-sm";
-    if (descriptor.isMonochrome) {
+    const isMonochrome = descriptor.isMonochrome !== false;
+    if (isMonochrome) {
       return (
         <span
-          className={cn(emojiSize, "inline-block shrink-0 select-none leading-none opacity-85")}
-          style={{ filter: "grayscale(100%)" }}
+          className={cn(emojiSize, "inline-block shrink-0 select-none leading-none opacity-85 grayscale contrast-125")}
+          style={{ filter: "grayscale(100%) contrast(120%)" }}
           title={descriptor.label || displayName}
         >
           {descriptor.value}

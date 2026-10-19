@@ -2803,9 +2803,10 @@ export function useInboxState() {
     toast({ title: "Observações salvas." });
   }, [leadNotes, persistConversationMetadata, selectedConversation, setConversations, toast]);
 
-  const handleAddTagToSelectedConversation = useCallback(async () => {
+  const handleAddTagToSelectedConversation = useCallback(async (explicitTag?: string) => {
     if (!selectedConversation) return;
-    const normalizedTag = newTagInput.trim();
+    const rawTag = typeof explicitTag === "string" ? explicitTag : newTagInput;
+    const normalizedTag = rawTag.trim();
     if (!normalizedTag) return;
 
     const nextTags = Array.from(new Set([...(selectedConversation.tags ?? []), normalizedTag]));

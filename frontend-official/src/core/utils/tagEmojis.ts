@@ -360,7 +360,7 @@ export function getTagDescriptor(tag: string): TagVisualDescriptor {
     return {
       type: "emoji",
       value: emoji,
-      isMonochrome: false,
+      isMonochrome: true,
       label: cleanText || rawTag,
     };
   }
@@ -371,7 +371,7 @@ export function getTagDescriptor(tag: string): TagVisualDescriptor {
     return {
       type: "emoji",
       value: DEFAULT_BUSINESS_EMOJIS[norm],
-      isMonochrome: false,
+      isMonochrome: true,
       label: cleanText || rawTag,
     };
   }
@@ -381,7 +381,7 @@ export function getTagDescriptor(tag: string): TagVisualDescriptor {
       return {
         type: "emoji",
         value: em,
-        isMonochrome: false,
+        isMonochrome: true,
         label: cleanText || rawTag,
       };
     }
@@ -391,7 +391,7 @@ export function getTagDescriptor(tag: string): TagVisualDescriptor {
   return {
     type: "none",
     value: "",
-    isMonochrome: false,
+    isMonochrome: true,
     label: cleanText || rawTag,
   };
 }

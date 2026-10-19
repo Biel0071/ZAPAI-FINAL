@@ -56,6 +56,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowClockwise } from "@phosphor-icons/react";
 import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
+import { StackedTagsBadge } from "@/components/inbox/StackedTagsBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,7 +105,7 @@ interface SidebarPanelProps {
   handleSaveLeadNotes: () => Promise<void>;
   newTagInput: string;
   setNewTagInput: (val: string) => void;
-  handleAddTagToSelectedConversation: () => void;
+  handleAddTagToSelectedConversation: (tag?: string) => void | Promise<void>;
   handleRemoveTagFromSelectedConversation: (tag: string) => void;
   updatingAiToggle: boolean;
   handleSetConversationAiEnabled: (val: boolean) => Promise<void>;
@@ -974,51 +975,24 @@ export function SidebarPanel({
                 </div>
               </div>
 
-              {/* Compact Chips for Etiquetas */}
+              {/* Stacked Overlapping Tags Badge */}
               <div className="border-t border-border/40 pt-2">
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-[11px] font-medium text-muted-foreground">Etiquetas</p>
-                  <span className="text-[9.5px] text-muted-foreground/70">Clique para editar</span>
+                  <span className="text-[9.5px] text-muted-foreground/70">Clique para gerenciar</span>
                 </div>
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {(selectedConversation.tags ?? []).map((tag) => (
-                    <TagIconBadge
-                      key={tag}
-                      tag={tag}
-                      size="xs"
-                      colorClass={getTagColor(tag)}
-                      interactive={true}
-                      onRemove={() => handleRemoveTagFromSelectedConversation(tag)}
-                    />
-                  ))}
-                  {!selectedConversation.tags?.length && (
-                    <span className="text-[11px] text-muted-foreground italic py-0.5">Nenhuma etiqueta</span>
-                  )}
-                </div>
-                <div className="mt-2 flex gap-1">
-                  <Input
-                    aria-label="Nova etiqueta"
-                    value={newTagInput}
-                    onChange={(event) => setNewTagInput(event.target.value)}
-                    placeholder="Adicionar etiqueta..."
-                    className="h-7 text-xs"
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        handleAddTagToSelectedConversation();
-                      }
-                    }}
+                <div className="pt-0.5">
+                  <StackedTagsBadge
+                    tags={selectedConversation.tags ?? []}
+                    maxVisible={4}
+                    size="sm"
+                    showCountLabel={true}
+                    interactive={true}
+                    align="start"
+                    side="bottom"
+                    onAddTag={(tag) => handleAddTagToSelectedConversation(tag)}
+                    onRemoveTag={(tag) => handleRemoveTagFromSelectedConversation(tag)}
                   />
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="h-7 w-7 shrink-0"
-                    aria-label="Adicionar etiqueta"
-                    disabled={!newTagInput.trim()}
-                    onClick={handleAddTagToSelectedConversation}
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
                 </div>
               </div>
 
