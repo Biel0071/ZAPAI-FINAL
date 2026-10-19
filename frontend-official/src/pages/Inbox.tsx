@@ -114,6 +114,10 @@ export default function Inbox() {
   const activeSessionId = useAppStore((state) => state.activeSessionId);
 
   const filteredConversations = useMemo(() => {
+    if (state.isWhatsappConnected === false) {
+      return [];
+    }
+
     const normalizedSearch = state.searchQuery.trim().toLowerCase();
     const phoneSearch = /^[+\d\s().-]+$/.test(normalizedSearch) ? normalizedSearch.replace(/\D/g, "") : "";
     const archivedSet = new Set(state.archivedChatIds.map(String));
@@ -201,6 +205,7 @@ export default function Inbox() {
     const sessionScopedConversations = applyVisibleFilters();
     return sortConversations(sessionScopedConversations);
   }, [
+    state.isWhatsappConnected,
     activeSessionId,
     state.archivedChatIds,
     state.pinnedChatIds,
@@ -543,6 +548,109 @@ export default function Inbox() {
     },
   };
 
+  // ActiveChatPane props mapped
+  const activeChatPaneProps = {
+    selectedConversation: state.selectedConversation,
+    messages: state.messages,
+    messageInput: state.messageInput,
+    setMessageInput: state.setMessageInput,
+    sending: state.sending,
+    isRealtimeConnected: state.isRealtimeConnected,
+    isWhatsappConnected: state.isWhatsappConnected,
+    backendOnline: state.backendOnline,
+    isTyping: state.isTyping,
+    suggestingResponse: state.suggestingResponse,
+    aiProgress: state.aiProgress,
+    replyingTo: state.replyingTo,
+    setReplyingTo: state.setReplyingTo,
+    attachments: state.attachments,
+    removeAttachment: state.removeAttachment,
+    updateAttachmentCaption: state.updateAttachmentCaption,
+    handleAttachFiles: state.handleAttachFiles,
+    isRecording: state.isRecording,
+    recordingTime: state.recordingTime,
+    handleCancelRecording: state.handleCancelRecording,
+    handleToggleRecording: state.handleToggleRecording,
+    showEmojiPicker: state.showEmojiPicker,
+    setShowEmojiPicker: state.setShowEmojiPicker,
+    EmojiPickerComponent: state.EmojiPickerComponent,
+    emojiPickerData: state.emojiPickerData,
+    handleInsertEmoji: state.handleInsertEmoji,
+    handleSendMessage: state.handleSendMessage,
+    isDraggingFiles: state.isDraggingFiles,
+    setIsDraggingFiles: state.setIsDraggingFiles,
+    messagesScrollRef: state.messagesScrollRef,
+    loadMoreTriggerRef: state.loadMoreTriggerRef,
+    fileInputRef: state.fileInputRef,
+    messageInputRef: state.messageInputRef,
+    conversationSearchInputRef: state.conversationSearchInputRef,
+    conversationSearchOpen: state.conversationSearchOpen,
+    setConversationSearchOpen: state.setConversationSearchOpen,
+    conversationSearchQuery: state.conversationSearchQuery,
+    setConversationSearchQuery: state.setConversationSearchQuery,
+    activeConversationSearchIndex: state.activeConversationSearchIndex,
+    setActiveConversationSearchIndex: state.setActiveConversationSearchIndex,
+    inboxRuntimeState: state.inboxRuntimeState,
+    canUseBackend: state.canUseBackend,
+    canSendMessages: state.canSendMessages,
+    aiRuntime: state.aiRuntime,
+    aiEnabledForConversation: state.aiEnabledForConversation,
+    conversationAiOverrideEnabled: state.conversationAiOverrideEnabled,
+    handleSetConversationAiEnabled: state.handleSetConversationAiEnabled,
+    aiAgents: state.aiAgents,
+    loadingAgents: state.loadingAgents,
+    handleSetConversationAgent: state.handleSetConversationAgent,
+    isTabletLayout: state.isTabletLayout,
+    showLeadPanel: state.showLeadPanel,
+    setShowLeadPanel: state.setShowLeadPanel,
+    onBack: () => {
+      state.setMobileScreen("conversations");
+      state.setSelectedConversationId(null);
+      useAppStore.getState().setIsMobileChatOpen(false);
+    },
+    handleClearSelectedConversation: state.handleClearSelectedConversation,
+    archivedChatIds: state.archivedChatIds,
+    handleArchiveSelectedConversation: state.handleArchiveSelectedConversation,
+    handleUnarchiveSelectedConversation: state.handleUnarchiveSelectedConversation,
+    handleBlockContact: state.handleBlockContact,
+    handleUnblockContact: state.handleUnblockContact,
+    setRightPanelTab: state.setRightPanelTab,
+    setRightPanelCollapsed: state.setRightPanelCollapsed,
+    messagesLoadFailed: state.messagesLoadFailed,
+    loadingMessages: state.loadingMessages,
+    loadingOlderMessages: state.loadingOlderMessages,
+    historySyncStatus: state.historySyncStatus,
+    handleLoadOlderMessages: state.handleLoadOlderMessages,
+    handleRetryMessages: state.handleRetryMessages,
+    unseenRealtimeCount: state.unseenRealtimeCount,
+    scrollToLatestMessage: state.scrollToLatestMessage,
+    keyboardOffset: state.keyboardOffset,
+    isMobile: state.isMobile,
+    messageReactions: state.messageReactions,
+    handleReactMessage: state.handleReactMessage,
+    setPreviewMedia: state.setPreviewMedia,
+    setPreviewZoom: state.setPreviewZoom,
+    activeMessageMenuId: state.activeMessageMenuId,
+    setActiveMessageMenuId: state.setActiveMessageMenuId,
+    activeReactionPickerMessageId: state.activeReactionPickerMessageId,
+    setActiveReactionPickerMessageId: state.setActiveReactionPickerMessageId,
+    handleCopyMessage: state.handleCopyMessage,
+    handleReplyMessage: state.handleReplyMessage,
+    handleForwardMessage: state.handleForwardMessage,
+    handleDeleteMessage: state.handleDeleteMessage,
+    handleDownloadMedia: state.handleDownloadMedia,
+    handleToggleAudioPlayback: state.handleToggleAudioPlayback,
+    loadingAudioMessageId: state.loadingAudioMessageId,
+    playingAudioMessageId: state.playingAudioMessageId,
+    audioProgress: state.audioProgress,
+    audioDuration: state.audioDuration,
+    quickReplies: state.quickReplies,
+    sendQuickReply: state.sendQuickReply,
+    applyPendingBackgroundUpdates: state.applyPendingBackgroundUpdates,
+    pendingBackgroundUpdates: state.pendingBackgroundUpdates,
+    error: state.error,
+  };
+
   const leadPanelContent = !state.isWhatsappConnected ? (
     <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-sm text-muted-foreground select-none">
       <div className="rounded-2xl bg-amber-500/10 p-4 ring-1 ring-amber-500/20 mb-3">
@@ -586,170 +694,73 @@ export default function Inbox() {
       {(!state.isMobile || state.mobileScreen !== "chat") && (
         <Header 
           title="Inbox" 
-          subtitle={`${lovableInboxViewModel.conversationCount} conversas ativas`} 
+          subtitle={state.isWhatsappConnected === false ? "Sessão desconectada" : `${filteredConversations.length} conversas ativas`} 
         />
       )}
 
-      <InboxView
-        isMobile={state.isMobile}
-        mobileScreen={state.mobileScreen}
-        rightPanelCollapsed={state.rightPanelCollapsed}
-        onRightPanelCollapsedChange={state.setRightPanelCollapsed}
-        leftPanel={
-          <ChatListPanel
-            searchQuery={state.searchQuery}
-            setSearchQuery={state.setSearchQuery}
-            isMultiSelectMode={state.isMultiSelectMode}
-            setIsMultiSelectMode={state.setIsMultiSelectMode}
-            selectedChatIds={state.selectedChatIds}
-            setSelectedChatIds={state.setSelectedChatIds}
-            filter={state.filter}
-            setFilter={state.setFilter}
-            funnelFilter={funnelFilter}
-            setFunnelFilter={setFunnelFilter}
-            filteredConversations={filteredConversations}
-            allConversations={state.conversations}
-            conversationsLoadFailed={state.conversationsLoadFailed}
-            loadingConversations={state.loadingConversations}
-            handleRetryConversations={state.handleRetryConversations}
-            conversationListHeight={state.conversationListHeight}
-            conversationRowData={conversationRowData}
-            activeSession={state.activeSession}
-            navigate={navigate}
-            handleBulkPin={state.handleBulkPin}
-            handleBulkArchive={state.handleBulkArchive}
-            handleBulkAddTag={state.handleBulkAddTag}
-            handleBulkDelete={state.handleBulkDelete}
-            handleBulkExportContacts={state.handleBulkExportContacts}
-            handleBulkLoadCampaign={state.handleBulkLoadCampaign}
-            isMobile={state.isMobile}
-            mobileScreen={state.mobileScreen}
-            showGroups={showGroups}
-            setShowGroups={setShowGroups}
-          />
-        }
-        centerPanel={
-          <ActiveChatPane
-            selectedConversation={state.selectedConversation}
-            messages={state.messages}
-            messageInput={state.messageInput}
-            setMessageInput={state.setMessageInput}
-            sending={state.sending}
-            isRealtimeConnected={state.isRealtimeConnected}
-            isWhatsappConnected={state.isWhatsappConnected}
-            backendOnline={state.backendOnline}
-            isTyping={state.isTyping}
-            suggestingResponse={state.suggestingResponse}
-            aiProgress={state.aiProgress}
-            replyingTo={state.replyingTo}
-            setReplyingTo={state.setReplyingTo}
-            attachments={state.attachments}
-            removeAttachment={state.removeAttachment}
-            updateAttachmentCaption={state.updateAttachmentCaption}
-            handleAttachFiles={state.handleAttachFiles}
-            isRecording={state.isRecording}
-            recordingTime={state.recordingTime}
-            handleCancelRecording={state.handleCancelRecording}
-            handleToggleRecording={state.handleToggleRecording}
-            showEmojiPicker={state.showEmojiPicker}
-            setShowEmojiPicker={state.setShowEmojiPicker}
-            EmojiPickerComponent={state.EmojiPickerComponent}
-            emojiPickerData={state.emojiPickerData}
-            handleInsertEmoji={state.handleInsertEmoji}
-            handleSendMessage={state.handleSendMessage}
-            isDraggingFiles={state.isDraggingFiles}
-            setIsDraggingFiles={state.setIsDraggingFiles}
-            messagesScrollRef={state.messagesScrollRef}
-            loadMoreTriggerRef={state.loadMoreTriggerRef}
-            fileInputRef={state.fileInputRef}
-            messageInputRef={state.messageInputRef}
-            conversationSearchInputRef={state.conversationSearchInputRef}
-            conversationSearchOpen={state.conversationSearchOpen}
-            setConversationSearchOpen={state.setConversationSearchOpen}
-            conversationSearchQuery={state.conversationSearchQuery}
-            setConversationSearchQuery={state.setConversationSearchQuery}
-            activeConversationSearchIndex={state.activeConversationSearchIndex}
-            setActiveConversationSearchIndex={state.setActiveConversationSearchIndex}
-            inboxRuntimeState={state.inboxRuntimeState}
-            canUseBackend={state.canUseBackend}
-            canSendMessages={state.canSendMessages}
-            aiRuntime={state.aiRuntime}
-            aiEnabledForConversation={state.aiEnabledForConversation}
-            conversationAiOverrideEnabled={state.conversationAiOverrideEnabled}
-            handleSetConversationAiEnabled={state.handleSetConversationAiEnabled}
-            aiAgents={state.aiAgents}
-            loadingAgents={state.loadingAgents}
-            handleSetConversationAgent={state.handleSetConversationAgent}
-            isTabletLayout={state.isTabletLayout}
-            showLeadPanel={state.showLeadPanel}
-            setShowLeadPanel={state.setShowLeadPanel}
-            onBack={() => {
-              state.setMobileScreen("conversations");
-              state.setSelectedConversationId(null);
-              useAppStore.getState().setIsMobileChatOpen(false);
-            }}
-            handleClearSelectedConversation={state.handleClearSelectedConversation}
-            archivedChatIds={state.archivedChatIds}
-            handleArchiveSelectedConversation={state.handleArchiveSelectedConversation}
-            handleUnarchiveSelectedConversation={state.handleUnarchiveSelectedConversation}
-            handleBlockContact={state.handleBlockContact}
-            handleUnblockContact={state.handleUnblockContact}
-            setRightPanelTab={state.setRightPanelTab}
-            setRightPanelCollapsed={state.setRightPanelCollapsed}
-            messagesLoadFailed={state.messagesLoadFailed}
-            loadingMessages={state.loadingMessages}
-            loadingOlderMessages={state.loadingOlderMessages}
-            historySyncStatus={state.historySyncStatus}
-            handleLoadOlderMessages={state.handleLoadOlderMessages}
-            handleRetryMessages={state.handleRetryMessages}
-            unseenRealtimeCount={state.unseenRealtimeCount}
-            scrollToLatestMessage={state.scrollToLatestMessage}
-            keyboardOffset={state.keyboardOffset}
-            isMobile={state.isMobile}
-            messageReactions={state.messageReactions}
-            handleReactMessage={state.handleReactMessage}
-            setPreviewMedia={state.setPreviewMedia}
-            setPreviewZoom={state.setPreviewZoom}
-            activeMessageMenuId={state.activeMessageMenuId}
-            setActiveMessageMenuId={state.setActiveMessageMenuId}
-            activeReactionPickerMessageId={state.activeReactionPickerMessageId}
-            setActiveReactionPickerMessageId={state.setActiveReactionPickerMessageId}
-            handleCopyMessage={state.handleCopyMessage}
-            handleReplyMessage={state.handleReplyMessage}
-            handleForwardMessage={state.handleForwardMessage}
-            handleDeleteMessage={state.handleDeleteMessage}
-            handleDownloadMedia={state.handleDownloadMedia}
-            handleToggleAudioPlayback={state.handleToggleAudioPlayback}
-            loadingAudioMessageId={state.loadingAudioMessageId}
-            playingAudioMessageId={state.playingAudioMessageId}
-            audioProgress={state.audioProgress}
-            audioDuration={state.audioDuration}
-            quickReplies={state.quickReplies}
-            sendQuickReply={state.sendQuickReply}
-            applyPendingBackgroundUpdates={state.applyPendingBackgroundUpdates}
-            pendingBackgroundUpdates={state.pendingBackgroundUpdates}
-            error={state.error}
-          />
-        }
-        rightPanel={!state.isTabletLayout ? <SidebarPanel {...sidebarProps} /> : null}
-        tabletLeadSheet={
-          (state.isTabletLayout || state.isMobile) ? (
-            <Sheet open={state.showLeadPanel} onOpenChange={state.setShowLeadPanel}>
-              <SheetContent 
-                side="right" 
-                className="w-full sm:max-w-md p-0 flex flex-col h-screen h-[100dvh] inset-y-0 bg-background border-l border-border/80 shadow-2xl focus:outline-none [&>button]:hidden z-50"
-              >
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Painel de Atendimento e Detalhes</SheetTitle>
-                </SheetHeader>
-                <div className="flex-1 min-h-0 h-full w-full flex flex-col overflow-hidden bg-background">
-                  {leadPanelContent}
-                </div>
-              </SheetContent>
-            </Sheet>
-          ) : undefined
-        }
-        previewDialog={
+      {state.isWhatsappConnected === false ? (
+        <main className="flex-1 min-h-0 w-full flex flex-col overflow-hidden bg-background">
+          <ActiveChatPane {...activeChatPaneProps} />
+        </main>
+      ) : (
+        <InboxView
+          isMobile={state.isMobile}
+          mobileScreen={state.mobileScreen}
+          rightPanelCollapsed={state.rightPanelCollapsed}
+          onRightPanelCollapsedChange={state.setRightPanelCollapsed}
+          leftPanel={
+            <ChatListPanel
+              searchQuery={state.searchQuery}
+              setSearchQuery={state.setSearchQuery}
+              isMultiSelectMode={state.isMultiSelectMode}
+              setIsMultiSelectMode={state.setIsMultiSelectMode}
+              selectedChatIds={state.selectedChatIds}
+              setSelectedChatIds={state.setSelectedChatIds}
+              filter={state.filter}
+              setFilter={state.setFilter}
+              funnelFilter={funnelFilter}
+              setFunnelFilter={setFunnelFilter}
+              filteredConversations={filteredConversations}
+              allConversations={state.conversations}
+              conversationsLoadFailed={state.conversationsLoadFailed}
+              loadingConversations={state.loadingConversations}
+              handleRetryConversations={state.handleRetryConversations}
+              conversationListHeight={state.conversationListHeight}
+              conversationRowData={conversationRowData}
+              activeSession={state.activeSession}
+              navigate={navigate}
+              handleBulkPin={state.handleBulkPin}
+              handleBulkArchive={state.handleBulkArchive}
+              handleBulkAddTag={state.handleBulkAddTag}
+              handleBulkDelete={state.handleBulkDelete}
+              handleBulkExportContacts={state.handleBulkExportContacts}
+              handleBulkLoadCampaign={state.handleBulkLoadCampaign}
+              isMobile={state.isMobile}
+              mobileScreen={state.mobileScreen}
+              showGroups={showGroups}
+              setShowGroups={setShowGroups}
+            />
+          }
+          centerPanel={<ActiveChatPane {...activeChatPaneProps} />}
+          rightPanel={!state.isTabletLayout ? <SidebarPanel {...sidebarProps} /> : null}
+          tabletLeadSheet={
+            (state.isTabletLayout || state.isMobile) ? (
+              <Sheet open={state.showLeadPanel} onOpenChange={state.setShowLeadPanel}>
+                <SheetContent 
+                  side="right" 
+                  className="w-full sm:max-w-md p-0 flex flex-col h-screen h-[100dvh] inset-y-0 bg-background border-l border-border/80 shadow-2xl focus:outline-none [&>button]:hidden z-50"
+                >
+                  <SheetHeader className="sr-only">
+                    <SheetTitle>Painel de Atendimento e Detalhes</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex-1 min-h-0 h-full w-full flex flex-col overflow-hidden bg-background">
+                    {leadPanelContent}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            ) : undefined
+          }
+          previewDialog={
           <>
             <Dialog open={Boolean(state.previewMedia)} onOpenChange={(open) => !open && state.setPreviewMedia(null)}>
               <DialogContent className="h-screen w-screen max-w-none border-none bg-black/95 p-0 shadow-none">
@@ -1352,6 +1363,7 @@ export default function Inbox() {
           </>
         }
       />
+      )}
     </div>
   );
 }
