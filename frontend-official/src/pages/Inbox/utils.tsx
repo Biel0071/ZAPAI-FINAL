@@ -1402,3 +1402,189 @@ export function formatFileSize(bytes: number): string {
   return `${mb.toFixed(mb >= 100 ? 0 : 1)} MB`;
 }
 
+export type ConversationFunnelState = "all" | "intervencao" | "pago" | "finalizado" | "pausado" | "chegou" | "rodando";
+
+export interface ConversationFunnelInfo {
+  state: "intervencao" | "pago" | "finalizado" | "pausado" | "chegou" | "rodando";
+  label: string;
+  tooltip: string;
+  dotColor: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  ping: boolean;
+}
+
+export function classifyConversationFunnel(
+  conversation: any,
+  options?: {
+    globalAiEnabled?: boolean;
+    conversationControls?: Record<string, any>;
+  }
+): ConversationFunnelInfo {
+  const tags: string[] = Array.isArray(conversation.tags) ? conversation.tags : [];
+  const status = String(conversation.status || "").toLowerCase();
+  const funnelStage = String(conversation.funnel_stage || conversation.funnelStage || "").toLowerCase();
+  const leadTemp = String(conversation.lead_temperature || conversation.leadTemperature || "").toLowerCase();
+
+  const conversationControl = options?.conversationControls?.[conversation.id];
+  const conversationAiAllowed = conversationControl?.aiEnabled ?? conversation.aiEnabled ?? true;
+  const humanActive = conversationControl?.humanTakeover ?? conversation.humanActive ?? (conversation.controlMode === "human_active");
+  const globalAiEnabled = options?.globalAiEnabled ?? true;
+
+  // 0. PISCANTE VERMELHO: Intervenção Humana Necessária
+  const isIntervencao =
+    tags.some((t) => {
+      const lower = String(t).toLowerCase();
+      return (
+        lower.includes("intervencao") ||
+        lower.includes("intervenção") ||
+        lower.includes("precisa_humano") ||
+        lower.includes("delirio") ||
+        lower.includes("delírio") ||
+        lower.includes("atencao_humana") ||
+        lower.includes("atenção_humana") ||
+        lower.includes("needs_human")
+      );
+    }) ||
+    status === "intervencao_humana" ||
+    status === "pending_human" ||
+    status === "needs_human" ||
+    funnelStage === "intervencao_humana" ||
+    funnelStage === "precisa_humano" ||
+    Boolean(conversation.needsHuman || conversation.needs_human);
+
+  if (isIntervencao) {
+    return {
+      state: "intervencao",
+      label: "Intervenção",
+      tooltip: "Intervenção humana necessária: IA pausada automaticamente para evitar repetição/delírio. Atendente humano deve responder!",
+      dotColor: "bg-red-600",
+      badgeBg: "bg-red-600",
+      badgeText: "text-white",
+      badgeBorder: "border-red-400",
+      ping: true,
+    };
+  }
+
+  // 1. PAGO: Pedido Concluído / Comprovante Recebido
+  const isPago =
+    tags.some((t) => {
+      const lower = String(t).toLowerCase();
+      return (
+        lower.includes("pago") ||
+        lower.includes("pix_pago") ||
+        lower.includes("comprovante") ||
+        lower.includes("concluido") ||
+        lower.includes("concluído")
+      );
+    }) ||
+    status === "pago" ||
+    status === "paid" ||
+    status === "completed" ||
+    funnelStage === "pago" ||
+    funnelStage === "concluido";
+
+  if (isPago) {
+    return {
+      state: "pago",
+      label: "Pago",
+      tooltip: "Pedido pago com sucesso! Comprovante recebido ou confirmado.",
+      dotColor: "bg-teal-400",
+      badgeBg: "bg-teal-500/20",
+      badgeText: "text-teal-300",
+      badgeBorder: "border-teal-500/40",
+      ping: false,
+    };
+  }
+
+  // 2. AZUL PISCANDO: Atendimento finalizado / Ficha gerada aguardando PIX
+  const isFinalizado =
+    tags.some((t) => {
+      const lower = String(t).toLowerCase();
+      return (
+        lower.includes("aguarda_pix") ||
+        lower.includes("pix") ||
+        lower.includes("finalizado") ||
+        lower.includes("fechamento")
+      );
+    }) ||
+    status === "aguarda_pix" ||
+    status === "finalizado" ||
+    status === "closed_won" ||
+    funnelStage === "fechamento" ||
+    funnelStage === "aguarda_pix" ||
+    Boolean(conversation.hasSheet || conversation.orderSheet);
+
+  if (isFinalizado) {
+    return {
+      state: "finalizado",
+      label: "Aguarda PIX",
+      tooltip: "Atendimento finalizado com Ficha de Pedido — Aguardando PIX do cliente",
+      dotColor: "bg-blue-500",
+      badgeBg: "bg-blue-600",
+      badgeText: "text-white",
+      badgeBorder: "border-blue-400",
+      ping: true,
+    };
+  }
+
+  // 3. VERMELHO: Pausado Normal
+  const isPaused =
+    humanActive ||
+    !globalAiEnabled ||
+    !conversationAiAllowed ||
+    status === "paused" ||
+    tags.some((t) => String(t).toLowerCase().includes("pausado"));
+
+  if (isPaused) {
+    return {
+      state: "pausado",
+      label: "Pausado",
+      tooltip: "Atendimento pausado — Operador humano no controle",
+      dotColor: "bg-rose-500",
+      badgeBg: "bg-rose-500/20",
+      badgeText: "text-rose-300",
+      badgeBorder: "border-rose-500/40",
+      ping: false,
+    };
+  }
+
+  // 4. VERDE: Chegou / Novo Lead / Frio
+  const isChegou =
+    (Number(conversation.unread) || 0) > 0 ||
+    (Number(conversation.unreadCount) || 0) > 0 ||
+    funnelStage === "new_lead" ||
+    funnelStage === "lead" ||
+    leadTemp === "cold" ||
+    tags.some((t) => {
+      const lower = String(t).toLowerCase();
+      return lower.includes("novo") || lower.includes("chegou") || lower.includes("primeiro");
+    });
+
+  if (isChegou) {
+    return {
+      state: "chegou",
+      label: "Chegou",
+      tooltip: "Novo lead recebido do tráfego / Mensagem não lida",
+      dotColor: "bg-emerald-500",
+      badgeBg: "bg-emerald-500/20",
+      badgeText: "text-emerald-300",
+      badgeBorder: "border-emerald-500/40",
+      ping: false,
+    };
+  }
+
+  // 5. AMARELO: Rodando / IA em Atendimento Ativo
+  return {
+    state: "rodando",
+    label: "Rodando",
+    tooltip: "Atendimento em andamento pela IA (anúncio rodando)",
+    dotColor: "bg-amber-400",
+    badgeBg: "bg-amber-500/20",
+    badgeText: "text-amber-300",
+    badgeBorder: "border-amber-500/40",
+    ping: false,
+  };
+}
+

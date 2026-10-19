@@ -25,6 +25,8 @@ router.get('/conversations/:conversationId/sheet', conversationsController.getCo
 router.post('/conversations/:conversationId/profile-card', conversationsController.generateProfileCard);
 router.post('/conversations/:conversationId/generate-sheet', conversationsController.generateProfileCard);
 router.post('/conversations/:conversationId/confirm-sheet', conversationsController.confirmAndFinalizeSheet);
+router.post('/conversations/:conversationId/sheet/erp', conversationsController.dispatchSheetToErpHandler);
+router.get('/conversations/:conversationId/media', conversationsController.getConversationMedia);
 router.post('/conversations/:conversationId/billing', conversationsController.generateBilling);
 router.get('/conversations/:conversationId/billing/:billingId', conversationsController.getBillingDetails);
 router.get('/system/attendant-quality', conversationsController.getAttendantQualityMetrics);

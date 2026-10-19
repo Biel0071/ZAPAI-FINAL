@@ -42,6 +42,7 @@ import {
   normalizeId,
   getTagColor,
   formatPhoneNumber,
+  classifyConversationFunnel,
 } from "../utils";
 import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
@@ -201,131 +202,14 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
         : "Ativar IA";
 
   const leadStatus = useMemo(() => {
-    const tags = Array.isArray(conversation.tags) ? conversation.tags : [];
-    const status = String(conversation.status || "").toLowerCase();
-    const funnelStage = String((conversation as any).funnel_stage || (conversation as any).funnelStage || "").toLowerCase();
-    const leadTemp = String((conversation as any).lead_temperature || (conversation as any).leadTemperature || "").toLowerCase();
-    const hasSheet = Boolean((conversation as any).hasSheet || (conversation as any).orderSheet);
-
-    // 0. PISCANTE VERMELHO: Intervenção Humana Necessária / Delírio ou Repetição Evitado / Precisa de Atendente
-    const isIntervencao =
-      tags.some((t) => {
-        const lower = String(t).toLowerCase();
-        return (
-          lower.includes("intervencao") ||
-          lower.includes("intervenção") ||
-          lower.includes("precisa_humano") ||
-          lower.includes("delirio") ||
-          lower.includes("delírio") ||
-          lower.includes("atencao_humana") ||
-          lower.includes("atenção_humana") ||
-          lower.includes("needs_human")
-        );
-      }) ||
-      status === "intervencao_humana" ||
-      status === "pending_human" ||
-      status === "needs_human" ||
-      funnelStage === "intervencao_humana" ||
-      funnelStage === "precisa_humano" ||
-      Boolean((conversation as any).needsHuman || (conversation as any).needs_human);
-
-    if (isIntervencao) {
-      return {
-        state: "intervencao" as const,
-        label: "Intervenção",
-        tooltip: "Intervenção humana necessária: IA pausada automaticamente para evitar repetição/delírio. Atendente humano deve responder!",
-        dotColor: "bg-red-600",
-        ping: true,
-      };
-    }
-
-    // 1. AZUL PISCANDO: Atendimento finalizado / Ficha gerada aguardando PIX
-    const isFinalizado =
-      tags.some((t) => {
-        const lower = String(t).toLowerCase();
-        return (
-          lower.includes("aguarda_pix") ||
-          lower.includes("pix") ||
-          lower.includes("finalizado") ||
-          lower.includes("fechamento")
-        );
-      }) ||
-      status === "aguarda_pix" ||
-      status === "finalizado" ||
-      status === "closed_won" ||
-      funnelStage === "fechamento" ||
-      funnelStage === "aguarda_pix";
-
-    if (isFinalizado) {
-      return {
-        state: "finalizado" as const,
-        label: "Aguarda PIX",
-        tooltip: "Atendimento finalizado com Ficha de Pedido — Aguardando PIX do cliente",
-        dotColor: "bg-blue-500",
-        ping: true,
-      };
-    }
-
-    // 2. VERMELHO: Pausado Normal (Sem Intervenção Crítica)
-    const isPaused =
-      humanActive ||
-      !globalAiEnabled ||
-      !conversationAiAllowed ||
-      status === "paused" ||
-      tags.some((t) => String(t).toLowerCase().includes("pausado"));
-
-    if (isPaused) {
-      return {
-        state: "pausado" as const,
-        label: "Pausado",
-        tooltip: "Atendimento pausado — Operador humano no controle",
-        dotColor: "bg-rose-500",
-        ping: false,
-      };
-    }
-
-    // 3. VERDE: Chegou / Novo Lead / Frio
-    const isChegou =
-      (conversation.unread ?? 0) > 0 ||
-      funnelStage === "new_lead" ||
-      funnelStage === "lead" ||
-      leadTemp === "cold" ||
-      tags.some((t) => {
-        const lower = String(t).toLowerCase();
-        return lower.includes("novo") || lower.includes("chegou") || lower.includes("primeiro");
-      });
-
-    if (isChegou) {
-      return {
-        state: "chegou" as const,
-        label: "Chegou",
-        tooltip: "Novo lead recebido do tráfego / Mensagem não lida",
-        dotColor: "bg-emerald-500",
-        ping: false,
-      };
-    }
-
-    // 4. AMARELO: Rodando / IA em Atendimento Ativo
-    return {
-      state: "rodando" as const,
-      label: "Rodando",
-      tooltip: "Atendimento em andamento pela IA (anúncio rodando)",
-      dotColor: "bg-amber-400",
-      ping: false,
-    };
+    return classifyConversationFunnel(conversation, {
+      globalAiEnabled,
+      conversationControls,
+    });
   }, [
-    conversation.tags,
-    conversation.status,
-    (conversation as any).funnel_stage,
-    (conversation as any).funnelStage,
-    (conversation as any).lead_temperature,
-    (conversation as any).leadTemperature,
-    (conversation as any).hasSheet,
-    (conversation as any).orderSheet,
-    humanActive,
+    conversation,
     globalAiEnabled,
-    conversationAiAllowed,
-    conversation.unread,
+    conversationControls,
   ]);
 
   const handleClick = (e: React.MouseEvent) => {
@@ -391,7 +275,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
             </AvatarFallback>
           </Avatar>
 
-          {/* Indicador Visual: Vermelho Piscando (Intervenção), Azul Piscando (Finalizado / Aguarda PIX), Verde (Chegou), Amarelo (Rodando), Vermelho (Pausado) */}
+          {/* Indicador Visual: Vermelho Piscando (Intervenção), Azul Piscando (Finalizado / Aguarda PIX), Verde (Chegou), Amarelo (Rodando), Vermelho (Pausado), Teal (Pago) */}
           <div className="absolute -bottom-0.5 -right-0.5 z-10 flex items-center justify-center pointer-events-none">
             {leadStatus.state === "intervencao" ? (
               <span className="relative flex h-3.5 w-3.5" title={leadStatus.tooltip}>
@@ -410,7 +294,8 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                   leadStatus.dotColor,
                   leadStatus.state === "chegou" && "shadow-[0_0_6px_rgba(16,185,129,0.7)]",
                   leadStatus.state === "rodando" && "shadow-[0_0_6px_rgba(251,191,36,0.7)]",
-                  leadStatus.state === "pausado" && "shadow-[0_0_6px_rgba(244,63,94,0.7)]"
+                  leadStatus.state === "pausado" && "shadow-[0_0_6px_rgba(244,63,94,0.7)]",
+                  leadStatus.state === "pago" && "shadow-[0_0_6px_rgba(20,184,166,0.7)]"
                 )}
                 title={leadStatus.tooltip}
               />
@@ -431,13 +316,44 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                   INTERVENÇÃO
                 </span>
               )}
+              {leadStatus.state === "pago" && (
+                <span
+                  title={leadStatus.tooltip}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40 shrink-0 shadow-[0_0_6px_rgba(20,184,166,0.2)]"
+                >
+                  PAGO
+                </span>
+              )}
               {leadStatus.state === "finalizado" && (
                 <span
                   title={leadStatus.tooltip}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500 text-white border border-blue-400 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.6)] shrink-0"
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-600 text-white border border-blue-400 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.6)] shrink-0"
                 >
-                  <Sparkle weight="fill" className="h-2.5 w-2.5 text-yellow-300" />
                   AGUARDA PIX
+                </span>
+              )}
+              {leadStatus.state === "pausado" && (
+                <span
+                  title={leadStatus.tooltip}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0"
+                >
+                  PAUSADO
+                </span>
+              )}
+              {leadStatus.state === "chegou" && (
+                <span
+                  title={leadStatus.tooltip}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0"
+                >
+                  CHEGOU
+                </span>
+              )}
+              {leadStatus.state === "rodando" && (
+                <span
+                  title={leadStatus.tooltip}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
+                >
+                  RODANDO
                 </span>
               )}
               {tagEmojis.length > 0 && (

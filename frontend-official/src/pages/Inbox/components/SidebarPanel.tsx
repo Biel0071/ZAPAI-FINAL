@@ -474,15 +474,68 @@ export function SidebarPanel({
     return groups;
   }, [filteredReplies]);
 
+  const [remoteMediaMessages, setRemoteMediaMessages] = useState<ChatMessage[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+
+  useEffect(() => {
+    if (!selectedConversation?.id) {
+      setRemoteMediaMessages([]);
+      return;
+    }
+    let isCancelled = false;
+    const fetchConversationMedia = async () => {
+      setLoadingMedia(true);
+      try {
+        const origin = typeof window !== "undefined" && window.location?.origin && !window.location.origin.startsWith("null") ? window.location.origin : "";
+        const url = `${origin}/api/conversations/${encodeURIComponent(selectedConversation.id)}/media`;
+        const resp = await fetch(url).catch(() => null);
+        if (resp && resp.ok) {
+          const data = await resp.json();
+          if (!isCancelled && Array.isArray(data?.media)) {
+            setRemoteMediaMessages(data.media);
+          }
+        }
+      } catch (err) {
+        // Silent fallback in test/mock environments
+      } finally {
+        if (!isCancelled) setLoadingMedia(false);
+      }
+    };
+
+    fetchConversationMedia();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedConversation?.id]);
+
   const orderedMessages = useMemo(() => sortMessagesAsc(messages), [messages]);
-  const mediaMessages = orderedMessages.filter((message) => Boolean(extractMessageAssetUrl(message))).reverse();
-  const filteredMedia = mediaMessages.filter((message) => {
-    const type = message.mediaType ?? inferMediaTypeFromSource(extractMessageAssetUrl(message));
-    if (fileFilter === "all") return true;
-    if (fileFilter === "image") return type === "image" || type === "sticker";
-    if (fileFilter === "file") return type === "file" || type === "document";
-    return type === fileFilter;
-  });
+
+  const allMediaCandidates = useMemo(() => {
+    const fromProps = messages.filter((m) => Boolean(extractMessageAssetUrl(m)));
+    const map = new Map<string, ChatMessage>();
+    for (const m of remoteMediaMessages) {
+      if (m.id) map.set(String(m.id), m);
+    }
+    for (const m of fromProps) {
+      if (m.id) map.set(String(m.id), m);
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      const ta = new Date(a.createdAt || 0).getTime();
+      const tb = new Date(b.createdAt || 0).getTime();
+      return tb - ta;
+    });
+  }, [messages, remoteMediaMessages]);
+
+  const filteredMedia = useMemo(() => {
+    return allMediaCandidates.filter((message) => {
+      const assetUrl = extractMessageAssetUrl(message);
+      const type = message.mediaType ?? inferMediaTypeFromSource(assetUrl);
+      if (fileFilter === "all") return true;
+      if (fileFilter === "image") return type === "image" || type === "sticker";
+      if (fileFilter === "file") return type === "file" || type === "document";
+      return type === fileFilter;
+    });
+  }, [allMediaCandidates, fileFilter]);
 
   const summary = sanitizeSidebarText(aiMemory?.summary ?? selectedConversation?.summary ?? "");
   const agentName =
@@ -621,35 +674,41 @@ export function SidebarPanel({
             </Button>
           )}
         </div>
-        <TabsList className="grid h-14 w-full grid-cols-4 gap-1.5 bg-muted/30 p-1.5 rounded-xl border border-border/60">
-          {SECTIONS.map((section) => {
-            return (
-              <TabsTrigger
-                key={section.id}
-                value={section.id}
-                className={cn(
-                  "group flex flex-col items-center justify-center py-1 px-1 rounded-lg h-11 transition-all duration-150 gap-0.5",
-                  "text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent",
-                  "data-[state=active]:bg-card/90 data-[state=active]:text-emerald-400 data-[state=active]:font-semibold data-[state=active]:border-emerald-500/40 data-[state=active]:shadow-xs"
-                )}
-                title={section.fullLabel}
-              >
-                <img
-                  src={section.iconSrc}
-                  alt={section.label}
-                  className="h-6 w-6 object-contain shrink-0 drop-shadow-xs transition-transform duration-150 group-hover:scale-110 select-none pointer-events-none"
-                  loading="lazy"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = "none";
-                  }}
-                />
-                <span className="text-[10px] font-medium tracking-tight select-none whitespace-nowrap leading-tight">
-                  {section.label}
-                </span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        <TooltipProvider delayDuration={150}>
+          <TabsList className="grid h-10 w-full grid-cols-4 gap-1 bg-muted/30 p-1 rounded-xl border border-border/60">
+            {SECTIONS.map((section) => {
+              return (
+                <Tooltip key={section.id}>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger
+                      value={section.id}
+                      className={cn(
+                        "group flex items-center justify-center py-1 px-1 rounded-lg h-8 transition-all duration-150",
+                        "text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent",
+                        "data-[state=active]:bg-card/90 data-[state=active]:text-emerald-400 data-[state=active]:font-semibold data-[state=active]:border-emerald-500/40 data-[state=active]:shadow-xs"
+                      )}
+                      aria-label={section.fullLabel}
+                    >
+                      <img
+                        src={section.iconSrc}
+                        alt={section.label}
+                        className="h-5 w-5 object-contain shrink-0 drop-shadow-xs transition-transform duration-150 group-hover:scale-110 select-none pointer-events-none"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                      <span className="sr-only">{section.label}</span>
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs font-medium">
+                    {section.fullLabel}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </TabsList>
+        </TooltipProvider>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-3.5 text-sm scrollbar-thin">
@@ -1282,7 +1341,12 @@ export function SidebarPanel({
                 </Button>
               ))}
             </div>
-            {filteredMedia.length === 0 ? (
+            {loadingMedia ? (
+              <div className="mt-4 flex flex-col items-center justify-center p-8 text-center text-xs text-muted-foreground gap-2 rounded-xl border border-dashed border-border/60">
+                <ArrowClockwise className="h-5 w-5 animate-spin text-emerald-500" />
+                <span>Buscando mídias no histórico...</span>
+              </div>
+            ) : filteredMedia.length === 0 ? (
               <p className="mt-4 rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                 Nenhum arquivo encontrado neste histórico.
               </p>

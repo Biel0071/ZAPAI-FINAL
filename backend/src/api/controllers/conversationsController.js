@@ -9,6 +9,7 @@ const inboxConversationRepository = require('../../messaging/inbox/inbox/reposit
 const inboxRealtimeService = require('../../messaging/inbox/inbox/events/InboxRealtimeService');
 const conversationRuntimeService = require('../../messaging/inbox/inbox/services/ConversationRuntimeService');
 const { getCompanyId } = require('../../../services/tenantContext');
+const { query } = require('../../infrastructure/config/database');
 const orderSheetService = require('../../../services/orderSheetService');
 const attendantQualityDaemon = require('../../../services/attendantQualityDaemon');
 
@@ -770,6 +771,85 @@ async function confirmAndFinalizeSheet(req, res) {
   }
 }
 
+async function dispatchSheetToErpHandler(req, res) {
+  try {
+    const { conversationId } = req.params;
+    const companyId = req.authTenantId || getCompanyId(req) || 'default';
+    const { sheetId, webhookUrl, apiKey } = req.body || {};
+
+    const result = await orderSheetService.dispatchSheetToErp({
+      conversationId,
+      sheetId,
+      companyId,
+      webhookUrl,
+      apiKey,
+    });
+
+    return res.status(200).json({
+      success: true,
+      delivered: result.delivered,
+      payload: result.payload,
+      responseData: result.responseData,
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      error: error.message || 'Falha ao integrar ficha com ERP/DANFE.',
+      success: false,
+    });
+  }
+}
+
+async function getConversationMedia(req, res) {
+  try {
+    const { conversationId } = req.params;
+    const companyId = req.authTenantId || getCompanyId(req) || 'default';
+
+    const mediaResult = await query(
+      `SELECT id, conversation_id, content, text, media_url, media_path, media_type, type,
+              from_me, sender, status, timestamp, created_at
+       FROM messages
+       WHERE conversation_id = $1 AND company_id = $2
+         AND (
+           (media_url IS NOT NULL AND media_url <> '') OR
+           (media_path IS NOT NULL AND media_path <> '') OR
+           (media_type IS NOT NULL AND media_type NOT IN ('text', 'chat')) OR
+           (type IS NOT NULL AND type NOT IN ('text', 'chat'))
+         )
+       ORDER BY created_at DESC
+       LIMIT 100`,
+      [conversationId, companyId]
+    );
+
+    const mapped = (mediaResult?.rows || []).map((row) => {
+      const mediaUrl = row.media_url || row.media_path;
+      const mediaType = (row.media_type || row.type || '').toLowerCase();
+      return {
+        id: row.id,
+        conversationId: row.conversation_id,
+        content: row.content || row.text || '',
+        mediaUrl,
+        mediaPath: row.media_path || row.media_url,
+        url: mediaUrl,
+        fileUrl: mediaUrl,
+        mediaType: mediaType || 'file',
+        fromMe: Boolean(row.from_me || row.sender === 'agent'),
+        status: row.status || 'received',
+        createdAt: row.created_at || row.timestamp,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      media: mapped,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message || 'Falha ao buscar mídias da conversa.',
+      success: false,
+    });
+  }
+}
+
 async function getAttendantQualityMetrics(req, res) {
   try {
     const companyId = req.authTenantId || getCompanyId(req) || 'default';
@@ -1243,6 +1323,8 @@ module.exports = {
   updateConversationMeta,
   syncConversationHistory,
   confirmAndFinalizeSheet,
+  dispatchSheetToErpHandler,
+  getConversationMedia,
   getAttendantQualityMetrics,
   getConversationSheet,
   listSheets,

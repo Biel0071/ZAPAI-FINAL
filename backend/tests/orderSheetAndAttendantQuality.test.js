@@ -199,3 +199,106 @@ test('5. Customer confirmation auto-finalization in attendantQualityDaemon sweep
   assert.ok(tags.includes('aguarda_pix'));
   assert.ok(tags.includes('atendimento_finalizado'));
 });
+
+test('6. Dynamic order sheet: omits CPF, E-mail, and Reference when not provided by customer', async () => {
+  const sheetWithoutOptionals = orderSheetService.buildSheetText({
+    customerName: 'Tassio',
+    phone: '+55 81 8190-4666',
+    deliveryAddress: 'Rua Ruropoliz, nº 20',
+    deliveryNeighborhood: 'Bela Vista 1',
+    deliveryCity: 'Ipojuca',
+    deliveryState: 'PE',
+    deliveryCep: '55590-000',
+    items: [{ item: "Caixa d'Água Fortlev 2000L", quantity: 1 }],
+    productTotal: 499.00,
+    freight: 65.12,
+    orderTotal: 564.12,
+    deliveryTime: '3 a 5 dias úteis',
+    pixTotal: 539.17,
+    installment10x: 56.41,
+  });
+
+  // Must contain base fields
+  assert.ok(sheetWithoutOptionals.includes('Nome: Tassio'));
+  assert.ok(sheetWithoutOptionals.includes('Telefone: +55 81 8190-4666'));
+  assert.ok(sheetWithoutOptionals.includes('Endereço: Rua Ruropoliz, nº 20'));
+  assert.ok(sheetWithoutOptionals.includes('Bairro: Bela Vista 1'));
+  assert.ok(sheetWithoutOptionals.includes('Cidade: Ipojuca'));
+  assert.ok(sheetWithoutOptionals.includes('Estado: PE'));
+  assert.ok(sheetWithoutOptionals.includes('CEP: 55590-000'));
+  assert.ok(sheetWithoutOptionals.includes("• Caixa d'Água Fortlev 2000L × 1"));
+  assert.ok(sheetWithoutOptionals.includes('Valor dos Produtos:'));
+  assert.ok(sheetWithoutOptionals.includes('Frete:'));
+  assert.ok(sheetWithoutOptionals.includes('Total do Pedido:'));
+  assert.ok(sheetWithoutOptionals.includes('Prazo de Entrega:'));
+  assert.ok(sheetWithoutOptionals.includes('3 a 5 dias úteis'));
+  assert.ok(sheetWithoutOptionals.includes('PIX à Vista:'));
+  assert.ok(sheetWithoutOptionals.includes('Cartão: 10x sem juros de'));
+
+  // Must NOT contain empty CPF, E-mail or Reference lines
+  assert.ok(!sheetWithoutOptionals.includes('CPF:'));
+  assert.ok(!sheetWithoutOptionals.includes('E-mail:'));
+  assert.ok(!sheetWithoutOptionals.includes('Referência:'));
+
+  // When provided, they MUST appear
+  const sheetWithOptionals = orderSheetService.buildSheetText({
+    customerName: 'Tassio',
+    cpf: '123.456.789-00',
+    phone: '+55 81 8190-4666',
+    email: 'tassio@example.com',
+    deliveryAddress: 'Rua Ruropoliz, nº 20',
+    deliveryNeighborhood: 'Bela Vista 1',
+    deliveryCity: 'Ipojuca',
+    deliveryState: 'PE',
+    deliveryCep: '55590-000',
+    reference: 'Próximo ao mercado central',
+    items: [{ item: "Caixa d'Água Fortlev 2000L", quantity: 1 }],
+    productTotal: 499.00,
+    freight: 65.12,
+    orderTotal: 564.12,
+  });
+
+  assert.ok(sheetWithOptionals.includes('CPF: 123.456.789-00'));
+  assert.ok(sheetWithOptionals.includes('E-mail: tassio@example.com'));
+  assert.ok(sheetWithOptionals.includes('Referência: Próximo ao mercado central'));
+});
+
+test('7. Product keyword blacklist: prevents product mentions from polluting neighborhood or address', async () => {
+  const convRes = await query(
+    `INSERT INTO conversations (company_id, remote_jid, status, lead_temperature, funnel_stage, ai_enabled)
+     VALUES ($1, '5511977776666@s.whatsapp.net', 'open', 'warm', 'negociacao', TRUE) RETURNING id`,
+    [TEST_TENANT]
+  );
+  const convId = convRes.rows[0].id;
+
+  // Cliente diz "entrega da churrasqueira trio" e depois passa o endereço real
+  await query(
+    `INSERT INTO messages (company_id, conversation_id, phone, text, from_me, created_at) VALUES
+     ($1, $2, '5511977776666', 'Olá, quanto fica a entrega da churrasqueira trio para o bairro Boa Vista em Sorocaba/SP?', FALSE, NOW())`,
+    [TEST_TENANT, convId]
+  );
+
+  const sheetData = await orderSheetService.extractSheetDataFromConversation(convId, TEST_TENANT);
+  assert.ok(sheetData);
+  assert.equal(sheetData.deliveryNeighborhood, 'Boa Vista', 'Neighborhood must be Boa Vista, not Churrasqueira Trio');
+  assert.ok(!sheetData.deliveryAddress.toLowerCase().includes('churrasqueira'), 'Address must not contain product keyword');
+});
+
+test('8. ERP webhook integration: dispatchSheetToErp prepares payload and sends sync event', async () => {
+  const convRes = await query(
+    `SELECT id FROM conversations WHERE company_id = $1 LIMIT 1`,
+    [TEST_TENANT]
+  );
+  const convId = convRes.rows[0].id;
+
+  const result = await orderSheetService.dispatchSheetToErp({
+    conversationId: convId,
+    companyId: TEST_TENANT,
+  });
+
+  assert.ok(result.success);
+  assert.equal(result.payload.event, 'erp.order_sheet.sync');
+  assert.equal(result.payload.source, 'ZAI CRM');
+  assert.ok(result.payload.sheet);
+});
+

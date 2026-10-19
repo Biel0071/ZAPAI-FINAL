@@ -51,6 +51,8 @@ import {
   resolveMediaUrl,
   extractMessageAssetUrl,
   getMediaFileName,
+  classifyConversationFunnel,
+  type ConversationFunnelState,
 } from "./Inbox/utils";
 
 const removeEmojis = (str: string) => {
@@ -63,6 +65,7 @@ export default function Inbox() {
   const state = useInboxState();
   const [showGroups, setShowGroups] = useState(false);
   const [showCustomCategoryInput, setShowCustomCategoryInput] = useState(false);
+  const [funnelFilter, setFunnelFilter] = useState<ConversationFunnelState>("all");
 
   const allCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -155,6 +158,13 @@ export default function Inbox() {
             (state.conversationControls[conversation.id]?.aiEnabled ?? true);
           if (!isAiActive) return false;
         }
+        if (funnelFilter !== "all") {
+          const info = classifyConversationFunnel(conversation, {
+            globalAiEnabled: state.aiRuntime.globalEnabled,
+            conversationControls: state.conversationControls,
+          });
+          if (info.state !== funnelFilter) return false;
+        }
         if (!showGroups && conversation.isGroup) return false;
         if (!normalizedSearch) return true;
 
@@ -208,6 +218,7 @@ export default function Inbox() {
     state.searchQuery,
     state.draftsByConversationId,
     showGroups,
+    funnelFilter,
   ]);
 
   const conversationRowData = useMemo(
@@ -583,7 +594,10 @@ export default function Inbox() {
             setSelectedChatIds={state.setSelectedChatIds}
             filter={state.filter}
             setFilter={state.setFilter}
+            funnelFilter={funnelFilter}
+            setFunnelFilter={setFunnelFilter}
             filteredConversations={filteredConversations}
+            allConversations={state.conversations}
             conversationsLoadFailed={state.conversationsLoadFailed}
             loadingConversations={state.loadingConversations}
             handleRetryConversations={state.handleRetryConversations}

@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { Check, ChatCircleDots, Star, CaretRight, Plus, Trash } from "@phosphor-icons/react";
 import { List } from "react-window";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
@@ -15,7 +15,7 @@ import {
 import { cn } from "@/core/lib/utils";
 import type { Conversation, SessionInfo } from "@/core/services/apiService";
 import { ConversationRow } from "./ConversationRow";
-import { isSessionActive, getTagColor } from "../utils";
+import { isSessionActive, getTagColor, classifyConversationFunnel } from "../utils";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
 
 interface ChatListPanelProps {
@@ -27,7 +27,10 @@ interface ChatListPanelProps {
   setSelectedChatIds: (ids: string[]) => void;
   filter: string;
   setFilter: (val: string) => void;
+  funnelFilter?: string;
+  setFunnelFilter?: (val: string) => void;
   filteredConversations: Conversation[];
+  allConversations?: Conversation[];
   conversationsLoadFailed: boolean;
   loadingConversations: boolean;
   handleRetryConversations: () => Promise<void>;
@@ -59,7 +62,10 @@ export function ChatListPanel({
   setSelectedChatIds,
   filter,
   setFilter,
+  funnelFilter = "all",
+  setFunnelFilter,
   filteredConversations,
+  allConversations,
   conversationsLoadFailed,
   loadingConversations,
   handleRetryConversations,
@@ -80,6 +86,21 @@ export function ChatListPanel({
 }: ChatListPanelProps) {
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const [dynamicHeight, setDynamicHeight] = useState(conversationListHeight || 600);
+
+  const sourceConversations = allConversations || filteredConversations;
+  const funnelCounts = useMemo(() => {
+    const counts = { all: sourceConversations.length, chegou: 0, rodando: 0, pausado: 0, finalizado: 0, pago: 0 };
+    for (const c of sourceConversations) {
+      const info = classifyConversationFunnel(c, {
+        globalAiEnabled: conversationRowData?.globalAiEnabled,
+        conversationControls: conversationRowData?.conversationControls,
+      });
+      if (info.state in counts) {
+        counts[info.state as keyof typeof counts]++;
+      }
+    }
+    return counts;
+  }, [sourceConversations, conversationRowData?.globalAiEnabled, conversationRowData?.conversationControls]);
 
   useEffect(() => {
     if (!listContainerRef.current) return;
@@ -140,27 +161,104 @@ export function ChatListPanel({
           </TabsList>
         </Tabs>
 
-        {/* Status Legend Bar: Chegou (Verde), Rodando (Amarelo), Pausado (Vermelho), Aguarda PIX (Azul Piscando) */}
-        <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-medium text-muted-foreground/80 bg-muted/25 rounded-md border border-border/40 select-none">
-          <span className="flex items-center gap-1.5" title="Novo lead recebido do anúncio / não lida">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.7)]" />
-            <span className="hidden min-[380px]:inline">Chegou</span>
-          </span>
-          <span className="flex items-center gap-1.5" title="Atendimento em andamento ativo pela IA">
-            <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.7)]" />
-            <span className="hidden min-[380px]:inline">Rodando</span>
-          </span>
-          <span className="flex items-center gap-1.5" title="Atendimento pausado / operador humano">
-            <span className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.7)]" />
-            <span className="hidden min-[380px]:inline">Pausado</span>
-          </span>
-          <span className="flex items-center gap-1.5 text-blue-400 font-semibold" title="Atendimento finalizado com ficha — aguardando PIX">
-            <span className="relative flex h-2 w-2">
+        {/* Funnel Filter Bar Interativa: Todos, Chegou (Verde), Rodando (Amarelo), Aguarda PIX (Azul Piscando), Pausado (Vermelho), Pago (Teal) */}
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1 px-0.5 text-[10px] select-none border-t border-border/30 pt-1.5">
+          <button
+            type="button"
+            onClick={() => setFunnelFilter?.("all")}
+            className={cn(
+              "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1 border",
+              funnelFilter === "all"
+                ? "bg-primary/20 text-primary border-primary/40 font-bold shadow-xs"
+                : "bg-muted/30 text-muted-foreground/80 hover:bg-muted/60 border-border/30"
+            )}
+          >
+            <span>Todos</span>
+            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.all}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFunnelFilter?.(funnelFilter === "chegou" ? "all" : "chegou")}
+            className={cn(
+              "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
+              funnelFilter === "chegou"
+                ? "bg-emerald-500/25 text-emerald-300 border-emerald-400 font-bold shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+                : "bg-muted/30 text-emerald-400/90 hover:bg-emerald-500/10 border-border/30"
+            )}
+            title="Filtrar por Chegou (Novos leads / Não lidas)"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.7)]" />
+            <span>Chegou</span>
+            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.chegou}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFunnelFilter?.(funnelFilter === "rodando" ? "all" : "rodando")}
+            className={cn(
+              "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
+              funnelFilter === "rodando"
+                ? "bg-amber-500/25 text-amber-300 border-amber-400 font-bold shadow-[0_0_8px_rgba(251,191,36,0.3)]"
+                : "bg-muted/30 text-amber-400/90 hover:bg-amber-500/10 border-border/30"
+            )}
+            title="Filtrar por Rodando (IA em atendimento ativo)"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.7)]" />
+            <span>Rodando</span>
+            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.rodando}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFunnelFilter?.(funnelFilter === "finalizado" ? "all" : "finalizado")}
+            className={cn(
+              "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
+              funnelFilter === "finalizado"
+                ? "bg-blue-600 text-white border-blue-400 font-bold shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                : "bg-muted/30 text-blue-400 hover:bg-blue-500/10 border-border/30"
+            )}
+            title="Filtrar por Aguarda PIX (Ficha gerada / aguardando pagamento)"
+          >
+            <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-80" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.9)]" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
             </span>
             <span>Aguarda PIX</span>
-          </span>
+            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.finalizado}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFunnelFilter?.(funnelFilter === "pausado" ? "all" : "pausado")}
+            className={cn(
+              "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
+              funnelFilter === "pausado"
+                ? "bg-rose-500/25 text-rose-300 border-rose-400 font-bold shadow-[0_0_8px_rgba(244,63,94,0.3)]"
+                : "bg-muted/30 text-rose-400/90 hover:bg-rose-500/10 border-border/30"
+            )}
+            title="Filtrar por Pausado (Operador humano / IA desligada)"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.7)]" />
+            <span>Pausado</span>
+            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.pausado}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFunnelFilter?.(funnelFilter === "pago" ? "all" : "pago")}
+            className={cn(
+              "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
+              funnelFilter === "pago"
+                ? "bg-teal-500/25 text-teal-300 border-teal-400 font-bold shadow-[0_0_8px_rgba(20,184,166,0.3)]"
+                : "bg-muted/30 text-teal-400/90 hover:bg-teal-500/10 border-border/30"
+            )}
+            title="Filtrar por Pago (Pedido aprovado / comprovante recebido)"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-teal-400 shadow-[0_0_4px_rgba(20,184,166,0.7)]" />
+            <span>Pago</span>
+            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.pago}</span>
+          </button>
         </div>
 
         {isMultiSelectMode && (

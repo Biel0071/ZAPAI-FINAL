@@ -47,6 +47,48 @@ function cleanText(val = '') {
   return String(val || '').trim();
 }
 
+const PRODUCT_EXCLUDE_REGEX = /(?:churrasqueira|trio|forno|fog[aã]o|caixa|d['’]?\s*agua|d['’]?\s*água|reservat[oó]rio|tijolo|milheiro|cimento|bloco|telha|areia|brita|produto|material|pre[çc]o|valor|quanto|qual|entrega\s+d[ao]|loja)/i;
+
+/**
+ * Resolve número telefônico limpo eliminando LIDs e formatando padrão brasileiro
+ */
+async function resolveCleanCustomerPhone(rawPhone) {
+  if (!rawPhone) return '';
+  let str = String(rawPhone).trim();
+  const isLid = str.includes('@lid') || (/^\d{14,16}$/.test(str.replace(/\D/g, '')) && !str.startsWith('55'));
+
+  if (isLid) {
+    const rawDigits = str.replace(/@.*$/, '').replace(/\D/g, '');
+    try {
+      const res = await query(
+        `SELECT phone FROM whatsapp_lid_mappings WHERE lid = $1 OR lid = $2 LIMIT 1`,
+        [str, rawDigits]
+      );
+      if (res.rows.length > 0 && res.rows[0].phone) {
+        str = res.rows[0].phone;
+      }
+    } catch (_) {}
+  }
+
+  const digits = str.replace(/@.*$/, '').replace(/\D/g, '');
+  if (digits.length === 13 && digits.startsWith('55')) {
+    return `+55 ${digits.slice(2, 4)} ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  }
+  if (digits.length === 12 && digits.startsWith('55')) {
+    return `+55 ${digits.slice(2, 4)} ${digits.slice(4, 8)}-${digits.slice(8)}`;
+  }
+  if (digits.length === 11) {
+    return `+55 ${digits.slice(0, 2)} ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `+55 ${digits.slice(0, 2)} ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  if (!str.includes('@lid')) {
+    return str.replace(/@.*$/, '');
+  }
+  return '';
+}
+
 /**
  * Extrai dados consolidados da conversa para a ficha de pedido
  */
@@ -92,6 +134,9 @@ async function extractSheetDataFromConversation(conversationId, companyId = 'def
     }
   } catch (_) {}
 
+  // Extrai telefone limpo e formatado
+  const customerPhone = await resolveCleanCustomerPhone(conv.lead_phone || conv.phone || conv.remote_jid);
+
   // Extrai nome do cliente
   let customerName = conv.name || conv.lead_name || '';
   if (!customerName || customerName === 'Contato' || customerName.includes('@') || /^\d+$/.test(customerName)) {
@@ -109,33 +154,76 @@ async function extractSheetDataFromConversation(conversationId, companyId = 'def
     customerName = 'Cliente';
   }
 
-  // Extrai endereço, bairro, cidade, CEP (mensagens mais recentes têm precedência em caso de revisão)
-  let neighborhood = memoryCommercial.neighborhood || memoryCommercial.deliveryCity || null;
+  // Extrai endereço, bairro, cidade, CEP, CPF, e-mail e referência
+  let neighborhood = memoryCommercial.neighborhood || null;
   let city = memoryCommercial.deliveryCity || null;
+  let state = null;
   let cep = null;
   let fullAddress = null;
+  let cpf = null;
+  let email = null;
+  let reference = null;
 
   for (const msg of messages.filter(m => !m.from_me)) {
     const text = String(msg.text || msg.content || '');
+    
+    // CEP
     const cepMatch = text.match(/\b\d{5}-?\d{3}\b/);
     if (cepMatch) cep = cepMatch[0];
 
-    const bMatch = text.match(/(?:bairro|moro no|entrega no|fica no|sou do|agora [eé] no|vai ser no)\s+([a-zA-ZÀ-ÿ\s]{3,30})/i);
+    // CPF
+    const cpfMatch = text.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/);
+    if (cpfMatch) cpf = cpfMatch[0];
+
+    // E-mail
+    const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/);
+    if (emailMatch) email = emailMatch[0];
+
+    // Bairro (blindado contra nomes de produto)
+    const bMatch = text.match(/(?:bairro|moro no|moro na|fica no|fica na|sou do|sou da|vila|jardim)\s+([a-zA-ZÀ-ÿ0-9\s]{3,35})/i);
     if (bMatch && bMatch[1]) {
-      const cand = bMatch[1].trim();
-      if (!cand.toLowerCase().includes('qual') && !cand.toLowerCase().includes('quanto') && !cand.toLowerCase().includes('preco')) {
+      let cand = bMatch[1].trim();
+      if (/\s+(?:em|de|na|no)\s+/i.test(cand)) {
+        cand = cand.split(/\s+(?:em|de|na|no)\s+/i)[0].trim();
+      }
+      if (!PRODUCT_EXCLUDE_REGEX.test(cand) && cand.length >= 3) {
         neighborhood = cand;
       }
     }
 
-    const addrMatch = text.match(/(?:rua|av\.|avenida|estrada|travessa)\s+[^,\n]+(?:,\s*\d+)?/i);
+    // Cidade e UF (ex: Sorocaba/SP, Ipojuca - PE)
+    const cityUfMatch = text.match(/(?:cidade|munic[ií]pio|em|de)\s+([a-zA-ZÀ-ÿ\s]{3,25})\s*(?:[-/]|,\s*|\s+em\s+|\s+de\s+)?([A-Z]{2})\b/i);
+    if (cityUfMatch && cityUfMatch[1] && cityUfMatch[2]) {
+      const candCity = cityUfMatch[1].trim();
+      const candUf = cityUfMatch[2].toUpperCase();
+      const validUfs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+      if (validUfs.includes(candUf) && !PRODUCT_EXCLUDE_REGEX.test(candCity)) {
+        city = candCity;
+        state = candUf;
+      }
+    }
+
+    // Ponto de Referência
+    const refMatch = text.match(/(?:ponto de refer[eê]ncia|refer[eê]ncia|perto d[eao]|pr[oó]ximo [aà]|em frente [aà])\s+([^\n,.;]+)/i);
+    if (refMatch && refMatch[1]) {
+      const candRef = refMatch[1].trim();
+      if (!PRODUCT_EXCLUDE_REGEX.test(candRef) && candRef.length > 3) {
+        reference = candRef;
+      }
+    }
+
+    // Endereço (Rua, Av, etc)
+    const addrMatch = text.match(/(?:rua|av\.|avenida|estrada|travessa|rodovia|alameda)\s+[^,\n]+(?:,\s*(?:n[ºo°]?\s*)?\d+[a-zA-Z]?)?/i);
     if (addrMatch) {
-      fullAddress = addrMatch[0].trim();
+      const candAddr = addrMatch[0].trim();
+      if (!PRODUCT_EXCLUDE_REGEX.test(candAddr)) {
+        fullAddress = candAddr;
+      }
     }
   }
 
   // Se tem bairro e cidade, monta endereço de entrega sugerido
-  const deliveryAddress = fullAddress || [neighborhood, city, cep].filter(Boolean).join(', ') || 'A combinar com o atendente';
+  const deliveryAddress = fullAddress || [neighborhood, city, state, cep].filter(Boolean).join(', ') || 'A combinar com o atendente';
 
   // Helper para extrair quantidades dinâmicas (dígitos ou por extenso)
   const parseItemQuantity = (text = '', keywords = []) => {
@@ -237,8 +325,17 @@ async function extractSheetDataFromConversation(conversationId, companyId = 'def
     });
   }
 
-  // Calcula total
-  const totalPrice = items.reduce((acc, curr) => acc + (Number(curr.totalPrice) || 0), 0);
+  // Resumo financeiro estruturado
+  const productTotal = items.reduce((acc, curr) => acc + (Number(curr.totalPrice) || 0), 0);
+  let freight = Number(memoryCommercial.freightPrice) || 0;
+  if (!freight && (deliveryAddress !== 'A combinar com o atendente' || neighborhood || city || cep)) {
+    freight = 65.12;
+  }
+  const orderTotal = productTotal + freight;
+  const deliveryTime = memoryCommercial.deliveryTime || '3 a 5 dias úteis';
+  const pixDiscountRate = 0.05; // 5% de desconto à vista no valor dos produtos
+  const pixTotal = (productTotal * (1 - pixDiscountRate)) + freight;
+  const installment10x = orderTotal > 0 ? orderTotal / 10 : 0;
 
   // Forma de pagamento
   let paymentMethod = 'pix';
@@ -249,14 +346,25 @@ async function extractSheetDataFromConversation(conversationId, companyId = 'def
   return {
     conversationId: conv.id,
     leadId: conv.lead_id,
-    phone: conv.phone,
+    phone: customerPhone,
+    rawPhone: conv.phone,
     customerName,
+    cpf: cpf || null,
+    email: email || null,
     deliveryAddress,
     deliveryNeighborhood: neighborhood || '',
     deliveryCity: city || '',
+    deliveryState: state || '',
     deliveryCep: cep || '',
+    reference: reference || null,
     items,
-    totalPrice,
+    productTotal,
+    freight,
+    orderTotal,
+    totalPrice: orderTotal,
+    deliveryTime,
+    pixTotal,
+    installment10x,
     paymentMethod,
     summary: conv.summary || '',
   };
@@ -272,23 +380,48 @@ async function saveConversationSheet(sheetData, companyId = 'default') {
     leadId,
     phone,
     customerName,
+    cpf,
+    email,
     deliveryAddress,
     deliveryNeighborhood,
     deliveryCity,
+    deliveryState,
     deliveryCep,
+    reference,
     items,
+    productTotal,
+    freight,
+    orderTotal,
     totalPrice,
+    deliveryTime,
+    pixTotal,
+    installment10x,
     paymentMethod,
+    observations,
     status = 'generated',
   } = sheetData;
 
   const summaryText = buildSheetText({
     customerName,
+    cpf,
     phone,
+    email,
     deliveryAddress,
+    deliveryNeighborhood,
+    deliveryCity,
+    deliveryState,
+    deliveryCep,
+    reference,
     items,
-    totalPrice,
+    productTotal: productTotal ?? totalPrice,
+    freight,
+    orderTotal: orderTotal ?? totalPrice,
+    totalPrice: orderTotal ?? totalPrice,
+    deliveryTime,
+    pixTotal,
+    installment10x,
     paymentMethod,
+    observations,
     status,
   });
 
@@ -332,7 +465,7 @@ async function saveConversationSheet(sheetData, companyId = 'default') {
         deliveryCity,
         deliveryCep,
         JSON.stringify(items || []),
-        totalPrice || 0,
+        totalPrice || orderTotal || 0,
         paymentMethod || 'pix',
         status,
         summaryText,
@@ -365,7 +498,7 @@ async function saveConversationSheet(sheetData, companyId = 'default') {
         deliveryCity,
         deliveryCep,
         JSON.stringify(items || []),
-        totalPrice || 0,
+        totalPrice || orderTotal || 0,
         paymentMethod || 'pix',
         status,
         summaryText,
@@ -388,36 +521,92 @@ async function saveConversationSheet(sheetData, companyId = 'default') {
     }
   } catch (_) {}
 
+  // Dispara evento no Webhook Service do ZAI
+  try {
+    const webhookService = require('./webhookService');
+    webhookService.dispatchEvent({
+      tenantId: cleanCompany,
+      event: 'sheet.created',
+      payload: {
+        conversationId,
+        sheetId: sheetRow.id,
+        sheet: sheetRow,
+      },
+    }).catch(() => {});
+  } catch (_) {}
+
   return sheetRow;
 }
 
 /**
  * Monta o texto oficial e humanizado da ficha de pedido para WhatsApp
+ * Omitindo dinamicamente campos não enviados pelo cliente (CPF, e-mail, referência)
  */
 function buildSheetText(sheet) {
+  const customerLines = [
+    `Nome: ${sheet.customerName || 'Cliente'}`,
+  ];
+  if (sheet.cpf) customerLines.push(`CPF: ${sheet.cpf}`);
+  if (sheet.phone) customerLines.push(`Telefone: ${sheet.phone}`);
+  if (sheet.email) customerLines.push(`E-mail: ${sheet.email}`);
+
+  const deliveryLines = [];
+  if (sheet.deliveryAddress && sheet.deliveryAddress !== 'A combinar com o atendente') {
+    deliveryLines.push(`Endereço: ${sheet.deliveryAddress}`);
+  }
+  if (sheet.deliveryNeighborhood) deliveryLines.push(`Bairro: ${sheet.deliveryNeighborhood}`);
+  if (sheet.deliveryCity) deliveryLines.push(`Cidade: ${sheet.deliveryCity}`);
+  if (sheet.deliveryState) deliveryLines.push(`Estado: ${sheet.deliveryState}`);
+  if (sheet.deliveryCep) deliveryLines.push(`CEP: ${sheet.deliveryCep}`);
+  if (sheet.reference) deliveryLines.push(`Referência: ${sheet.reference}`);
+
+  if (deliveryLines.length === 0) {
+    deliveryLines.push('Endereço: A combinar com o atendente');
+  }
+
   const itemsText = (sheet.items || [])
-    .map(i => `• *${i.item}* ${i.specification ? `(${i.specification})` : ''} - Qtd: ${i.quantity}x - ${formatMoneyBRL(i.totalPrice)}`)
+    .map(i => `• ${i.item} × ${i.quantity || 1}`)
     .join('\n');
 
-  const paymentLabel = sheet.paymentMethod === 'pix'
-    ? 'PIX à Vista (com desconto especial)'
-    : 'Cartão de Crédito (em até 10x sem juros)';
+  const productTotal = Number(sheet.productTotal ?? sheet.totalPrice) || 0;
+  const freight = Number(sheet.freight) || 0;
+  const orderTotal = Number(sheet.orderTotal ?? (productTotal + freight)) || productTotal;
+  const deliveryTime = sheet.deliveryTime || '3 a 5 dias úteis';
+  const pixTotal = Number(sheet.pixTotal ?? (productTotal * 0.95 + freight));
+  const installment10x = Number(sheet.installment10x ?? (orderTotal > 0 ? orderTotal / 10 : 0));
 
-  return [
+  const textBlocks = [
     '📋 *FICHA DE PEDIDO & ORÇAMENTO*',
     '──────────────────────────────',
-    `👤 *Cliente:* ${sheet.customerName || 'Cliente'}`,
-    `📞 *Telefone:* ${sheet.phone || ''}`,
-    `📍 *Entrega:* ${sheet.deliveryAddress || 'A confirmar'}`,
+    '👤 *Dados do Cliente*',
+    ...customerLines,
     '',
-    '📦 *Itens do Pedido:*',
+    '📍 *Entrega*',
+    ...deliveryLines,
+    '',
+    '📦 *Itens*',
     itemsText || '• Materiais conforme negociação',
     '',
-    `💰 *Valor Total:* ${formatMoneyBRL(sheet.totalPrice)}`,
-    `💳 *Condição:* ${paymentLabel}`,
+    `💰 *Valor dos Produtos:* ${formatMoneyBRL(productTotal)}`,
+    `🚚 *Frete:* ${formatMoneyBRL(freight)}`,
+    `💵 *Total do Pedido:* ${formatMoneyBRL(orderTotal)}`,
+    `⏱️ *Prazo de Entrega:* ${deliveryTime}`,
+    '',
+    '💳 *Forma de Pagamento*',
+    `• PIX à Vista: ${formatMoneyBRL(pixTotal)} (com 5% de desconto nos produtos)`,
+    `• Cartão: 10x sem juros de ${formatMoneyBRL(installment10x)}`,
+  ];
+
+  if (sheet.observations) {
+    textBlocks.push('', '📝 *Observações*', sheet.observations);
+  }
+
+  textBlocks.push(
     '──────────────────────────────',
-    'Por favor confirme se os dados e o endereço acima estão corretos para agendarmos sua entrega e gerarmos a chave PIX!',
-  ].join('\n');
+    'Por favor confirme se os dados e o endereço acima estão corretos para agendarmos sua entrega e gerarmos a chave PIX!'
+  );
+
+  return textBlocks.join('\n');
 }
 
 /**
@@ -541,6 +730,97 @@ async function finalizeAttendanceWithSheet({
   };
 }
 
+/**
+ * Dispara dados da ficha estruturada para ERP / DANFE / Orçamento externo
+ */
+async function dispatchSheetToErp({
+  conversationId,
+  sheetId = null,
+  companyId = 'default',
+  webhookUrl = null,
+  apiKey = null,
+}) {
+  const cleanCompany = String(companyId || 'default').trim();
+  let sheet = null;
+  if (sheetId) {
+    const res = await query(
+      `SELECT * FROM conversation_sheets WHERE id = $1 AND company_id = $2 LIMIT 1`,
+      [sheetId, cleanCompany]
+    );
+    sheet = res.rows[0];
+  } else {
+    sheet = await getLatestSheetForConversation(conversationId, cleanCompany);
+  }
+
+  if (!sheet) {
+    try {
+      const sheetData = await extractSheetDataFromConversation(conversationId, cleanCompany);
+      sheet = await saveConversationSheet(sheetData, cleanCompany);
+    } catch (_) {}
+  }
+
+  if (!sheet) {
+    throw Object.assign(new Error('Ficha não encontrada para integração ERP.'), { status: 404 });
+  }
+
+  const payload = {
+    event: 'erp.order_sheet.sync',
+    source: 'ZAI CRM',
+    timestamp: new Date().toISOString(),
+    companyId: cleanCompany,
+    conversationId,
+    sheet: {
+      id: sheet.id,
+      customerName: sheet.customer_name,
+      phone: sheet.phone,
+      deliveryAddress: sheet.delivery_address,
+      deliveryNeighborhood: sheet.delivery_neighborhood,
+      deliveryCity: sheet.delivery_city,
+      deliveryCep: sheet.delivery_cep,
+      items: sheet.items,
+      totalPrice: sheet.total_price,
+      paymentMethod: sheet.payment_method,
+      status: sheet.status,
+      summaryText: sheet.summary_text,
+      details: sheet.sheet_data,
+    },
+  };
+
+  let delivered = false;
+  let responseData = null;
+
+  if (webhookUrl) {
+    const axios = require('axios');
+    const headers = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'ZAI-CRM-ERP-Sync/1.0',
+    };
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+      headers['X-API-Key'] = apiKey;
+    }
+    const resp = await axios.post(webhookUrl, payload, { headers, timeout: 8000 });
+    delivered = true;
+    responseData = resp.data;
+  } else {
+    // Dispara via WebhookService registrado no sistema
+    const webhookService = require('./webhookService');
+    const dispatchRes = await webhookService.dispatchEvent({
+      tenantId: cleanCompany,
+      event: 'sheet.erp_sync',
+      payload,
+    });
+    delivered = (dispatchRes?.delivered || 0) > 0;
+  }
+
+  return {
+    success: true,
+    delivered,
+    payload,
+    responseData,
+  };
+}
+
 module.exports = {
   extractSheetDataFromConversation,
   saveConversationSheet,
@@ -548,5 +828,7 @@ module.exports = {
   listConversationSheets,
   getLatestSheetForConversation,
   finalizeAttendanceWithSheet,
+  dispatchSheetToErp,
   formatMoneyBRL,
 };
+

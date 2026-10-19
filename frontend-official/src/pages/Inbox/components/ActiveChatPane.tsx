@@ -52,6 +52,7 @@ import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
+import { OrderSheetModal } from "./OrderSheetModal";
 import { FlowExecutionBanner, matchesConversationFlow, type FlowExecutionData } from "./FlowExecutionBanner";
 import { ZaiAssistantComposer } from "./ZaiAssistantComposer";
 import { useAiCountdown } from "@/state/hooks/useAiCountdown";
@@ -282,6 +283,9 @@ export function ActiveChatPane({
     return () => { sheetRequestVersion.current += 1; };
   }, [selectedConversation?.id]);
 
+  const [activeSheetModalData, setActiveSheetModalData] = useState<any>(null);
+  const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
+
   const handleGenerateSheet = async () => {
     if (!selectedConversation?.id) return;
     const version = ++sheetRequestVersion.current;
@@ -289,14 +293,17 @@ export function ActiveChatPane({
     try {
       const res = await requestApiEndpoint<any>(`/api/conversations/${encodeURIComponent(selectedConversation.id)}/generate-sheet`, "POST");
       if (version !== sheetRequestVersion.current) return;
-      const text = res?.suggestedText || (res?.profile ? `Ficha do Cliente: ${res.profile.customer?.name || ''}\nResumo: ${res.profile.summary || ''}\nPróxima ação: ${res.profile.nextAction || ''}` : null);
-      if (text) {
-        setMessageInput(text);
-        toast({
-          title: "Ficha Gerada com Sucesso",
-          description: "Os dados e o resumo da conversa foram inseridos no campo de mensagem.",
-        });
+      if (res?.suggestedText) {
+        setMessageInput(res.suggestedText);
       }
+      if (res?.sheet || res?.profile || res?.suggestedText) {
+        setActiveSheetModalData(res.sheet || res.profile || { rawText: res.suggestedText });
+        setIsSheetModalOpen(true);
+      }
+      toast({
+        title: "Ficha de Pedido Pronta",
+        description: "Os dados da negociação foram apurados e abertos no centro da tela.",
+      });
     } catch (err: any) {
       if (version !== sheetRequestVersion.current) return;
       toast({
@@ -1711,6 +1718,20 @@ export function ActiveChatPane({
           recipientName={selectedConversation.contactName}
           disabled={!isWhatsappConnected || sending}
           onDispatch={handleDispatchQuickReply}
+        />
+      )}
+      {selectedConversation && isSheetModalOpen && (
+        <OrderSheetModal
+          isOpen={isSheetModalOpen}
+          onClose={() => setIsSheetModalOpen(false)}
+          sheet={activeSheetModalData}
+          conversationId={selectedConversation.id}
+          customerName={selectedConversation.contactName || "Cliente"}
+          customerPhone={selectedConversation.phone || ""}
+          onInsertInComposer={(text) => setMessageInput(text)}
+          onFinalized={() => {
+            setIsSheetModalOpen(false);
+          }}
         />
       )}
     </div>
