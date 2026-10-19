@@ -2446,8 +2446,8 @@
     "mediaType": "image",
     "companyId": "test-tenant-ctx-a",
     "steps": [],
-    "updatedAt": "2026-10-17T01:33:56.391Z",
-    "createdAt": "2026-10-17T01:33:56.391Z"
+    "updatedAt": "2026-10-19T14:22:12.908Z",
+    "createdAt": "2026-10-19T11:22:12.837Z"
   },
   {
     "id": "test_qr_caixa_5000",
@@ -2472,8 +2472,8 @@
     "isFlow": false,
     "companyId": "test-tenant-ctx-a",
     "steps": [],
-    "updatedAt": "2026-10-16T22:33:56.299Z",
-    "createdAt": "2026-10-16T22:33:56.248Z",
+    "updatedAt": "2026-10-19T11:22:12.871Z",
+    "createdAt": "2026-10-19T11:22:12.842Z",
     "mediaUrl": null,
     "mediaType": null,
     "aiMemory": null,
@@ -2501,8 +2501,8 @@
     "isFlow": false,
     "companyId": "test-tenant-ctx-a",
     "steps": [],
-    "updatedAt": "2026-10-16T22:33:56.301Z",
-    "createdAt": "2026-10-16T22:33:56.252Z",
+    "updatedAt": "2026-10-19T11:22:12.872Z",
+    "createdAt": "2026-10-19T11:22:12.843Z",
     "mediaUrl": null,
     "mediaType": null,
     "aiMemory": null,

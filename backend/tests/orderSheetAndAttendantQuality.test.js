@@ -302,3 +302,40 @@ test('8. ERP webhook integration: dispatchSheetToErp prepares payload and sends 
   assert.ok(result.payload.sheet);
 });
 
+test('9. Empty/bugged delivery sanitization: omits delivery block completely from dispatch text while generating sheet with PIX and Cartão', async () => {
+  const convRes = await query(
+    `INSERT INTO conversations (company_id, remote_jid, status, lead_temperature, funnel_stage, ai_enabled)
+     VALUES ($1, '5511966665555@s.whatsapp.net', 'open', 'warm', 'negociacao', TRUE)
+     RETURNING id`,
+    [TEST_TENANT]
+  );
+  const convId = convRes.rows[0].id;
+
+  // Cliente apenas pergunta o valor da churrasqueira sem informar endereço
+  await query(
+    `INSERT INTO messages (company_id, conversation_id, phone, text, from_me, created_at) VALUES
+     ($1, $2, '5511966665555', 'Boa tarde! Qual o valor da entrega da churrasqueira?', FALSE, NOW())`,
+    [TEST_TENANT, convId]
+  );
+
+  const sheetData = await orderSheetService.extractSheetDataFromConversation(convId, TEST_TENANT);
+  assert.ok(sheetData);
+  assert.equal(sheetData.deliveryNeighborhood, '', 'Neighborhood must be empty, not product name');
+  assert.equal(sheetData.deliveryCity, '', 'City must be empty, not product name');
+  assert.equal(sheetData.deliveryAddress, '', 'Address must be empty, not product name');
+
+  // Ficha é gerada normalmente com os itens
+  const savedSheet = await orderSheetService.saveConversationSheet(sheetData, TEST_TENANT);
+  assert.ok(savedSheet);
+  assert.ok(savedSheet.summary_text);
+
+  // O texto NÃO deve conter bloco de entrega nem 'A combinar'
+  assert.ok(!savedSheet.summary_text.includes('📍 *Entrega*'));
+  assert.ok(!savedSheet.summary_text.includes('A combinar com o atendente'));
+
+  // O texto DEVE conter itens, totais, PIX e Cartão
+  assert.ok(savedSheet.summary_text.includes('Churrasqueira Pré-Moldada Trio Completa'));
+  assert.ok(savedSheet.summary_text.includes('PIX à Vista:'));
+  assert.ok(savedSheet.summary_text.includes('Cartão: 10x sem juros de'));
+});
+

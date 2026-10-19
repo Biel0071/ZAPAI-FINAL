@@ -980,7 +980,7 @@ export function SidebarPanel({
                   <p className="text-[11px] font-medium text-muted-foreground">Etiquetas</p>
                   <span className="text-[9.5px] text-muted-foreground/70">Clique para editar</span>
                 </div>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
                   {(selectedConversation.tags ?? []).map((tag) => (
                     <TagIconBadge
                       key={tag}
@@ -992,7 +992,7 @@ export function SidebarPanel({
                     />
                   ))}
                   {!selectedConversation.tags?.length && (
-                    <span className="text-[11px] text-muted-foreground">Nenhuma etiqueta</span>
+                    <span className="text-[11px] text-muted-foreground italic py-0.5">Nenhuma etiqueta</span>
                   )}
                 </div>
                 <div className="mt-2 flex gap-1">

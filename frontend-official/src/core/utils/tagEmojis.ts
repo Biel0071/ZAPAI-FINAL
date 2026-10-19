@@ -213,14 +213,52 @@ export function cleanTagName(text: string): string {
 
 /** Presentation only: stored tags and API values retain their original names. */
 export function businessLabel(value: string): string {
+  if (!value) return '';
+  const clean = value.trim();
+  const lower = clean.toLowerCase();
+
   const labels: Record<string, string> = {
     open: 'Em atendimento', active: 'Ativo', closed: 'Encerrado', archived: 'Arquivado', blocked: 'Bloqueado',
     information: 'Informações', cold: 'Frio', warm: 'Morno', hot: 'Quente', educate: 'Orientar',
     unknown: 'Não identificado', new_lead: 'Novo lead', interested: 'Interessado', price_request: 'Pedido de preço',
     send_price: 'Enviar preço', price_sent: 'Preço enviado', negotiation: 'Negociação', ready_to_buy: 'Pronto para comprar',
     purchase: 'Compra', buy: 'Compra', support: 'Suporte', positive: 'Positivo', neutral: 'Neutro', negative: 'Negativo',
+    ficha_gerada: 'Ficha Gerada',
+    ficha: 'Ficha Gerada',
+    followup_ia_ativo: 'Follow-up IA Ativo',
+    followup_ia: 'Follow-up IA',
+    followup_toque_1: 'Follow-up 1',
+    followup_toque_2: 'Follow-up 2',
+    followup_toque_3: 'Follow-up 3',
+    'algo-03': 'Algoritmo 03',
+    algo_03: 'Algoritmo 03',
+    algo: 'Algoritmo Inteligente',
+    estilo_price_sensitive_negotiator: 'Perfil Negociador',
+    price_sensitive_negotiator: 'Perfil Negociador',
+    price_sensitive: 'Sensível a Preço',
+    delirio_evitado: 'Delírio Evitado',
+    intervencao_humana: 'Intervenção Humana',
+    intervencao: 'Intervenção',
+    aguarda_pix: 'Aguarda PIX',
+    atendimento_finalizado: 'Atendimento Finalizado',
+    campanha_50_leads_ia: 'Campanha 50 Leads',
   };
-  return labels[value.trim().toLowerCase()] || value;
+
+  if (labels[lower]) {
+    return labels[lower];
+  }
+
+  // Automatic human-readable formatter for snake_case and kebab-case tags
+  if (clean.includes('_') || clean.includes('-')) {
+    return clean
+      .replace(/[_-]+/g, ' ')
+      .split(' ')
+      .filter(Boolean)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  return clean;
 }
 
 /**

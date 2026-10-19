@@ -49,6 +49,14 @@ function cleanText(val = '') {
 
 const PRODUCT_EXCLUDE_REGEX = /(?:churrasqueira|trio|forno|fog[aã]o|caixa|d['’]?\s*agua|d['’]?\s*água|reservat[oó]rio|tijolo|milheiro|cimento|bloco|telha|areia|brita|produto|material|pre[çc]o|valor|quanto|qual|entrega\s+d[ao]|loja|gr[aá]tis|frete|sem\s+custo|promo[çc][aã]o|desconto)/i;
 
+function sanitizeDeliveryField(val) {
+  if (!val) return '';
+  const str = cleanText(val);
+  if (!str || str === '-' || PRODUCT_EXCLUDE_REGEX.test(str)) return '';
+  if (str.length < 3) return '';
+  return str;
+}
+
 /**
  * Resolve número telefônico limpo eliminando LIDs e formatando padrão brasileiro
  */
@@ -155,8 +163,8 @@ async function extractSheetDataFromConversation(conversationId, companyId = 'def
   }
 
   // Extrai endereço, bairro, cidade, CEP, CPF, e-mail e referência
-  let neighborhood = memoryCommercial.neighborhood || null;
-  let city = memoryCommercial.deliveryCity || null;
+  let neighborhood = sanitizeDeliveryField(memoryCommercial.neighborhood) || null;
+  let city = sanitizeDeliveryField(memoryCommercial.deliveryCity) || null;
   let state = null;
   let cep = null;
   let fullAddress = null;
@@ -222,8 +230,12 @@ async function extractSheetDataFromConversation(conversationId, companyId = 'def
     }
   }
 
-  // Se tem bairro e cidade, monta endereço de entrega sugerido
-  const deliveryAddress = fullAddress || [neighborhood, city, state, cep].filter(Boolean).join(', ') || 'A combinar com o atendente';
+  // Se tem bairro e cidade, monta endereço de entrega sugerido (limpo sem valores repetidos ou poluídos)
+  let deliveryAddress = fullAddress ? sanitizeDeliveryField(fullAddress) : '';
+  if (!deliveryAddress) {
+    const parts = Array.from(new Set([neighborhood, city, state, cep].filter(Boolean)));
+    deliveryAddress = parts.length > 0 ? parts.join(', ') : '';
+  }
 
   // Helper para extrair quantidades dinâmicas (dígitos ou por extenso)
   const parseItemQuantity = (text = '', keywords = []) => {
@@ -543,25 +555,50 @@ async function saveConversationSheet(sheetData, companyId = 'default') {
  * Omitindo dinamicamente campos não enviados pelo cliente (CPF, e-mail, referência)
  */
 function buildSheetText(sheet) {
-  const customerLines = [
-    `Nome: ${sheet.customerName || 'Cliente'}`,
-  ];
-  if (sheet.cpf) customerLines.push(`CPF: ${sheet.cpf}`);
-  if (sheet.phone) customerLines.push(`Telefone: ${sheet.phone}`);
-  if (sheet.email) customerLines.push(`E-mail: ${sheet.email}`);
+  const customerLines = [];
+  const cleanName = cleanText(sheet.customerName);
+  if (cleanName && cleanName !== 'Cliente' && cleanName !== 'Contato' && cleanName !== '-' && !cleanName.includes('@')) {
+    customerLines.push(`Nome: ${cleanName}`);
+  }
+  const cleanPhone = cleanText(sheet.phone);
+  if (cleanPhone && cleanPhone !== '-' && !cleanPhone.includes('@lid')) {
+    customerLines.push(`Telefone: ${cleanPhone}`);
+  }
+  const cleanCpf = cleanText(sheet.cpf);
+  if (cleanCpf && cleanCpf !== '-') customerLines.push(`CPF: ${cleanCpf}`);
+  const cleanEmail = cleanText(sheet.email);
+  if (cleanEmail && cleanEmail !== '-') customerLines.push(`E-mail: ${cleanEmail}`);
+
+  // Se nenhum dado do cliente sobrou além do genérico
+  if (customerLines.length === 0 && cleanName) {
+    customerLines.push(`Cliente: ${cleanName}`);
+  }
+
+  const cleanAddr = sanitizeDeliveryField(sheet.deliveryAddress);
+  const cleanNeigh = sanitizeDeliveryField(sheet.deliveryNeighborhood);
+  const cleanCity = sanitizeDeliveryField(sheet.deliveryCity);
+  const cleanState = cleanText(sheet.deliveryState);
+  const cleanCep = cleanText(sheet.deliveryCep);
+  const cleanRef = sanitizeDeliveryField(sheet.reference);
 
   const deliveryLines = [];
-  if (sheet.deliveryAddress && sheet.deliveryAddress !== 'A combinar com o atendente') {
-    deliveryLines.push(`Endereço: ${sheet.deliveryAddress}`);
+  if (cleanAddr && cleanAddr !== '-' && cleanAddr !== 'A combinar com o atendente') {
+    deliveryLines.push(`Endereço: ${cleanAddr}`);
   }
-  if (sheet.deliveryNeighborhood) deliveryLines.push(`Bairro: ${sheet.deliveryNeighborhood}`);
-  if (sheet.deliveryCity) deliveryLines.push(`Cidade: ${sheet.deliveryCity}`);
-  if (sheet.deliveryState) deliveryLines.push(`Estado: ${sheet.deliveryState}`);
-  if (sheet.deliveryCep) deliveryLines.push(`CEP: ${sheet.deliveryCep}`);
-  if (sheet.reference) deliveryLines.push(`Referência: ${sheet.reference}`);
-
-  if (deliveryLines.length === 0) {
-    deliveryLines.push('Endereço: A combinar com o atendente');
+  if (cleanNeigh && cleanNeigh !== '-') {
+    deliveryLines.push(`Bairro: ${cleanNeigh}`);
+  }
+  if (cleanCity && cleanCity !== '-') {
+    deliveryLines.push(`Cidade: ${cleanCity}`);
+  }
+  if (cleanState && cleanState !== '-') {
+    deliveryLines.push(`Estado: ${cleanState}`);
+  }
+  if (cleanCep && cleanCep !== '-' && !cleanCep.includes('qual')) {
+    deliveryLines.push(`CEP: ${cleanCep}`);
+  }
+  if (cleanRef && cleanRef !== '-') {
+    deliveryLines.push(`Referência: ${cleanRef}`);
   }
 
   const itemsText = (sheet.items || [])
@@ -578,24 +615,30 @@ function buildSheetText(sheet) {
   const textBlocks = [
     '📋 *FICHA DE PEDIDO & ORÇAMENTO*',
     '──────────────────────────────',
-    '👤 *Dados do Cliente*',
-    ...customerLines,
-    '',
-    '📍 *Entrega*',
-    ...deliveryLines,
-    '',
+  ];
+
+  if (customerLines.length > 0) {
+    textBlocks.push('👤 *Dados do Cliente*', ...customerLines, '');
+  }
+
+  // Se não tem dados de entrega confirmados, não polui o envio da ficha
+  if (deliveryLines.length > 0) {
+    textBlocks.push('📍 *Entrega*', ...deliveryLines, '');
+  }
+
+  textBlocks.push(
     '📦 *Itens*',
     itemsText || '• Materiais conforme negociação',
     '',
     `💰 *Valor dos Produtos:* ${formatMoneyBRL(productTotal)}`,
-    `🚚 *Frete:* ${formatMoneyBRL(freight)}`,
+    freight > 0 ? `🚚 *Frete:* ${formatMoneyBRL(freight)}` : null,
     `💵 *Total do Pedido:* ${formatMoneyBRL(orderTotal)}`,
-    `⏱️ *Prazo de Entrega:* ${deliveryTime}`,
+    deliveryLines.length > 0 ? `⏱️ *Prazo de Entrega:* ${deliveryTime}` : null,
     '',
-    '💳 *Forma de Pagamento*',
+    '💳 *Condições de Pagamento*',
     `• PIX à Vista: ${formatMoneyBRL(pixTotal)} (com 5% de desconto nos produtos)`,
     `• Cartão: 10x sem juros de ${formatMoneyBRL(installment10x)}`,
-  ];
+  );
 
   if (sheet.observations) {
     textBlocks.push('', '📝 *Observações*', sheet.observations);
@@ -606,7 +649,7 @@ function buildSheetText(sheet) {
     'Por favor confirme se os dados e o endereço acima estão corretos para agendarmos sua entrega e gerarmos a chave PIX!'
   );
 
-  return textBlocks.join('\n');
+  return textBlocks.filter(line => line !== null && line !== undefined).join('\n');
 }
 
 /**

@@ -177,17 +177,16 @@ export function TagIconBadge({
   }
 
   const badgeSizeClasses = {
-    xs: showName ? "h-5 py-0 px-1.5 text-[10px] gap-1" : "h-4 w-4 p-0 justify-center rounded-full text-[10px]",
-    sm: showName ? "py-1 px-2 text-xs gap-1.5" : "h-5 w-5 p-0 justify-center rounded-full text-xs",
-    md: showName ? "py-1.5 px-2.5 text-sm gap-2" : "h-6 w-6 p-0 justify-center rounded-full text-sm",
+    xs: showName ? "h-5 py-0.5 px-2 text-[10px] gap-1 rounded-full" : "h-5 w-5 p-0 justify-center rounded-full text-[10px]",
+    sm: showName ? "h-6 py-0.5 px-2.5 text-[11px] gap-1.5 rounded-full" : "h-6 w-6 p-0 justify-center rounded-full text-xs",
+    md: showName ? "h-7 py-1 px-3 text-xs gap-2 rounded-full" : "h-7 w-7 p-0 justify-center rounded-full text-sm",
   };
 
   return (
     <span
       title={displayName}
       className={cn(
-        "inline-flex items-center font-medium transition-all duration-150 select-none",
-        showName ? "rounded-md border" : "rounded-full border shrink-0",
+        "inline-flex items-center font-medium transition-all duration-150 select-none shadow-xs border",
         badgeSizeClasses[size],
         colorClass || "bg-muted/40 text-foreground/80 border-border/50",
         className,
@@ -203,21 +202,21 @@ export function TagIconBadge({
         >
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded p-0.5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            className="inline-flex items-center justify-center rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
             title={`Alterar emoji de "${displayName}"`}
             onClick={(e) => {
               e.stopPropagation();
               setPickerOpen(!pickerOpen);
             }}
           >
-            {renderVisual() || <Tag className="h-2 w-2 opacity-50 hover:opacity-100" />}
+            {renderVisual() || <Tag className="h-2.5 w-2.5 opacity-60 hover:opacity-100" />}
           </button>
         </TagEmojiPicker>
       ) : (
         renderVisual() ? <span className="inline-flex items-center justify-center">{renderVisual()}</span> : null
       )}
 
-      {showName && <span className="truncate leading-none">{displayName}</span>}
+      {showName && <span className="truncate leading-none tracking-tight">{displayName}</span>}
 
       {onRemove && (
         <button
@@ -226,10 +225,10 @@ export function TagIconBadge({
             e.stopPropagation();
             onRemove();
           }}
-          className="ml-0.5 rounded p-0.5 hover:bg-black/10 dark:hover:bg-white/10 text-muted-foreground hover:text-destructive transition-colors"
+          className="ml-1 rounded-full p-0.5 text-current opacity-60 hover:opacity-100 hover:bg-black/20 dark:hover:bg-white/20 hover:text-red-400 transition-all shrink-0"
           aria-label={`Remover etiqueta ${displayName}`}
         >
-          <X className="h-2 w-2" />
+          <X className="h-2.5 w-2.5" />
         </button>
       )}
     </span>

@@ -74,9 +74,19 @@ export function OrderSheetModal({
     });
   };
 
+  const PRODUCT_EXCLUDE_REGEX = /(?:churrasqueira|trio|forno|fog[aã]o|caixa|d['’]?\s*agua|d['’]?\s*água|reservat[oó]rio|tijolo|milheiro|cimento|bloco|telha|areia|brita|produto|material|pre[çc]o|valor|quanto|qual|entrega\s+d[ao]|loja|gr[aá]tis|frete|sem\s+custo|promo[çc][aã]o|desconto)/i;
+
+  const sanitizeField = (val: string | null | undefined): string | null => {
+    if (!val) return null;
+    const str = String(val).trim();
+    if (!str || str === '-' || PRODUCT_EXCLUDE_REGEX.test(str) || /^(?:gr[aá]tis|frete|a combinar)/i.test(str)) {
+      return null;
+    }
+    return str.length >= 2 ? str : null;
+  };
+
   const sheetDetails = sheet?.sheet_data || sheet || {};
   const items = sheetDetails.items || [];
-  const summaryText = sheet?.summary_text || "";
 
   const formatBRL = (val: number | string = 0) => {
     const num = Number(val) || 0;
@@ -84,7 +94,7 @@ export function OrderSheetModal({
   };
 
   const productTotal = Number(sheetDetails.productTotal ?? sheet?.total_price ?? 0);
-  const freight = Number(sheetDetails.freight ?? 65.12);
+  const freight = Number(sheetDetails.freight ?? (productTotal > 0 ? 65.12 : 0));
   const orderTotal = Number(sheetDetails.orderTotal ?? (productTotal + freight));
   const deliveryTime = sheetDetails.deliveryTime || "3 a 5 dias úteis";
   const pixTotal = Number(sheetDetails.pixTotal ?? (productTotal * 0.95 + freight));
@@ -92,48 +102,104 @@ export function OrderSheetModal({
 
   const cleanPhoneDisplay = useMemo(() => {
     const raw = String(sheetDetails.phone || customerPhone || "").trim();
-    if (!raw) return "Não informado";
+    if (!raw || raw === "-") return "-";
     if (raw.includes("@lid")) {
       const digits = raw.replace(/\D/g, "");
       if (digits.length >= 10 && digits.length <= 13 && digits.startsWith("55")) {
         return formatPhoneNumber(digits);
       }
-      return "WhatsApp Oficial";
+      return "-";
     }
     return formatPhoneNumber(raw);
   }, [sheetDetails.phone, customerPhone]);
 
   const cleanNameDisplay = useMemo(() => {
     const raw = String(sheetDetails.customerName || customerName || "").trim();
-    if (!raw || raw.startsWith("Cliente WhatsApp #") || raw.includes("@")) {
-      return "Cliente";
+    if (!raw || raw === "-" || raw === "Cliente" || raw.startsWith("Cliente WhatsApp #") || raw.includes("@")) {
+      return "-";
     }
     return raw;
   }, [sheetDetails.customerName, customerName]);
 
   const cleanAddressDisplay = useMemo(() => {
-    const raw = String(sheetDetails.deliveryAddress || "").trim();
-    if (!raw || /^(?:gr[aá]tis|frete|a combinar)/i.test(raw)) {
-      return "A combinar com o atendente";
-    }
-    return raw;
+    return sanitizeField(sheetDetails.deliveryAddress) || "-";
   }, [sheetDetails.deliveryAddress]);
 
   const cleanNeighborhoodDisplay = useMemo(() => {
-    const b = String(sheetDetails.deliveryNeighborhood || "").trim();
-    if (!b || /^(?:gr[aá]tis|frete)/i.test(b)) {
-      return null;
-    }
-    return b;
+    return sanitizeField(sheetDetails.deliveryNeighborhood) || "-";
   }, [sheetDetails.deliveryNeighborhood]);
 
   const cleanCityDisplay = useMemo(() => {
-    const c = String(sheetDetails.deliveryCity || "").trim();
-    if (!c || /^(?:gr[aá]tis|frete)/i.test(c)) {
-      return null;
-    }
-    return c;
+    return sanitizeField(sheetDetails.deliveryCity) || "-";
   }, [sheetDetails.deliveryCity]);
+
+  const cleanStateDisplay = useMemo(() => {
+    const s = String(sheetDetails.deliveryState || "").trim();
+    return s && s !== "-" && !PRODUCT_EXCLUDE_REGEX.test(s) ? s.toUpperCase() : null;
+  }, [sheetDetails.deliveryState]);
+
+  const summaryText = useMemo(() => {
+    // If backend provided a summary_text that has dirty product names in address, regenerate cleanly
+    const rawBackText = sheet?.summary_text || "";
+    if (rawBackText && !rawBackText.includes("Da Churrasqueira, Da Churrasqueira") && !rawBackText.includes("Endereço: Da Churrasqueira")) {
+      return rawBackText;
+    }
+
+    const lines: (string | null)[] = [
+      '📋 *FICHA DE PEDIDO & ORÇAMENTO*',
+      '──────────────────────────────',
+    ];
+
+    const customerLines: string[] = [];
+    if (cleanNameDisplay && cleanNameDisplay !== "-") customerLines.push(`Nome: ${cleanNameDisplay}`);
+    if (cleanPhoneDisplay && cleanPhoneDisplay !== "-") customerLines.push(`Telefone: ${cleanPhoneDisplay}`);
+    if (sheetDetails.cpf && sheetDetails.cpf !== "-") customerLines.push(`CPF: ${sheetDetails.cpf}`);
+    if (sheetDetails.email && sheetDetails.email !== "-") customerLines.push(`E-mail: ${sheetDetails.email}`);
+    if (customerLines.length > 0) {
+      lines.push('👤 *Dados do Cliente*', ...customerLines, '');
+    }
+
+    const deliveryLines: string[] = [];
+    if (cleanAddressDisplay && cleanAddressDisplay !== "-") deliveryLines.push(`Endereço: ${cleanAddressDisplay}`);
+    if (cleanNeighborhoodDisplay && cleanNeighborhoodDisplay !== "-") deliveryLines.push(`Bairro: ${cleanNeighborhoodDisplay}`);
+    if (cleanCityDisplay && cleanCityDisplay !== "-") {
+      const cUf = [cleanCityDisplay, cleanStateDisplay].filter(Boolean).join(" - ");
+      deliveryLines.push(`Cidade: ${cUf}`);
+    }
+    if (sheetDetails.deliveryCep && sheetDetails.deliveryCep !== "-") deliveryLines.push(`CEP: ${sheetDetails.deliveryCep}`);
+    if (sheetDetails.reference && sheetDetails.reference !== "-") deliveryLines.push(`Referência: ${sheetDetails.reference}`);
+    if (deliveryLines.length > 0) {
+      lines.push('📍 *Entrega*', ...deliveryLines, '');
+    }
+
+    const itemsText = (items || [])
+      .map((i: any) => `• ${i.item} × ${i.quantity || 1}`)
+      .join('\n');
+    lines.push(
+      '📦 *Itens*',
+      itemsText || '• Materiais conforme negociação',
+      '',
+      `💰 *Valor dos Produtos:* ${formatBRL(productTotal)}`,
+      freight > 0 ? `🚚 *Frete:* ${formatBRL(freight)}` : null,
+      `💵 *Total do Pedido:* ${formatBRL(orderTotal)}`,
+      deliveryLines.length > 0 ? `⏱️ *Prazo de Entrega:* ${deliveryTime}` : null,
+      '',
+      '💳 *Condições de Pagamento*',
+      `• PIX à Vista (5% OFF): ${formatBRL(pixTotal)}`,
+      `• Cartão de Crédito: 10x de ${formatBRL(installment10x)} sem juros`,
+    );
+
+    if (sheetDetails.observations) {
+      lines.push('', '📝 *Observações*', sheetDetails.observations);
+    }
+
+    lines.push(
+      '──────────────────────────────',
+      'Por favor confirme se os dados acima estão corretos para agendarmos sua entrega e gerarmos a chave PIX!'
+    );
+
+    return lines.filter(Boolean).join('\n');
+  }, [sheet, sheetDetails, cleanNameDisplay, cleanPhoneDisplay, cleanAddressDisplay, cleanNeighborhoodDisplay, cleanCityDisplay, cleanStateDisplay, items, productTotal, freight, orderTotal, pixTotal, installment10x, deliveryTime]);
 
   const handleCopy = async () => {
     if (!summaryText) return;
@@ -329,15 +395,15 @@ export function OrderSheetModal({
               </div>
               <div>
                 <span className="text-muted-foreground">Contato: </span>
-                <span className="font-semibold text-foreground">
-                  {cleanNameDisplay && cleanNameDisplay !== "Cliente" && cleanNameDisplay !== "Contato"
-                    ? cleanNameDisplay
-                    : (cleanPhoneDisplay || "Cliente WhatsApp")}
+                <span className={cleanNameDisplay === "-" ? "text-muted-foreground/60 italic font-medium" : "font-semibold text-foreground"}>
+                  {cleanNameDisplay !== "-" ? cleanNameDisplay : "-"}
                 </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Telefone: </span>
-                <span className="font-medium text-foreground">{cleanPhoneDisplay}</span>
+                <span className={cleanPhoneDisplay === "-" ? "text-muted-foreground/60 italic font-medium" : "font-medium text-foreground"}>
+                  {cleanPhoneDisplay}
+                </span>
               </div>
               {sheetDetails.cpf && (
                 <div>
@@ -361,22 +427,24 @@ export function OrderSheetModal({
               </div>
               <div>
                 <span className="text-muted-foreground">Endereço: </span>
-                <span className="font-medium text-foreground">{cleanAddressDisplay}</span>
+                <span className={cleanAddressDisplay === "-" ? "text-muted-foreground/60 italic font-medium" : "font-medium text-foreground"}>
+                  {cleanAddressDisplay}
+                </span>
               </div>
-              {cleanNeighborhoodDisplay && (
-                <div>
-                  <span className="text-muted-foreground">Bairro: </span>
-                  <span className="font-medium text-foreground">{cleanNeighborhoodDisplay}</span>
-                </div>
-              )}
-              {(cleanCityDisplay || sheetDetails.deliveryState) && (
-                <div>
-                  <span className="text-muted-foreground">Cidade/UF: </span>
-                  <span className="font-medium text-foreground">
-                    {[cleanCityDisplay, sheetDetails.deliveryState].filter(Boolean).join(" - ")}
-                  </span>
-                </div>
-              )}
+              <div>
+                <span className="text-muted-foreground">Bairro: </span>
+                <span className={cleanNeighborhoodDisplay === "-" ? "text-muted-foreground/60 italic font-medium" : "font-medium text-foreground"}>
+                  {cleanNeighborhoodDisplay}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Cidade/UF: </span>
+                <span className={cleanCityDisplay === "-" ? "text-muted-foreground/60 italic font-medium" : "font-medium text-foreground"}>
+                  {cleanCityDisplay !== "-"
+                    ? [cleanCityDisplay, cleanStateDisplay].filter(Boolean).join(" - ")
+                    : "-"}
+                </span>
+              </div>
               {sheetDetails.deliveryCep && (
                 <div>
                   <span className="text-muted-foreground">CEP: </span>

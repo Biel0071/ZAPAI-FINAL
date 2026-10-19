@@ -39,6 +39,8 @@ const MEMORY_CATEGORIES = {
   LEARNED_RESPONSE: 'learned_response',
 };
 
+const PRODUCT_EXCLUDE_REGEX = /(?:churrasqueira|trio|forno|fog[aã]o|caixa|d['’]?\s*agua|d['’]?\s*água|reservat[oó]rio|tijolo|milheiro|cimento|bloco|telha|areia|brita|produto|material|pre[çc]o|valor|quanto|qual|entrega\s+d[ao]|loja|gr[aá]tis|frete|sem\s+custo|promo[çc][aã]o|desconto)/i;
+
 // Normalização de chave de fato para evitar duplicação
 function normalizeFactKey(key = '') {
   return String(key)
@@ -180,8 +182,15 @@ function setCustomerFact(memory, { key, value, category = MEMORY_CATEGORIES.CUST
   } else if (normKey.includes('quantidade') || normKey === 'quantity') {
     memory.commercial.quantity = String(value).trim();
   } else if (normKey.includes('cidade') || normKey.includes('bairro') || normKey === 'city' || normKey.includes('endereco') || normKey === 'address') {
-    memory.commercial.deliveryCity = String(value).trim();
-    memory.commercial.neighborhood = String(value).trim();
+    const trimmedVal = String(value).trim();
+    if (!PRODUCT_EXCLUDE_REGEX.test(trimmedVal) && trimmedVal.length >= 3 && trimmedVal !== '-') {
+      if (normKey.includes('cidade') || normKey === 'city') {
+        memory.commercial.deliveryCity = trimmedVal;
+      }
+      if (normKey.includes('bairro') || normKey.includes('endereco') || normKey === 'address') {
+        memory.commercial.neighborhood = trimmedVal;
+      }
+    }
   } else if (normKey.includes('pagamento') || normKey === 'payment') {
     memory.commercial.paymentPreference = String(value).trim();
   } else if (normKey.includes('preco') || normKey === 'price' || normKey.includes('orcamento')) {
@@ -325,7 +334,7 @@ function extractFactsFromContext(text = '', analysis = {}, memory) {
   const bairroMatch = text.match(/(?:bairro|no bairro|moro no|sou do)\s+([a-zA-ZÀ-ÿ\s]{3,30})/i);
   if (bairroMatch && bairroMatch[1]) {
     const rawBairro = bairroMatch[1].replace(/[?.,!].*$/, '').trim();
-    if (rawBairro.length > 2 && !rawBairro.toLowerCase().includes('qual') && !rawBairro.toLowerCase().includes('quanto')) {
+    if (rawBairro.length > 2 && !rawBairro.toLowerCase().includes('qual') && !rawBairro.toLowerCase().includes('quanto') && !PRODUCT_EXCLUDE_REGEX.test(rawBairro)) {
       setCustomerFact(memory, {
         key: 'bairro_entrega',
         value: rawBairro,
@@ -335,13 +344,13 @@ function extractFactsFromContext(text = '', analysis = {}, memory) {
     }
   }
 
-  // Localização / Entrega
-  const cityMatch = text.match(/(?:entrega|entregam|entregas|envio|frete|manda)\s+(?:para|pra|em|no|na)?\s*([a-zA-ZÀ-ÿ\s]+)/i) ||
-                    text.match(/(?:sou|moro|estou)\s+(?:de|em)\s+([a-zA-ZÀ-ÿ\s]+)/i);
+  // Localização / Entrega (apenas preposições de destino como para/pra/em, NUNCA 'de/da/do' de produto)
+  const cityMatch = text.match(/(?:entrega|entregam|entregas|envio|frete|manda)\s+(?:para|pra|em|no|na)\s+([a-zA-ZÀ-ÿ\s]{3,30})/i) ||
+                    text.match(/(?:sou|moro|estou)\s+(?:de|em)\s+([a-zA-ZÀ-ÿ\s]{3,30})/i);
   if (cityMatch && cityMatch[1]) {
     let rawCity = cityMatch[1].replace(/[?.,!].*$/, '').trim();
     const lowerCity = rawCity.toLowerCase();
-    if (rawCity.length > 2 && !lowerCity.includes('quanto') && !lowerCity.includes('onde') && !lowerCity.includes('qual') && !lowerCity.includes('aqui')) {
+    if (rawCity.length > 2 && !lowerCity.includes('quanto') && !lowerCity.includes('onde') && !lowerCity.includes('qual') && !lowerCity.includes('aqui') && !PRODUCT_EXCLUDE_REGEX.test(rawCity)) {
       // Capitalização elegante de cidades
       rawCity = rawCity.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       setCustomerFact(memory, {

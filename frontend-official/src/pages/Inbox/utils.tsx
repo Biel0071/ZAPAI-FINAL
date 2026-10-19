@@ -266,27 +266,53 @@ export function toConversationDateLabel(value?: string): string {
 }
 
 export function getTagColor(tag: string): string {
+  if (!tag) return "bg-muted/40 text-foreground/80 border-border/50";
+  const lower = tag.trim().toLowerCase();
+
+  // Semantic specific colors for prominent tags
+  if (lower.includes("ficha")) {
+    return "bg-emerald-500/15 text-emerald-300 border-emerald-500/35 hover:bg-emerald-500/25";
+  }
+  if (lower.includes("followup_ia") || lower.includes("ia_ativa") || lower === "ia") {
+    return "bg-sky-500/15 text-sky-300 border-sky-500/35 hover:bg-sky-500/25";
+  }
+  if (lower.includes("toque") || lower.includes("quente") || lower === "hot") {
+    return "bg-amber-500/15 text-amber-300 border-amber-500/35 hover:bg-amber-500/25";
+  }
+  if (lower.includes("algo")) {
+    return "bg-purple-500/15 text-purple-300 border-purple-500/35 hover:bg-purple-500/25";
+  }
+  if (lower.includes("price") || lower.includes("negotiator") || lower.includes("estilo")) {
+    return "bg-indigo-500/15 text-indigo-300 border-indigo-500/35 hover:bg-indigo-500/25";
+  }
+  if (lower.includes("pix") || lower.includes("financeiro")) {
+    return "bg-blue-500/15 text-blue-300 border-blue-500/35 hover:bg-blue-500/25";
+  }
+  if (lower.includes("intervencao") || lower.includes("urgente")) {
+    return "bg-rose-500/15 text-rose-300 border-rose-500/35 hover:bg-rose-500/25";
+  }
+  if (lower.includes("finalizado") || lower.includes("concluido") || lower.includes("pago")) {
+    return "bg-teal-500/15 text-teal-300 border-teal-500/35 hover:bg-teal-500/25";
+  }
+
   let hash = 0;
   for (let i = 0; i < tag.length; i++) {
     hash = tag.charCodeAt(i) + ((hash << 5) - hash);
   }
   const colors = [
-    "bg-red-500/10 text-red-400 border-red-500/20",
-    "bg-orange-500/10 text-orange-400 border-orange-500/20",
-    "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-    "bg-green-500/10 text-green-400 border-green-500/20",
-    "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    "bg-teal-500/10 text-teal-400 border-teal-500/20",
-    "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-    "bg-sky-500/10 text-sky-400 border-sky-500/20",
-    "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
-    "bg-violet-500/10 text-violet-400 border-violet-500/20",
-    "bg-purple-500/10 text-purple-400 border-purple-500/20",
-    "bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20",
-    "bg-pink-500/10 text-pink-400 border-pink-500/20",
-    "bg-rose-500/10 text-rose-400 border-rose-500/20",
+    "bg-red-500/15 text-red-300 border-red-500/35 hover:bg-red-500/25",
+    "bg-orange-500/15 text-orange-300 border-orange-500/35 hover:bg-orange-500/25",
+    "bg-amber-500/15 text-amber-300 border-amber-500/35 hover:bg-amber-500/25",
+    "bg-emerald-500/15 text-emerald-300 border-emerald-500/35 hover:bg-emerald-500/25",
+    "bg-teal-500/15 text-teal-300 border-teal-500/35 hover:bg-teal-500/25",
+    "bg-cyan-500/15 text-cyan-300 border-cyan-500/35 hover:bg-cyan-500/25",
+    "bg-sky-500/15 text-sky-300 border-sky-500/35 hover:bg-sky-500/25",
+    "bg-blue-500/15 text-blue-300 border-blue-500/35 hover:bg-blue-500/25",
+    "bg-indigo-500/15 text-indigo-300 border-indigo-500/35 hover:bg-indigo-500/25",
+    "bg-violet-500/15 text-violet-300 border-violet-500/35 hover:bg-violet-500/25",
+    "bg-purple-500/15 text-purple-300 border-purple-500/35 hover:bg-purple-500/25",
+    "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/35 hover:bg-fuchsia-500/25",
+    "bg-rose-500/15 text-rose-300 border-rose-500/35 hover:bg-rose-500/25",
   ];
   const idx = Math.abs(hash) % colors.length;
   return colors[idx];
