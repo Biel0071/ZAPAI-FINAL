@@ -93,9 +93,15 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} className="rounded-xl">
-            ✕
-          </Button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-8 w-8 rounded-full flex items-center justify-center border border-emerald-500/50 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300 hover:border-emerald-400 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400/50 shrink-0"
+            aria-label="Fechar"
+            title="Fechar"
+          >
+            <X size={16} />
+          </button>
         </div>
 
         {/* Navigation Tabs */}

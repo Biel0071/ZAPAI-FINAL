@@ -261,17 +261,19 @@ export function OrderSheetModal({
             </div>
           </div>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowConfig(!showConfig)}
-            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground gap-1.5"
-            title="Configurar Integração Webhook / ERP"
-          >
-            <Settings className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Webhooks & API</span>
-          </Button>
+          <div className="flex items-center gap-2 mr-10">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowConfig(!showConfig)}
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 gap-1.5 border border-border/50 rounded-lg"
+              title="Configurar Integração Webhook / ERP"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Webhooks & API</span>
+            </Button>
+          </div>
         </div>
 
         {/* Webhook / ERP Config Accordion */}
@@ -326,8 +328,12 @@ export function OrderSheetModal({
                 Dados do Cliente
               </div>
               <div>
-                <span className="text-muted-foreground">Nome: </span>
-                <span className="font-semibold text-foreground">{cleanNameDisplay}</span>
+                <span className="text-muted-foreground">Contato: </span>
+                <span className="font-semibold text-foreground">
+                  {cleanNameDisplay && cleanNameDisplay !== "Cliente" && cleanNameDisplay !== "Contato"
+                    ? cleanNameDisplay
+                    : (cleanPhoneDisplay || "Cliente WhatsApp")}
+                </span>
               </div>
               <div>
                 <span className="text-muted-foreground">Telefone: </span>

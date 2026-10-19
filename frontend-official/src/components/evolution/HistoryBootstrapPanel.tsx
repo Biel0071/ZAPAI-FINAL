@@ -291,7 +291,7 @@ function HistoryBootstrapLegacy({
   const section = (title: string, values?: string[]) => values?.length ? <details className="rounded-lg border p-3"><summary className="cursor-pointer font-medium">{title} ({values.length})</summary><ul className="mt-2 space-y-2 text-sm">{values.map((v, i) => <li key={i}>{v}</li>)}</ul></details> : null;
 
   const panelHeader = isModal ? (
-    <div className="flex items-center justify-between border-b border-border/50 bg-muted/20 px-6 py-4">
+    <div className="flex items-center justify-between border-b border-border/50 bg-muted/20 px-6 py-4 pr-12">
       <div>
         <h3 className="text-base font-display font-bold text-foreground flex items-center gap-2">
           <Sparkle className="h-5 w-5 text-primary" weight="fill" />
@@ -301,11 +301,6 @@ function HistoryBootstrapLegacy({
           Sincronize mensagens, interprete mídias e crie ou treine seu atendente de IA
         </p>
       </div>
-      {onClose && (
-        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/40" onClick={onClose} title="Fechar">
-          <X className="h-4 w-4" />
-        </Button>
-      )}
     </div>
   ) : (
     <CardHeader className="pb-3 border-b border-border/40 bg-muted/10">

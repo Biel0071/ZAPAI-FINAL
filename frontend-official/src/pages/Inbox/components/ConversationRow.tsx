@@ -233,6 +233,28 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
     }
   };
 
+  const leadBackgroundClass = useMemo(() => {
+    if (leadStatus.state === "intervencao") {
+      return "border-2 border-red-500/80 bg-red-500/[0.12] shadow-[0_0_18px_rgba(239,68,68,0.35)]";
+    }
+    if (leadStatus.state === "finalizado") {
+      return "border border-blue-500/40 bg-blue-500/[0.08] hover:bg-blue-500/[0.14]";
+    }
+    if (leadStatus.state === "pago") {
+      return "border border-teal-500/40 bg-teal-500/[0.08] hover:bg-teal-500/[0.14]";
+    }
+    if (leadStatus.state === "pausado") {
+      return "border border-rose-500/35 bg-rose-500/[0.07] hover:bg-rose-500/[0.12]";
+    }
+    if (leadStatus.state === "chegou") {
+      return "border border-emerald-500/35 bg-emerald-500/[0.07] hover:bg-emerald-500/[0.12]";
+    }
+    if (leadStatus.state === "rodando") {
+      return "border border-amber-500/35 bg-amber-500/[0.07] hover:bg-amber-500/[0.12]";
+    }
+    return "border border-border/40 bg-card/60 hover:bg-accent/40";
+  }, [leadStatus.state]);
+
   return (
     <div style={style} className="px-1 py-0.5">
       <div
@@ -244,9 +266,8 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
         className={cn(
           "inbox-message w-full text-left rounded-lg flex items-center gap-3 px-3 py-2 group/row transition-all duration-200",
           "h-full min-h-0",
-          !isMultiSelectMode && normalizeId(selectedId) === normalizeId(conversation.id) && "inbox-message-active",
-          leadStatus.state === "intervencao" && "border-2 border-red-500/80 bg-red-500/[0.12] shadow-[0_0_18px_rgba(239,68,68,0.4)] animate-pulse",
-          leadStatus.state === "finalizado" && "border border-blue-500/50 bg-blue-500/[0.06] shadow-[0_0_14px_rgba(59,130,246,0.25)]"
+          leadBackgroundClass,
+          !isMultiSelectMode && normalizeId(selectedId) === normalizeId(conversation.id) && "inbox-message-active ring-1 ring-primary/40"
         )}
       >
         {isMultiSelectMode && (
@@ -308,6 +329,16 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
           <div className="flex items-center justify-between gap-1.5">
             <h4 className="text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0 flex-1">
               <span className="truncate min-w-0">{cleanDisplayName}</span>
+              {/* Presence dot: green if online/typing, red if not online at the moment */}
+              <span
+                className={cn(
+                  "inline-flex h-2 w-2 rounded-full shrink-0",
+                  (isTyping || conversation.status === "online")
+                    ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-pulse"
+                    : "bg-rose-500/80 border border-rose-500/30"
+                )}
+                title={isTyping || conversation.status === "online" ? "Contato online" : "Não no momento"}
+              />
               {leadStatus.state === "intervencao" && (
                 <span
                   title={leadStatus.tooltip}
@@ -317,44 +348,12 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                   INTERVENÇÃO
                 </span>
               )}
-              {leadStatus.state === "pago" && (
-                <span
-                  title={leadStatus.tooltip}
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-teal-500/20 text-teal-300 border border-teal-500/40 shrink-0 shadow-[0_0_6px_rgba(20,184,166,0.2)]"
-                >
-                  PAGO
-                </span>
-              )}
               {leadStatus.state === "finalizado" && (
                 <span
                   title={leadStatus.tooltip}
                   className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-600 text-white border border-blue-400 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.6)] shrink-0"
                 >
                   AGUARDA PIX
-                </span>
-              )}
-              {leadStatus.state === "pausado" && (
-                <span
-                  title={leadStatus.tooltip}
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0"
-                >
-                  PAUSADO
-                </span>
-              )}
-              {leadStatus.state === "chegou" && (
-                <span
-                  title={leadStatus.tooltip}
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0"
-                >
-                  CHEGOU
-                </span>
-              )}
-              {leadStatus.state === "rodando" && (
-                <span
-                  title={leadStatus.tooltip}
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
-                >
-                  RODANDO
                 </span>
               )}
               {tagEmojis.length > 0 && (

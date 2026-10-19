@@ -161,20 +161,51 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
     console.error('[AutomationEngine] Failed to check fresh conversation AI toggle:', err.message);
   }
 
+  const hasDeactivation = (authoritativeConversation?.tags || []).some((t) => {
+    const s = String(t).toLowerCase();
+    return [
+      'desativado',
+      'ai_desativado',
+      'pausado',
+      'intervencao',
+      'intervencao_humana',
+      'atendimento_manual',
+      'manual',
+      'nao_reativar',
+      'aguarda_pix',
+      'pago',
+      'finalizado',
+      'followup_desativado',
+      'followup_esgotado',
+    ].some((k) => s.includes(k));
+  });
+
+  const isPermanentlyDisabled =
+    !conversationAIEnabled ||
+    hasDeactivation ||
+    ['paused', 'closed', 'finalizado', 'pago', 'pending_human', 'intervencao_humana'].includes(authoritativeConversation?.status) ||
+    ['intervencao_humana', 'fechado', 'perdido', 'cancelado', 'aguardando_pix', 'finalizado', 'pago'].includes(authoritativeConversation?.funnel_stage);
+
+  if (isPermanentlyDisabled) {
+    console.log(`[AutomationEngine] AI is paused/deactivated for conversation ${phone}. Stopping response.`);
+    publishProgress('disabled', { message: 'IA pausada nesta conversa.' });
+    return { success: false, reason: 'conversation_ai_deactivated' };
+  }
+
   const runtimeCheck = conversationRuntimeService.refreshExpiredHumanTakeover(store, authoritativeConversation?.id || conversationId);
   if (runtimeCheck.runtime?.controlMode === 'human_active' || runtimeCheck.runtime?.controlMode === 'paused_ai') {
     console.log('[AutomationEngine] Human takeover active for ' + phone + '. Short-circuiting response until ' + runtimeCheck.runtime.aiPausedUntil + '.');
     return { success: false, reason: 'human_active' };
   }
 
-  if (runtimeCheck.expired && authoritativeConversation?.id && !conversationAIEnabled) {
+  if (runtimeCheck.expired && authoritativeConversation?.id && !isPermanentlyDisabled) {
     const updated = await conversationRepository.updateConversationState(authoritativeConversation.id, { aiEnabled: true });
     if (updated) {
       const io = store?.io || global.io;
       io?.emit('conversation_updated', updated);
     }
     conversationAIEnabled = true;
-    console.log('[AutomationEngine] Human takeover expired for ' + phone + '. AI re-enabled automatically.');
+    console.log('[AutomationEngine] Human takeover expired for ' + phone + '. AI re-enabled legitimately.');
   }
 
   if (!conversationAIEnabled) {

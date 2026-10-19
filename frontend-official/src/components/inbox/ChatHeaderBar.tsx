@@ -111,8 +111,19 @@ export function ChatHeaderBar({
 
           <div className="min-w-0 flex-1 flex flex-col justify-center">
             <div className="flex items-center gap-1.5 min-w-0">
-              <h3 className="truncate font-semibold text-xs sm:text-sm md:text-base leading-tight text-foreground">
-                {contactName}
+              <h3 className="truncate font-semibold text-xs sm:text-sm md:text-base leading-tight text-foreground flex items-center gap-1.5">
+                <span className="truncate">{contactName}</span>
+                {/* Presence indicator: green if online/typing, red if not online at the moment */}
+                <span
+                  className={cn(
+                    "inline-flex h-2 w-2 rounded-full shrink-0",
+                    isOnlineOrTyping
+                      ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse"
+                      : "bg-rose-500/80 border border-rose-500/40"
+                  )}
+                  title={isOnlineOrTyping ? "Contato online no WhatsApp" : "Contato não online no momento"}
+                  aria-label={isOnlineOrTyping ? "Online" : "Não no momento"}
+                />
               </h3>
               {tagEmojis.length > 0 && (
                 <div className="hidden sm:inline-flex items-center gap-1 shrink-0 ml-1">
@@ -142,11 +153,11 @@ export function ChatHeaderBar({
               {statusLabel && (
                 <span
                   className={cn(
-                    "text-[10px] leading-tight text-muted-foreground",
-                    isOnlineOrTyping && "text-emerald-400 font-medium"
+                    "text-[10px] leading-tight font-medium",
+                    isOnlineOrTyping ? "text-emerald-400 font-semibold" : "text-muted-foreground/80"
                   )}
                 >
-                  {statusLabel}
+                  {isOnlineOrTyping ? statusLabel : "não no momento"}
                 </span>
               )}
               {statusBadges}

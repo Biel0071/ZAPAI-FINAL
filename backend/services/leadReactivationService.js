@@ -58,32 +58,22 @@ function classifyAction(conv) {
     };
   }
 
-  // Lead in negotiation but AI is off — reactivate
-  if (['negotiation', 'proposal', 'interested'].includes(funnel) && !aiEnabled) {
-    return {
-      action: 'reactivate_ai',
-      reason: `Lead em "${funnel}" com IA desligada — reativar para continuar atendimento`,
-      priority: 'high',
-    };
-  }
+  const hasDeactivation = tags.some((t) => {
+    const s = String(t).toLowerCase();
+    return [
+      'desativado',
+      'ai_desativado',
+      'pausado',
+      'intervencao',
+      'intervencao_humana',
+      'atendimento_manual',
+      'manual',
+      'nao_reativar',
+    ].some((k) => s.includes(k));
+  });
 
-  // Lead with price_request tag but no recent follow-up
-  if (tags.includes('price_request') && hoursInactive > 6 && !aiEnabled) {
-    return {
-      action: 'send_followup',
-      reason: 'Pediu preço há mais de 6h sem retorno — follow-up de conversão',
-      priority: 'high',
-      suggestedMessage: 'Oi! Sobre o orçamento que você pediu, posso te passar mais detalhes?',
-    };
-  }
-
-  // AI off for any warm+ lead inactive > 4h — reactivate
-  if (!aiEnabled && hoursInactive > 4 && temp !== 'cold') {
-    return {
-      action: 'reactivate_ai',
-      reason: `IA desligada há ${Math.round(hoursInactive)}h em lead ${temp} — reativar`,
-      priority: 'medium',
-    };
+  if (!aiEnabled || hasDeactivation || ['paused', 'closed', 'finalizado', 'pago'].includes(conv.status)) {
+    return { action: 'no_action', reason: 'Atendimento desativado ou pausado manualmente' };
   }
 
   return { action: 'no_action', reason: 'Sem ação necessária no momento' };

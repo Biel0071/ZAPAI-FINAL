@@ -445,17 +445,47 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, i
     console.error('[WHATSAPP_AI] Failed to fetch authoritative chat AI setting from database:', err.message);
   }
 
+  const hasDeactivation = (fresh?.tags || []).some((t) => {
+    const s = String(t).toLowerCase();
+    return [
+      'desativado',
+      'ai_desativado',
+      'pausado',
+      'intervencao',
+      'intervencao_humana',
+      'atendimento_manual',
+      'manual',
+      'nao_reativar',
+      'aguarda_pix',
+      'pago',
+      'finalizado',
+      'followup_desativado',
+      'followup_esgotado',
+    ].some((k) => s.includes(k));
+  });
+
+  const isPermanentlyDisabled =
+    !conversationAIEnabled ||
+    hasDeactivation ||
+    ['paused', 'closed', 'finalizado', 'pago', 'pending_human', 'intervencao_humana'].includes(fresh?.status) ||
+    ['intervencao_humana', 'fechado', 'perdido', 'cancelado', 'aguardando_pix', 'finalizado', 'pago'].includes(fresh?.funnel_stage);
+
+  if (isPermanentlyDisabled) {
+    console.log(`[WHATSAPP_AI] AI is paused/deactivated for conversation ${chatId}. Skipping AI response.`);
+    return null;
+  }
+
   const runtimeCheck = conversationRuntimeService.refreshExpiredHumanTakeover(store, fresh?.id || incomingFormattedMessage?.conversationId || chat?.conversationId);
   if (runtimeCheck.runtime?.controlMode === 'human_active' || runtimeCheck.runtime?.controlMode === 'paused_ai') {
     console.log('[WHATSAPP_AI] Human takeover active for ' + chatId + '. Skipping AI until ' + runtimeCheck.runtime.aiPausedUntil + '.');
     return null;
   }
 
-  if (runtimeCheck.expired && fresh?.id && !conversationAIEnabled) {
+  if (runtimeCheck.expired && fresh?.id && !isPermanentlyDisabled) {
     await conversationRepository.updateConversationState(fresh.id, { aiEnabled: true });
     conversationAIEnabled = true;
     if (chat) chat.aiEnabled = true;
-    console.log('[WHATSAPP_AI] Human takeover expired for ' + chatId + '. AI re-enabled automatically.');
+    console.log('[WHATSAPP_AI] Human takeover expired for ' + chatId + '. AI re-enabled legitimately.');
   }
 
   if (

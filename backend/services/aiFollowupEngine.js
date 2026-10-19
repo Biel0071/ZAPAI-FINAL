@@ -408,27 +408,33 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
     ])
   );
 
+  const hasDeactivation = (conversation.tags || []).some((t) => {
+    const s = String(t).toLowerCase();
+    return ['desativado', 'ai_desativado', 'pausado', 'intervencao', 'intervencao_humana', 'atendimento_manual', 'manual', 'nao_reativar'].some((k) => s.includes(k));
+  });
+  const keepAiEnabled = conversation.ai_enabled !== false && !hasDeactivation && !['paused', 'closed', 'finalizado', 'pago'].includes(conversation.status);
+
   try {
     await query(
       `UPDATE conversations
-       SET ai_enabled = true,
+       SET ai_enabled = $3,
            agent_name = COALESCE(NULLIF(agent_name, ''), 'Camila'),
            tags = $2::text[],
            ai_last_followup_at = NOW(),
            updated_at = NOW()
        WHERE id = $1`,
-      [conversation.id, nextTags]
+      [conversation.id, nextTags, keepAiEnabled]
     );
   } catch (updateErr) {
     if (updateErr.message && updateErr.message.includes('ai_last_followup_at')) {
       await query(
         `UPDATE conversations
-         SET ai_enabled = true,
+         SET ai_enabled = $3,
              agent_name = COALESCE(NULLIF(agent_name, ''), 'Camila'),
              tags = $2::text[],
              updated_at = NOW()
          WHERE id = $1`,
-        [conversation.id, nextTags]
+        [conversation.id, nextTags, keepAiEnabled]
       );
     } else {
       throw updateErr;

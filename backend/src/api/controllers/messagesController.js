@@ -384,7 +384,19 @@ async function sendMessage(req, res) {
       try {
         await dbQuery(
           `UPDATE conversations 
-           SET ai_enabled = false, ai_reactivate_at = NOW() + INTERVAL '24 hours' 
+           SET ai_enabled = false, 
+               ai_reactivate_at = CASE 
+                 WHEN 'desativado' = ANY(COALESCE(tags, '{}')) 
+                   OR 'ai_desativado' = ANY(COALESCE(tags, '{}')) 
+                   OR 'pausado' = ANY(COALESCE(tags, '{}')) 
+                   OR 'atendimento_manual' = ANY(COALESCE(tags, '{}')) 
+                   OR 'manual' = ANY(COALESCE(tags, '{}')) 
+                   OR 'nao_reativar' = ANY(COALESCE(tags, '{}')) 
+                   OR status IN ('paused', 'closed', 'finalizado', 'pago', 'pending_human', 'intervencao_humana')
+                   OR COALESCE(funnel_stage, '') IN ('intervencao_humana', 'fechado', 'perdido', 'cancelado', 'aguardando_pix', 'finalizado', 'pago')
+                 THEN NULL 
+                 ELSE NOW() + INTERVAL '24 hours' 
+               END
            WHERE id = $1 AND company_id = $2`,
           [context.conversationId, companyId]
         );
