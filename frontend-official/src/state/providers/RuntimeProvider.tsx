@@ -661,6 +661,26 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         });
       },
 
+      onChatPinned: ({ chatId, conversationId, is_pinned }) => {
+        const resolvedId = chatId || conversationId;
+        if (!resolvedId) return;
+        useAppStore.getState().updateConversationRealtime({
+          id: resolvedId,
+          is_pinned: is_pinned !== false,
+          pinned: is_pinned !== false,
+        } as any);
+      },
+
+      onChatUnpinned: ({ chatId, conversationId }) => {
+        const resolvedId = chatId || conversationId;
+        if (!resolvedId) return;
+        useAppStore.getState().updateConversationRealtime({
+          id: resolvedId,
+          is_pinned: false,
+          pinned: false,
+        } as any);
+      },
+
       onChatTagUpdated: ({ chatId, conversationId, tag, action }) => {
         const resolvedId = chatId || conversationId;
         if (!resolvedId || !tag) return;

@@ -1,8 +1,7 @@
-import { type ReactNode, useMemo, useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { getTagEmoji, cleanTagName } from "@/core/utils/tagEmojis";
 import { cn } from "@/core/lib/utils";
 
 interface ChatHeaderBarProps {
@@ -30,33 +29,7 @@ export function ChatHeaderBar({
   statusLabel,
   phoneLabel,
   statusBadges,
-  tags,
 }: ChatHeaderBarProps) {
-  const [tagVersion, setTagVersion] = useState(0);
-
-  useEffect(() => {
-    const handleUpdate = () => setTagVersion((v) => v + 1);
-    if (typeof window !== "undefined") {
-      window.addEventListener("zapflow:tag-icons-updated", handleUpdate);
-      return () => window.removeEventListener("zapflow:tag-icons-updated", handleUpdate);
-    }
-  }, []);
-
-  const tagEmojis = useMemo(() => {
-    if (!tags || !Array.isArray(tags) || tags.length === 0) return [];
-    const results: { tag: string; emoji: string; name: string }[] = [];
-    for (const t of tags) {
-      const emoji = getTagEmoji(t);
-      if (emoji) {
-        results.push({
-          tag: t,
-          emoji,
-          name: cleanTagName(t) || t,
-        });
-      }
-    }
-    return results;
-  }, [tags, tagVersion]);
   const isOnlineOrTyping = statusLabel === "online" || statusLabel === "digitando..." || statusLabel === "gravando áudio...";
 
   return (
@@ -113,36 +86,15 @@ export function ChatHeaderBar({
             <div className="flex items-center gap-1.5 min-w-0">
               <h3 className="truncate font-semibold text-xs sm:text-sm md:text-base leading-tight text-foreground flex items-center gap-1.5">
                 <span className="truncate">{contactName}</span>
-                {/* Presence indicator: green if online/typing, red if not online at the moment */}
-                <span
-                  className={cn(
-                    "inline-flex h-2 w-2 rounded-full shrink-0",
-                    isOnlineOrTyping
-                      ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse"
-                      : "bg-rose-500/80 border border-rose-500/40"
-                  )}
-                  title={isOnlineOrTyping ? "Contato online no WhatsApp" : "Contato não online no momento"}
-                  aria-label={isOnlineOrTyping ? "Online" : "Não no momento"}
-                />
+                {/* Presence indicator: green if online/typing, clean omission when offline */}
+                {isOnlineOrTyping && (
+                  <span
+                    className="inline-flex h-2 w-2 rounded-full shrink-0 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse"
+                    title="Contato online no WhatsApp"
+                    aria-label="Online"
+                  />
+                )}
               </h3>
-              {tagEmojis.length > 0 && (
-                <div className="hidden sm:inline-flex items-center gap-1 shrink-0 ml-1">
-                  {tagEmojis.slice(0, 3).map((item, idx) => (
-                    <span
-                      key={idx}
-                      title={item.name}
-                      className="text-xs md:text-sm leading-none select-none inline-block hover:scale-110 transition-transform cursor-default"
-                    >
-                      {item.emoji}
-                    </span>
-                  ))}
-                  {tagEmojis.length > 3 && (
-                    <span className="text-[10px] text-muted-foreground/70 font-mono font-normal">
-                      +{tagEmojis.length - 3}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
             {phoneLabel && (
               <span className="truncate text-[10px] sm:text-[11px] leading-tight text-muted-foreground font-mono">

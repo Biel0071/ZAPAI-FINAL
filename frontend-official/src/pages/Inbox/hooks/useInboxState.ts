@@ -1156,6 +1156,21 @@ export function useInboxState() {
 
         const normalizedConversations = dedupeConversationsByScope(combinedConversations, mergedDirectory);
         setConversations(normalizedConversations);
+
+        const dbPinnedIds = normalizedConversations
+          .filter((c: any) => Boolean(c.is_pinned || c.pinned))
+          .map((c) => String(c.id));
+        if (dbPinnedIds.length > 0) {
+          setPinnedChatIds((prev) => Array.from(new Set([...prev, ...dbPinnedIds])));
+        }
+
+        const dbArchivedIds = normalizedConversations
+          .filter((c: any) => Boolean(c.archived || c.status === "archived"))
+          .map((c) => String(c.id));
+        if (dbArchivedIds.length > 0) {
+          setArchivedChatIds((prev) => Array.from(new Set([...prev, ...dbArchivedIds])));
+        }
+
         markBackendOnline();
         setSessions(Array.isArray(sessionsData) ? sessionsData : []);
         if (conversationSessionId) {
@@ -2780,7 +2795,7 @@ export function useInboxState() {
     }
   }, [selectedConversation, toast, showErrorToast, setConversations]);
 
-  const persistConversationMetadata = useCallback(async (conversationId: string, payload: { tags?: string[]; funnel_stage?: string; notes?: string }) => {
+  const persistConversationMetadata = useCallback(async (conversationId: string, payload: { tags?: string[]; funnel_stage?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; status?: string; archived?: boolean }) => {
     try {
       await apiService.patchConversation(conversationId, payload);
       return true;
@@ -2840,6 +2855,7 @@ export function useInboxState() {
   // Bulk operations implementations
   const handleBulkPin = useCallback(() => {
     const allPinned = selectedChatIds.every((id) => pinnedChatIds.includes(id));
+    const nextPinned = !allPinned;
     if (allPinned) {
       setPinnedChatIds((prev) => prev.filter((id) => !selectedChatIds.includes(id)));
       toast({ title: "Conversas desfixadas." });
@@ -2847,17 +2863,38 @@ export function useInboxState() {
       setPinnedChatIds((prev) => Array.from(new Set([...prev, ...selectedChatIds])));
       toast({ title: "Conversas fixadas." });
     }
+    setConversations((prev) =>
+      prev.map((c) =>
+        selectedChatIds.includes(String(c.id))
+          ? { ...c, is_pinned: nextPinned, pinned: nextPinned, pinned_at: nextPinned ? new Date().toISOString() : null }
+          : c
+      )
+    );
+    selectedChatIds.forEach((id) => {
+      void persistConversationMetadata(id, { is_pinned: nextPinned, pinned: nextPinned });
+    });
     setSelectedChatIds([]);
     setIsMultiSelectMode(false);
-  }, [selectedChatIds, pinnedChatIds, toast]);
+  }, [selectedChatIds, pinnedChatIds, toast, setConversations, persistConversationMetadata]);
 
   const handleTogglePin = useCallback((conversationId: string) => {
+    const isCurrentlyPinned = pinnedChatIds.includes(conversationId);
+    const nextPinned = !isCurrentlyPinned;
     setPinnedChatIds((current) =>
       current.includes(conversationId)
         ? current.filter((id) => id !== conversationId)
         : [...current, conversationId],
     );
-  }, []);
+    setConversations((prev) =>
+      prev.map((c) =>
+        String(c.id) === String(conversationId)
+          ? { ...c, is_pinned: nextPinned, pinned: nextPinned, pinned_at: nextPinned ? new Date().toISOString() : null }
+          : c
+      )
+    );
+    void persistConversationMetadata(conversationId, { is_pinned: nextPinned, pinned: nextPinned });
+    toast({ title: nextPinned ? "Conversa fixada." : "Conversa desfixada." });
+  }, [pinnedChatIds, setConversations, persistConversationMetadata, toast]);
 
   const handleToggleArchive = useCallback((conversationId: string) => {
     const conv = conversationsRef.current.find((c) => String(c.id) === String(conversationId));
@@ -2866,19 +2903,21 @@ export function useInboxState() {
     if (isCurrentlyArchived) {
       setArchivedChatIds((current) => current.filter((id) => id !== conversationId));
       setConversations((prev) =>
-        prev.map((c) => (String(c.id) === String(conversationId) ? { ...c, status: "open" } : c))
+        prev.map((c) => (String(c.id) === String(conversationId) ? { ...c, status: "open", archived: false } : c))
       );
       socketActions.emitUnarchiveChat(conversationId);
+      void persistConversationMetadata(conversationId, { status: "open", archived: false });
       toast({ title: "Conversa desarquivada." });
     } else {
       setArchivedChatIds((current) => (current.includes(conversationId) ? current : [...current, conversationId]));
       setConversations((prev) =>
-        prev.map((c) => (String(c.id) === String(conversationId) ? { ...c, status: "archived" } : c))
+        prev.map((c) => (String(c.id) === String(conversationId) ? { ...c, status: "archived", archived: true } : c))
       );
       socketActions.emitArchiveChat(conversationId);
+      void persistConversationMetadata(conversationId, { status: "archived", archived: true });
       toast({ title: "Conversa arquivada." });
     }
-  }, [socketActions, archivedChatIds, setConversations, toast]);
+  }, [socketActions, archivedChatIds, setConversations, persistConversationMetadata, toast]);
 
   const handleDeleteConversation = useCallback(async (conversationId: string) => {
     try {

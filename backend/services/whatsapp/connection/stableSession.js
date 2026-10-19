@@ -2592,6 +2592,124 @@ async function createStableSession({
           console.error('[WHATSAPP_SYNC] Failed to sync archive state to database:', err.message);
         }
       }
+
+      const isPinned = typeof update.pin === 'boolean'
+        ? update.pin
+        : (typeof update.pinned === 'boolean' ? update.pinned : null);
+
+      if (isPinned !== null) {
+        store.chats[chatId].isPinned = isPinned;
+        store.chats[chatId].updatedAt = Date.now();
+
+        // Sync to database
+        try {
+          const conversationRepository = require('../../../src/data/repositories/conversationRepository');
+          const updatedConv = await conversationRepository.updateConversationState(chatId, {
+            is_pinned: isPinned,
+            pinned_at: isPinned ? new Date() : null,
+          });
+
+          const conversationId = updatedConv ? String(updatedConv.id) : chatId;
+          const eventPayload = {
+            chatId: conversationId,
+            conversationId,
+            jid: chatId,
+            is_pinned: isPinned,
+            pinned: isPinned,
+          };
+
+          if (activeIo) {
+            activeIo.emit(isPinned ? 'chat_pinned' : 'chat_unpinned', eventPayload);
+            if (updatedConv) {
+              activeIo.emit('conversation:update', updatedConv);
+              activeIo.emit('conversation_updated', updatedConv);
+            }
+          }
+
+          emitChatUpdated(activeIo, store.chats[chatId]);
+          emitChatsLoaded(activeIo, store);
+        } catch (err) {
+          console.error('[WHATSAPP_SYNC] Failed to sync pin state to database:', err.message);
+        }
+      }
+    }
+  });
+
+  // ── Labels Edit (labels.edit) ───────────────────────────────────────────
+  sock.ev.on('labels.edit', async (label) => {
+    try {
+      if (!label?.id) return;
+      const { query } = require('../../../src/infrastructure/config/database');
+      const companyId = session.companyId || 'default';
+      const sessionId = normalizedSessionName;
+      const name = String(label.name || '').trim();
+      const color = Number.isInteger(label.color) ? label.color : 0;
+      const deleted = Boolean(label.deleted);
+
+      const WPP_LABEL_COLORS = [
+        '#00d26a', '#5ac8fa', '#5856d6', '#ff2d55', '#ff9500',
+        '#ffcc00', '#af52de', '#ff3b30', '#007aff', '#34c759',
+        '#a2845e', '#8e8e93', '#d1d1d6', '#e5e5ea', '#1c1c1e',
+        '#2c2c2e', '#3a3a3c', '#48484a', '#636366', '#8e8e93'
+      ];
+      const colorHex = WPP_LABEL_COLORS[color] || '#00d26a';
+
+      await query(
+        `INSERT INTO whatsapp_labels (id, company_id, session_id, name, color, color_hex, deleted, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         ON CONFLICT (company_id, session_id, id)
+         DO UPDATE SET name = EXCLUDED.name, color = EXCLUDED.color, color_hex = EXCLUDED.color_hex, deleted = EXCLUDED.deleted, updated_at = NOW()`,
+        [String(label.id), companyId, sessionId, name, color, colorHex, deleted]
+      );
+
+      const activeIo = io || session.io || global.io;
+      if (activeIo) {
+        activeIo.emit('whatsapp:labels_updated', {
+          companyId,
+          sessionId,
+          label: { id: String(label.id), name, color, colorHex, deleted }
+        });
+      }
+    } catch (err) {
+      console.warn('[WHATSAPP_LABELS] Error handling labels.edit:', err.message);
+    }
+  });
+
+  // ── Labels Association (labels.association) ─────────────────────────────
+  sock.ev.on('labels.association', async ({ type, association }) => {
+    try {
+      if (type !== 'label_jid' && type !== 'chat') return;
+      const { labelId, chatId } = association || {};
+      if (!labelId || !chatId) return;
+
+      const conversationRepository = require('../../../src/data/repositories/conversationRepository');
+      const { query } = require('../../../src/infrastructure/config/database');
+      const companyId = session.companyId || 'default';
+      const sessionId = normalizedSessionName;
+
+      const lblRes = await query(
+        'SELECT name FROM whatsapp_labels WHERE id = $1 AND company_id = $2 AND session_id = $3 LIMIT 1',
+        [String(labelId), companyId, sessionId]
+      );
+      const labelName = lblRes.rows[0]?.name || `Etiqueta ${labelId}`;
+
+      const conv = await conversationRepository.getConversationByPhone(chatId, companyId, sessionId);
+      if (conv) {
+        const currentTags = Array.isArray(conv.tags) ? [...conv.tags] : [];
+        if (!currentTags.includes(labelName)) {
+          currentTags.push(labelName);
+          const updatedConv = await conversationRepository.updateConversationState(conv.id, {
+            tags: currentTags
+          });
+          const activeIo = io || session.io || global.io;
+          if (activeIo && updatedConv) {
+            activeIo.emit('conversation:update', updatedConv);
+            activeIo.emit('conversation_updated', updatedConv);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[WHATSAPP_LABELS] Error handling labels.association:', err.message);
     }
   });
 

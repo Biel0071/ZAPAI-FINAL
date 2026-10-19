@@ -113,6 +113,11 @@ export interface Conversation {
   lid?: string;
   needsHuman?: boolean;
   needs_human?: boolean;
+  is_pinned?: boolean;
+  pinned?: boolean;
+  pinned_at?: string | null;
+  archived?: boolean;
+  archived_at?: string | null;
 }
 
 export interface ChatMessage {
@@ -569,6 +574,11 @@ type RawConversation = {
   assigned_to?: string;
   agent_name?: string;
   assignedAgentName?: string;
+  is_pinned?: boolean;
+  pinned?: boolean;
+  pinned_at?: string | null;
+  archived?: boolean;
+  archived_at?: string | null;
 };
 
 type RawMessage = {
@@ -933,7 +943,7 @@ function extractChatIdentifier(value: string | number | null | undefined): strin
   return digits || undefined;
 }
 
-function normalizeConversation(item: RawConversation, index: number): Conversation {
+export function normalizeConversation(item: RawConversation, index: number = 0): Conversation {
   const normalizedType = item.lastMessageType ?? item.messageType ?? item.mediaType ?? "text";
   const lastMessageAt = item.lastMessageAt ?? item.last_message_at ?? item.timestamp ?? item.updatedAt ?? item.updated_at ?? null;
   const contactId = normalizeIdentifier((item.contactId ?? item.contact_id) as string | number | undefined);
@@ -983,6 +993,11 @@ function normalizeConversation(item: RawConversation, index: number): Conversati
     humanActive: item.humanActive,
     assignedAgentName: item.agent_name ?? item.assigned_to ?? item.assignedAgentName ?? null,
     agent_name: item.agent_name ?? item.assigned_to ?? item.assignedAgentName ?? null,
+    is_pinned: Boolean(item.is_pinned ?? item.pinned),
+    pinned: Boolean(item.is_pinned ?? item.pinned),
+    pinned_at: item.pinned_at ? String(item.pinned_at) : null,
+    archived: Boolean(item.archived || item.status === "archived"),
+    archived_at: item.archived_at ? String(item.archived_at) : null,
   };
 }
 
@@ -2363,7 +2378,7 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: `/api/contacts/${encodeURIComponent(phone)}/block`, method: "POST" }),
   unblockContact: (phone: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/contacts/${encodeURIComponent(phone)}/unblock`, method: "POST" }),
-  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string }) =>
+  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
   createConversation: (payload: { phone: string; name?: string; sessionId?: string }) => {
     invalidateCache("conversations");
@@ -2547,7 +2562,13 @@ export const apiService = {
       method: "GET",
     });
   },
-
+  async getWhatsAppLabels(sessionId?: string) {
+    const query = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+    return request<{ success: boolean; labels: Array<{ id: string; name: string; color: number; color_hex: string; deleted?: boolean }> }>({
+      endpoint: `/api/whatsapp/labels${query}`,
+      method: "GET",
+    });
+  },
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {

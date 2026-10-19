@@ -359,9 +359,46 @@ async function updateAgent(agentKey,payload={},tenantId) {
     all[index]=next;return next;
   },'configuration');
 }
-async function setAgentActive(agentKey,active,tenantId){
+async function setAgentActive(agentKey, active, tenantId) {
   const isActive = Boolean(active);
-  return updateAgent(agentKey,{active:isActive, status: isActive ? 'active' : 'paused'},tenantId);
+  const normalizedTenantId = normalizeTenantId(tenantId);
+
+  const updatedAgent = await mutateAgents(normalizedTenantId, async (all, client) => {
+    const index = all.findIndex(a => a.key === agentKey);
+    if (index < 0) throw new Error('Atendente não encontrado.');
+
+    let sessionIds = all[index].sessionIds;
+    if (isActive && (!Array.isArray(sessionIds) || sessionIds.length === 0)) {
+      const rows = (await client.query('SELECT session_id FROM sessions WHERE company_id=$1', [normalizedTenantId])).rows;
+      sessionIds = rows.length > 0 ? [rows[0].session_id] : ['main'];
+      all[index].sessionIds = sessionIds;
+    }
+
+    const next = normalizeAgent({
+      ...all[index],
+      active: isActive,
+      status: isActive ? 'active' : 'paused',
+      sessionIds: all[index].sessionIds,
+      key: agentKey,
+    });
+    all[index] = next;
+    return next;
+  }, 'status_toggle');
+
+  const { setAIEnabled } = require('../../../infrastructure/config/aiToggle');
+  await setAIEnabled(isActive, normalizedTenantId).catch(() => {});
+
+  const systemSettingsRepository = require('../../../data/repositories/systemSettingsRepository');
+  await systemSettingsRepository.setSetting('ai_enabled', String(isActive)).catch(() => {});
+
+  const io = global.io;
+  if (io) {
+    io.emit('ai_agent:updated', { agent: updatedAgent, tenantId: normalizedTenantId });
+    io.emit('agent:status', { agentKey, active: isActive, status: isActive ? 'active' : 'paused' });
+    io.emit('ai:status', { enabled: isActive, active: isActive });
+  }
+
+  return updatedAgent;
 }
 async function deleteAgent(agentKey,tenantId){
   return mutateAgents(tenantId,async(all,client)=>{

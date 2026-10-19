@@ -760,17 +760,13 @@ export default function AttendantsPage() {
 
   const handleToggleActive = async (agent: any) => {
     const nextState = agent.active === false;
-    if (nextState && !agent.sessionIds?.length) {
-      handleOpenReassign(agent);
-      return;
-    }
     if (pendingAgent) return;
     setPendingAgent(agent.key);
     try {
       const result = await apiService.toggleAIAgent(agent.key, nextState);
       if (result.success === false) throw new Error("A alteração não foi salva.");
-      setAgents((prev) => prev.map((a) => (a.key === agent.key ? { ...a, active: nextState } : a)));
-      setPreviewAgent((current: any) => current?.key === agent.key ? { ...current, active: nextState } : current);
+      setAgents((prev) => prev.map((a) => (a.key === agent.key ? { ...a, active: nextState, status: nextState ? "active" : "paused" } : a)));
+      setPreviewAgent((current: any) => current?.key === agent.key ? { ...current, active: nextState, status: nextState ? "active" : "paused" } : current);
       notify.success(nextState ? `${agent.name} ativado(a)` : `${agent.name} pausado(a)`);
       await fetchData();
     } catch (err: any) {

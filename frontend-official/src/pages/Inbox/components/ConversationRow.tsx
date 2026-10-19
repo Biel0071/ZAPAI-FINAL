@@ -330,16 +330,14 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
           <div className="flex items-center justify-between gap-1.5">
             <h4 className="text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0 flex-1">
               <span className="truncate min-w-0">{cleanDisplayName}</span>
-              {/* Presence dot: green if online/typing, red if not online at the moment */}
-              <span
-                className={cn(
-                  "inline-flex h-2 w-2 rounded-full shrink-0",
-                  (isTyping || conversation.status === "online")
-                    ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-pulse"
-                    : "bg-rose-500/80 border border-rose-500/30"
-                )}
-                title={isTyping || conversation.status === "online" ? "Contato online" : "Não no momento"}
-              />
+              {/* Presence dot: green if online/typing, clean omission when offline */}
+              {(isTyping || conversation.status === "online") && (
+                <span
+                  className="inline-flex h-2 w-2 rounded-full shrink-0 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-pulse"
+                  title="Contato online"
+                  aria-label="Online"
+                />
+              )}
               {leadStatus.state === "intervencao" && (
                 <span className="sr-only" title={leadStatus.tooltip}>INTERVENÇÃO</span>
               )}

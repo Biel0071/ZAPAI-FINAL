@@ -270,6 +270,8 @@ type SocketSubscriber = {
   onAiProgress?: (payload: AIResponseProgress) => void;
   onChatArchived?: (payload: { chatId?: string; conversationId?: string; status?: string; archived?: boolean }) => void;
   onChatUnarchived?: (payload: { chatId?: string; conversationId?: string; status?: string; archived?: boolean }) => void;
+  onChatPinned?: (payload: { chatId?: string; conversationId?: string; is_pinned?: boolean }) => void;
+  onChatUnpinned?: (payload: { chatId?: string; conversationId?: string; is_pinned?: boolean }) => void;
   onChatTagUpdated?: (payload: { chatId?: string; conversationId?: string; tag?: string; action?: "add" | "remove" }) => void;
   onQrGenerated?: (payload: { sessionId?: string; qr?: string; base64?: string }) => void;
   onSessionConnected?: (payload: { sessionId?: string; phone?: string; status?: string }) => void;
@@ -831,6 +833,14 @@ function bindSharedSocketEvents() {
     notifySubscribers((subscriber) => subscriber.onChatUnarchived?.(payload));
   });
 
+  sharedSocket.on("chat_pinned", (payload: { chatId?: string; conversationId?: string; is_pinned?: boolean }) => {
+    notifySubscribers((subscriber) => subscriber.onChatPinned?.(payload));
+  });
+
+  sharedSocket.on("chat_unpinned", (payload: { chatId?: string; conversationId?: string; is_pinned?: boolean }) => {
+    notifySubscribers((subscriber) => subscriber.onChatUnpinned?.(payload));
+  });
+
   sharedSocket.on("tag_added", (payload: { chatId?: string; conversationId?: string; tag?: string }) => {
     notifySubscribers((subscriber) =>
       subscriber.onChatTagUpdated?.({
@@ -1114,6 +1124,8 @@ export function connectInboxSocket(params: {
   onAiProgress?: (payload: AIResponseProgress) => void;
   onChatArchived?: (payload: { chatId?: string; conversationId?: string; status?: string; archived?: boolean }) => void;
   onChatUnarchived?: (payload: { chatId?: string; conversationId?: string; status?: string; archived?: boolean }) => void;
+  onChatPinned?: (payload: { chatId?: string; conversationId?: string; is_pinned?: boolean }) => void;
+  onChatUnpinned?: (payload: { chatId?: string; conversationId?: string; is_pinned?: boolean }) => void;
   onChatTagUpdated?: (payload: { chatId?: string; conversationId?: string; tag?: string; action?: "add" | "remove" }) => void;
   onQrGenerated?: (payload: { sessionId?: string; qr?: string; base64?: string }) => void;
   onSessionConnected?: (payload: { sessionId?: string; phone?: string; status?: string }) => void;
@@ -1149,6 +1161,8 @@ export function connectInboxSocket(params: {
     onAiProgress: params.onAiProgress,
     onChatArchived: params.onChatArchived,
     onChatUnarchived: params.onChatUnarchived,
+    onChatPinned: params.onChatPinned,
+    onChatUnpinned: params.onChatUnpinned,
     onChatTagUpdated: params.onChatTagUpdated,
     onQrGenerated: params.onQrGenerated,
     onSessionConnected: params.onSessionConnected,

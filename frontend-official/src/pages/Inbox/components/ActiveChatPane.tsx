@@ -316,6 +316,27 @@ export function ActiveChatPane({
     }
   };
 
+  const [isReconnectingSession, setIsReconnectingSession] = useState(false);
+  const handleReconnectWhatsApp = useCallback(async () => {
+    setIsReconnectingSession(true);
+    try {
+      const targetSessionId = selectedConversation?.sessionId || "main";
+      await apiService.reconnectSession(targetSessionId);
+      toast({
+        title: "Tentando reconectar WhatsApp...",
+        description: "Aguardando sincronização com a rede WhatsApp.",
+      });
+    } catch (_err: any) {
+      toast({
+        title: "Falha ao reconectar",
+        description: "Não foi possível restabelecer a conexão automaticamente. Tente pela tela de Conexões.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReconnectingSession(false);
+    }
+  }, [selectedConversation?.sessionId, toast]);
+
   const [selectedQuickReplyModal, setSelectedQuickReplyModal] = useState<QuickResponseItem | null>(null);
   const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
   const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
@@ -1023,24 +1044,34 @@ export function ActiveChatPane({
             </div>
           )}
 
-          {inboxRuntimeState === "WHATSAPP_OFFLINE" && !dismissedBanners["wa_offline"] && (
-            <div className="border-b border-amber-500/25 bg-amber-500/10 px-3 py-1 flex items-center justify-between gap-2 text-[11px] text-amber-400 select-none shrink-0 animate-fade-in">
+          {(inboxRuntimeState === "WHATSAPP_OFFLINE" || !isWhatsappConnected) && !dismissedBanners["wa_offline"] && (
+            <div className="border-b border-amber-500/25 bg-amber-500/10 px-3 py-1.5 flex items-center justify-between gap-2 text-[11px] text-amber-300 select-none shrink-0 animate-fade-in">
               <div className="flex items-center gap-1.5 min-w-0 truncate">
                 <span className="relative flex h-1.5 w-1.5 shrink-0">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
                 </span>
-                <span className="truncate">WhatsApp desconectado</span>
+                <span className="truncate font-medium">WhatsApp desconectado. As mensagens e conversas estão salvas no banco.</span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="h-5 rounded px-2 text-[10px] font-semibold bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-all"
+                  disabled={isReconnectingSession}
+                  className="h-6 rounded px-2.5 text-[10px] font-semibold bg-emerald-500/15 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 hover:text-emerald-200 transition-all"
+                  onClick={handleReconnectWhatsApp}
+                >
+                  {isReconnectingSession ? "Reconectando..." : "Reconectar"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-6 rounded px-2.5 text-[10px] font-semibold bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-all"
                   onClick={() => navigate("/connections")}
                 >
-                  Conectar
+                  Conectar Outro
                 </Button>
                 <button
                   type="button"

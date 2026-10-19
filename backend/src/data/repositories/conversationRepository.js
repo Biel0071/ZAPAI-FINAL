@@ -152,6 +152,11 @@ function mapConversation(row) {
     updatedAt: row.updated_at,
     lastMessageAt: row.last_message_at || row.updated_at || row.created_at,
     isBlocked: !!row.is_blocked,
+    is_pinned: Boolean(row.is_pinned),
+    pinned: Boolean(row.is_pinned),
+    pinned_at: row.pinned_at || null,
+    archived: Boolean(row.archived || row.status === "archived"),
+    archived_at: row.archived_at || null,
   };
 }
 
@@ -179,6 +184,10 @@ function getBaseSelect() {
       conv.unread_count,
       conv.created_at,
       conv.updated_at,
+      COALESCE(conv.is_pinned, false) as is_pinned,
+      conv.pinned_at,
+      COALESCE(conv.archived, false) as archived,
+      conv.archived_at,
       COALESCE(
         conv.last_message_at,
         (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
@@ -478,7 +487,33 @@ async function updateConversationState(conversationId, fields = {}, companyId, o
     tags: 'tags',
     unreadCount: 'unread_count',
     updatedAt: 'updated_at',
+    is_pinned: 'is_pinned',
+    pinned: 'is_pinned',
+    pinned_at: 'pinned_at',
+    archived: 'archived',
+    archived_at: 'archived_at',
   };
+
+  if (typeof fields.is_pinned !== 'undefined' || typeof fields.pinned !== 'undefined') {
+    const isPinned = Boolean(fields.is_pinned ?? fields.pinned);
+    fields.is_pinned = isPinned;
+    if (typeof fields.pinned_at === 'undefined') {
+      fields.pinned_at = isPinned ? new Date() : null;
+    }
+  }
+
+  if (typeof fields.archived !== 'undefined') {
+    const isArchived = Boolean(fields.archived);
+    fields.archived = isArchived;
+    if (typeof fields.archived_at === 'undefined') {
+      fields.archived_at = isArchived ? new Date() : null;
+    }
+    if (isArchived && typeof fields.status === 'undefined') {
+      fields.status = 'archived';
+    } else if (!isArchived && fields.status === 'archived') {
+      fields.status = 'open';
+    }
+  }
 
   const updates = [];
   const values = [];
@@ -663,6 +698,10 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.unread_count,
           conv.created_at,
           conv.updated_at,
+          COALESCE(conv.is_pinned, false) as is_pinned,
+          conv.pinned_at,
+          COALESCE(conv.archived, false) as archived,
+          conv.archived_at,
           COALESCE(
             conv.last_message_at,
             (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
@@ -694,11 +733,11 @@ async function listConversations(companyId, limit = 50, options = {}) {
       )
       SELECT *
       FROM (
-        (SELECT * FROM filtered ORDER BY last_message_at DESC LIMIT $${values.length})
+        (SELECT * FROM filtered ORDER BY is_pinned DESC, last_message_at DESC LIMIT $${values.length})
         UNION
-        (SELECT * FROM filtered WHERE remote_jid LIKE '%@g.us' OR phone LIKE '%@g.us' ORDER BY last_message_at DESC LIMIT 30)
+        (SELECT * FROM filtered WHERE remote_jid LIKE '%@g.us' OR phone LIKE '%@g.us' ORDER BY is_pinned DESC, last_message_at DESC LIMIT 30)
       ) combined
-      ORDER BY last_message_at DESC
+      ORDER BY is_pinned DESC, last_message_at DESC
     `,
     values
   );

@@ -1088,7 +1088,10 @@ async function updateConversationMeta(req, res) {
     'summary',
     'agent_name',
     'aiEnabled',
-    'notes'
+    'notes',
+    'is_pinned',
+    'pinned',
+    'archived'
   ];
 
   for (const field of allowedFields) {
@@ -1115,8 +1118,77 @@ async function updateConversationMeta(req, res) {
       return res.status(404).json({ error: 'Conversation not found.' });
     }
 
-    if (updated && typeof fields.status !== 'undefined') {
-      const isArchived = fields.status === 'archived';
+    // Sync PIN to WhatsApp Baileys
+    const hasPinUpdate = typeof fields.is_pinned !== 'undefined' || typeof fields.pinned !== 'undefined';
+    if (updated && hasPinUpdate) {
+      const isPinned = Boolean(updated.is_pinned || updated.pinned);
+      try {
+        const preferredSessionId = sessionManager.normalizeSessionName(
+          updated.session_id || sessionManager.DEFAULT_SESSION
+        );
+        const preferredSession = sessionManager.getSession(preferredSessionId);
+        const fallbackSession = await sessionManager.getDefaultSession().catch(() => null);
+        const connectedSession = sessionManager.getConnectedSessionOrNull();
+        const activeSession = preferredSession?.sock ? preferredSession : (fallbackSession?.sock ? fallbackSession : connectedSession);
+        const sock = activeSession?.sock;
+
+        if (sock) {
+          const jid = updated.phone.includes('@') ? updated.phone : `${updated.phone}@s.whatsapp.net`;
+          console.log(`[WHATSAPP_PIN] Syncing pin state (${isPinned}) to WhatsApp for ${jid}`);
+          await sock.chatModify({ pin: isPinned }, jid).catch((err) => {
+            console.warn('[WHATSAPP_PIN] Failed to chatModify pin:', err.message);
+          });
+        }
+
+        const io = req.app.get('io') || global.io;
+        if (io) {
+          const eventPayload = {
+            chatId: String(updated.id),
+            conversationId: String(updated.id),
+            is_pinned: isPinned,
+            pinned: isPinned,
+          };
+          io.emit(isPinned ? 'chat_pinned' : 'chat_unpinned', eventPayload);
+        }
+      } catch (pinErr) {
+        console.warn('[WHATSAPP_PIN] Failed to sync pin state:', pinErr.message);
+      }
+    }
+
+    // Sync TAGS / LABELS to WhatsApp Baileys
+    if (updated && Array.isArray(fields.tags)) {
+      try {
+        const preferredSessionId = sessionManager.normalizeSessionName(
+          updated.session_id || sessionManager.DEFAULT_SESSION
+        );
+        const preferredSession = sessionManager.getSession(preferredSessionId);
+        const fallbackSession = await sessionManager.getDefaultSession().catch(() => null);
+        const connectedSession = sessionManager.getConnectedSessionOrNull();
+        const activeSession = preferredSession?.sock ? preferredSession : (fallbackSession?.sock ? fallbackSession : connectedSession);
+        const sock = activeSession?.sock;
+
+        if (sock && typeof sock.addChatLabel === 'function') {
+          const { query } = require('../../infrastructure/config/database');
+          const jid = updated.phone.includes('@') ? updated.phone : `${updated.phone}@s.whatsapp.net`;
+          const companyId = getCompanyId(req);
+          const labelsRes = await query(
+            'SELECT id, name FROM whatsapp_labels WHERE company_id = $1 AND (session_id = $2 OR session_id = \'main\') AND deleted = false',
+            [companyId, preferredSessionId]
+          );
+          const existingLabels = labelsRes.rows || [];
+          for (const lbl of existingLabels) {
+            if (fields.tags.includes(lbl.name)) {
+              await sock.addChatLabel(jid, String(lbl.id)).catch(() => {});
+            }
+          }
+        }
+      } catch (tagErr) {
+        console.warn('[WHATSAPP_LABEL_SYNC] Failed to sync tags with WhatsApp labels:', tagErr.message);
+      }
+    }
+
+    if (updated && (typeof fields.status !== 'undefined' || typeof fields.archived !== 'undefined')) {
+      const isArchived = Boolean(fields.archived || fields.status === 'archived');
       try {
         const preferredSessionId = sessionManager.normalizeSessionName(
           updated.session_id || sessionManager.DEFAULT_SESSION
@@ -1151,7 +1223,7 @@ async function updateConversationMeta(req, res) {
           const eventPayload = {
             chatId: String(updated.id),
             conversationId: String(updated.id),
-            status: fields.status,
+            status: isArchived ? 'archived' : (fields.status || updated.status || 'open'),
             archived: isArchived
           };
           if (isArchived) {
@@ -1297,6 +1369,24 @@ async function getConversationAvatar(req, res) {
   }
 }
 
+async function getWhatsappLabels(req, res) {
+  try {
+    const { query } = require('../../infrastructure/config/database');
+    const companyId = getCompanyId(req);
+    const sessionId = req.query?.sessionId || 'main';
+    const result = await query(
+      `SELECT id, name, color, color_hex, deleted 
+       FROM whatsapp_labels 
+       WHERE company_id = $1 AND (session_id = $2 OR session_id = 'main') AND deleted = false 
+       ORDER BY id ASC`,
+      [companyId, sessionId]
+    );
+    return res.status(200).json({ success: true, labels: result.rows });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Failed to fetch WhatsApp labels.' });
+  }
+}
+
 module.exports = {
   clearConversationDraft,
   createConversation,
@@ -1311,6 +1401,7 @@ module.exports = {
   getConversationRuntime,
   getConversations,
   getPublicUrl,
+  getWhatsappLabels,
   markConversationRead,
   saveConversationDraft,
   suggestConversationReply,
