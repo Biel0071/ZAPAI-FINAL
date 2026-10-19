@@ -88,7 +88,42 @@ export const DEFAULT_BUSINESS_EMOJIS: Record<string, string> = {
   "urgência": "🚨",
   "prioridade": "🚨",
 
-  // Suporte & Operações
+  // IA, Automação & Follow-up
+  "followup_ia_ativo": "🤖",
+  "followup_ia": "🤖",
+  "followup": "🔁",
+  "followup_toque_1": "🔁",
+  "followup_toque_2": "🔁",
+  "followup_toque_3": "🔁",
+  "campanha_50_leads_ia": "📢",
+  "campanha_ia": "📢",
+  "campanha": "📢",
+  "algo-03": "🧠",
+  "algo_03": "🧠",
+  "algo": "🧠",
+  "ia": "🤖",
+  "ia_ativa": "🤖",
+  "ia_desativada": "⏸️",
+  "estilo_price_sensitive_negotiator": "💰",
+  "price_sensitive": "💰",
+  "ficha_gerada": "📋",
+  "ficha": "📋",
+  "fechamento": "🤝",
+  "aguarda_pix": "💳",
+  "pix_pendente": "💳",
+  "pago": "✅",
+  "pausado": "⏸️",
+  "intervencao_humana": "⚠️",
+  "intervencao": "⚠️",
+  "delirio_evitado": "🛡️",
+  "humano": "👤",
+  "atendimento_manual": "👤",
+  "frio": "❄️",
+  "morno": "🌤️",
+  "interessado": "✨",
+  "informacoes": "ℹ️",
+  "informações": "ℹ️",
+  "orientar": "🧭",
   "suporte": "🛠️",
   "ajuda": "🛠️",
   "financeiro": "💳",
@@ -228,12 +263,19 @@ export function getTagEmoji(tag: string): string | null {
   }
 
   for (const [key, em] of Object.entries(DEFAULT_BUSINESS_EMOJIS)) {
-    if (norm === key || norm.startsWith(key + " ") || norm.endsWith(" " + key)) {
+    if (
+      norm === key ||
+      norm.startsWith(key + " ") ||
+      norm.endsWith(" " + key) ||
+      norm.startsWith(key + "_") ||
+      norm.endsWith("_" + key) ||
+      norm.includes(" " + key + " ") ||
+      norm.includes("_" + key + "_")
+    ) {
       return em;
     }
   }
 
-  // 4. "se tiver sem isso não colocar e não poluir tão visualmente"
   return null;
 }
 

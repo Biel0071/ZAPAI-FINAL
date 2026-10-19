@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { apiService } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
+import { cn } from "@/core/lib/utils";
 
 export interface FlowExecutionData {
   chatId: string;
@@ -136,80 +137,88 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
 
   return (
     <>
-      {/* Sleek single-line progress bar mounted directly below customer header */}
-      <div className="w-full h-9 bg-card/95 backdrop-blur-md border-b border-emerald-500/30 px-2.5 flex items-center justify-between gap-1.5 text-xs shadow-sm select-none z-20 overflow-hidden">
-        {/* Left: Indicator + Flow name + Steps badge */}
-        <div className="flex items-center gap-1.5 shrink min-w-0">
-          <div className="relative flex h-2.5 w-2.5 shrink-0">
-            {isPaused ? (
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-            ) : (
-              <>
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-              </>
+      {/* Sleek 2x height progress bar mounted directly below customer header */}
+      <div className="w-full min-h-[52px] sm:min-h-[58px] bg-card/95 backdrop-blur-md border-b-2 border-emerald-500/40 px-3 sm:px-4 py-2 flex items-center justify-between gap-2.5 text-xs shadow-md select-none z-20 overflow-hidden">
+        {/* Left: Unified Glowing Green Lightning Bolt Charging Indicator + Flow info */}
+        <div className="flex items-center gap-2.5 shrink min-w-0">
+          <div
+            className={cn(
+              "relative flex items-center justify-center h-8 w-8 rounded-xl shrink-0 transition-all duration-300",
+              isPaused
+                ? "bg-amber-500/15 border border-amber-500/40 text-amber-400"
+                : "bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 shadow-[0_0_14px_rgba(16,185,129,0.4)]"
+            )}
+            title={isPaused ? "Disparo pausado" : `Disparo carregando: ${progressPercent}%`}
+          >
+            <Zap className={cn("h-4 w-4 fill-current", !isPaused && "animate-pulse drop-shadow-[0_0_6px_rgba(16,185,129,0.8)]")} />
+            {!isPaused && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
             )}
           </div>
 
-          <span className="font-semibold text-foreground truncate max-w-[100px] md:max-w-[150px] flex items-center gap-1 text-[11px]">
-            <Zap className="h-3 w-3 text-emerald-400 shrink-0" />
-            <span className="truncate">{flowData.flowName}</span>
-          </span>
-
-          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-[10px] whitespace-nowrap shrink-0">
-            Passo {flowData.currentStep}/{flowData.totalSteps}
-          </span>
+          <div className="flex flex-col min-w-0 justify-center">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-foreground text-xs sm:text-sm truncate max-w-[120px] sm:max-w-[200px]">
+                {flowData.flowName}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-[11px] whitespace-nowrap shrink-0">
+                {flowData.currentStep}/{flowData.totalSteps}
+              </span>
+            </div>
+            {flowData.stepDescription && (
+              <span className="text-[10px] text-muted-foreground truncate hidden sm:inline-block max-w-[240px]">
+                {flowData.stepDescription}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Center / Right: Delay countdown in seconds ("S") + Percentage ("%") */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* Center / Right: Delay countdown in seconds ("S") + Percentage ("%") + Emoji buttons */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Relógio e contagem */}
           <div
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 text-[10px] font-mono text-muted-foreground whitespace-nowrap shrink-0"
-            title="Delay de envio restante da etapa atual"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/70 border border-border/70 text-xs font-mono text-muted-foreground whitespace-nowrap shrink-0"
+            title="Delay restante para envio da próxima mensagem"
           >
-            <Clock className="h-3 w-3 text-emerald-400" />
-            <span>
-              {isPaused ? "Pausado" : `Delay: ${remainingDelaySeconds}s`}
-            </span>
+            <Clock className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+            <span className="font-semibold text-foreground/90">{remainingDelaySeconds}s</span>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0" title={`Progresso do fluxo: ${progressPercent}%`}>
-            <span className="text-[10px] font-mono font-bold text-foreground">{progressPercent}%</span>
-            <div className="w-10 sm:w-16 h-1.5 rounded-full bg-muted/80 overflow-hidden border border-border/50 hidden xs:block">
+          {/* Porcentagem e barra de progresso carregando junto com a % */}
+          <div className="flex items-center gap-2 shrink-0" title={`Progresso do fluxo: ${progressPercent}%`}>
+            <span className="text-xs font-mono font-bold text-emerald-400">{progressPercent}%</span>
+            <div className="w-12 sm:w-24 h-2 rounded-full bg-muted/80 overflow-hidden border border-border/50 hidden xs:block">
               <div
-                className={`h-full rounded-full transition-all duration-300 ease-out ${
+                className={cn(
+                  "h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(16,185,129,0.6)]",
                   isPaused ? "bg-amber-400" : "bg-emerald-500"
-                }`}
+                )}
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
           </div>
 
-          {/* Action buttons: [ Pausar / Ativar ] and [ Cancelar ] */}
-          <div className="flex items-center gap-1 pl-0.5 shrink-0">
+          {/* Apenas emojis/ícones de pausar e cancelar */}
+          <div className="flex items-center gap-1.5 pl-1 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleTogglePause}
               disabled={togglingPause}
-              className={`h-6 px-1.5 sm:px-2 text-[10px] font-medium rounded transition-all ${
+              aria-label={isPaused ? "Retomar disparo" : "Pausar disparo"}
+              title={isPaused ? "Retomar disparo (▶️)" : "Pausar disparo (⏸️)"}
+              className={cn(
+                "h-8 w-8 p-0 rounded-lg transition-all shadow-xs flex items-center justify-center text-sm",
                 isPaused
-                  ? "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/15"
-                  : "border-amber-500/40 text-amber-400 hover:bg-amber-500/15"
-              }`}
-            >
-              {isPaused ? (
-                <>
-                  <Play className="h-2.5 w-2.5 mr-1 fill-current" />
-                  <span>Ativar</span>
-                </>
-              ) : (
-                <>
-                  <Pause className="h-2.5 w-2.5 mr-1 fill-current" />
-                  <span>Pausar</span>
-                </>
+                  ? "border-emerald-500/50 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 hover:border-emerald-400"
+                  : "border-amber-500/50 text-amber-400 bg-amber-500/10 hover:bg-amber-500/25 hover:border-amber-400"
               )}
+            >
+              {isPaused ? <Play className="h-4 w-4 fill-current" /> : <Pause className="h-4 w-4 fill-current" />}
             </Button>
 
             <Button
@@ -218,10 +227,11 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
               size="sm"
               onClick={() => setShowConfirmModal(true)}
               disabled={cancelling}
-              className="h-6 px-1.5 sm:px-2 text-[10px] font-medium rounded bg-red-600/85 hover:bg-red-600 text-white transition-all flex items-center gap-1"
+              aria-label="Cancelar disparo"
+              title="Cancelar disparo (⏹️)"
+              className="h-8 w-8 p-0 rounded-lg bg-red-600/85 hover:bg-red-600 text-white transition-all shadow-xs flex items-center justify-center text-sm"
             >
-              <StopCircle className="h-2.5 w-2.5" />
-              <span>Cancelar</span>
+              <StopCircle className="h-4 w-4" />
             </Button>
           </div>
         </div>

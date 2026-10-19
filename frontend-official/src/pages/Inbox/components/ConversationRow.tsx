@@ -235,24 +235,24 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
 
   const leadBackgroundClass = useMemo(() => {
     if (leadStatus.state === "intervencao") {
-      return "border-2 border-red-500/80 bg-red-500/[0.12] shadow-[0_0_18px_rgba(239,68,68,0.35)]";
+      return "border-2 border-red-500/80 bg-red-500/[0.14] shadow-[0_0_16px_rgba(239,68,68,0.35),inset_0_0_14px_rgba(239,68,68,0.12)]";
     }
     if (leadStatus.state === "finalizado") {
-      return "border border-blue-500/40 bg-blue-500/[0.08] hover:bg-blue-500/[0.14]";
+      return "border border-blue-500/40 bg-blue-500/[0.09] shadow-[inset_0_0_14px_rgba(59,130,246,0.08)] hover:bg-blue-500/[0.14]";
     }
     if (leadStatus.state === "pago") {
-      return "border border-teal-500/40 bg-teal-500/[0.08] hover:bg-teal-500/[0.14]";
+      return "border border-teal-500/40 bg-teal-500/[0.09] shadow-[inset_0_0_14px_rgba(20,184,166,0.08)] hover:bg-teal-500/[0.14]";
     }
     if (leadStatus.state === "pausado") {
-      return "border border-rose-500/35 bg-rose-500/[0.07] hover:bg-rose-500/[0.12]";
+      return "border border-rose-500/40 bg-rose-500/[0.08] shadow-[inset_0_0_14px_rgba(244,63,94,0.08)] hover:bg-rose-500/[0.13]";
     }
     if (leadStatus.state === "chegou") {
-      return "border border-emerald-500/35 bg-emerald-500/[0.07] hover:bg-emerald-500/[0.12]";
+      return "border border-emerald-500/40 bg-emerald-500/[0.08] shadow-[inset_0_0_14px_rgba(16,185,129,0.08)] hover:bg-emerald-500/[0.13]";
     }
     if (leadStatus.state === "rodando") {
-      return "border border-amber-500/35 bg-amber-500/[0.07] hover:bg-amber-500/[0.12]";
+      return "border border-amber-500/40 bg-amber-500/[0.08] shadow-[inset_0_0_14px_rgba(245,158,11,0.08)] hover:bg-amber-500/[0.13]";
     }
-    return "border border-border/40 bg-card/60 hover:bg-accent/40";
+    return "border border-border/40 bg-card/60 hover:bg-accent/40 shadow-xs";
   }, [leadStatus.state]);
 
   return (
@@ -340,36 +340,25 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
                 title={isTyping || conversation.status === "online" ? "Contato online" : "Não no momento"}
               />
               {leadStatus.state === "intervencao" && (
-                <span
-                  title={leadStatus.tooltip}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-600 text-white border border-red-400 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)] shrink-0"
-                >
-                  <WarningCircle weight="fill" className="h-2.5 w-2.5 text-white" />
-                  INTERVENÇÃO
-                </span>
+                <span className="sr-only" title={leadStatus.tooltip}>INTERVENÇÃO</span>
               )}
               {leadStatus.state === "finalizado" && (
-                <span
-                  title={leadStatus.tooltip}
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-600 text-white border border-blue-400 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.6)] shrink-0"
-                >
-                  AGUARDA PIX
-                </span>
+                <span className="sr-only" title={leadStatus.tooltip}>AGUARDA PIX</span>
               )}
               {tagEmojis.length > 0 && (
-                <span className="inline-flex items-center gap-1 shrink-0 ml-0.5">
-                  {tagEmojis.slice(0, 3).map((item, idx) => (
+                <span className="inline-flex items-center gap-1 shrink-0 ml-1">
+                  {tagEmojis.slice(0, 4).map((item, idx) => (
                     <span
                       key={idx}
-                      title={item.name}
-                      className="text-xs md:text-sm leading-none select-none inline-block hover:scale-110 transition-transform cursor-default"
+                      title={`${item.name} (Etiqueta de Lead)`}
+                      className="text-xs md:text-sm leading-none select-none inline-block hover:scale-125 transition-transform cursor-default drop-shadow-xs"
                     >
                       {item.emoji}
                     </span>
                   ))}
-                  {tagEmojis.length > 3 && (
+                  {tagEmojis.length > 4 && (
                     <span className="text-[10px] text-muted-foreground/70 font-mono font-normal">
-                      +{tagEmojis.length - 3}
+                      +{tagEmojis.length - 4}
                     </span>
                   )}
                 </span>

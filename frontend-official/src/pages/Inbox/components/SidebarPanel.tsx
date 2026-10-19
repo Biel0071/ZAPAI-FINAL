@@ -393,6 +393,80 @@ export function SidebarPanel({
   const [categorySaveError, setCategorySaveError] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
 
+  // Reorderable sidebar tabs state with drag-and-drop persistence
+  const [sectionsOrder, setSectionsOrder] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem("zapflow_sidebar_tabs_order");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length === 4 && parsed.every((id) => ["ai", "qr", "files", "history"].includes(id))) {
+            return parsed;
+          }
+        }
+      } catch {}
+    }
+    return ["ai", "qr", "files", "history"];
+  });
+
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
+
+  const orderedSections = useMemo(() => {
+    const map = new Map(SECTIONS.map((s) => [s.id, s]));
+    return sectionsOrder
+      .map((id) => map.get(id as any))
+      .filter((s): s is (typeof SECTIONS)[number] => Boolean(s));
+  }, [sectionsOrder]);
+
+  const handleTabDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedTabId(id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+  };
+
+  const handleTabDragOver = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverTabId !== targetId) {
+      setDragOverTabId(targetId);
+    }
+  };
+
+  const handleTabDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const sourceId = draggedTabId || e.dataTransfer.getData("text/plain");
+    if (!sourceId || sourceId === targetId) {
+      setDraggedTabId(null);
+      setDragOverTabId(null);
+      return;
+    }
+
+    setSectionsOrder((prev) => {
+      const next = [...prev];
+      const fromIdx = next.indexOf(sourceId);
+      const toIdx = next.indexOf(targetId);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, sourceId);
+        if (typeof window !== "undefined") {
+          try {
+            window.localStorage.setItem("zapflow_sidebar_tabs_order", JSON.stringify(next));
+          } catch {}
+        }
+      }
+      return next;
+    });
+
+    setDraggedTabId(null);
+    setDragOverTabId(null);
+  };
+
+  const handleTabDragEnd = () => {
+    setDraggedTabId(null);
+    setDragOverTabId(null);
+  };
+
   const { avatar: leadAvatar, refetch: refetchAvatar } = useResolvedAvatar(
     selectedConversation?.id,
     selectedConversation?.avatar || (selectedConversation as any)?.profilePictureUrl,
@@ -676,35 +750,54 @@ export function SidebarPanel({
         </div>
         <TooltipProvider delayDuration={150}>
           <TabsList className="grid h-10 w-full grid-cols-4 gap-1 bg-muted/30 p-1 rounded-xl border border-border/60">
-            {SECTIONS.map((section) => {
+            {orderedSections.map((section) => {
+              const isDragging = draggedTabId === section.id;
+              const isOver = dragOverTabId === section.id && draggedTabId !== section.id;
+
               return (
-                <Tooltip key={section.id}>
-                  <TooltipTrigger asChild>
-                    <TabsTrigger
-                      value={section.id}
-                      className={cn(
-                        "group flex items-center justify-center py-1 px-1 rounded-lg h-8 transition-all duration-150",
-                        "text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent",
-                        "data-[state=active]:bg-card/90 data-[state=active]:text-emerald-400 data-[state=active]:font-semibold data-[state=active]:border-emerald-500/40 data-[state=active]:shadow-xs"
-                      )}
-                      aria-label={section.fullLabel}
-                    >
-                      <img
-                        src={section.iconSrc}
-                        alt={section.label}
-                        className="h-5 w-5 object-contain shrink-0 drop-shadow-xs transition-transform duration-150 group-hover:scale-110 select-none pointer-events-none"
-                        loading="lazy"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                      <span className="sr-only">{section.label}</span>
-                    </TabsTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs font-medium">
-                    {section.fullLabel}
-                  </TooltipContent>
-                </Tooltip>
+                <div
+                  key={section.id}
+                  draggable
+                  onDragStart={(e) => handleTabDragStart(e, section.id)}
+                  onDragOver={(e) => handleTabDragOver(e, section.id)}
+                  onDrop={(e) => handleTabDrop(e, section.id)}
+                  onDragEnd={handleTabDragEnd}
+                  className={cn(
+                    "relative flex items-center justify-center rounded-lg transition-all duration-150 cursor-grab active:cursor-grabbing select-none",
+                    isDragging && "opacity-30 scale-90",
+                    isOver && "ring-2 ring-emerald-400 bg-emerald-500/15 scale-105"
+                  )}
+                  title={`${section.fullLabel} (Segure e arraste para trocar a ordem)`}
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger
+                        value={section.id}
+                        className={cn(
+                          "group flex items-center justify-center py-1 px-1 rounded-lg h-8 w-full transition-all duration-150",
+                          "text-muted-foreground hover:text-foreground hover:bg-muted/60 border border-transparent",
+                          "data-[state=active]:bg-card/90 data-[state=active]:text-emerald-400 data-[state=active]:font-semibold data-[state=active]:border-emerald-500/40 data-[state=active]:shadow-xs"
+                        )}
+                        aria-label={section.fullLabel}
+                      >
+                        <img
+                          src={section.iconSrc}
+                          alt={section.label}
+                          className="h-5 w-5 object-contain shrink-0 drop-shadow-xs transition-transform duration-150 group-hover:scale-110 select-none pointer-events-none"
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                        <span className="sr-only">{section.label}</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs font-medium">
+                      <span>{section.fullLabel}</span>
+                      <span className="text-[10px] text-muted-foreground block font-normal">Arraste para mover</span>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               );
             })}
           </TabsList>
@@ -1659,7 +1752,7 @@ export function SidebarPanel({
               </TooltipTrigger>
               <TooltipContent side="left">Expandir painel</TooltipContent>
             </Tooltip>
-            {SECTIONS.map((section) => (
+            {orderedSections.map((section) => (
               <Tooltip key={section.id}>
                 <TooltipTrigger asChild>
                   <Button
