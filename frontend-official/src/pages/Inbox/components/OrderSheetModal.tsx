@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { apiService } from "@/core/services/apiService";
+import { formatPhoneNumber } from "../utils";
 
 interface OrderSheetModalProps {
   isOpen: boolean;
@@ -88,6 +89,51 @@ export function OrderSheetModal({
   const deliveryTime = sheetDetails.deliveryTime || "3 a 5 dias úteis";
   const pixTotal = Number(sheetDetails.pixTotal ?? (productTotal * 0.95 + freight));
   const installment10x = Number(sheetDetails.installment10x ?? (orderTotal > 0 ? orderTotal / 10 : 0));
+
+  const cleanPhoneDisplay = useMemo(() => {
+    const raw = String(sheetDetails.phone || customerPhone || "").trim();
+    if (!raw) return "Não informado";
+    if (raw.includes("@lid")) {
+      const digits = raw.replace(/\D/g, "");
+      if (digits.length >= 10 && digits.length <= 13 && digits.startsWith("55")) {
+        return formatPhoneNumber(digits);
+      }
+      return "WhatsApp Oficial";
+    }
+    return formatPhoneNumber(raw);
+  }, [sheetDetails.phone, customerPhone]);
+
+  const cleanNameDisplay = useMemo(() => {
+    const raw = String(sheetDetails.customerName || customerName || "").trim();
+    if (!raw || raw.startsWith("Cliente WhatsApp #") || raw.includes("@")) {
+      return "Cliente";
+    }
+    return raw;
+  }, [sheetDetails.customerName, customerName]);
+
+  const cleanAddressDisplay = useMemo(() => {
+    const raw = String(sheetDetails.deliveryAddress || "").trim();
+    if (!raw || /^(?:gr[aá]tis|frete|a combinar)/i.test(raw)) {
+      return "A combinar com o atendente";
+    }
+    return raw;
+  }, [sheetDetails.deliveryAddress]);
+
+  const cleanNeighborhoodDisplay = useMemo(() => {
+    const b = String(sheetDetails.deliveryNeighborhood || "").trim();
+    if (!b || /^(?:gr[aá]tis|frete)/i.test(b)) {
+      return null;
+    }
+    return b;
+  }, [sheetDetails.deliveryNeighborhood]);
+
+  const cleanCityDisplay = useMemo(() => {
+    const c = String(sheetDetails.deliveryCity || "").trim();
+    if (!c || /^(?:gr[aá]tis|frete)/i.test(c)) {
+      return null;
+    }
+    return c;
+  }, [sheetDetails.deliveryCity]);
 
   const handleCopy = async () => {
     if (!summaryText) return;
@@ -281,11 +327,11 @@ export function OrderSheetModal({
               </div>
               <div>
                 <span className="text-muted-foreground">Nome: </span>
-                <span className="font-semibold text-foreground">{sheetDetails.customerName || customerName}</span>
+                <span className="font-semibold text-foreground">{cleanNameDisplay}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Telefone: </span>
-                <span className="font-medium text-foreground">{sheetDetails.phone || customerPhone || "Não informado"}</span>
+                <span className="font-medium text-foreground">{cleanPhoneDisplay}</span>
               </div>
               {sheetDetails.cpf && (
                 <div>
@@ -309,19 +355,19 @@ export function OrderSheetModal({
               </div>
               <div>
                 <span className="text-muted-foreground">Endereço: </span>
-                <span className="font-medium text-foreground">{sheetDetails.deliveryAddress || "A combinar com atendente"}</span>
+                <span className="font-medium text-foreground">{cleanAddressDisplay}</span>
               </div>
-              {sheetDetails.deliveryNeighborhood && (
+              {cleanNeighborhoodDisplay && (
                 <div>
                   <span className="text-muted-foreground">Bairro: </span>
-                  <span className="font-medium text-foreground">{sheetDetails.deliveryNeighborhood}</span>
+                  <span className="font-medium text-foreground">{cleanNeighborhoodDisplay}</span>
                 </div>
               )}
-              {(sheetDetails.deliveryCity || sheetDetails.deliveryState) && (
+              {(cleanCityDisplay || sheetDetails.deliveryState) && (
                 <div>
                   <span className="text-muted-foreground">Cidade/UF: </span>
                   <span className="font-medium text-foreground">
-                    {[sheetDetails.deliveryCity, sheetDetails.deliveryState].filter(Boolean).join(" - ")}
+                    {[cleanCityDisplay, sheetDetails.deliveryState].filter(Boolean).join(" - ")}
                   </span>
                 </div>
               )}

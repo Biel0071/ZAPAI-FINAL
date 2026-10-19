@@ -47,7 +47,7 @@ function cleanText(val = '') {
   return String(val || '').trim();
 }
 
-const PRODUCT_EXCLUDE_REGEX = /(?:churrasqueira|trio|forno|fog[aã]o|caixa|d['’]?\s*agua|d['’]?\s*água|reservat[oó]rio|tijolo|milheiro|cimento|bloco|telha|areia|brita|produto|material|pre[çc]o|valor|quanto|qual|entrega\s+d[ao]|loja)/i;
+const PRODUCT_EXCLUDE_REGEX = /(?:churrasqueira|trio|forno|fog[aã]o|caixa|d['’]?\s*agua|d['’]?\s*água|reservat[oó]rio|tijolo|milheiro|cimento|bloco|telha|areia|brita|produto|material|pre[çc]o|valor|quanto|qual|entrega\s+d[ao]|loja|gr[aá]tis|frete|sem\s+custo|promo[çc][aã]o|desconto)/i;
 
 /**
  * Resolve número telefônico limpo eliminando LIDs e formatando padrão brasileiro
