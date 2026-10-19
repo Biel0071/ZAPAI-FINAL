@@ -394,17 +394,19 @@ class HumanAttendanceLearner {
             [cleanCompany]
           );
           const rawConversions = parseInt(convRes.rows[0]?.total || '0', 10);
-          conversionsCount = rawConversions > 0 ? rawConversions : Math.max(1, Math.round(humanSamples * 0.15));
+          conversionsCount = rawConversions > 0 ? rawConversions : null;
         } catch {
-          conversionsCount = Math.max(1, Math.round(humanSamples * 0.15));
+          conversionsCount = null;
         }
 
         const positiveExp = parseInt(expRes.rows[0]?.positive_exp || '0', 10);
         naturalnessScore = humanSamples > 0
           ? Math.min(98, Math.max(76, Math.round(82 + (positiveExp / Math.max(1, humanSamples)) * 14)))
-          : 88;
+          : null;
 
-        successRate = Math.min(98, Math.max(70, Math.round(74 + Math.min(22, (humanSamples / Math.max(1, totalHumanMessages)) * 40))));
+        successRate = (humanSamples > 0 && totalHumanMessages > 0)
+          ? Math.min(98, Math.round((positiveExp / Math.max(1, humanSamples)) * 100))
+          : null;
       }
 
       return {

@@ -328,8 +328,9 @@ function ModularLayerAvatar({
   const isBackView = cosA < -0.35; // 135°, 180°, 225° -> back turnaround view
   const isProfileView = Math.abs(cosA) <= 0.35; // 90°, 270° -> angled profile view
   const profileDir = sinA >= 0 ? 1 : -1;
-  const turnShiftX = isProfileView ? profileDir * 3.5 : Math.round(sinA * 4 * 10) / 10;
-  const turnScaleX = isBackView ? 1 : isProfileView ? 0.9 : Math.round((0.92 + 0.08 * Math.abs(cosA)) * 100) / 100;
+  const turnShiftX = Math.round(sinA * 4.2 * 10) / 10;
+  const baseScaleMag = Math.round((0.84 + 0.16 * Math.abs(cosA)) * 100) / 100;
+  const turnScaleX = (sinA < -0.05 ? -1 : 1) * (isBackView ? 1 : baseScaleMag);
 
   // Resolve Hair Style & Palette
   const hairId = avatar.hair || (isFemale ? "hair_01" : "hair_05");
@@ -585,80 +586,112 @@ function ModularLayerAvatar({
 
         <g
           id="character-3d-rig"
-          transform={`translate(${70 - 70 * (isBackView ? -turnScaleX : turnScaleX) + turnShiftX}, 0) scale(${isBackView ? -turnScaleX : turnScaleX}, 1)`}
+          transform={`translate(${70 * (1 - turnScaleX) + turnShiftX}, 0) scale(${turnScaleX}, 1)`}
         >
-          {/* ── CHIBI LAYER A: BACK HAIR (behind shoulders) ───────────── */}
-          {isLongHair && cropFocus !== "outfit" && (
-            <g id="layer-back-hair" clipPath={`url(#clip-back-hair-${uid})`}>
+          {/* Base Sprite Rendering: Unified when hair and body match, or spliced with neck skin underlay */}
+          {hairSpriteId === bodySpriteId ? (
+            <g id="layer-unified-base">
               <image
-                href={hairImg.href}
-                x={hairImg.x}
-                y={hairImg.y}
-                width={hairImg.width}
-                height={hairImg.height}
+                href={bodyImg.href}
+                x={bodyImg.x}
+                y={bodyImg.y}
+                width={bodyImg.width}
+                height={bodyImg.height}
               />
+            </g>
+          ) : (
+            <>
+              {/* Neck skin underlay to ensure zero gap/tear between head and body */}
+              <polygon points="58,92 82,92 80,104 60,104" fill={skin.base} />
+
+              {/* ── CHIBI LAYER A: BACK HAIR (behind shoulders) ───────────── */}
+              {isLongHair && cropFocus !== "outfit" && (
+                <g id="layer-back-hair" clipPath={`url(#clip-back-hair-${uid})`}>
+                  <image
+                    href={hairImg.href}
+                    x={hairImg.x}
+                    y={hairImg.y}
+                    width={hairImg.width}
+                    height={hairImg.height}
+                  />
+                </g>
+              )}
+
+              {/* ── CHIBI LAYER B: OUTFIT & BODY ─────────────────────────── */}
+              <g id="layer-outfit" clipPath={`url(#clip-body-${uid})`}>
+                <image
+                  href={bodyImg.href}
+                  x={bodyImg.x}
+                  y={bodyImg.y}
+                  width={bodyImg.width}
+                  height={bodyImg.height}
+                />
+              </g>
+
+              {/* ── CHIBI LAYER C: HEAD & HAIR CROWN ─────────────────────── */}
+              {cropFocus !== "outfit" && (
+                <g id="layer-hair" clipPath={`url(#clip-head-${uid})`}>
+                  <image
+                    href={hairImg.href}
+                    x={hairImg.x}
+                    y={hairImg.y}
+                    width={hairImg.width}
+                    height={hairImg.height}
+                  />
+                </g>
+              )}
+            </>
+          )}
+
+          {/* Tailored Dark Charcoal Blazer Lapel & V-Insert Overlay for outfit_05 */}
+          {outfitId === "outfit_05" && !isBackView && (
+            <g id="outfit-05-blazer-detail" opacity="0">
+              <polygon points="56,96 68,122 61,123 51,98" fill="#18181b" stroke={primaryBrandColor} strokeWidth="0.9" />
             </g>
           )}
 
-          {/* ── CHIBI LAYER B: OUTFIT & BODY ─────────────────────────── */}
-          <g id="layer-outfit" clipPath={`url(#clip-body-${uid})`}>
-            <image
-              href={bodyImg.href}
-              x={bodyImg.x}
-              y={bodyImg.y}
-              width={bodyImg.width}
-              height={bodyImg.height}
-            />
+          {/* High-Vis Reflective Bands Accent for outfit_06 */}
+          {outfitId === "outfit_06" && (
+            <g id="outfit-06-hivis-detail" opacity="0.85">
+              <rect x="49" y="118" width="42" height="3.5" rx="1" fill="#e2e8f0" stroke="#eab308" strokeWidth="0.6" />
+              <rect x="49" y="131" width="42" height="3.5" rx="1" fill="#e2e8f0" stroke="#eab308" strokeWidth="0.6" />
+            </g>
+          )}
 
-            {/* Tailored Dark Charcoal Blazer Lapel & V-Insert Overlay for outfit_05 */}
-            {outfitId === "outfit_05" && !isBackView && (
-              <g id="outfit-05-blazer-detail" opacity="0">
-                <polygon points="56,96 68,122 61,123 51,98" fill="#18181b" stroke={primaryBrandColor} strokeWidth="0.9" />
-              </g>
-            )}
-
-            {/* High-Vis Reflective Bands Accent for outfit_06 */}
-            {outfitId === "outfit_06" && (
-              <g id="outfit-06-hivis-detail" opacity="0.85">
-                <rect x="49" y="118" width="42" height="3.5" rx="1" fill="#e2e8f0" stroke="#eab308" strokeWidth="0.6" />
-                <rect x="49" y="131" width="42" height="3.5" rx="1" fill="#e2e8f0" stroke="#eab308" strokeWidth="0.6" />
-              </g>
-            )}
-
-            {/* Back-of-Torso Collar & Emblem when at 180° Costas */}
-            {isBackView && (
-              <g id="layer-outfit-back-cover" opacity="0">
-                <g id="outfit-back-emblem">
-                  <rect x="62" y="103" width="16" height="8" rx="2" fill="#091120" stroke={primaryBrandColor} strokeWidth="1" />
-                  <circle cx="70" cy="107" r="2.1" fill={primaryBrandColor} />
-                </g>
-              </g>
-            )}
-          </g>
-
-          {/* ── CHIBI LAYER C: HEAD & HAIR CROWN ─────────────────────── */}
-          {cropFocus !== "outfit" && (
-            <g id="layer-hair" clipPath={`url(#clip-head-${uid})`}>
-              <image
-                href={hairImg.href}
-                x={hairImg.x}
-                y={hairImg.y}
-                width={hairImg.width}
-                height={hairImg.height}
-              />
-              {/* Canonical hairColor token reference (invisible stroke so no line crosses the forehead) */}
+          {/* ── SOLID BACK HEAD & HAIR FILL (covers front face at 135°, 180°, 225° turnaround) ── */}
+          {isBackView && (
+            <g id="layer-back-head-fill">
+              {/* Solid back head volume matching character hair color */}
               <path
-                d="M 52 36 Q 70 28 88 36"
-                stroke={hairColor.base}
-                strokeWidth="1"
-                strokeOpacity="0"
-                fill="none"
+                d="M 48 60 C 48 30, 92 30, 92 60 C 93 78, 91 93, 85 95 C 79 97, 61 97, 55 95 C 49 93, 47 78, 48 60 Z"
+                fill={`url(#hairGrad-${uid}-${hairColorKey})`}
               />
+              {/* Back hair locks texture and volume lines */}
+              <path d="M 56 42 Q 70 33 84 42" stroke={hairColor.highlight} strokeWidth="1.8" fill="none" opacity="0.65" strokeLinecap="round" />
+              <path d="M 52 56 Q 70 47 88 56" stroke={hairColor.highlight} strokeWidth="1.6" fill="none" opacity="0.55" strokeLinecap="round" />
+              <path d="M 54 70 Q 70 62 86 70" stroke={hairColor.shadow} strokeWidth="2" fill="none" opacity="0.5" strokeLinecap="round" />
+              <path d="M 57 84 Q 70 78 83 84" stroke={hairColor.shadow} strokeWidth="2.2" fill="none" opacity="0.6" strokeLinecap="round" />
+              {/* Back of Neck Shading */}
+              <path d="M 62 88 L 78 88 L 75 101 L 65 101 Z" fill={skin.shadow} />
+              {/* Back Collar of Outfit with Store/Brand Emblem */}
+              <g id="outfit-back-emblem">
+                <path d="M 54 97 Q 70 105 86 97 L 83 110 Q 70 115 57 110 Z" fill="#091120" stroke={primaryBrandColor} strokeWidth="1" />
+                <circle cx="70" cy="107" r="2.2" fill={primaryBrandColor} />
+              </g>
+              {/* Flowing long hair locks behind neck if long hair */}
+              {isLongHair && (
+                <>
+                  <path d="M 52 82 Q 47 115 53 148 Q 60 156 70 156 Q 80 156 87 148 Q 93 115 88 82 Z" fill={`url(#hairGrad-${uid}-${hairColorKey})`} />
+                  <path d="M 61 88 Q 57 118 63 150" stroke={hairColor.highlight} strokeWidth="1.6" fill="none" opacity="0.55" strokeLinecap="round" />
+                  <path d="M 70 88 Q 70 118 70 153" stroke={hairColor.highlight} strokeWidth="1.6" fill="none" opacity="0.55" strokeLinecap="round" />
+                  <path d="M 79 88 Q 83 118 77 150" stroke={hairColor.highlight} strokeWidth="1.6" fill="none" opacity="0.55" strokeLinecap="round" />
+                </>
+              )}
             </g>
           )}
 
           {/* ── CHIBI LAYER D: FACE FEATURES & EXPRESSION (5th Category: Rosto 01..06) ── */}
-          {!isBackView && cropFocus !== "outfit" && (
+          {!isBackView && cropFocus !== "outfit" && faceSpriteId !== (hairSpriteId === bodySpriteId ? bodySpriteId : hairSpriteId) && (
             <g id="layer-face-features" clipPath={`url(#clip-face-${uid})`}>
               <image
                 href={faceImg.href}
@@ -743,7 +776,7 @@ function ModularLayerAvatar({
             {/* Headset ZAI Wireless Pro (acc_02) */}
             {hasHeadset && cropFocus !== "outfit" && cropFocus !== "accessory-body" && (
               <g id="acc-headset">
-                {!isBackView && (
+                {!isBackView ? (
                   <>
                     <path
                       d="M 46.5 79 Q 51 89 64 87.5"
@@ -760,6 +793,18 @@ function ModularLayerAvatar({
                       className={isTalking ? "animate-ping" : ""}
                     />
                     <circle cx="64.5" cy="87.5" r="1.3" fill="#ffffff" />
+                  </>
+                ) : (
+                  <>
+                    <path
+                      d="M 48 68 Q 70 60 92 68"
+                      stroke="#0f172a"
+                      strokeWidth="2.8"
+                      fill="none"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="48" cy="68" r="3" fill="#00f090" />
+                    <circle cx="92" cy="68" r="3" fill="#00f090" />
                   </>
                 )}
               </g>

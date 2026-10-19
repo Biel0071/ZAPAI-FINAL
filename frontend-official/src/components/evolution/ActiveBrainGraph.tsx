@@ -15,6 +15,7 @@ export interface ActiveBrainGraphProps {
   onSelectCategory?: (category: string) => void;
   width?: number;
   height?: number;
+  isSessionConnected?: boolean;
 }
 
 interface GraphCategoryBranch {
@@ -70,6 +71,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
   onSelectMemory,
   onSelectCategory,
   height = 540,
+  isSessionConnected = true,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -348,13 +350,18 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
 
       {/* Top Left Badge: Cérebro Ativo Legend */}
       <div className="absolute top-3 left-3 z-20 flex items-center gap-2 p-1.5 px-3 rounded-xl bg-card/85 backdrop-blur-md border border-border/70 text-xs">
-        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span
+          className={cn(
+            "h-2 w-2 rounded-full",
+            isSessionConnected ? "bg-emerald-400 animate-pulse" : "bg-red-500"
+          )}
+        />
         <span className="font-bold text-foreground font-mono text-[11px]">
-          CÉREBRO ATIVO
+          {isSessionConnected ? "CÉREBRO ATIVO 3D" : "CÉREBRO EM PAUSA (ZAP OFF)"}
         </span>
         <span className="text-muted-foreground/60">•</span>
         <span className="text-[10px] text-muted-foreground">
-          {memories.length} memórias ativas
+          {isSessionConnected ? `${memories.length} memórias ativas` : "WhatsApp desconectado"}
         </span>
       </div>
 
@@ -396,11 +403,25 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
           <pattern id="brain-grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#101924" strokeWidth="0.8" />
           </pattern>
-          {/* Radial glow around center */}
+          {/* 3D Depth Isometric Floor Grid */}
+          <pattern id="brain-iso-grid" width="60" height="30" patternUnits="userSpaceOnUse">
+            <path d="M 0 15 L 30 0 L 60 15 L 30 30 Z" fill="none" stroke="#0e1e30" strokeWidth="0.5" strokeOpacity="0.4" />
+          </pattern>
+          {/* 3D Node Drop Shadow Filter */}
+          <filter id="node3DShadow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="2" dy="5" stdDeviation="4" floodColor="#000000" floodOpacity="0.65" />
+          </filter>
+          {/* 3D Central Node Glow */}
           <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-            <stop offset="60%" stopColor="#8b5cf6" stopOpacity="0.08" />
+            <stop offset="0%" stopColor={isSessionConnected ? "#10b981" : "#ef4444"} stopOpacity="0.28" />
+            <stop offset="60%" stopColor={isSessionConnected ? "#8b5cf6" : "#f59e0b"} stopOpacity="0.08" />
             <stop offset="100%" stopColor="#05070a" stopOpacity="0" />
+          </radialGradient>
+          {/* 3D Spherical Radial Lighting for Central Node */}
+          <radialGradient id="centralSphere3D" cx="35%" cy="30%" r="65%">
+            <stop offset="0%" stopColor="#1e293b" />
+            <stop offset="50%" stopColor="#0a1017" />
+            <stop offset="100%" stopColor="#020408" />
           </radialGradient>
         </defs>
 
@@ -620,26 +641,26 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
             );
           })}
 
-          {/* CENTRAL NODE: Attendant with pulsing ring */}
-          <g className="cursor-pointer select-none">
+          {/* CENTRAL NODE: Attendant with 3D Depth & Session-Aware Status */}
+          <g className="cursor-pointer select-none" filter="url(#node3DShadow)">
             {/* Pulsing Outer Rings */}
             <circle
               cx={centerX}
               cy={centerY}
               r={52}
               fill="none"
-              stroke="#10b981"
+              stroke={isSessionConnected ? "#10b981" : "#ef4444"}
               strokeWidth="2"
-              strokeOpacity="0.4"
-              className="animate-brain-pulse"
+              strokeOpacity={isSessionConnected ? "0.4" : "0.25"}
+              className={isSessionConnected ? "animate-brain-pulse" : ""}
               style={{ transformOrigin: `${centerX}px ${centerY}px` }}
             />
             <circle
               cx={centerX}
               cy={centerY}
               r={44}
-              fill="#060a0f"
-              stroke="#10b981"
+              fill="url(#centralSphere3D)"
+              stroke={isSessionConnected ? "#10b981" : "#ef4444"}
               strokeWidth="3"
             />
 
@@ -654,7 +675,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
               <div className="w-full h-full flex items-center justify-center bg-card scale-90">
                 <ZaiAvatarRenderer
                   avatar={avatarConfig || {}}
-                  state="WORKING"
+                  state={isSessionConnected ? "WORKING" : "IDLE"}
                   size="sm"
                 />
               </div>
@@ -676,12 +697,12 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
               x={centerX}
               y={centerY + 76}
               textAnchor="middle"
-              fill="#34d399"
+              fill={isSessionConnected ? "#34d399" : "#ef4444"}
               fontSize="10"
               fontWeight="600"
               className="font-mono"
             >
-              ● Atendente selecionado
+              {isSessionConnected ? "● Atendente selecionado" : "⏸ WhatsApp Desconectado"}
             </text>
           </g>
         </g>

@@ -577,40 +577,54 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
               {/* 3D Rotation & Movement Controls Bar (Tripo3D Studio) */}
               <div className="mt-2 w-full max-w-[320px] rounded-xl border border-border/60 bg-background/85 p-2 backdrop-blur-xs z-10 space-y-1.5">
-                {/* Degree buttons kept in DOM sr-only for regression test compatibility */}
-                <div className="sr-only flex items-center justify-between gap-1">
+                {/* 360 Degree Turntable Angle Presets & Rotate Step Buttons */}
+                <div className="flex items-center justify-between gap-1 p-1 rounded-lg bg-muted/20 border border-border/40">
                   <button
                     type="button"
                     data-avatar-action="rotate-left"
                     data-avatar-3d-action="rotate-left"
                     onClick={() => handleRotateBy(-45)}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono border border-border/60 bg-card/80 text-muted-foreground hover:text-emerald-400 hover:border-emerald-500/50 transition-colors cursor-pointer"
+                    title="Girar 45° para esquerda"
                   >
-                    ⟲ -45°
+                    ↺ -45°
                   </button>
                   {[
                     { angle: 0, label: "0°", action: "rotate-front", title: "Frente (0°)" },
-                    { angle: 45, label: "45°", action: "rotate-iso", title: "Isométrico (45°)" },
+                    { angle: 45, label: "45°", action: "rotate-iso", title: "3/4 (45°)" },
                     { angle: 90, label: "90°", action: "rotate-profile", title: "Perfil Dir (90°)" },
                     { angle: 180, label: "180°", action: "rotate-back", title: "Costas (180°)" },
                     { angle: 270, label: "270°", action: "rotate-left-profile", title: "Perfil Esq (270°)" },
-                  ].map((preset) => (
-                    <button
-                      key={preset.angle}
-                      type="button"
-                      data-avatar-angle={preset.angle}
-                      data-avatar-3d-action={preset.action}
-                      onClick={() => handleSetAngle(preset.angle)}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
+                  ].map((preset) => {
+                    const isSelected = Math.abs((((rotationY % 360) + 360) % 360) - preset.angle) < 10;
+                    return (
+                      <button
+                        key={preset.angle}
+                        type="button"
+                        data-avatar-angle={preset.angle}
+                        data-avatar-3d-action={preset.action}
+                        onClick={() => handleSetAngle(preset.angle)}
+                        title={preset.title}
+                        className={cn(
+                          "px-2 py-0.5 rounded text-[10px] font-mono border transition-all cursor-pointer",
+                          isSelected
+                            ? "bg-emerald-500/25 border-emerald-500/60 text-emerald-300 font-bold shadow-xs"
+                            : "bg-card/60 border-border/50 text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
                   <button
                     type="button"
                     data-avatar-action="rotate-right"
                     data-avatar-3d-action="rotate-right"
                     onClick={() => handleRotateBy(45)}
+                    className="px-2 py-0.5 rounded text-[10px] font-mono border border-border/60 bg-card/80 text-muted-foreground hover:text-emerald-400 hover:border-emerald-500/50 transition-colors cursor-pointer"
+                    title="Girar 45° para direita"
                   >
-                    +45° ⟳
+                    +45° ↻
                   </button>
                 </div>
 

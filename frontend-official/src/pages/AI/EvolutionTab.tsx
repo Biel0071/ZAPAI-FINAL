@@ -108,6 +108,7 @@ export interface EvolutionTabProps {
   onSelectAgent?: (key: string) => void;
   agents?: any[];
   selectedAgent?: any;
+  isSessionConnected?: boolean;
 }
 
 const KNOWN_MEMORY_CATEGORIES = [
@@ -120,7 +121,7 @@ const KNOWN_MEMORY_CATEGORIES = [
   { id: "objection", label: "Objeções Resolvidas", color: "#8b5cf6" },
 ];
 
-export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, selectedAgent }: EvolutionTabProps = {}) {
+export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, selectedAgent, isSessionConnected = true }: EvolutionTabProps = {}) {
   const { toast } = useToast();
   const onSelectAgentRef = useRef(onSelectAgent);
   onSelectAgentRef.current = onSelectAgent;
@@ -719,7 +720,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             <div className="h-12 w-12 rounded-2xl bg-[#091120] border border-purple-500/40 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
               <ZaiAvatarRenderer
                 avatar={currentAvatarConfig}
-                state={currentAgent?.active === false ? "IDLE" : "WORKING"}
+                state={currentAgent?.active === false || !isSessionConnected ? "IDLE" : "WORKING"}
                 size="sm"
                 showAura={false}
                 showStatusBadge={false}
@@ -789,6 +790,24 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
           </Button>}
         </div>
       </div>
+
+      {/* WHATSAPP OFFLINE / PAUSE BANNER */}
+      {!isSessionConnected && (
+        <div className="p-3.5 rounded-2xl border border-red-500/30 bg-red-500/10 text-red-300 flex items-center justify-between gap-3 text-xs shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+            <div>
+              <p className="font-bold text-red-200">WhatsApp Desconectado — Atendente em Pausa Operacional</p>
+              <p className="text-[11px] text-red-300/80">
+                O atendente está offline. Novas memórias e evolução em tempo real serão sincronizadas assim que a sessão for conectada.
+              </p>
+            </div>
+          </div>
+          <Badge variant="outline" className="border-red-500/40 bg-red-500/20 text-red-300 text-[10px] shrink-0 font-mono">
+            ⏸ ZAP OFF
+          </Badge>
+        </div>
+      )}
 
       {!selectedAgentKey ? (
         <Card role="status" className="p-8 text-center border-border/70 bg-card/60">
@@ -1071,6 +1090,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
               onSelectMemory={(mem) => setSelectedMemoryNode(mem)}
               onSelectCategory={(cat) => setGraphCategoryFilter(cat)}
               height={580}
+              isSessionConnected={isSessionConnected}
             />}
           </div>
 

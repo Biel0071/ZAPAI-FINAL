@@ -291,8 +291,8 @@ export default function AttendantsPage() {
     return String(tokens);
   }
 
-  // Inline 4-category Avatar Studio state (Cabelo, Rosto, Roupa, Acessórios)
-  const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories">("hair");
+  // Inline 5-category Avatar Studio state (Cabelo, Rosto, Roupa, Acessórios, Estilo)
+  const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories" | "style">("hair");
   const [studioRotationY, setStudioRotationY] = useState<number>(0);
   const [studioMovement3D, setStudioMovement3D] = useState<"idle" | "walk" | "wave" | "pose" | "spin360">("idle");
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
@@ -1070,13 +1070,72 @@ export default function AttendantsPage() {
             </div>
           </div>
 
+          {/* 360 Turntable Degree Presets & Rotation Controls */}
+          <div className="flex items-center justify-between gap-1 p-1 rounded-xl bg-muted/20 border border-border/50">
+            <button
+              type="button"
+              data-studio-action="rotate-left"
+              onClick={() => {
+                const nextAngle = (((studioRotationY - 45) % 360) + 360) % 360;
+                setStudioRotationY(nextAngle);
+                handleUpdateAvatar({ rotationY: nextAngle });
+              }}
+              className="px-2 py-1 rounded-lg text-[10px] font-mono border border-border/60 bg-card/80 text-muted-foreground hover:text-emerald-400 hover:border-emerald-500/50 transition-colors cursor-pointer"
+              title="Girar 45° anti-horário"
+            >
+              ↺ -45°
+            </button>
+            {[
+              { angle: 0, label: "0°", title: "Frente (0°)" },
+              { angle: 45, label: "45°", title: "3/4 (45°)" },
+              { angle: 90, label: "90°", title: "Perfil (90°)" },
+              { angle: 180, label: "180°", title: "Costas (180°)" },
+              { angle: 270, label: "270°", title: "Perfil E (270°)" },
+            ].map((p) => {
+              const isSelected = Math.abs((((studioRotationY % 360) + 360) % 360) - p.angle) < 10;
+              return (
+                <button
+                  key={p.angle}
+                  type="button"
+                  data-studio-angle={p.angle}
+                  onClick={() => {
+                    setStudioRotationY(p.angle);
+                    handleUpdateAvatar({ rotationY: p.angle });
+                  }}
+                  title={p.title}
+                  className={cn(
+                    "px-2 py-1 rounded-lg text-[10px] font-mono border transition-all cursor-pointer",
+                    isSelected
+                      ? "bg-emerald-500/25 border-emerald-500/60 text-emerald-300 font-bold shadow-xs"
+                      : "bg-card/60 border-border/50 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              data-studio-action="rotate-right"
+              onClick={() => {
+                const nextAngle = (((studioRotationY + 45) % 360) + 360) % 360;
+                setStudioRotationY(nextAngle);
+                handleUpdateAvatar({ rotationY: nextAngle });
+              }}
+              className="px-2 py-1 rounded-lg text-[10px] font-mono border border-border/60 bg-card/80 text-muted-foreground hover:text-emerald-400 hover:border-emerald-500/50 transition-colors cursor-pointer"
+              title="Girar 45° horário"
+            >
+              +45° ↻
+            </button>
+          </div>
+
           {/* 3D Movement Controls */}
           <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-muted/15 border border-border/50">
             {([
               { id: "walk", label: "Andar 3D" },
               { id: "wave", label: "Acenar 3D" },
               { id: "pose", label: "Posar 3D" },
-              { id: "spin360", label: "3D Vivo" },
+              { id: "spin360", label: "⤾ Giro Contínuo" },
             ] as const).map((mv) => (
               <button
                 key={mv.id}
@@ -1139,15 +1198,16 @@ export default function AttendantsPage() {
           </div>
         </div>
 
-        {/* Right: 4 Categories Selector + Items Grid (Col 7) */}
+        {/* Right: 5 Categories Selector + Items Grid (Col 7) */}
         <div className="lg:col-span-7 space-y-3">
-          {/* 4 Category Selector Buttons (Cabelo, Rosto, Roupa, Acessórios) */}
-          <div className="grid grid-cols-4 gap-1.5 p-1 rounded-xl bg-muted/20 border border-border/60">
+          {/* 5 Category Selector Buttons (Cabelo, Rosto, Roupa, Acessórios, Estilo) */}
+          <div className="grid grid-cols-5 gap-1.5 p-1 rounded-xl bg-muted/20 border border-border/60">
             {[
               { id: "hair" as const, label: "Cabelo", icon: Scissors },
               { id: "face" as const, label: "Rosto", icon: Smiley },
               { id: "outfit" as const, label: "Roupa", icon: TShirt },
               { id: "accessories" as const, label: "Acessórios", icon: Eyeglasses },
+              { id: "style" as const, label: "Estilo", icon: Sparkle },
             ].map((cat) => {
               const Icon = cat.icon;
               const isSelected = studioCategory === cat.id;
@@ -1406,6 +1466,49 @@ export default function AttendantsPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold truncate text-foreground">{a.title}</p>
                         <p className="text-[10px] text-muted-foreground truncate">{a.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {studioCategory === "style" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {AVATAR_STYLES.map((st) => {
+                  const isSelected = previewAgent?.avatarConfig?.style === st.id;
+                  const resolvedStyleSprite = resolveItemSpriteForGender(st, inlineGender);
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      data-avatar-item={st.id}
+                      onClick={() => {
+                        const updated = applyStylePreset(resolvedInlineAvatar, st.id);
+                        handleUpdateAvatar({
+                          ...updated,
+                          style: st.id,
+                          catalogSpriteId: resolveSpriteForAvatar({ ...updated, style: st.id }, true),
+                        });
+                      }}
+                      className={cn(
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <AvatarItemPreview
+                        spriteRef={resolvedStyleSprite}
+                        itemId={st.id}
+                        gender={inlineGender}
+                        focus="full"
+                        selected={isSelected}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground">{st.title}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{st.description}</p>
                       </div>
                     </button>
                   );
@@ -2647,12 +2750,21 @@ export default function AttendantsPage() {
         ) : (activeTab === "evolution" || activeTab === "memory") ? (
           <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
             <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando memória & evolução cognitiva...</div>}>
-              <EvolutionTab
-                agentKey={previewAgent?.key}
-                selectedAgent={previewAgent}
-                onSelectAgent={(key) => setPreviewAgent(agents.find((a) => (a.key || a.id) === key) || null)}
-                agents={agents}
-              />
+              {(() => {
+                const previewSession =
+                  sessions.find((s) => s.id === previewAgent?.sessionId || s.sessionId === previewAgent?.sessionId || s.id === selectedWhatsApp) ||
+                  liveSessions.find((s) => s.id === previewAgent?.sessionId || s.sessionId === previewAgent?.sessionId || s.id === selectedWhatsApp);
+                const isSessionOnline = Boolean(previewSession && (previewSession.connected || previewSession.status === "connected"));
+                return (
+                  <EvolutionTab
+                    agentKey={previewAgent?.key}
+                    selectedAgent={previewAgent}
+                    onSelectAgent={(key) => setPreviewAgent(agents.find((a) => (a.key || a.id) === key) || null)}
+                    agents={agents}
+                    isSessionConnected={isSessionOnline}
+                  />
+                );
+              })()}
             </React.Suspense>
           </div>
         ) : (
