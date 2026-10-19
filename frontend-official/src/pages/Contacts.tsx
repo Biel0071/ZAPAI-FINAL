@@ -7,6 +7,7 @@ import { type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { type ContactSegment } from "@/components/contacts/ContactSidebar";
 import { LeadDrawer } from "@/components/contacts/LeadDrawer";
 import { apiService } from "@/core/services/apiService";
+import { useAppStore } from "@/state/stores/appStore";
 import { useToast } from "@/state/hooks/use-toast";
 import {
   Dialog,
@@ -140,6 +141,27 @@ export default function Contacts() {
   const [tagFilter, setTagFilter] = useState("");
   const [activeSegment, setActiveSegment] = useState<ContactSegment>("all");
 
+  const sessions = useAppStore((state) => state.sessions);
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
+
+  const targetSessionId = activeSessionId && activeSessionId !== "all" ? String(activeSessionId).trim().toLowerCase() : "";
+
+  const currentSession = useMemo(() => {
+    if (!targetSessionId) return null;
+    return (Array.isArray(sessions) ? sessions : []).find(
+      (s) => s && (String(s.id).toLowerCase() === targetSessionId || String(s.sessionId).toLowerCase() === targetSessionId)
+    );
+  }, [sessions, targetSessionId]);
+
+  const isSessionConnected = useMemo(() => {
+    if (targetSessionId) {
+      return Boolean(currentSession && (currentSession.connected || currentSession.status === "connected"));
+    }
+    return Array.isArray(sessions) && sessions.length > 0 && sessions.some(
+      (s) => s && (s.connected || s.status === "connected")
+    );
+  }, [targetSessionId, currentSession, sessions]);
+
   const handleSegmentChange = useCallback((segment: ContactSegment) => {
     setActiveSegment(segment);
     setSearchQuery("");
@@ -209,8 +231,21 @@ export default function Contacts() {
     void loadContacts();
   }, [loadContacts]);
 
+  const sessionScopedContacts = useMemo(() => {
+    if (!isSessionConnected) {
+      return [];
+    }
+    if (!targetSessionId) {
+      return contacts;
+    }
+    return contacts.filter((contact) => {
+      const contactSession = String(contact.sessionId || "").trim().toLowerCase();
+      return !contactSession || contactSession === targetSessionId;
+    });
+  }, [contacts, isSessionConnected, targetSessionId]);
+
   const filteredContacts = useMemo(() => {
-    let result = contacts.filter((contact) => matchesSegment(contact, activeSegment));
+    let result = sessionScopedContacts.filter((contact) => matchesSegment(contact, activeSegment));
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -223,26 +258,46 @@ export default function Contacts() {
     }
 
     return result;
-  }, [activeSegment, contacts, searchQuery, tagFilter]);
+  }, [activeSegment, sessionScopedContacts, searchQuery, tagFilter]);
 
   const contactCounts = useMemo<Record<string, number>>(
-    () => ({
-      all: contacts.length,
-      individual: contacts.filter((contact) => !contact.isGroup).length,
-      inbox: contacts.filter((contact) => Boolean(contact.conversationId)).length,
-      lead: contacts.filter(isLeadContact).length,
-      saved: 0,
-      grupos: contacts.filter((contact) => contact.isGroup).length,
-      archived: contacts.filter((contact) => String(contact.status ?? "").toLowerCase() === "archived").length,
-      lead_quente: contacts.filter((contact) => isHotTemperature(contact.temperature)).length,
-      lead_morno: contacts.filter((contact) => isWarmTemperature(contact.temperature)).length,
-      lead_frio: contacts.filter((contact) => isColdTemperature(contact.temperature)).length,
-      ativo: contacts.filter((contact) => isAtivoStatus(contact.status)).length,
-      recorrente: contacts.filter((contact) => isRecorrenteStatus(contact.status)).length,
-      em_risco: contacts.filter((contact) => isEmRiscoStatus(contact.status)).length,
-      bloqueado: contacts.filter((contact) => isBloqueadoStatus(contact.status)).length,
-    }),
-    [contacts],
+    () => {
+      if (!isSessionConnected) {
+        return {
+          all: 0,
+          individual: 0,
+          inbox: 0,
+          lead: 0,
+          saved: 0,
+          grupos: 0,
+          archived: 0,
+          lead_quente: 0,
+          lead_morno: 0,
+          lead_frio: 0,
+          ativo: 0,
+          recorrente: 0,
+          em_risco: 0,
+          bloqueado: 0,
+        };
+      }
+      return {
+        all: sessionScopedContacts.length,
+        individual: sessionScopedContacts.filter((contact) => !contact.isGroup).length,
+        inbox: sessionScopedContacts.filter((contact) => Boolean(contact.conversationId)).length,
+        lead: sessionScopedContacts.filter(isLeadContact).length,
+        saved: 0,
+        grupos: sessionScopedContacts.filter((contact) => contact.isGroup).length,
+        archived: sessionScopedContacts.filter((contact) => String(contact.status ?? "").toLowerCase() === "archived").length,
+        lead_quente: sessionScopedContacts.filter((contact) => isHotTemperature(contact.temperature)).length,
+        lead_morno: sessionScopedContacts.filter((contact) => isWarmTemperature(contact.temperature)).length,
+        lead_frio: sessionScopedContacts.filter((contact) => isColdTemperature(contact.temperature)).length,
+        ativo: sessionScopedContacts.filter((contact) => isAtivoStatus(contact.status)).length,
+        recorrente: sessionScopedContacts.filter((contact) => isRecorrenteStatus(contact.status)).length,
+        em_risco: sessionScopedContacts.filter((contact) => isEmRiscoStatus(contact.status)).length,
+        bloqueado: sessionScopedContacts.filter((contact) => isBloqueadoStatus(contact.status)).length,
+      };
+    },
+    [sessionScopedContacts, isSessionConnected],
   );
 
   const gridContacts = useMemo<ContactGridItem[]>(
@@ -473,10 +528,15 @@ export default function Contacts() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <Header title="Leads CRM / Contatos" subtitle="Gestão de base e qualificação de leads" />
+      <Header 
+        title="Leads CRM / Contatos" 
+        subtitle={!isSessionConnected ? "Sessão desconectada" : `${filteredContacts.length} contatos sincronizados`} 
+      />
       <ContactsView
         loading={loading}
         error={error}
+        isSessionConnected={isSessionConnected}
+        activeSessionName={currentSession?.name || targetSessionId || undefined}
         searchQuery={searchQuery}
         tagFilter={tagFilter}
         activeSegment={activeSegment}

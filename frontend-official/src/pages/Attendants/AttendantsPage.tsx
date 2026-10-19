@@ -145,6 +145,7 @@ export default function AttendantsPage() {
   const [pendingAgent, setPendingAgent] = useState<string | null>(null);
   const [aiStatus, setAIStatus] = useState<AIStatusResponse | null>(null);
   const liveSessions = useAppStore((state) => state.sessions);
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
   const progress = useAppStore((state) => state.aiProgressByConversationId);
   const requestVersion = useRef(0);
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>("all");
@@ -944,25 +945,8 @@ export default function AttendantsPage() {
                 </span>
               </div>
 
-              {/* Top-right Dual Controls: Active/Pause Toggle, Render Mode (3D / Chibi) & Gender */}
+              {/* Top-right Dual Controls: Render Mode & Gender */}
               <div className="pointer-events-auto flex items-center gap-1.5 flex-wrap justify-end">
-                <button
-                  type="button"
-                  data-stage-toggle-active
-                  onClick={() => handleToggleActive(previewAgent)}
-                  disabled={pendingAgent !== null}
-                  className={cn(
-                    "px-2.5 py-1 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 backdrop-blur-xs shadow-xs",
-                    isAgentActive
-                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
-                      : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
-                  )}
-                  title={isAgentActive ? "Colocar em espera (Pausar · Ficar em pé)" : "Ativar no PC (Sentar para trabalhar)"}
-                >
-                  <span className={cn("w-1.5 h-1.5 rounded-full", isAgentActive ? "bg-amber-400" : "bg-emerald-400 animate-pulse")} />
-                  <span>{isAgentActive ? "⏸ Pausar" : "▶ Ativar no PC"}</span>
-                </button>
-
                 <div className="flex items-center gap-1 p-0.5 rounded-full bg-black/80 border border-border/70 backdrop-blur-xs">
                   <button
                     type="button"
@@ -1990,8 +1974,31 @@ export default function AttendantsPage() {
             <div>
               <h2 className="text-sm font-bold text-foreground font-display flex items-center gap-2">
                 <span>Atendentes Digitais</span>
-                <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
-                  {agents.length} Ativo(s)
+                <Badge variant="outline" className={cn(
+                  "text-[10px] px-1.5 py-0.5 border font-semibold",
+                  agents.filter((a) => {
+                    const sess = (Array.isArray(sessions) && sessions.length > 0)
+                      ? (a.sessionIds?.length
+                          ? sessions.find((s) => s && a.sessionIds.includes(s.sessionId || s.id))
+                          : activeSessionId && activeSessionId !== "all"
+                            ? sessions.find((s) => s && (s.sessionId === activeSessionId || s.id === activeSessionId))
+                            : sessions.find((s) => s && (s.connected || s.status === "connected")))
+                      : null;
+                    return a.active !== false && Boolean(sess && (sess.connected || sess.status === "connected"));
+                  }).length > 0
+                    ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                    : "border-red-500/30 text-red-400 bg-red-500/10"
+                )}>
+                  {agents.filter((a) => {
+                    const sess = (Array.isArray(sessions) && sessions.length > 0)
+                      ? (a.sessionIds?.length
+                          ? sessions.find((s) => s && a.sessionIds.includes(s.sessionId || s.id))
+                          : activeSessionId && activeSessionId !== "all"
+                            ? sessions.find((s) => s && (s.sessionId === activeSessionId || s.id === activeSessionId))
+                            : sessions.find((s) => s && (s.connected || s.status === "connected")))
+                      : null;
+                    return a.active !== false && Boolean(sess && (sess.connected || sess.status === "connected"));
+                  }).length} Ativo(s)
                 </Badge>
               </h2>
             </div>
@@ -2036,6 +2043,17 @@ export default function AttendantsPage() {
                       role: agent.role,
                       gender: agent.character?.gender || (agent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
                     });
+
+              const agentSession = (Array.isArray(sessions) && sessions.length > 0)
+                ? (agent.sessionIds?.length
+                    ? sessions.find((s) => s && agent.sessionIds.includes(s.sessionId || s.id))
+                    : activeSessionId && activeSessionId !== "all"
+                      ? sessions.find((s) => s && (s.sessionId === activeSessionId || s.id === activeSessionId))
+                      : sessions.find((s) => s && (s.connected || s.status === "connected")))
+                : null;
+              const isSessionOnline = Boolean(agentSession && (agentSession.connected || agentSession.status === "connected"));
+              const isOperativeActive = agent.active !== false && isSessionOnline;
+
               return (
                 <button
                   key={agent.key || agent.id}
@@ -2043,28 +2061,93 @@ export default function AttendantsPage() {
                   onClick={() => setPreviewAgent(agent)}
                   className={cn(
                     "flex items-center gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-xl border transition-all text-left w-full sm:w-auto shrink-0 cursor-pointer select-none h-[58px]",
-                    isSelected
-                      ? "border-emerald-500 bg-emerald-500/15 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50"
-                      : "border-border/70 bg-card hover:border-emerald-500/40 hover:bg-card/90"
+                    isOperativeActive
+                      ? isSelected
+                        ? "border-emerald-500 bg-emerald-500/15 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50"
+                        : "border-emerald-500/50 bg-card hover:border-emerald-500 hover:bg-card/90"
+                      : isSelected
+                      ? "border-red-500 bg-red-950/25 shadow-[0_0_15px_rgba(239,68,68,0.2)] ring-1 ring-red-500/50"
+                      : "border-red-500/40 bg-card hover:border-red-500/70 hover:bg-card/90"
                   )}
                 >
                   <div className="relative h-11 w-11 rounded-lg bg-[#091120] border border-border/60 overflow-hidden flex items-center justify-center shrink-0">
                     <ZaiAvatarRenderer
                       avatar={liveAvatar}
-                      state="WAITING"
+                      state={isOperativeActive ? "WORKING" : "IDLE"}
                       size="xs"
                       showAura={false}
                       showStatusBadge={false}
                       showBrandingLayer={false}
                     />
-                    <span className="absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border border-black animate-pulse z-20" />
+                    <span className={cn(
+                      "absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border border-black",
+                      isOperativeActive ? "bg-emerald-400 animate-pulse" : !isSessionOnline ? "bg-red-500" : "bg-amber-400"
+                    )} />
                   </div>
                   <div className="min-w-0 pr-1 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-bold text-foreground truncate max-w-[100px] sm:max-w-[110px]">{agent.name}</span>
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
-                        Ativo
-                      </Badge>
+                      {isOperativeActive ? (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleActive(agent);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.stopPropagation();
+                              handleToggleActive(agent);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border border-emerald-500/40 text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/30 transition-all cursor-pointer font-bold shrink-0 shadow-xs"
+                          title="Atendente ativo no WhatsApp. Clique para pausar."
+                        >
+                          <span>⏸</span>
+                          <span>Ativo</span>
+                        </span>
+                      ) : !isSessionOnline ? (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate("/connections");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.stopPropagation();
+                              navigate("/connections");
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border border-red-500/40 text-red-300 bg-red-500/15 hover:bg-red-500/30 transition-all cursor-pointer font-bold shrink-0 shadow-xs"
+                          title="WhatsApp desconectado. Clique para conectar."
+                        >
+                          <span>⏸</span>
+                          <span>Zap Off</span>
+                        </span>
+                      ) : (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleActive(agent);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.stopPropagation();
+                              handleToggleActive(agent);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border border-red-500/40 text-red-300 bg-red-500/15 hover:bg-red-500/30 transition-all cursor-pointer font-bold shrink-0 shadow-xs"
+                          title="Atendente pausado. Clique para ativar."
+                        >
+                          <span>▶</span>
+                          <span>Pausado</span>
+                        </span>
+                      )}
                     </div>
                     <span className="text-[10px] text-muted-foreground block truncate max-w-[115px] sm:max-w-[130px]">{agent.role || "Especialista"}</span>
                   </div>
@@ -2390,7 +2473,7 @@ export default function AttendantsPage() {
                                     ? "border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
                                     : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
                                 )}
-                                title={isActive ? "Colocar em espera (Pausar)" : "Ativar no PC"}
+                                title={isActive ? "Pausar atendente" : "Ativar atendente"}
                                 disabled={pendingAgent !== null}
                               >
                                 {isActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}

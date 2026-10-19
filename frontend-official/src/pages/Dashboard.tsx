@@ -36,11 +36,30 @@ import { AIExecutiveInsightsCard } from "@/components/ai/AIExecutiveInsightsCard
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedSessionId = searchParams.get('sessionId');
+  const querySessionId = searchParams.get('sessionId');
   const { forceRefresh, status: runtimeStatus } = useRuntime();
 
   const sessions = useAppStore((state) => state.sessions);
   const conversations = useAppStore((state) => state.conversations);
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
+
+  const effectiveSessionId = querySessionId || (activeSessionId && activeSessionId !== "all" ? activeSessionId : null);
+
+  const selectedSession = useMemo(() => {
+    if (!effectiveSessionId || effectiveSessionId === "all") return null;
+    return (Array.isArray(sessions) ? sessions : []).find(
+      (s) => s && (s.id === effectiveSessionId || s.sessionId === effectiveSessionId)
+    );
+  }, [sessions, effectiveSessionId]);
+
+  const isSessionConnected = useMemo(() => {
+    if (effectiveSessionId && effectiveSessionId !== "all") {
+      return Boolean(selectedSession && (selectedSession.connected || selectedSession.status === "connected"));
+    }
+    return Array.isArray(sessions) && sessions.length > 0 && sessions.some(
+      (s) => s && (s.connected || s.status === "connected")
+    );
+  }, [effectiveSessionId, selectedSession, sessions]);
 
   const [activeTab, setActiveTab] = useState<DashboardTab>(() => normalizeTab(searchParams.get("tab")));
   const [activeMapScope, setActiveMapScope] = useState<DashboardMapScope>("regions");
@@ -79,13 +98,16 @@ export default function Dashboard() {
   useEffect(() => {
     let active = true;
     setDatabaseMetrics(null);
-    const load = () => apiService.getMetrics(selectedSessionId, { ...metricWindow, end: !timeEnd && dateRange !== "yesterday" && !(dateRange === "custom" && customEnd) ? new Date().toISOString() : metricWindow.end })
+    if (!isSessionConnected) {
+      return;
+    }
+    const load = () => apiService.getMetrics(effectiveSessionId, { ...metricWindow, end: !timeEnd && dateRange !== "yesterday" && !(dateRange === "custom" && customEnd) ? new Date().toISOString() : metricWindow.end })
       .then((metrics) => { if (active) setDatabaseMetrics(metrics); })
       .catch((error) => { if (active) setDatabaseMetrics(null); reportFrontendIssue({ type: 'unexpected_error', service: 'dashboard.getMetrics', message: error instanceof Error ? error.message : 'Falha ao carregar métricas reais' }); });
     void load();
     const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void load(); }, HEAVY_REFRESH_MS);
     return () => { active = false; window.clearInterval(timer); };
-  }, [selectedSessionId, metricWindow, timeEnd, dateRange, customEnd]);
+  }, [isSessionConnected, effectiveSessionId, metricWindow, timeEnd, dateRange, customEnd]);
 
   const activeSessions = useMemo(
     () => (Array.isArray(sessions) ? sessions.filter((s) => s && s.status === "connected").length : 0),
@@ -172,8 +194,17 @@ export default function Dashboard() {
     const startMinutes = timeStart ? Number(timeStart.slice(0, 2)) * 60 + Number(timeStart.slice(3, 5)) : null;
     const endMinutes = timeEnd ? Number(timeEnd.slice(0, 2)) * 60 + Number(timeEnd.slice(3, 5)) : null;
 
+    if (!isSessionConnected) {
+      return [];
+    }
+
+    const targetSession = effectiveSessionId ? String(effectiveSessionId).trim().toLowerCase() : "";
+
     return conversations.filter((conversation) => {
-      if (selectedSessionId && conversation.sessionId !== selectedSessionId) return false;
+      if (targetSession) {
+        const convSession = conversation.sessionId ? String(conversation.sessionId).trim().toLowerCase() : "";
+        if (convSession && convSession !== targetSession) return false;
+      }
       const activityAt = conversation.lastMessageAt || conversation.updatedAt;
       if (!activityAt) return false;
       const timestamp = new Date(activityAt);
@@ -185,21 +216,21 @@ export default function Dashboard() {
       if (endMinutes != null && minutes > endMinutes) return false;
       return true;
     });
-  }, [conversations, customEnd, customStart, dateRange, timeEnd, timeStart, selectedSessionId]);
+  }, [conversations, customEnd, customStart, dateRange, timeEnd, timeStart, effectiveSessionId, isSessionConnected]);
 
-  const filteredMetrics = databaseMetrics;
+  const filteredMetrics = isSessionConnected ? databaseMetrics : null;
   const dashboardViewModel = useMemo(
     () =>
       createDashboardLovableViewModel({
         conversations: filteredConversations,
         metrics: filteredMetrics,
         sessions,
-        runtimeStatus,
-        sessionState,
-        activeSessions,
+        runtimeStatus: isSessionConnected ? runtimeStatus : "offline",
+        sessionState: isSessionConnected ? sessionState : "offline",
+        activeSessions: isSessionConnected ? activeSessions : 0,
         totalSessions,
       }),
-    [filteredConversations, filteredMetrics, sessions, runtimeStatus, sessionState, activeSessions, totalSessions],
+    [filteredConversations, filteredMetrics, sessions, runtimeStatus, sessionState, activeSessions, totalSessions, isSessionConnected],
   );
 
   const analyticsViewModel = useMemo(
@@ -245,6 +276,8 @@ export default function Dashboard() {
         <DashboardView
           viewModel={dashboardViewModel}
           analyticsViewModel={analyticsViewModel}
+          isSessionConnected={isSessionConnected}
+          activeSessionName={selectedSession?.name || effectiveSessionId || undefined}
           activeTab={activeTab}
           activeMapScope={activeMapScope}
           mapRows={currentMapRows}

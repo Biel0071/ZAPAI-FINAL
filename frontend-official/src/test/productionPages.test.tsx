@@ -65,6 +65,7 @@ describe('Páginas com dados de produção', () => {
     expect(save?.disabled).toBe(true);
   });
   it('mantém o mesmo contato em números WhatsApp distintos', async () => {
+    state.sessions = [{ id: 'centro', status: 'connected' }, { id: 'norte', status: 'connected' }];
     state.contacts = ['centro', 'norte'].map((sessionId, index) => ({ id: String(index), name: sessionId, phone: '5511999990000', conversationId: String(index), sessionId, updatedAt: '2026-10-06T12:00:00Z' }));
     await render(<Contacts />, '/contacts');
     expect(state.props.counts).toMatchObject({ all: 2 });

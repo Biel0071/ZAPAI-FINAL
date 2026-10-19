@@ -164,6 +164,8 @@ export interface DashboardViewProps {
   onTimeEndChange: (value: string) => void;
   aiStatus?: any;
   aiMetrics?: any;
+  isSessionConnected?: boolean;
+  activeSessionName?: string;
 }
 
 export function DashboardView({
@@ -188,27 +190,42 @@ export function DashboardView({
   onTimeEndChange,
   aiStatus,
   aiMetrics,
+  isSessionConnected = true,
+  activeSessionName,
 }: DashboardViewProps) {
   const navigate = useNavigate();
-  const hasMappedRows = mapRows.length > 0;
+  const hasMappedRows = isSessionConnected && mapRows.length > 0;
   const topRegions = viewModel.map.regionRows.slice(0, 3);
 
   const safeAnalyticsViewModel = useMemo(() => {
+    if (!isSessionConnected) {
+      return {
+        kpis: [
+          { label: "Mensagens no período", value: "0", tone: "offline" as const, hint: "Total enviadas + recebidas" },
+          { label: "Fila Ativa", value: "0", tone: "offline" as const, hint: "Conversas aguardando atendimento" },
+          { label: "Participação da IA", value: "0%", tone: "offline" as const, hint: "Mensagens automáticas processadas" },
+          { label: "Conversas no período", value: "0", tone: "offline" as const, hint: "Contatos cadastrados no CRM" },
+        ],
+        chartData: [],
+        tempDistribution: [],
+        totalLeadsLabel: "0",
+      };
+    }
     if (analyticsViewModel && Array.isArray(analyticsViewModel.kpis) && analyticsViewModel.kpis.length > 0) {
       return analyticsViewModel;
     }
     return {
       kpis: [
-        { label: "Mensagens no período", value: "—", tone: "primary" as const, hint: "Total enviadas + recebidas" },
-        { label: "Fila Ativa", value: "—", tone: "warning" as const, hint: "Conversas aguardando atendimento" },
-        { label: "Participação da IA", value: "—", tone: "success" as const, hint: "Mensagens automáticas processadas" },
-        { label: "Conversas no período", value: "—", tone: "info" as const, hint: "Contatos cadastrados no CRM" },
+        { label: "Mensagens no período", value: "0", tone: "primary" as const, hint: "Total enviadas + recebidas" },
+        { label: "Fila Ativa", value: "0", tone: "warning" as const, hint: "Conversas aguardando atendimento" },
+        { label: "Participação da IA", value: "0%", tone: "success" as const, hint: "Mensagens automáticas processadas" },
+        { label: "Conversas no período", value: "0", tone: "info" as const, hint: "Contatos cadastrados no CRM" },
       ],
       chartData: [],
       tempDistribution: [],
       totalLeadsLabel: "0",
     };
-  }, [analyticsViewModel]);
+  }, [analyticsViewModel, isSessionConnected]);
 
   // Leads and geography filter state for Hub 2
   const [selectedLead, setSelectedLead] = useState<LeadPin | null>(null);
@@ -639,6 +656,38 @@ export function DashboardView({
           </div>
         </div>
       </div>
+
+      {/* WhatsApp Offline Warning Banner */}
+      {!isSessionConnected && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in-0 duration-300">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-amber-500/20 p-2.5 shrink-0 text-amber-400">
+              <WarningCircle className="h-6 w-6" weight="fill" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <span>Sessão WhatsApp Desconectada</span>
+                <Badge variant="outline" className="border-amber-500/40 text-amber-400 bg-amber-500/10 text-[10px]">
+                  Sem dados ativos
+                </Badge>
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
+                {activeSessionName ? `A sessão "${activeSessionName}" está desconectada.` : "A conexão selecionada está offline."}{" "}
+                Nenhuma conversa ou métrica é exibida para garantir o isolamento estrito por número e prevenir vazamento de dados entre sessões.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            <Button
+              size="sm"
+              onClick={() => navigate("/connections")}
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold gap-1.5 shadow-sm"
+            >
+              <span>Conectar WhatsApp</span>
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* HUB 1: HUB ZAI & PERFORMANCE COMERCIAL                                   */}

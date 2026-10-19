@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { businessLabel } from '@/core/utils/tagEmojis';
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/core/lib/utils";
-import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban, Archive, Megaphone, Funnel } from "@phosphor-icons/react";
+import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban, Archive, Megaphone, Funnel, ArrowClockwise } from "@phosphor-icons/react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ContactGrid, type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { ContactSidebar, type ContactSegment } from "@/components/contacts/ContactSidebar";
@@ -52,6 +52,8 @@ export interface ContactsViewProps {
   onViewModeChange: (mode: "grid" | "list" | "kanban") => void;
   onUpdateContact?: (id: string, payload: { status?: string; lead_temperature?: string; tags?: string[]; funnel_stage?: string }) => void;
   onDeleteContact?: (id: string) => void;
+  isSessionConnected?: boolean;
+  activeSessionName?: string;
 }
 
 export function ContactsView({
@@ -76,6 +78,8 @@ export function ContactsView({
   onViewModeChange,
   onUpdateContact,
   onDeleteContact,
+  isSessionConnected = true,
+  activeSessionName,
 }: ContactsViewProps) {
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const allFilteredSelected = viewModel.contacts.length > 0 && viewModel.contacts.every(c => selectedIds.has(c.id));
@@ -422,7 +426,29 @@ export function ContactsView({
             </Card>
           )}
 
-          {loading ? (
+          {!isSessionConnected ? (
+            <Card className="glass-card rounded-2xl border-amber-500/30 bg-amber-500/5 p-8 text-center animate-in fade-in-0 duration-300">
+              <div className="flex flex-col items-center justify-center max-w-md mx-auto space-y-3">
+                <div className="rounded-2xl bg-amber-500/10 p-4 ring-1 ring-amber-500/20">
+                  <ArrowClockwise className="h-8 w-8 text-amber-500" />
+                </div>
+                <h3 className="text-base font-bold text-foreground">Sessão WhatsApp Desconectada</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {activeSessionName ? `A sessão "${activeSessionName}" está desconectada.` : "A conexão selecionada está offline."}{" "}
+                  Nenhum contato é exibido enquanto a sessão estiver offline para evitar dados inconsistentes ou cruzados. Conecte seu WhatsApp para sincronizar contatos em tempo real.
+                </p>
+                <div className="flex items-center gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    onClick={() => navigate("/connections")}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-xs font-semibold shadow-sm"
+                  >
+                    <span>Conectar WhatsApp</span>
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ) : loading ? (
             <ListSkeleton rows={6} />
           ) : viewModel.contacts.length === 0 ? (
             <Card className="glass-card rounded-2xl border-border/70 hover-lift">
