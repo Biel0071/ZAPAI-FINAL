@@ -494,6 +494,8 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `  * JAMAIS responda com uma frase universal ou pergunte novamente o que já está na memória ativa!\n`;
   compiled += `- ADAPTAÇÃO PERSONALIZADA: Se o cliente for objetivo, seja direto e objetivo; se fizer uma pergunta detalhada, elabore; se pedir foto, mande a foto; se pedir áudio, utilize recurso de áudio quando disponível.\n`;
   compiled += `- Sempre responda em português brasileiro de forma natural, calorosa, empática, simpática e profissional.\n`;
+  compiled += `- ACOLHIMENTO E VALIDAÇÃO HUMANA (ACK CONTEXTUAL): Antes de fazer qualquer pergunta ou próximo passo, sempre valide e confirme calorosamente o dado fornecido pelo cliente (ex: "Perfeito, 3 milheiros anotados!", "Show, entrega no bairro São Caetano!"). O cliente precisa sentir que foi ouvido com total atenção por uma atendente humana experiente.\n`;
+  compiled += `- FECHAMENTO SUAVE & SÍNTESE DA COTAÇÃO: Quando o cliente já definiu o produto, quantidade e região de entrega, apresente uma síntese clara do pedido com os valores oficiais da loja e pergunte como ele prefere fechar (PIX à vista com desconto ou até 10x sem juros no cartão), facilitando o fechamento rápido da venda.\n`;
   compiled += `- Respeite rigorosamente a Diretriz de Tamanho configurada para o seu perfil no bloco [TOM/PERSONALIDADE]. Respostas muito longas para atendentes objetivos ou muito curtas para detalhados serão consideradas falhas.\n`;
   compiled += `- Use uma variedade de palavras e expressões para evitar respostas repetitivas ou mecânicas. Adapte o tom ao humor e estilo de escrita do cliente.\n`;
   compiled += `- TRANSCRIÇÃO DE ÁUDIOS DE VOZ: Se o cliente enviar uma mensagem de áudio, ela será automaticamente convertida em texto e entregue como '[Áudio Transcrito]: "..."'. Trate essa transcrição exatamente como se o cliente tivesse digitado o texto. Extraia produtos, quantidades, dúvidas ou dados de entrega fornecidos no áudio e DÊ SEGUIMENTO NORMAL ao atendimento, avançando no funil sem repetir perguntas sobre o que já foi dito no áudio!\n`;
@@ -563,6 +565,10 @@ function compileSystemPrompt(agent, store, contact = null) {
     const algo = contact.leadAlgorithm;
     compiled += `\n[ALGORITMO DINÂMICO DE ATENDIMENTO DESTE CLIENTE (${algo.algorithmCode} - ${algo.algorithmName})]\n`;
     compiled += `- Perfil e Estilo de Conversa: ${algo.styleLabel} (${algo.conversationStyle})\n`;
+    if (algo.customerArchetypeLabel) {
+      compiled += `- Arquétipo do Comprador: ${algo.customerArchetypeLabel} (${algo.customerArchetype})\n`;
+      compiled += `- Conduta Recomendada para Este Perfil: ${algo.archetypeGuidance}\n`;
+    }
     compiled += `- Regra Oficial da Loja: ${algo.storeStandardRule}\n`;
     compiled += `- Diretriz Específica para Este Lead: ${algo.directive}\n`;
     if (algo.primaryProductLabel) {

@@ -354,10 +354,10 @@ function extractFactsFromContext(text = '', analysis = {}, memory) {
   }
 
   // Objeção de compra (ex: "vou pensar", "está caro")
-  if (lower.includes('vou pensar') || lower.includes('depois vejo') || lower.includes('falo com meu')) {
+  if (lower.includes('vou pensar') || lower.includes('depois vejo') || lower.includes('falo com meu') || lower.includes('falar com')) {
     setCustomerFact(memory, {
       key: 'objecao_compra',
-      value: 'Pediu tempo para pensar / decidir',
+      value: 'Pediu tempo para pensar / decidir ou consultar terceiro',
       category: MEMORY_CATEGORIES.OBJECTION,
       importance: 7,
     });
@@ -367,6 +367,47 @@ function extractFactsFromContext(text = '', analysis = {}, memory) {
       value: 'Sensibilidade a preço / solicitou desconto',
       category: MEMORY_CATEGORIES.OBJECTION,
       importance: 7,
+    });
+  }
+
+  // Quantidade de materiais (ex: "2 milheiros", "50 sacos", "3 caixas", "10 barras")
+  const qtyMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(milheiros?|sacos?|barras?|metros?|m[²³]|latas?|pe[çc]as?|unidades?|caixas?|baldes?)/i);
+  if (qtyMatch) {
+    const formattedQty = `${qtyMatch[1]} ${qtyMatch[2].toLowerCase()}`;
+    memory.commercial = memory.commercial || {};
+    memory.commercial.quantity = formattedQty;
+    setCustomerFact(memory, {
+      key: 'quantidade_solicitada',
+      value: formattedQty,
+      category: MEMORY_CATEGORIES.COMMERCIAL_INTENT,
+      importance: 9,
+    });
+  }
+
+  // Nome declarado pelo cliente (ex: "me chamo Marcos", "sou o Roberto", "aqui é a Claudia")
+  const nameMatch = text.match(/(?:meu nome [ée]|me chamo|sou o|sou a|aqui [ée] o|aqui [ée] a|pode chamar de)\s+([a-záéíóúâêîôûãõç]{3,20})/i);
+  if (nameMatch && nameMatch[1]) {
+    const candidateName = nameMatch[1].trim();
+    const forbidden = ['cliente', 'quanto', 'amigo', 'amiga', 'preco', 'preço', 'deposito', 'loja', 'entrega'];
+    if (!forbidden.includes(candidateName.toLowerCase())) {
+      const formattedName = candidateName.charAt(0).toUpperCase() + candidateName.slice(1).toLowerCase();
+      memory.name = formattedName;
+      setCustomerFact(memory, {
+        key: 'nome_cliente',
+        value: formattedName,
+        category: MEMORY_CATEGORIES.CUSTOMER_FACT,
+        importance: 9,
+      });
+    }
+  }
+
+  // Urgência de entrega
+  if (/(urgente|pra hoje|para hoje|amanh[ãa]|obra parada|concretagem|hoje cedo|preciso rapido)/i.test(text)) {
+    setCustomerFact(memory, {
+      key: 'urgencia_obra',
+      value: 'Alta Urgência (Hoje/Amanhã)',
+      category: MEMORY_CATEGORIES.IMPORTANT_INFO,
+      importance: 8,
     });
   }
 
@@ -505,11 +546,14 @@ function buildContextualPrompt(memory) {
 
   if (memory.metrics?.algorithm || memory.algorithm) {
     const algo = memory.metrics?.algorithm || memory.algorithm;
-    sections.push(
-      `ALGORITMO VINCULADO AO CLIENTE (${algo.code || algo.algorithmCode || 'ALGO-01'} - ${algo.name || algo.algorithmName || 'Padrão'}):\n` +
-      `- Estilo: ${algo.styleLabel || algo.style || 'Direto & Objetivo'}\n` +
-      `- Diretriz Estrita Anti-Delírio: ${algo.directive || 'Atenha-se 100% aos dados oficiais da loja Depósito Mais.'}`
-    );
+    let algoBlock = `ALGORITMO VINCULADO AO CLIENTE (${algo.code || algo.algorithmCode || 'ALGO-01'} - ${algo.name || algo.algorithmName || 'Padrão'}):\n` +
+      `- Estilo: ${algo.styleLabel || algo.style || 'Direto & Objetivo'}\n`;
+    if (algo.customerArchetypeLabel) {
+      algoBlock += `- Arquétipo do Comprador: ${algo.customerArchetypeLabel} (${algo.customerArchetype})\n` +
+        `- Conduta Recomendada: ${algo.archetypeGuidance}\n`;
+    }
+    algoBlock += `- Diretriz Estrita Anti-Delírio: ${algo.directive || 'Atenha-se 100% aos dados oficiais da loja Depósito Mais.'}`;
+    sections.push(algoBlock);
   }
 
   if (memory.pendingQuestions && memory.pendingQuestions.length > 0) {

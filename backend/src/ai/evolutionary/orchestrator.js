@@ -163,9 +163,12 @@ class EvolutionaryAgentOrchestrator {
       const knownPreferences = {
         product: directFacts.product || customerContext?.quotedProducts?.[0] || customerContext?.product || memComm.activeProduct || contact?.leadAlgorithm?.primaryProductLabel,
         capacity: directFacts.capacity || customerContext?.capacity || memComm.capacity,
+        quantity: directFacts.quantity || customerContext?.quantity || memComm.quantity,
         neighborhood: directFacts.neighborhood || customerContext?.neighborhood || memComm.neighborhood || memComm.deliveryCity || contact?.neighborhood,
         city: customerContext?.city || memComm.deliveryCity || contact?.city,
         paymentPreference: directFacts.paymentPreference || customerContext?.paymentPreference || memComm.paymentPreference || contact?.leadAlgorithm?.preferredPayment,
+        urgency: directFacts.urgency || customerContext?.urgency,
+        objection: directFacts.objection || customerContext?.objection,
       };
       antiRepetitionPrompt = aiAntiRepetitionService.buildAntiRepetitionPromptBlock({ recentBotReplies, knownPreferences });
     } catch (_) {}
@@ -176,12 +179,13 @@ class EvolutionaryAgentOrchestrator {
 1. VERDADE OFICIAL DA LOJA É SOBERANA: Nunca prometa descontos ou prazos que contradigam o catálogo oficial da Camada 1.
 2. NUNCA REPITA PERGUNTAS OU DADOS JÁ INFORMADOS: Se a informação já estiver na Memória do Cliente (Camada 2), utilize-a diretamente.
 3. REGRA ANTI-REPETIÇÃO E NATURALIDADE: NUNCA se apresente novamente ("Olá! Aqui é a Camila...") se você já falou anteriormente na conversa. NUNCA repita o mesmo CTA sucessivamente.
-4. SEGUIMENTO DIRETO NA LINHA DE RACIOCÍNIO: Se o cliente respondeu uma capacidade, produto ou pergunta sua (ex: "De 5 mil litros"), responda diretamente sobre a resposta dele antes de fazer a próxima pergunta de avanço.
-5. SIGA O ROTEIRO DO PLAYBOOK: Utilize a estratégia orientada na Camada 3 variando a pergunta de fechamento.
+4. SEGUIMENTO DIRETO NA LINHA DE RACIOCÍNIO & ACOLHIMENTO: Se o cliente respondeu uma capacidade, quantidade, produto ou pergunta sua (ex: "De 5 mil litros", "2 milheiros", "no São Caetano"), responda e acolha diretamente essa resposta dele com calor humano antes de fazer a próxima pergunta de avanço.
+5. SIGA O ROTEIRO DO PLAYBOOK E ARQUÉTIPO DO LEAD: Utilize a estratégia orientada na Camada 3 e adapte o tom ao arquétipo do cliente (construtor/técnico, consumidor residencial, negociador ou urgência).
 6. CONCISÃO ESTRITA NO WHATSAPP (MÁXIMO 35 A 50 PALAVRAS): SEMPRE limite suas respostas a no máximo 50 palavras! NUNCA ultrapasse 50 palavras. Proibido formato de lista (*, -, •) ou tabelas. Use texto corrido natural. Use no máximo 1 a 2 emojis por resposta.
 7. ZERO DELÍRIOS OU INVENÇÃO DE DADOS (FIXAÇÃO NA LOJA DEPÓSITO MAIS): Nunca invente preços, descontos arbitrários, parcelas sem juros que não constem na loja, ou especificações técnicas não documentadas. Se o preço ou informação não estiver no contexto, diga claramente que vai checar no sistema/estoque com a equipe e já confirma. Não devaneie em cenários hipotéticos.
 8. NÃO ENVIE LINKS EM FORMATO MARKDOWN: Nunca use [texto](url), envie apenas a url pura se solicitada.
 9. SILÊNCIO APÓS INTERVENÇÃO HUMANA: Quando o atendimento for transferido para um operador humano ou finalizado, não responda mais nada.
+10. FECHAMENTO SUAVE (FICHA DO PEDIDO): Quando o cliente definir item, quantidade e local de entrega, confirme o valor oficial e pergunte como prefere efetuar o pagamento (PIX à vista com desconto ou até 10x sem juros no cartão).
 `;
 
     const fullEvolutionaryPrompt = [

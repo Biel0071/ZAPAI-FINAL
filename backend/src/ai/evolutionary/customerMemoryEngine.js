@@ -59,6 +59,10 @@ class CustomerMemoryEngine {
         const cJson = row.context_json || {};
         if (cJson.customerName || cJson.name) context.name = cJson.customerName || cJson.name;
         if (cJson.neighborhood) context.neighborhood = cJson.neighborhood;
+        if (cJson.address) context.address = cJson.address;
+        if (cJson.quantity) context.quantity = cJson.quantity;
+        if (cJson.urgency) context.urgency = cJson.urgency;
+        if (cJson.objection) context.objection = cJson.objection;
         if (cJson.city) context.city = cJson.city;
         if (cJson.quotedProducts || cJson.quotedItems) {
           const raw = cJson.quotedProducts || cJson.quotedItems;
@@ -172,6 +176,41 @@ class CustomerMemoryEngine {
       if (!facts.product) facts.product = "Caixa d'água";
     }
 
+    // Detect customer declared name (e.g. "me chamo Marcos", "sou o Roberto", "aqui é a Claudia")
+    const nameMatch = text.match(/(?:meu nome [ée]|me chamo|sou o|sou a|aqui [ée] o|aqui [ée] a|pode chamar de)\s+([a-záéíóúâêîôûãõç]{3,20})/i);
+    if (nameMatch && nameMatch[1]) {
+      const candidateName = nameMatch[1].trim();
+      const forbidden = ['cliente', 'quanto', 'amigo', 'amiga', 'preco', 'preço', 'deposito', 'loja', 'entrega'];
+      if (!forbidden.includes(candidateName.toLowerCase())) {
+        facts.customerName = candidateName.charAt(0).toUpperCase() + candidateName.slice(1).toLowerCase();
+      }
+    }
+
+    // Detect material quantity (e.g. "2 milheiros", "50 sacos", "3 caixas", "10 barras")
+    const qtyMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(milheiros?|sacos?|barras?|metros?|m[²³]|latas?|pe[çc]as?|unidades?|caixas?|baldes?)/i);
+    if (qtyMatch) {
+      facts.quantity = `${qtyMatch[1]} ${qtyMatch[2].toLowerCase()}`;
+    }
+
+    // Detect street address
+    const addressMatch = messageText.match(/(?:rua|av\.?|avenida|travessa|alameda|rodovia)\s+[a-záéíóúâêîôûãõç\d\s,.-]{4,40}/i);
+    if (addressMatch && addressMatch[0]) {
+      const candAddr = addressMatch[0].replace(/,\s*(?:bairro|cidade).*$/i, '').trim();
+      if (!candAddr.toLowerCase().includes('quanto') && !candAddr.toLowerCase().includes('qual')) {
+        facts.address = candAddr;
+      }
+    }
+
+    // Detect urgency
+    if (/(urgente|pra hoje|para hoje|amanh[ãa]|obra parada|concretagem|hoje cedo|preciso rapido)/i.test(text)) {
+      facts.urgency = 'Alta Urgência (Hoje/Amanhã)';
+    }
+
+    // Detect objections
+    if (/(vou pensar|depois vejo|falar com (?:meu|minha) (?:esposa|marido|pedreiro|mestre|engenheiro)|achei caro|muito caro|desconto)/i.test(text)) {
+      facts.objection = text.includes('pensar') ? 'Pediu tempo para pensar' : (text.includes('caro') ? 'Sensível a preço / solicitou desconto' : 'Consultando terceiro antes de fechar');
+    }
+
     // Detect payment preference
     if (text.includes('pix')) {
       facts.paymentPreference = 'PIX';
@@ -260,11 +299,17 @@ class CustomerMemoryEngine {
     if (context.neighborhood) {
       prompt += `\n- 📍 Localização/Bairro: ${context.neighborhood} (JÁ CONHECIDO - NÃO pergunte o bairro novamente!)`;
     }
+    if (context.address) {
+      prompt += `\n- 🏠 Endereço de Entrega: ${context.address} (JÁ FORNECIDO - confirme apenas no fechamento!)`;
+    }
     if (context.city) {
       prompt += `\n- Cidade: ${context.city}`;
     }
     if (context.quotedProducts && context.quotedProducts.length > 0) {
       prompt += `\n- Itens cotados/interesse: ${context.quotedProducts.join(', ')}`;
+    }
+    if (context.quantity) {
+      prompt += `\n- 📦 Quantidade Informada: ${context.quantity} (JÁ INFORMADA - NÃO pergunte a quantidade novamente!)`;
     }
     if (context.capacity) {
       prompt += `\n- Capacidade/Medida: ${context.capacity} (JÁ INFORMADA - NÃO pergunte o tamanho novamente!)`;
@@ -272,12 +317,22 @@ class CustomerMemoryEngine {
     if (context.paymentPreference) {
       prompt += `\n- Preferência de Pagamento: ${context.paymentPreference} (JÁ INFORMADA - NÃO pergunte forma de pagamento novamente!)`;
     }
+    if (context.urgency) {
+      prompt += `\n- ⚡ Urgência da Obra: ${context.urgency} (Acelere a rota de entrega!)`;
+    }
+    if (context.objection) {
+      prompt += `\n- 💡 Objeção / Situação do Lead: ${context.objection} (Acolha com empatia sem pressionar!)`;
+    }
     if (context.lastInteractionSummary) {
       prompt += `\n- Resumo de interações anteriores: ${context.lastInteractionSummary}`;
     }
     if (context.leadAlgorithm) {
       prompt += `\n- ALGORITMO ESPECÍFICO DO CLIENTE: [${context.leadAlgorithm.algorithmCode} - ${context.leadAlgorithm.algorithmName}]`;
       prompt += `\n  * Perfil: ${context.leadAlgorithm.styleLabel} (${context.leadAlgorithm.conversationStyle})`;
+      if (context.leadAlgorithm.customerArchetypeLabel) {
+        prompt += `\n  * Arquétipo do Comprador: ${context.leadAlgorithm.customerArchetypeLabel} (${context.leadAlgorithm.customerArchetype})`;
+        prompt += `\n  * Conduta Recomendada: ${context.leadAlgorithm.archetypeGuidance}`;
+      }
       prompt += `\n  * Regra da Loja: ${context.leadAlgorithm.storeStandardRule}`;
       prompt += `\n  * Diretriz Estrita Anti-Delírio: ${context.leadAlgorithm.directive}`;
     }

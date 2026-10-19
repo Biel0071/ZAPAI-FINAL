@@ -423,6 +423,44 @@ function detectConversationStyle(message = '', conversationHistory = []) {
   return 'relationship_warm';
 }
 
+function detectCustomerArchetype(allTexts = '') {
+  const norm = normalizeText(allTexts);
+
+  // 1. Obra Parada / Urgência Imediata (Prioridade máxima de atendimento)
+  if (/\b(urgente|obra parada|pra hoje|para hoje|acabou o cimento|concretagem|emergencia|agora|amanha cedo|preciso rapido)\b/.test(norm)) {
+    return {
+      archetype: 'urgent_emergency',
+      archetypeLabel: 'Urgência Imediata (Obra em Andamento / Parada)',
+      archetypeGuidance: 'Prioridade total para prontidão de entrega. Confirme estoque de imediato e agilize a rota de entrega sem perguntas longas.',
+    };
+  }
+
+  // 2. Construtor / Profissional da Construção (Mestre, Pedreiro, Engenheiro, Empreiteiro, PJ)
+  if (/\b(mestre|mestre de obras|pedreiro|empreiteir[ao]|engenheir[ao]|faturamento|faturar|cnpj|descarregar|caminhao|caminhao truck|nota fiscal|nf|medidas tecnicas)\b/.test(norm)) {
+    return {
+      archetype: 'builder_contractor',
+      archetypeLabel: 'Profissional da Construção (Mestre/Empreiteiro/Engenheiro)',
+      archetypeGuidance: 'Comunicação prática, técnica e ágil. Destaque volume, capacidade de carga, pronta entrega e faturamento/nota fiscal para empresa.',
+    };
+  }
+
+  // 3. Comprador Negociador (Preço, Desconto, PIX, Parcelamento)
+  if (/\b(desconto|a vista|avista|pix|mais barato|consegue melhorar|10x|parcelamento|pra fechar)\b/.test(norm)) {
+    return {
+      archetype: 'price_negotiator',
+      archetypeLabel: 'Comprador Negociador (Foco em Custo-Benefício)',
+      archetypeGuidance: 'Destaque desconto à vista no PIX, facilidade de parcelar em até 10x sem juros no cartão e a durabilidade superior do material da loja.',
+    };
+  }
+
+  // 4. Consumidor Final / Reforma Residencial (Dono da Casa / Família)
+  return {
+    archetype: 'homeowner_retail',
+    archetypeLabel: 'Consumidor Final (Reforma / Construção Residencial)',
+    archetypeGuidance: 'Abordagem acolhedora, humana e paciente. Envie fotos, explique dimensões de forma simples e assegure entrega segura e sem estresse.',
+  };
+}
+
 function buildLeadAlgorithm(message = '', conversationHistory = [], conversationMeta = {}) {
   const baseAnalysis = analyzeLeadIntent(message, conversationHistory);
   const clientOnlyTexts = [
@@ -459,6 +497,7 @@ function buildLeadAlgorithm(message = '', conversationHistory = [], conversation
   const preferredPayment = detectPreferredPayment(allTexts);
   const purchaseCheck = detectPurchaseStatus(message, conversationHistory, conversationMeta);
   const conversationStyle = detectConversationStyle(message, conversationHistory);
+  const archetypeInfo = detectCustomerArchetype(allTexts);
 
   let selectedAlgo = STORE_EVOLUTION_ALGORITHMS.ALGO_REATIVACAO_RESPOSTA_RAPIDA;
   if (purchaseCheck.hasPurchased || baseAnalysis.intent === 'delivery_issue' || baseAnalysis.intent === 'payment_confirmed') {
@@ -499,6 +538,9 @@ function buildLeadAlgorithm(message = '', conversationHistory = [], conversation
     algorithmName: selectedAlgo.name,
     conversationStyle,
     styleLabel: selectedAlgo.styleLabel,
+    customerArchetype: archetypeInfo.archetype,
+    customerArchetypeLabel: archetypeInfo.archetypeLabel,
+    archetypeGuidance: archetypeInfo.archetypeGuidance,
     storeStandardRule: selectedAlgo.storeStandardRule,
     directive: personalizedDirective,
     followupHook: personalizedFollowup,
@@ -608,6 +650,7 @@ function getProgressiveFollowupHook({ algorithm, rawName = '', productLabel = 's
 module.exports = {
   analyzeLeadIntent,
   buildLeadAlgorithm,
+  detectCustomerArchetype,
   detectProductsFromText,
   detectConversationStyle,
   detectPurchaseStatus,
