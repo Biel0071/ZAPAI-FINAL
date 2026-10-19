@@ -1020,6 +1020,9 @@ function destroySharedSocket() {
   sharedSocket.disconnect();
   sharedSocket = null;
   sharedSocketUrl = null;
+  if (typeof window !== "undefined") {
+    (window as any).__ZAPAI_SOCKET__ = null;
+  }
   eventBindingsReady = false;
 }
 
@@ -1060,6 +1063,9 @@ function ensureSharedSocket(socketUrl: string): Socket {
     auth: { token },
   });
   sharedSocketUrl = normalizedUrl;
+  if (typeof window !== "undefined") {
+    (window as any).__ZAPAI_SOCKET__ = sharedSocket;
+  }
 
   // JWT token auto-refresh on every reconnect attempt.
   // Socket.IO v4: mutating socket.auth before reconnect sends fresh credentials,
