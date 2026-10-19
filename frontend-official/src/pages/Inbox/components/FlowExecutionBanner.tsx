@@ -137,9 +137,9 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
   return (
     <>
       {/* Sleek single-line progress bar mounted directly below customer header */}
-      <div className="w-full h-9 bg-card/95 backdrop-blur-md border-b border-emerald-500/30 px-3 flex items-center justify-between gap-2 text-xs shadow-sm select-none z-20 overflow-x-auto no-scrollbar">
+      <div className="w-full h-9 bg-card/95 backdrop-blur-md border-b border-emerald-500/30 px-2.5 flex items-center justify-between gap-1.5 text-xs shadow-sm select-none z-20 overflow-hidden">
         {/* Left: Indicator + Flow name + Steps badge */}
-        <div className="flex items-center gap-2 shrink-0 min-w-0">
+        <div className="flex items-center gap-1.5 shrink min-w-0">
           <div className="relative flex h-2.5 w-2.5 shrink-0">
             {isPaused ? (
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
@@ -151,20 +151,20 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
             )}
           </div>
 
-          <span className="font-semibold text-foreground truncate max-w-[140px] sm:max-w-[200px] flex items-center gap-1 text-[11px]">
+          <span className="font-semibold text-foreground truncate max-w-[100px] md:max-w-[150px] flex items-center gap-1 text-[11px]">
             <Zap className="h-3 w-3 text-emerald-400 shrink-0" />
             <span className="truncate">{flowData.flowName}</span>
           </span>
 
-          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-[10px] whitespace-nowrap">
-            Passo {flowData.currentStep} de {flowData.totalSteps}
+          <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-[10px] whitespace-nowrap shrink-0">
+            Passo {flowData.currentStep}/{flowData.totalSteps}
           </span>
         </div>
 
         {/* Center / Right: Delay countdown in seconds ("S") + Percentage ("%") */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <div
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-muted/60 border border-border/60 text-[10px] font-mono text-muted-foreground whitespace-nowrap"
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/60 text-[10px] font-mono text-muted-foreground whitespace-nowrap shrink-0"
             title="Delay de envio restante da etapa atual"
           >
             <Clock className="h-3 w-3 text-emerald-400" />
@@ -173,9 +173,9 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5" title={`Progresso do fluxo: ${progressPercent}%`}>
+          <div className="flex items-center gap-1 shrink-0" title={`Progresso do fluxo: ${progressPercent}%`}>
             <span className="text-[10px] font-mono font-bold text-foreground">{progressPercent}%</span>
-            <div className="w-14 sm:w-20 h-1.5 rounded-full bg-muted/80 overflow-hidden border border-border/50">
+            <div className="w-10 sm:w-16 h-1.5 rounded-full bg-muted/80 overflow-hidden border border-border/50 hidden xs:block">
               <div
                 className={`h-full rounded-full transition-all duration-300 ease-out ${
                   isPaused ? "bg-amber-400" : "bg-emerald-500"
@@ -186,14 +186,14 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
           </div>
 
           {/* Action buttons: [ Pausar / Ativar ] and [ Cancelar ] */}
-          <div className="flex items-center gap-1.5 pl-1">
+          <div className="flex items-center gap-1 pl-0.5 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleTogglePause}
               disabled={togglingPause}
-              className={`h-6 px-2 text-[10px] font-medium rounded transition-all ${
+              className={`h-6 px-1.5 sm:px-2 text-[10px] font-medium rounded transition-all ${
                 isPaused
                   ? "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/15"
                   : "border-amber-500/40 text-amber-400 hover:bg-amber-500/15"
@@ -218,7 +218,7 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
               size="sm"
               onClick={() => setShowConfirmModal(true)}
               disabled={cancelling}
-              className="h-6 px-2 text-[10px] font-medium rounded bg-red-600/85 hover:bg-red-600 text-white transition-all flex items-center gap-1"
+              className="h-6 px-1.5 sm:px-2 text-[10px] font-medium rounded bg-red-600/85 hover:bg-red-600 text-white transition-all flex items-center gap-1"
             >
               <StopCircle className="h-2.5 w-2.5" />
               <span>Cancelar</span>

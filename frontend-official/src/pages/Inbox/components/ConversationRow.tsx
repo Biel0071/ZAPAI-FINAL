@@ -237,6 +237,7 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
     <div style={style} className="px-1 py-0.5">
       <div
         role="button"
+        data-conversation-id={conversation.id}
         tabIndex={0}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
