@@ -363,6 +363,24 @@ function sanitizeAndVaryBotReply(replyText = '', recentBotReplies = [], options 
   // 1. Strip redundant greetings and self-introductions when conversation is already in progress
   if (hasPastBotMessages) {
     cleaned = stripGreetingsAndIntroductions(cleaned);
+
+    // 1.1 Prevent repetitive affirmative openers ("Com certeza!", "Perfeito!", etc.)
+    const AFFIRMATIVE_OPENER = /^(?:Com certeza[!.,\s]*|Perfeito[!.,\s]*|Excelente[!.,\s]*|Com toda certeza[!.,\s]*|Sem d[uú]vida[!.,\s]*)/i;
+    const mAff = cleaned.match(AFFIRMATIVE_OPENER);
+    if (mAff && mAff[0]) {
+      const pastAffirmations = recentBotReplies.map(r => {
+        const m = (r.text || '').trim().match(AFFIRMATIVE_OPENER);
+        return m ? m[0].trim().toLowerCase() : null;
+      }).filter(Boolean);
+
+      const currentAffNorm = mAff[0].trim().toLowerCase();
+      if (pastAffirmations.includes(currentAffNorm)) {
+        cleaned = cleaned.slice(mAff[0].length).trim();
+        if (cleaned.length > 0) {
+          cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+        }
+      }
+    }
   }
 
   // 2. Prevent repeating CTAs used in ANY of the last 3 bot messages

@@ -416,7 +416,41 @@ class EvolutionaryAgentOrchestrator {
         paymentPreference: paymentPref,
       };
 
-      if (lowerMsg.includes('frete') || lowerMsg.includes('entrega')) {
+      const isAskingLocation =
+        lowerMsg.includes('de onde') ||
+        lowerMsg.includes('qual cidade') ||
+        lowerMsg.includes('onde fica') ||
+        lowerMsg.includes('onde e') ||
+        lowerMsg.includes('onde é') ||
+        lowerMsg.includes('qual endereco') ||
+        lowerMsg.includes('qual endereço') ||
+        lowerMsg.includes('qual o endereco') ||
+        lowerMsg.includes('qual o endereço') ||
+        lowerMsg.includes('onde voces estao') ||
+        lowerMsg.includes('onde vocês estão') ||
+        lowerMsg.includes('sao de onde') ||
+        lowerMsg.includes('são de onde') ||
+        lowerMsg.includes('qual estado') ||
+        lowerMsg.includes('qual o estado') ||
+        lowerMsg.includes('entrega no rio') ||
+        lowerMsg.includes('entrega em sp');
+
+      const isAdOrLeadTime =
+        lowerMsg.includes('prazo de entrega') ||
+        (lowerMsg.includes('prazo') && (lowerMsg.includes('churrasqueira') || lowerMsg.includes('entrega'))) ||
+        (lowerMsg.includes('anúncio') || lowerMsg.includes('anuncio')) ||
+        lowerMsg.includes('quando entrega') ||
+        lowerMsg.includes('demora quanto tempo');
+
+      if (isAskingLocation) {
+        responseText = hasPastBotMessages
+          ? `Nossa loja e centro de distribuição ficam em Minas Gerais (Região Metropolitana de BH/Betim/Contagem). Atendemos toda a nossa região com frete próprio e entregamos também em regiões vizinhas. Qual é a sua cidade ou bairro para eu consultar a rota para você?`
+          : `Olá! Aqui é a ${agentName}. Nossa loja e centro de distribuição ficam em Minas Gerais (Região Metropolitana de BH/Betim/Contagem). Atendemos toda a região metropolitana com entrega própria. Qual é a sua cidade ou bairro para eu consultar nossa rota de entrega?`;
+      } else if (isAdOrLeadTime) {
+        responseText = hasPastBotMessages
+          ? `Temos a Churrasqueira Trio a pronta entrega com saída rápida em até 2 a 4 dias úteis! O frete é grátis até 15km da loja. Qual é o seu bairro ou cidade para eu consultar a data exata do caminhão para você?`
+          : `Olá! Aqui é a ${agentName} da loja. Temos a Churrasqueira Trio a pronta entrega com saída rápida em até 2 a 4 dias úteis! O frete é grátis num raio de até 15km da loja. Qual é o seu bairro ou cidade para eu consultar a rota do caminhão para você?`;
+      } else if (lowerMsg.includes('frete') || lowerMsg.includes('entrega')) {
         const topic = !neighborhood ? 'freight_location' : (!paymentPref ? 'payment' : 'closing_advance');
         const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
         responseText = hasPastBotMessages
@@ -457,8 +491,10 @@ class EvolutionaryAgentOrchestrator {
           : `Olá! A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou parcelada (com desconto no PIX). ${nextCta}`;
       } else {
         const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'closing_advance', knownPrefs);
+        const usedComCertezaRecently = recentBotReplies.some(r => r.text && r.text.toLowerCase().includes('com certeza'));
+        const prefix = usedComCertezaRecently ? 'Perfeito!' : 'Com certeza!';
         responseText = hasPastBotMessages
-          ? `Com certeza! ${nextCta}`
+          ? `${prefix} ${nextCta}`
           : `Olá! Aqui é a ${agentName} da loja. ${nextCta}`;
       }
     }
