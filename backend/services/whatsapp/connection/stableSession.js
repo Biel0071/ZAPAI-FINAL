@@ -385,7 +385,7 @@ async function isAIReplyStillAllowed({ chatId, conversationId, session }) {
   }
 }
 
-async function runAIForChat({ chatId, incomingFormattedMessage, session, sock }) {
+async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, inFlightRecord = null }) {
   // Short-circuit automated replies if:
   // (0) it is a group chat
   if (String(chatId).endsWith('@g.us')) {
@@ -393,9 +393,21 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     return null;
   }
 
+  // (0.1) In-flight cancellation check
+  if (inFlightRecord?.abort) {
+    console.log(`[WHATSAPP_AI] [SMART-CANCEL] Aborting runAIForChat for ${chatId} prior to processing: newer message received.`);
+    return null;
+  }
+
   const tenantId = session?.companyId;
   const companyId = tenantId;
-  const beforeSend = () => isAIReplyStillAllowed({ chatId, conversationId: incomingFormattedMessage?.conversationId, session });
+  const beforeSend = () => {
+    if (inFlightRecord?.abort) {
+      console.log(`[WHATSAPP_AI] [SMART-CANCEL] Aborting send for ${chatId}: client sent a newer message.`);
+      return false;
+    }
+    return isAIReplyStillAllowed({ chatId, conversationId: incomingFormattedMessage?.conversationId, session });
+  };
   const automationPermission = await getAutomationPermission({ companyId: tenantId, sessionId: session?.sessionId, phone: chatId });
   if (!automationPermission.allowed) {
     console.log(`[WHATSAPP_AI] Automatic reply blocked: ${automationPermission.reason}`);
@@ -855,6 +867,10 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
     if (responseDelayMs > 0) {
       await sleep(responseDelayMs);
     }
+    if (inFlightRecord?.abort) {
+      console.log(`[WHATSAPP_AI] [SMART-CANCEL] Reply cancelled after thinking delay for ${chatId}: newer message arrived.`);
+      return null;
+    }
     try {
       await sock.presenceSubscribe(chatId).catch(() => {});
       await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
@@ -862,6 +878,10 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock })
       await sock.sendPresenceUpdate('paused', chatId).catch(() => {});
     } catch (presenceError) {
       console.warn('[WHATSAPP] Humanized typing presence failed:', presenceError?.message || presenceError);
+    }
+    if (inFlightRecord?.abort) {
+      console.log(`[WHATSAPP_AI] [SMART-CANCEL] Reply cancelled after typing delay for ${chatId}: newer message arrived.`);
+      return null;
     }
     if (!await isAIReplyStillAllowed({
       chatId,
@@ -2277,6 +2297,16 @@ async function createStableSession({
           }
         );
 
+        if (!formattedRealtimeMessage.fromMe) {
+          const convId = savedMessage?.conversationId || result?.conversation?.id;
+          if (convId) {
+            try {
+              const { resetFollowupOnCustomerResponse } = require('../../../services/aiFollowupEngine');
+              resetFollowupOnCustomerResponse(convId).catch(() => {});
+            } catch (_) {}
+          }
+        }
+
         if (!result?.automationHandled) {
           await runAIForChatDebounced({
             chatId: formattedRealtimeMessage.chatId,
@@ -2699,6 +2729,7 @@ function scanLidMapping(sockInstance) {
 
 const aiDebounceTimers = new Map();
 const aiDebounceMessages = new Map();
+const inFlightAIChats = new Map();
 
 function isMessageActionable(text, type) {
   if (type === 'sticker') return false;
@@ -2783,6 +2814,13 @@ async function runAIForChatDebounced({ chatId, incomingFormattedMessage, session
   const currentText = String(incomingFormattedMessage?.text || '').trim();
   if (!currentText) return;
 
+  // [SMART-CANCEL] If AI generation is currently in-flight for this chat, abort the previous generation!
+  const currentInFlight = inFlightAIChats.get(key);
+  if (currentInFlight) {
+    console.log(`[WHATSAPP_AI] [SMART-CANCEL] Aborting in-flight response for ${chatId} because client sent a newer message.`);
+    currentInFlight.abort = true;
+  }
+
   if (!aiDebounceMessages.has(key)) {
     aiDebounceMessages.set(key, []);
   }
@@ -2807,17 +2845,25 @@ async function runAIForChatDebounced({ chatId, incomingFormattedMessage, session
       text: concatenatedText,
     };
 
+    const inFlightRecord = { abort: false, startedAt: Date.now() };
+    inFlightAIChats.set(key, inFlightRecord);
+
     try {
       await runAIForChat({
         chatId,
         incomingFormattedMessage: mergedMessage,
         session,
-        sock
+        sock,
+        inFlightRecord,
       });
     } catch (err) {
       console.error('[DEBOUNCED AI] Failed to run AI for chat:', chatId, err.message);
+    } finally {
+      if (inFlightAIChats.get(key) === inFlightRecord) {
+        inFlightAIChats.delete(key);
+      }
     }
-  }, 3500);
+  }, 4500);
 
   aiDebounceTimers.set(key, timer);
 }

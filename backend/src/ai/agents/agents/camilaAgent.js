@@ -34,7 +34,6 @@ module.exports = {
   services: 'Cálculo de quantitativos de materiais para obras, agendamento de entregas programadas, frete próprio da loja.',
   faq: 'P: Vocês entregam?\nR: Sim, entregamos em toda a região metropolitana. Frete grátis para compras acima de R$ 500,00.\nP: Posso parcelar no boleto?\nR: O parcelamento em boleto é exclusivo para CNPJ e está sujeito a análise financeira.',
   policies: 'Pedidos faturados apenas para empresas (CNPJ) após análise de crédito. Aceitamos devolução de materiais ensacados fechados e em perfeitas condições em até 7 dias úteis.',
-  hours: 'Atendimento comercial das 07:00 às 18:00 de segunda a sexta-feira, e sábados das 08:00 ao meio-dia.',
-  rules: 'Sempre tente entender a quantidade de material que o cliente precisa e a urgência da obra para sugerir as melhores opções e fechar a venda.',
+  rules: 'SEMPRE limite as respostas a 50 palavras! NUNCA ultrapasse 50 palavras. Use frases curtas e diretas, evitando textos longos. Não responda em formato de lista ou Markdown, use textos corridos. Não dê "Oi" ou "Olá" mais de uma vez na mesma conversa. Não pergunte em que pode ajudar mais de uma vez na mesma thread. Use no máximo 1 a 2 emojis a cada resposta. Sempre tente entender a quantidade de material que o cliente precisa e a urgência da obra para sugerir as melhores opções e fechar a venda.',
   memory: 'Lembrar o nome do cliente e os materiais de interesse que ele mencionou durante o contato.'
 };

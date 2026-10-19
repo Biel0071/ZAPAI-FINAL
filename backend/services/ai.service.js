@@ -155,15 +155,15 @@ const RESPONSE_STYLE_DEFAULT_WORDS = Object.freeze({
   one_sentence: 18,
   ultra_short: 28,
   short_natural: 45, // WhatsApp natural concise length: 1 to 3 short sentences, ~35-50 words (180-260 chars)
-  elaborate: 65,     // Kept concise for WhatsApp, never giant essays
+  elaborate: 50,     // Strictly capped at 50 words on WhatsApp (Zap GPT standard)
 });
 
 function resolveResponseWordLimit(agent = {}) {
   const style = String(agent.responseStyle || 'short_natural');
   const customLimit = Number(agent.maxWords);
   const defaultLimit = RESPONSE_STYLE_DEFAULT_WORDS[style] || RESPONSE_STYLE_DEFAULT_WORDS.short_natural;
-  const limit = customLimit > 0 ? Math.min(customLimit, 65) : defaultLimit;
-  return Math.min(Math.max(Math.round(limit), 5), 65);
+  const limit = customLimit > 0 ? Math.min(customLimit, 50) : defaultLimit;
+  return Math.min(Math.max(Math.round(limit), 5), 50);
 }
 
 function enforceResponseWordLimit(text, agent = {}) {
@@ -275,8 +275,20 @@ function compileSystemPrompt(agent, store, contact = null) {
     styleInstruction = `- Diretriz de Tamanho (PADRÃO WHATSAPP HUMANO CONCISO): Responda OBRIGATORIAMENTE em no máximo 1 a 3 frases curtas (limite estrito de ${limit} palavras, cerca de 180 a 260 caracteres). É TERMINANTEMENTE PROIBIDO enviar blocos de texto, cartas, parágrafos longos ou listas com marcadores desnecessárias. Escreva de forma ágil, simpática e objetiva.\n`;
   }
 
+  // 0. DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP (PADRÃO ZAP-GPT DE ALTA CONVERSÃO)
+  let compiled = `[DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP]\n`;
+  compiled += `- SEMPRE limite as respostas a no máximo 35 a 50 palavras! NUNCA ultrapasse 50 palavras.\n`;
+  compiled += `- Use frases curtas, naturais e diretas, evitando textos longos ou monólogos.\n`;
+  compiled += `- PROIBIDO responder em formato de lista ou Markdown (*, -, •). Use texto corrido natural.\n`;
+  compiled += `- NÃO envie links no formato markdown [texto](url), envie apenas a URL pura se solicitada.\n`;
+  compiled += `- NUNCA dê "Olá" ou "Oi" mais de uma vez na mesma conversa. Se você já falou antes, vá direto ao assunto.\n`;
+  compiled += `- NUNCA pergunte "em que posso te ajudar hoje?" mais de uma vez na mesma conversa.\n`;
+  compiled += `- NÃO envie mensagens repetidas na mesma conversa.\n`;
+  compiled += `- Use no máximo 1 a 2 emojis a cada resposta.\n`;
+  compiled += `- Se o cliente fechou o pedido ou solicitou atendimento humano, confirme brevemente e silencie.\n\n`;
+
   // 1. IDENTIDADE DO ATENDENTE
-  let compiled = `[IDENTIDADE DO ATENDENTE]\n`;
+  compiled += `[IDENTIDADE DO ATENDENTE]\n`;
   compiled += `- Nome: ${agentName}\n`;
   compiled += `- Cargo/Setor: ${sector}\n`;
   compiled += `- Objetivo: ${objective}\n`;
@@ -294,8 +306,14 @@ function compileSystemPrompt(agent, store, contact = null) {
 
   // 3. DADOS DO CLIENTE
   if (contact) {
+    const hasPastBotMessages = Boolean(
+      contact.hasPastBotMessages ||
+      (contact.history && contact.history.some(m => m.from === 'agent' || m.role === 'assistant' || m.fromMe || m.from_me))
+    );
     compiled += `[DADOS DO CLIENTE]\n`;
-    compiled += `- Nome do Cliente: ${contact.name || 'Cliente'}\n`;
+    if (!hasPastBotMessages && contact.name && contact.name !== 'Cliente') {
+      compiled += `- Nome do Cliente (Apenas 1º contato): ${contact.name}\n`;
+    }
     compiled += `- Telefone/WhatsApp do Cliente: ${contact.phone || ''}\n`;
     if (contact.orderStatus) compiled += `- Estado Atual do Pedido: ${contact.orderStatus}\n`;
     if (contact.currentIssue) compiled += `- Situação Crítica / Alerta: ${contact.currentIssue}\n`;
