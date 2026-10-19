@@ -932,7 +932,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
               </span>
             </div>
             <div className="flex flex-col items-center gap-1 text-center">
-              <h2 className="font-display text-sm font-bold tracking-wider text-[#94a3b8] uppercase">Zapflow AI</h2>
+              <h2 className="font-display text-sm font-bold tracking-wider text-[#94a3b8] uppercase">ZAI CRM</h2>
               <p className="text-xs text-[#94a3b8]/60">Inicializando runtime do sistema…</p>
             </div>
           </div>

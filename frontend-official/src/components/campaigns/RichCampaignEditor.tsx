@@ -99,7 +99,7 @@ export function RichCampaignEditor({ initialValue = "", onChange, onSendTest }: 
   };
 
   const handleGenerateAICopy = () => {
-    const aiCopy = `Olá {{primeiro_nome}}! Analisei o perfil da {{empresa}} em {{cidade}} e identifiquei 3 oportunidades imediatas para escalar seu atendimento via WhatsApp com ZAPFLOW AI. Posso te enviar os detalhes em PDF?`;
+    const aiCopy = `Olá {{primeiro_nome}}! Analisei o perfil da {{empresa}} em {{cidade}} e identifiquei 3 oportunidades imediatas para escalar seu atendimento via WhatsApp com ZAI CRM. Posso te enviar os detalhes em PDF?`;
     updateContent(aiCopy);
     toast({
       title: "Copy gerada por IA!",
@@ -162,7 +162,7 @@ export function RichCampaignEditor({ initialValue = "", onChange, onSendTest }: 
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => updateContent(content + " https://zapflow.ai")}
+            onClick={() => updateContent(content + " https://zai.crm")}
             className="text-xs flex gap-1"
           >
             <Link size={16} /> Link

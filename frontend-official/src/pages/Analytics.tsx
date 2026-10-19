@@ -159,7 +159,7 @@ export default function Analytics() {
                 <Clock className="h-5 w-5 text-emerald-400" /> SLAs e Resolução de Primeira Resposta (FCR)
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                A maioria dos atendimentos é processada automaticamente pelo motor de automação ZAPFLOW.
+                A maioria dos atendimentos é processada automaticamente pelo motor de automação ZAI.
               </CardDescription>
             </Card>
           </TabsContent>

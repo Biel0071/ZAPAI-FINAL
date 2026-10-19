@@ -45,7 +45,7 @@ export interface VoiceProfile {
 const OFFICIAL_VOICES: VoiceProfile[] = [
   {
     id: "zapflow-aurora",
-    name: "ZAPFLOW Aurora",
+    name: "ZAI Aurora",
     gender: "female",
     role: "Especialista Comercial",
     description: "Tom firme, elegante e consultivo. Alta persuasão para fechamentos B2B.",
@@ -53,7 +53,7 @@ const OFFICIAL_VOICES: VoiceProfile[] = [
   },
   {
     id: "zapflow-luna",
-    name: "ZAPFLOW Luna",
+    name: "ZAI Luna",
     gender: "female",
     role: "Jovem & Dinâmica",
     description: "Tom leve, moderno e enérgico. Excelente para varejo e engajamento rápido.",
@@ -61,7 +61,7 @@ const OFFICIAL_VOICES: VoiceProfile[] = [
   },
   {
     id: "zapflow-sophia",
-    name: "ZAPFLOW Sophia",
+    name: "ZAI Sophia",
     gender: "female",
     role: "Executiva",
     description: "Tom formal, articulado e corporativo. Ideal para empresas de grande porte.",
@@ -69,7 +69,7 @@ const OFFICIAL_VOICES: VoiceProfile[] = [
   },
   {
     id: "zapflow-maya",
-    name: "ZAPFLOW Maya",
+    name: "ZAI Maya",
     gender: "female",
     role: "Acolhedora",
     description: "Tom empático, calmo e receptivo. Perfeito para pós-vendas e atendimento.",
@@ -77,7 +77,7 @@ const OFFICIAL_VOICES: VoiceProfile[] = [
   },
   {
     id: "zapflow-orion",
-    name: "ZAPFLOW Orion",
+    name: "ZAI Orion",
     gender: "male",
     role: "Consultor",
     description: "Tom equilibrado, seguro e didático. Alta confiabilidade comercial.",
@@ -85,7 +85,7 @@ const OFFICIAL_VOICES: VoiceProfile[] = [
   },
   {
     id: "zapflow-atlas",
-    name: "ZAPFLOW Atlas",
+    name: "ZAI Atlas",
     gender: "male",
     role: "Executivo",
     description: "Tom grave, sério e de autoridade. Excelente para negociações corporativas.",
@@ -93,7 +93,7 @@ const OFFICIAL_VOICES: VoiceProfile[] = [
   },
   {
     id: "zapflow-noah",
-    name: "ZAPFLOW Noah",
+    name: "ZAI Noah",
     gender: "male",
     role: "Jovem",
     description: "Tom descontraído, amigável e conversacional. Ótimo para público jovem.",
@@ -101,7 +101,7 @@ const OFFICIAL_VOICES: VoiceProfile[] = [
   },
   {
     id: "zapflow-titan",
-    name: "ZAPFLOW Titan",
+    name: "ZAI Titan",
     gender: "male",
     role: "Premium",
     description: "Tom imponente, marcante e aveludado. Projetado para marcas de luxo e alto ticket.",
@@ -206,7 +206,7 @@ export function VoiceStudioDrawer({ open, onClose, agentId, currentVoiceId, onSa
               <Microphone className="h-5 w-5 animate-pulse" weight="fill" />
             </div>
             <div>
-              <DialogTitle className="font-display text-lg font-bold text-foreground">ZAPFLOW AI Voices Studio</DialogTitle>
+              <DialogTitle className="font-display text-lg font-bold text-foreground">ZAI Voices Studio</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">Ajuste a identidade vocal do atendente.</DialogDescription>
             </div>
           </div>

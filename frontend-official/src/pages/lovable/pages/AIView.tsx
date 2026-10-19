@@ -2852,7 +2852,7 @@ export function AIView(props: AIViewProps) {
                             </div>
                           </div>
                           <div className="text-[11px] text-muted-foreground leading-relaxed p-2.5 rounded-lg bg-primary/5 border border-primary/10">
-                            A IA do ZAPFLOW opera com atendentes segmentados para qualificação, suporte e financeiro, integrados com memórias de cliente e regras de transbordo automatizadas.
+                            A IA do ZAI opera com atendentes segmentados para qualificação, suporte e financeiro, integrados com memórias de cliente e regras de transbordo automatizadas.
                           </div>
                         </CardContent>
                       </Card>

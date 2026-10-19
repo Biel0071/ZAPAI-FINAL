@@ -79,7 +79,7 @@ function renderFatalError(message: string) {
   root.innerHTML = `
     <div style="display:flex;min-height:100vh;align-items:center;justify-content:center;background:#0a0a0a;color:#e5e5e5;font-family:system-ui,sans-serif;padding:24px;">
       <div style="max-width:480px;text-align:center;">
-        <h1 style="font-size:24px;font-weight:700;margin-bottom:12px;">ZAPFLOW AI</h1>
+        <h1 style="font-size:24px;font-weight:700;margin-bottom:12px;">ZAI CRM</h1>
         <p style="font-size:14px;color:#a3a3a3;margin-bottom:24px;">O sistema encontrou um erro durante a inicialização.</p>
         <pre style="font-size:12px;background:#1a1a1a;padding:16px;border-radius:8px;overflow:auto;text-align:left;color:#ef4444;margin-bottom:24px;max-height:120px;">${message}</pre>
         <button onclick="localStorage.clear();sessionStorage.clear();location.reload()" style="padding:10px 24px;background:#3b82f6;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;margin-right:8px;">Limpar e Recarregar</button>

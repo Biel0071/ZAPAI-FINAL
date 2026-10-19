@@ -41,7 +41,7 @@ export function VoiceConfigDrawer({ voice, isOpen, onClose, onSave }: VoiceConfi
 
   const [params, setParams] = useState(voice.defaultParams);
   const [testText, setTestText] = useState(
-    `Olá! Sou a voz ${voice.name}, atuando como ${voice.role} na ZAPFLOW AI Enterprise. Como posso impulsionar suas conversões hoje?`
+    `Olá! Sou a voz ${voice.name}, atuando como ${voice.role} no ZAI CRM Enterprise. Como posso impulsionar suas conversões hoje?`
   );
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -74,7 +74,7 @@ export function VoiceConfigDrawer({ voice, isOpen, onClose, onSave }: VoiceConfi
       window.speechSynthesis.speak(utterance);
 
       toast({
-        title: "Sintetizando Voz ZAPFLOW AI",
+        title: "Sintetizando Voz ZAI",
         description: `Reproduzindo prévia de ${voice.name} com ${params.speed}x velocidade.`,
       });
     } catch {

@@ -34,7 +34,7 @@ export default function AdminHub() {
               Central de Administração
             </h1>
             <p className="text-sm text-muted-foreground">
-              Visão consolidada de todas as ferramentas de infraestrutura, cluster e configurações sistêmicas do ZAPFLOW.
+              Visão consolidada de todas as ferramentas de infraestrutura, cluster e configurações sistêmicas do ZAI.
             </p>
           </div>
 

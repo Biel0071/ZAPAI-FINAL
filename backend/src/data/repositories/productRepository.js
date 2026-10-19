@@ -30,7 +30,7 @@ async function listProducts({ companyId = 'default', limit = 50, offset = 0, cat
       {
         id: 'prod-001',
         code: 'ZAP-ENT-V4',
-        name: 'ZAPFLOW AI Enterprise V4',
+        name: 'ZAI Enterprise V4',
         description: 'Plataforma completa de inteligência comercial, automação WhatsApp e vozes neurais.',
         price: 4990.0,
         stock: 99,
@@ -45,7 +45,7 @@ async function listProducts({ companyId = 'default', limit = 50, offset = 0, cat
       {
         id: 'prod-002',
         code: 'ZAP-VOICE-PRO',
-        name: 'Módulo ZAPFLOW AI Voices Pro',
+        name: 'Módulo ZAI Voices Pro',
         description: 'Pacote de 8 vozes neurais brasileiras com personalidades exclusivas e controle de tom.',
         price: 1490.0,
         stock: 50,

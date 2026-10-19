@@ -347,7 +347,7 @@ router.post('/auth/forgot-password', async (req, res) => {
         const resetLink = `${frontendBaseUrl}/reset-password?email=${encodeURIComponent(email)}`;
         await sendEmail({
           to: email,
-          subject: 'Recuperação de senha — ZapAI CRM',
+          subject: 'Recuperação de senha — ZAI CRM',
           text: `Olá,\n\nVocê solicitou a recuperação de senha.\n\nClique no link para redefinir: ${resetLink}\n\nSe não foi você, ignore este e-mail.`,
           html: `<p>Olá,</p><p>Você solicitou a recuperação de senha.</p><p><a href="${resetLink}">Clique aqui para redefinir sua senha</a></p><p>Se não foi você, ignore este e-mail.</p>`,
         });

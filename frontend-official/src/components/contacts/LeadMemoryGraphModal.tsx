@@ -122,7 +122,7 @@ export function LeadMemoryGraphModal({ isOpen, onClose, lead }: LeadMemoryGraphM
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Conexões do Cliente no Ecossistema ZAPFLOW
+                  Conexões do Cliente no Ecossistema ZAI
                 </h4>
                 <Badge className="bg-primary/20 text-primary border-primary/40 text-xs">
                   8 Nós Conectados em Tempo Real

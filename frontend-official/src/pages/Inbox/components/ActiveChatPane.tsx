@@ -543,7 +543,7 @@ export function ActiveChatPane({
       {
         cmd: "/catalogo",
         desc: "Link do catálogo oficial",
-        text: "Aqui está o link para o nosso catálogo digital: https://zapflow.ai/catalogo",
+        text: "Aqui está o link para o nosso catálogo digital: https://zai.crm/catalogo",
       },
       {
         cmd: "/desconto",
@@ -553,7 +553,7 @@ export function ActiveChatPane({
       {
         cmd: "/agendar",
         desc: "Link para agendamento de demo",
-        text: "Claro! Vamos agendar uma demonstração de 15 minutos? Escolha o melhor dia/horário aqui: calendly.com/zapflow",
+        text: "Claro! Vamos agendar uma demonstração de 15 minutos? Escolha o melhor dia/horário aqui: calendly.com/zai",
       },
       { cmd: "/saudar", desc: "Saudação amigável padrão", text: "Olá! Como posso te ajudar hoje?" },
       {
@@ -564,7 +564,7 @@ export function ActiveChatPane({
       {
         cmd: "/ajuda",
         desc: "Link da base de conhecimento",
-        text: "Se precisar de ajuda com a configuração, acesse nossa base de conhecimento em docs.zapflow.ai.",
+        text: "Se precisar de ajuda com a configuração, acesse nossa base de conhecimento em docs.zai.crm.",
       },
     ];
 

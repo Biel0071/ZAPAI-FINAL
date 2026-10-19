@@ -146,7 +146,7 @@ export default function Operations() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2 text-emerald-400">
-                  <Sparkles className="h-5 w-5 text-emerald-400 animate-pulse" /> ZAPAI Enterprise Sync Center
+                  <Sparkles className="h-5 w-5 text-emerald-400 animate-pulse" /> ZAI Enterprise Sync Center
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
                   Monitoramento em tempo real do Barramento de Eventos, Orquestrador Sync Engine, Latências e Filas
