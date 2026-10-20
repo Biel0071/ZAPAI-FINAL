@@ -188,11 +188,7 @@ function getBaseSelect() {
       conv.pinned_at,
       COALESCE(conv.archived, false) as archived,
       conv.archived_at,
-      COALESCE(
-        conv.last_message_at,
-        (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
-        conv.created_at AT TIME ZONE 'UTC'
-      ) as last_message_at,
+      COALESCE(conv.last_message_at, conv.updated_at, conv.created_at) as last_message_at,
       COALESCE(lid_map.phone, l.phone, conv.remote_jid) as phone,
       lid_map.phone as mapped_phone,
       COALESCE(NULLIF(l.name, ''), lid_map.phone, conv.remote_jid, 'Contato') as name,
@@ -700,11 +696,7 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.pinned_at,
           COALESCE(conv.archived, false) as archived,
           conv.archived_at,
-          COALESCE(
-            conv.last_message_at,
-            (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
-            conv.created_at AT TIME ZONE 'UTC'
-          ) as last_message_at,
+          COALESCE(conv.last_message_at, conv.updated_at, conv.created_at) as last_message_at,
           COALESCE(lid_map.phone, l.phone, conv.remote_jid) as phone,
           lid_map.phone as mapped_phone,
           COALESCE(NULLIF(l.name, ''), lid_map.phone, conv.remote_jid, 'Contato') as name,
@@ -717,11 +709,7 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.company_id,
           COALESCE(conv.remote_jid, l.phone, conv.id::text),
           COALESCE(NULLIF(conv.session_id, ''), 'main'),
-          COALESCE(
-            conv.last_message_at,
-            (SELECT MAX(COALESCE(m.timestamp, m.created_at)) AT TIME ZONE 'UTC' FROM messages m WHERE m.conversation_id = conv.id),
-            conv.created_at AT TIME ZONE 'UTC'
-          ) DESC,
+          COALESCE(conv.last_message_at, conv.updated_at, conv.created_at) DESC,
           conv.id DESC
       ),
       filtered AS (

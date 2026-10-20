@@ -20,4 +20,7 @@ router.post(['/outbound-queue/enqueue', '/messages/outbound-queue/enqueue'], out
 router.get(['/outbound-queue/pending', '/messages/outbound-queue/pending'], outboundQueueController.listPending);
 router.get(['/outbound-queue/dlq', '/messages/outbound-queue/dlq'], outboundQueueController.listDeadLetter);
 router.post(['/outbound-queue/dlq/:id/reprocess', '/messages/outbound-queue/dlq/:id/reprocess'], outboundQueueController.reprocessDeadLetter);
+router.get('/outbound-queue/session/:sessionId/automations', outboundQueueController.listSessionAutomations);
+router.post('/outbound-queue/session/:sessionId/automations/action', outboundQueueController.updateSessionContactAutomation);
+router.post(['/outbound-queue/session/:sessionId/resume', '/messages/outbound-queue/session/:sessionId/resume'], outboundQueueController.resumeSessionAutomations);
 module.exports = router;

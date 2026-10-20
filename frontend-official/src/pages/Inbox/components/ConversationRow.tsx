@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import type { RowComponentProps } from "react-window";
 import {
   Star,
@@ -72,7 +72,7 @@ export interface ConversationRowData {
 
 const BUSINESS_TAG_OPTIONS = ["Novo Lead", "Cliente", "Orçamento", "Venda", "Suporte", "VIP", "Urgente"] as const;
 
-export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
+export const ConversationRow = memo(function ConversationRow(props: RowComponentProps<ConversationRowData>) {
   const { index, style } = props;
   const data: ConversationRowData = ((props as any).data || props) as ConversationRowData;
   const {
@@ -532,4 +532,4 @@ export function ConversationRow(props: RowComponentProps<ConversationRowData>) {
       </div>
     </div>
   );
-}
+});

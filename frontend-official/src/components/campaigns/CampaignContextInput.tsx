@@ -230,10 +230,10 @@ export function CampaignContextInput({
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {/* Box Unificado de Contexto da Campanha */}
-      <div className="rounded-2xl border border-border/70 bg-card/75 backdrop-blur-md overflow-hidden shadow-sm transition-all">
+      <div className="rounded-2xl border border-border/70 bg-card/75 backdrop-blur-md overflow-hidden shadow-sm transition-all flex-1 flex flex-col min-h-0">
         {/* Top: Text Area */}
-        <div className="p-4 space-y-2.5">
-          <div className="flex items-center justify-between">
+        <div className="p-4 space-y-2.5 flex-1 flex flex-col min-h-0">
+          <div className="flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
                 <Sparkle className="h-3.5 w-3.5" weight="fill" />
@@ -253,11 +253,11 @@ export function CampaignContextInput({
             disabled={disabled}
             placeholder={`Cole aqui informações, briefing, oferta, produtos ou instruções para a IA.\n\nExemplo:\n"Quero vender 20 caixas d'água Fortlev de 5.000 litros por R$ 2.299 em até 10x sem juros. Entrega expressa para MG e frete cortesia nesta semana para liquidar estoque."`}
             rows={5}
-            className="w-full resize-y rounded-xl border border-border/40 bg-background/50 p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/40"
+            className="w-full flex-1 min-h-[135px] resize-y rounded-xl border border-border/40 bg-background/50 p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/40"
           />
 
           {value.trim().length === 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 shrink-0">
               <span className="text-[10px] text-muted-foreground">Sugestão rápida:</span>
               <button
                 type="button"

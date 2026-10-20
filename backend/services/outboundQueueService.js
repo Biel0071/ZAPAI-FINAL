@@ -145,14 +145,15 @@ async function saveQueueState() {
   await persistLock;
 }
 
-async function getSessionSocket(sessionId, companyId) {
+async function getSessionSocket(sessionId, companyId, allowSessionPause = false) {
   const normalizedSessionId = sessionManager.normalizeSessionName(sessionId || sessionManager.DEFAULT_SESSION);
   const session = sessionManager.getSession(normalizedSessionId);
   const owner = await dbQuery('SELECT session_id FROM sessions WHERE company_id = $1 AND session_id = $2 LIMIT 1', [companyId, normalizedSessionId]);
   if (!owner.rows.length || (session?.companyId && String(session.companyId) !== String(companyId))) {
     throw Object.assign(new Error('WhatsApp session does not belong to this company.'), { code: 'SESSION_FORBIDDEN', nonRetryable: true });
   }
-  if (session?.sock && session.status === 'connected' && session.systemConnected !== false) {
+  if (session?.sock && session.status === 'connected' && session.systemConnected !== false
+    && (session.automationPaused !== true || allowSessionPause)) {
     return {
       session,
       sock: session.sock,
@@ -286,7 +287,8 @@ async function executeOutbound(item) {
     });
   }
 
-  const { session, sock } = await getSessionSocket(item.sessionId, item.companyId);
+  const approvedSessionPause = item.sessionResumeApproved === true;
+  const { session, sock } = await getSessionSocket(item.sessionId, item.companyId, approvedSessionPause);
 
   // Handle delay/typing simulator for any item in outbound queue (AI, flows, quick replies, campaigns)
   const responseDelayMs = Math.max(0, Number(item.metadata?.responseDelayMs || item.metadata?.delayMs) || 0);
@@ -308,6 +310,12 @@ async function executeOutbound(item) {
 
   const initialPermission = await getAutomatedReplyPermission(item);
   if (!initialPermission.allowed) {
+    if (['session_disconnected', 'session_automation_paused'].includes(initialPermission.reason)) {
+      throw Object.assign(new Error('WhatsApp session disconnected before message transport.'), {
+        code: 'SESSION_UNAVAILABLE',
+        nonRetryable: true,
+      });
+    }
     publishProgress('cancelled', { message: 'Resposta cancelada porque a IA foi desativada.' });
     console.log(`[OUTBOUND_QUEUE] AI response cancelled before delay for ${item.phone}: ${initialPermission.reason}`);
     return { cancelled: true, reason: initialPermission.reason };
@@ -338,9 +346,25 @@ async function executeOutbound(item) {
   const aiPermission = await getAutomatedReplyPermission(item);
   if (item.cancelRequested) return { cancelled: true, reason: 'user_cancelled' };
   if (!aiPermission.allowed) {
+    if (['session_disconnected', 'session_automation_paused'].includes(aiPermission.reason)) {
+      throw Object.assign(new Error('WhatsApp session disconnected before message transport.'), {
+        code: 'SESSION_UNAVAILABLE',
+        nonRetryable: true,
+      });
+    }
     publishProgress('cancelled', { message: 'Resposta cancelada porque a IA foi desativada antes do envio.' });
     console.log(`[OUTBOUND_QUEUE] AI response cancelled before send for ${item.phone}: ${aiPermission.reason}`);
     return { cancelled: true, reason: aiPermission.reason };
+  }
+
+  const currentSession = sessionManager.getSession(item.sessionId);
+  if (!currentSession?.sock || currentSession.sock !== sock
+    || String(currentSession.status || '').toLowerCase() !== 'connected'
+    || currentSession.systemConnected === false || (currentSession.automationPaused === true && !approvedSessionPause)) {
+    throw Object.assign(new Error('WhatsApp session disconnected before message transport.'), {
+      code: 'SESSION_UNAVAILABLE',
+      nonRetryable: true,
+    });
   }
 
   publishProgress('sending', { message: 'Enviando resposta para o WhatsApp.' });
@@ -353,6 +377,15 @@ async function executeOutbound(item) {
   } else {
     let sendResult;
     const beforeSend = async () => {
+      const latestSession = sessionManager.getSession(item.sessionId);
+      if (!latestSession?.sock || latestSession.sock !== sock
+        || String(latestSession.status || '').toLowerCase() !== 'connected'
+        || latestSession.systemConnected === false || (latestSession.automationPaused === true && !approvedSessionPause)) {
+        throw Object.assign(new Error('WhatsApp session disconnected before message transport.'), {
+          code: 'SESSION_UNAVAILABLE',
+          nonRetryable: true,
+        });
+      }
       const permission = item.cancelRequested ? { allowed: false, reason: 'user_cancelled' } : await getAutomatedReplyPermission(item);
       if (!permission.allowed) publishProgress('cancelled', { message: 'Resposta cancelada pelo controle da automação antes do transporte.' });
       return permission;
@@ -446,7 +479,10 @@ function pickNextProcessableItem() {
   const candidates = queueState.items
     .filter((item) => {
       if (uncommittedItems.has(item.id)) return false;
-      if (item.isPaused) return false;
+      if (item.isPaused || item.sessionPaused) return false;
+      const session = sessionManager.getSession(item.sessionId);
+      if (!session?.sock || String(session.status || '').toLowerCase() !== 'connected'
+        || session.systemConnected === false || (session.automationPaused === true && item.sessionResumeApproved !== true)) return false;
       if (item.state === STATES.QUEUED) {
         return new Date(item.nextAttemptAt || item.createdAt).getTime() <= now;
       }
@@ -460,6 +496,93 @@ function pickNextProcessableItem() {
     .sort((a, b) => new Date(a.nextAttemptAt || a.createdAt).getTime() - new Date(b.nextAttemptAt || b.createdAt).getTime());
 
   return candidates[0] || null;
+}
+
+async function pauseSessionItems({ companyId, sessionId }) {
+  if (!companyId || !sessionId) return 0;
+  let paused = 0;
+  for (const item of queueState.items) {
+    if (String(item.companyId) !== String(companyId) || item.sessionId !== sessionId) continue;
+    if ([STATES.QUEUED, STATES.FAILED, STATES.PROCESSING].includes(item.state) && !item.sessionPaused) {
+      item.sessionPaused = true;
+      item.sessionResumeApproved = false;
+      item.updatedAt = nowIso();
+      paused++;
+    }
+  }
+  if (paused) await saveQueueState();
+  return paused;
+}
+
+async function resumeSessionItems({ companyId, sessionId }) {
+  if (!companyId || !sessionId) return 0;
+  let resumed = 0;
+  for (const item of queueState.items) {
+    if (String(item.companyId) !== String(companyId) || item.sessionId !== sessionId
+      || !item.sessionPaused) continue;
+    item.sessionPaused = false;
+    if (!item.isPaused) item.state = STATES.QUEUED;
+    item.nextAttemptAt = nowIso();
+    item.updatedAt = nowIso();
+    resumed++;
+  }
+  if (resumed) await saveQueueState();
+  return resumed;
+}
+
+function listSessionPausedItems({ companyId, sessionId }) {
+  if (!companyId || !sessionId) return [];
+  return queueState.items
+    .filter((item) => String(item.companyId) === String(companyId)
+      && String(item.sessionId) === String(sessionId)
+      && item.sessionPaused === true
+      && [STATES.QUEUED, STATES.FAILED, STATES.PROCESSING].includes(item.state))
+    .map(cloneItem);
+}
+
+async function resumeContactItems({ companyId, sessionId, phone }) {
+  if (!companyId || !sessionId || !phone) return 0;
+  const targetPhone = normalizePhone(phone);
+  let resumed = 0;
+  for (const item of queueState.items) {
+    if (String(item.companyId) !== String(companyId) || String(item.sessionId) !== String(sessionId)
+      || normalizePhone(item.phone) !== targetPhone || item.sessionPaused !== true
+      || ![STATES.QUEUED, STATES.FAILED, STATES.PROCESSING].includes(item.state)) continue;
+    item.sessionPaused = false;
+    item.sessionResumeApproved = true;
+    item.cancelRequested = false;
+    if (item.state !== STATES.PROCESSING) item.state = STATES.QUEUED;
+    item.nextAttemptAt = nowIso();
+    item.updatedAt = nowIso();
+    resumed++;
+  }
+  if (resumed) {
+    await saveQueueState();
+    queueMicrotask(() => processOneItem().catch((error) => console.error('[OUTBOUND_QUEUE] Reviewed resume cycle failed:', error.message)));
+  }
+  return resumed;
+}
+
+async function cancelContactItems({ companyId, sessionId, phone }) {
+  if (!companyId || !sessionId || !phone) return 0;
+  const targetPhone = normalizePhone(phone);
+  let cancelled = 0;
+  for (const item of queueState.items) {
+    if (String(item.companyId) !== String(companyId) || String(item.sessionId) !== String(sessionId)
+      || normalizePhone(item.phone) !== targetPhone || item.sessionPaused !== true
+      || ![STATES.QUEUED, STATES.FAILED, STATES.PROCESSING].includes(item.state)) continue;
+    item.sessionResumeApproved = false;
+    item.cancelRequested = true;
+    if (item.state !== STATES.PROCESSING) {
+      item.state = STATES.CANCELLED;
+      item.cancelledAt = nowIso();
+      item.nextAttemptAt = null;
+    }
+    item.updatedAt = nowIso();
+    cancelled++;
+  }
+  if (cancelled) await saveQueueState();
+  return cancelled;
 }
 
 function listPending(limit = 100, companyId) {
@@ -490,7 +613,7 @@ function findByCorrelation(correlationId, companyId, context = {}) {
   return found ? cloneItem(found) : null;
 }
 
-async function enqueueBatch(payloads) {
+async function enqueueBatch(payloads, options = {}) {
   if (!Array.isArray(payloads) || !payloads.length) throw new Error('Queue batch must contain at least one item.');
   const prepared = payloads.map(buildQueuedItem);
   for (const item of prepared) {
@@ -505,6 +628,13 @@ async function enqueueBatch(payloads) {
   const work = async () => {
     const added = [];
     const accepted = prepared.map(item => {
+      const session = sessionManager.getSession(item.sessionId);
+      const connected = Boolean(session?.sock && String(session.status || '').toLowerCase() === 'connected'
+        && session.systemConnected !== false);
+      item.sessionResumeApproved = connected && options.approvedSessionPause === true;
+      if (!connected || (session.automationPaused === true && !item.sessionResumeApproved)) {
+        item.sessionPaused = true;
+      }
       const existing = findByCorrelation(item.correlationId, item.companyId, { sessionId: item.sessionId, conversationId: item.metadata?.conversationId, phone: item.phone });
       if (existing) return existing;
       added.push(item);
@@ -531,6 +661,14 @@ async function enqueueBatch(payloads) {
 
 async function enqueue(payload = {}) {
   return (await enqueueBatch([payload]))[0];
+}
+
+async function enqueueReviewed(payload = {}) {
+  return (await enqueueBatch([payload], { approvedSessionPause: true }))[0];
+}
+
+async function enqueueReviewedBatch(payloads = []) {
+  return enqueueBatch(payloads, { approvedSessionPause: true });
 }
 
 async function cancelFlowItems({ companyId, sessionId, conversationId, phone }) {
@@ -572,7 +710,7 @@ async function resumeFlowItems({ companyId, sessionId, conversationId, phone }) 
   for (const item of queueState.items) {
     if (item.companyId !== companyId || item.sessionId !== sessionId || !item.metadata?.isFlowStep) continue;
     if (conversationId ? String(item.metadata?.conversationId) !== String(conversationId) : normalizePhone(item.phone) !== normalizePhone(phone)) continue;
-    if (item.isPaused) {
+    if (item.isPaused && !item.sessionPaused) {
       item.isPaused = false;
       item.nextAttemptAt = nowIso();
       item.updatedAt = nowIso();
@@ -604,6 +742,10 @@ async function reprocessDeadLetterItem(id, options = {}) {
   }
 
   item.state = STATES.QUEUED;
+  item.isPaused = false;
+  const session = sessionManager.getSession(item.sessionId);
+  item.sessionPaused = !session?.sock || String(session.status || '').toLowerCase() !== 'connected'
+    || session.systemConnected === false || session.automationPaused === true;
   item.attemptCount = 0;
   item.processingStartedAt = null;
   item.nextAttemptAt = nowIso();
@@ -752,6 +894,16 @@ async function processOneItem() {
         await saveQueueState();
         return;
       }
+      if (error?.code === 'SESSION_UNAVAILABLE') {
+        item.state = STATES.QUEUED;
+        item.sessionPaused = true;
+        item.sessionResumeApproved = false;
+        item.nextAttemptAt = null;
+        item.updatedAt = nowIso();
+        item.lastFailure = sanitizeError(error);
+        await saveQueueState();
+        return;
+      }
       item.attemptCount = Number(item.attemptCount || 0) + 1;
       const failure = sanitizeError(error);
       // A transport timeout is ambiguous: WhatsApp may have accepted the
@@ -866,9 +1018,16 @@ module.exports = {
   STATES,
   enqueue,
   enqueueBatch,
+  enqueueReviewed,
+  enqueueReviewedBatch,
   findByCorrelation,
   cancelFlowItems,
   pauseFlowItems,
+  pauseSessionItems,
+  resumeSessionItems,
+  listSessionPausedItems,
+  resumeContactItems,
+  cancelContactItems,
   resumeFlowItems,
   getActiveFlow,
   findById: (id, companyId) => { const item = queueState.items.find(entry => entry.id === id && entry.companyId === companyId); return item ? cloneItem(item) : null; },

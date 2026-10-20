@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — pausa segura das automações por conexão
+
+- Ao desconectar um número, a pausa das automações, tarefas outbound pendentes e campanhas em execução fica persistida por sessão. A reconexão não retoma disparos nem respostas da IA automaticamente.
+- Migração `044_session_automation_pause` guarda esse estado por conexão.
+- Respostas automáticas, novos disparos e follow-ups verificam a pausa persistida; campanhas mantêm vínculo com o número selecionado.
+- Reativação manual autenticada por empresa: `POST /api/outbound-queue/session/:sessionId/resume`. Exige que a sessão esteja conectada e libera tarefas e campanhas pausadas pela desconexão.
+- Revisão pós-reconexão por contato: consultar pendências e contagens, retomar ou cancelar um telefone por vez mantendo os demais pausados, ou retomar tudo explicitamente. “Iniciar nova campanha” pré-seleciona os contatos no compositor sem disparar mensagens.
+
 ## Unreleased — 2026-10-13: auditoria visual contínua
 
 - Inventário visual sanitizado de 46 rotas e abas, em dois temas e quatro larguras, com estados vazios e fixtures isoladas de QA.

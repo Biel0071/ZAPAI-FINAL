@@ -36,12 +36,15 @@ vi.mock('@/core/services/apiService', () => ({ apiService: {
   listSessions: vi.fn().mockResolvedValue([]), getAIAgents: vi.fn().mockResolvedValue({ agents: [] }),
   getCampaigns: vi.fn().mockResolvedValue([]), getConversations: vi.fn().mockResolvedValue([]), getQuickReplies: vi.fn().mockResolvedValue([]),
   getCampaignMaturationStats: vi.fn().mockResolvedValue({}), generateCampaignAI: vi.fn().mockResolvedValue(null), createQuickReply: vi.fn(),
-} }));
+}, requestApiEndpoint: vi.fn().mockResolvedValue({ items: [] }) }));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let root: Root; let container: HTMLDivElement;
 beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container); });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
 async function render(element: ReactNode, path: string) { await act(async () => root.render(<MemoryRouter initialEntries={[path]}>{element}</MemoryRouter>)); }
+async function renderWithState(element: ReactNode, path: string, routeState: unknown) {
+  await act(async () => root.render(<MemoryRouter initialEntries={[{ pathname: path, state: routeState }]}>{element}</MemoryRouter>));
+}
 function dashboard(notes?: string) {
   return createDashboardLovableViewModel({ conversations: [{ id: '1', phone: '5511999990000', notes } as Conversation], metrics: null, sessions: [], runtimeStatus: 'offline', sessionState: 'offline' });
 }
@@ -118,6 +121,14 @@ describe('Páginas com dados de produção', () => {
     expect(apiService.createQuickReply).not.toHaveBeenCalled();
     expect(notify.error).toHaveBeenCalled();
     expect(notify.success).not.toHaveBeenCalled();
+  });
+  it('abre nova campanha com contatos recebidos da revisão de reativações pré-selecionados', async () => {
+    state.contacts = [{ id: 'contact-1', name: 'Maria Silva', phone: '5511999990000', status: '' }];
+    await renderWithState(<Campaigns />, '/campaigns', {
+      reactivationContacts: [{ id: 'contact-1', name: 'Maria Silva', phone: '5511999990000' }],
+    });
+    expect(document.body.textContent).toContain('Maria Silva');
+    expect(document.body.textContent).toContain('1 Leads Selecionados');
   });
   it('traduz rótulos conhecidos sem modificar valores e nomes personalizados', () => {
     expect(businessLabel('Open')).toBe('Em atendimento');

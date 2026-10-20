@@ -357,7 +357,8 @@ async function loadRealtimeHistory({ io, session, sock }) {
 
 async function isAIReplyStillAllowed({ chatId, conversationId, session }) {
   const tenantId = session?.companyId;
-  if (!(await getAutomationPermission({ companyId: tenantId, sessionId: session?.sessionId, phone: chatId })).allowed || session?.systemConnected === false) {
+  if (!(await getAutomationPermission({ companyId: tenantId, sessionId: session?.sessionId, phone: chatId })).allowed
+    || session?.systemConnected === false || session?.automationPaused === true) {
     return false;
   }
 
@@ -415,7 +416,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, i
   }
 
   // (b) session systemConnected is OFF
-  if (session && session.systemConnected === false) {
+  if (session && (session.systemConnected === false || session.automationPaused === true)) {
     console.log(`[WHATSAPP_AI] Session ${session.sessionId || 'unknown'} is not enabled for AI. Short-circuiting response for ${chatId}.`);
     return null;
   }
@@ -1286,7 +1287,16 @@ async function createStableSession({
     return originalSend.call(sock, node);
   };
 
+  let automationPaused = true;
+  try {
+    automationPaused = await require('../../../src/data/repositories/sessionRepository')
+      .getAutomationPaused(normalizedSessionName, historyOwner);
+  } catch (error) {
+    console.error(`[WHATSAPP] Could not read automation pause for ${normalizedSessionName}; keeping automations paused:`, error?.message || error);
+  }
+
   const session = {
+    automationPaused,
     authState: state,
     displayName: displayName || normalizedSessionName,
     generation: Number(generation || 0),
@@ -1620,6 +1630,8 @@ async function createStableSession({
     }
 
     if (connection === 'close') {
+      session.status = 'disconnected';
+      await require('../../sessionManager').pauseSessionAutomations(session);
       if (session.bufferFlushInterval) {
         clearInterval(session.bufferFlushInterval);
         session.bufferFlushInterval = null;

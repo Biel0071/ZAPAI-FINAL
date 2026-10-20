@@ -307,6 +307,8 @@ async function disposeSession(sessionName, options = {}) {
   }
 
   if (session) {
+    session.status = 'disconnected';
+    await pauseSessionAutomations(session);
     session.isDisposed = true;
     session.status = 'disconnected';
     await closeSocket(session, { logout: options.logout === true });
@@ -652,6 +654,54 @@ async function logoutSession(name = DEFAULT_SESSION) {
   return true;
 }
 
+async function pauseSessionAutomations(session) {
+  let companyId = session?.companyId;
+  const sessionId = session?.sessionId || session?.id;
+  if (!sessionId) return;
+  if (!companyId) {
+    try {
+      const { rows } = await require('../src/infrastructure/config/database').query(
+        'SELECT company_id FROM sessions WHERE session_id = $1 LIMIT 1', [sessionId]
+      );
+      companyId = rows[0]?.company_id || null;
+    } catch (_) {}
+  }
+  if (!companyId) return;
+  session.automationPaused = true;
+  try {
+    await sessionRepository.setAutomationPaused(sessionId, companyId, true);
+  } catch (error) {
+    console.error(`[WHATSAPP] Failed to persist automation pause for ${sessionId}:`, error?.message || error);
+  }
+  try {
+    const queue = require('./outboundQueueService');
+    await queue.pauseSessionItems({ companyId, sessionId });
+  } catch (error) {
+    console.error(`[WHATSAPP] Failed to pause outbound items for ${sessionId}:`, error?.message || error);
+  }
+  try {
+    const campaigns = require('./campaignDispatchEngine');
+    await campaigns.pauseSessionCampaigns({ companyId, sessionId });
+  } catch (error) {
+    console.error(`[WHATSAPP] Failed to pause campaigns for ${sessionId}:`, error?.message || error);
+  }
+}
+
+async function setSessionAutomationPaused(sessionName, paused, companyId) {
+  const normalizedName = normalizeSessionName(sessionName);
+  const session = getSession(normalizedName);
+  const owner = companyId || session?.companyId;
+  if (!owner) throw new Error('Company context is required to update session automation state.');
+  const persisted = await sessionRepository.setAutomationPaused(normalizedName, owner, paused);
+  if (!persisted) throw new Error('Session not found for this company.');
+  if (session) {
+    session.automationPaused = Boolean(paused);
+    session.updatedAt = new Date().toISOString();
+    setSession(normalizedName, session);
+  }
+  return Boolean(paused);
+}
+
 async function restoreSessions() {
   const restoredSessions = [];
   const storedSessions = await listStoredSessionNames();
@@ -950,6 +1000,7 @@ module.exports = {
   isRuntimeActive,
   listSessions,
   logoutSession,
+  pauseSessionAutomations,
   normalizeSessionName,
   reconcileSessions,
   removeSession,
@@ -960,6 +1011,7 @@ module.exports = {
   sessions,
   setLatestQr,
   setSessionSystemConnection,
+  setSessionAutomationPaused,
   setRuntimeActive,
   setSession,
   startSession,

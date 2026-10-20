@@ -142,10 +142,10 @@ async function processMessage({ payload, conversation, store, sock, sessionId })
 
   // (b) session systemConnection is OFF
   const session = sessionManager.getSession(sessionId);
-  if (!session || session.companyId !== companyId || session.systemConnected === false) {
+  if (!session || session.companyId !== companyId || session.systemConnected === false || session.automationPaused === true) {
     console.log(`[AutomationEngine] Session/Line ${sessionId} is not enabled for AI. Short-circuiting response for ${phone}.`);
     publishProgress('disabled', { message: 'IA desativada nesta conexao do WhatsApp.' });
-    return { success: false, reason: 'session_ai_disabled' };
+    return { success: false, reason: session?.automationPaused ? 'session_automation_paused' : 'session_ai_disabled' };
   }
 
   // (c) human takeover / conversation AI OFF (authoritative DB + runtime pause)

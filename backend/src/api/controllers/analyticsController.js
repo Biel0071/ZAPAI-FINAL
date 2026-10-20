@@ -2,6 +2,9 @@ const analyticsService = require('../../../services/analyticsService');
 const metricsTracker = require('../../../services/metricsTracker');
 const { getCompanyId } = require('../../../services/tenantContext');
 
+const rangeMetricsCache = new Map();
+const RANGE_METRICS_TTL_MS = 10_000;
+
 function getStore(req) {
   return req.app.locals.store;
 }
@@ -28,6 +31,13 @@ async function getMetrics(req, res) {
       if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start > end) {
         return res.status(400).json({ error: 'Período inválido.' });
       }
+      const cacheKey = `${companyId}:${sessionId || '*'}:${start.toISOString()}:${end.toISOString()}`;
+      const isForced = req.query.force === 'true' || req.query.force === '1';
+      const cached = rangeMetricsCache.get(cacheKey);
+      if (!isForced && cached && (Date.now() - cached.timestamp < RANGE_METRICS_TTL_MS)) {
+        return res.json(cached.payload);
+      }
+
       const { pool } = require('../../infrastructure/config/database');
       if (sessionId) {
         const owned = await pool.query('SELECT 1 FROM sessions WHERE company_id=$1 AND session_id=$2 AND status<>\'deleted\'', [companyId, sessionId]);
@@ -55,7 +65,7 @@ async function getMetrics(req, res) {
           aiMemories = Number(fallbackRes?.rows?.[0]?.count ?? 0);
         } catch { /* ignore */ }
       }
-      return res.json({
+      const payload = {
         messagesToday: messages.messages,
         messages: messages.messages,
         aiResponses: messages.ai_responses,
@@ -66,11 +76,18 @@ async function getMetrics(req, res) {
         sessions: connectedRows.rows[0].sessions,
         aiMemories,
         generatedAt: new Date().toISOString(),
-      });
+      };
+      rangeMetricsCache.set(cacheKey, { payload, timestamp: Date.now() });
+      if (rangeMetricsCache.size > 200) {
+        const oldest = rangeMetricsCache.keys().next().value;
+        if (oldest) rangeMetricsCache.delete(oldest);
+      }
+      return res.json(payload);
     }
+    const isForced = req.query.force === 'true' || req.query.force === '1';
     const snapshot = await metricsTracker.recalcMetricsFromDB(store, {
       companyId,
-      force: true,
+      force: isForced,
       sessionId,
     });
     let aiMemories = 0;

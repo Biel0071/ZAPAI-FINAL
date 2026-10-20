@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect, useMemo, memo } from "react";
 import { Check, ChatCircleDots, Star, CaretRight, Plus, Trash } from "@phosphor-icons/react";
 import { List } from "react-window";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
@@ -53,7 +53,7 @@ interface ChatListPanelProps {
 const BUSINESS_TAG_OPTIONS = ["Novo Lead", "Cliente", "Orçamento", "Venda", "Suporte", "VIP", "Urgente"] as const;
 const CONVERSATION_ROW_HEIGHT = 72;
 
-export function ChatListPanel({
+export const ChatListPanel = memo(function ChatListPanel({
   searchQuery,
   setSearchQuery,
   isMultiSelectMode,
@@ -495,4 +495,4 @@ export function ChatListPanel({
       )}
     </div>
   );
-}
+});

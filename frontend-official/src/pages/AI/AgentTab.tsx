@@ -50,6 +50,7 @@ import {
   History,
   MessageSquare,
   ArrowUpRight,
+  Smartphone,
 } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { apiService, requestApiEndpoint, type AIConnectionTestResult } from "@/core/services/apiService";
@@ -631,33 +632,67 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
   ------------------------------------------------------------- */
   const renderWorkspaceSection = () => (
     <Card className="bg-card border-border/80 shadow-md overflow-hidden animate-in fade-in duration-200">
-      <div className="p-3 border-b border-border/40 flex items-center justify-between bg-muted/10 gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Bot className="h-4 w-4 text-emerald-400 shrink-0" />
-          <span className="text-xs font-bold text-foreground truncate">Ambiente Virtual & Atendente 3D ({activeWorkspaceAgent.name})</span>
-          <Badge variant="outline" className={cn("text-[10px] py-0 shrink-0", aiEnabled ? "text-emerald-400 border-emerald-500/30" : "text-muted-foreground")}>
-            {aiEnabled ? "Online" : "Pausado"}
-          </Badge>
+      <div className="p-3.5 sm:p-4 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between bg-muted/10 gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative shrink-0">
+            <div className="w-10 h-10 rounded-xl overflow-hidden bg-primary/10 border border-primary/30 flex items-center justify-center shadow-inner">
+              <img
+                src={
+                  activeWorkspaceAgent?.avatarUrl ||
+                  (activeWorkspaceAgent?.avatarConfig?.catalogSpriteId
+                    ? `/assets/avatar_factory/catalog/${activeWorkspaceAgent?.avatarConfig?.catalogSpriteId}_clean.png`
+                    : "/assets/avatar_factory/catalog/sprite_r2_c1_clean.png")
+                }
+                alt={activeWorkspaceAgent.name}
+                className="w-full h-full object-cover object-top"
+              />
+            </div>
+            <span className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background", aiEnabled ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/50")} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-display font-bold text-sm sm:text-base text-foreground truncate">{activeWorkspaceAgent.name}</span>
+              <Badge variant="outline" className={cn("text-[10px] py-0 shrink-0 font-bold", aiEnabled ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" : "text-muted-foreground")}>
+                {aiEnabled ? "Atendente Online" : "Atendente Pausada"}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground truncate">
+              {activeWorkspaceAgent.role || "Especialista em Vendas & Orçamentos"} • {activeWorkspaceAgent.storeName || "Depósito Mais • Matriz"}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setAvatarEditorOpen(true)}
-            className="h-7 text-[11px] px-2.5 rounded-lg gap-1 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-semibold"
-            title="Abrir Avatar Studio para personalizar roupas, corpo, cabelo e loja DNA"
+            onClick={() => navigate(`/attendants?agent=${encodeURIComponent(activeWorkspaceAgent.key || activeWorkspaceAgent.id || 'camila')}`)}
+            className="h-8 text-xs px-3 rounded-xl gap-1.5 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-semibold shadow-sm"
+            title="Abrir o Avatar Studio e ambiente 3D oficial em Atendentes"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span>Avatar Studio</span>
+            <span>Avatar Studio 3D ↗</span>
           </Button>
+
+          <Button
+            type="button"
+            variant={aiEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => onToggleAI?.(!aiEnabled)}
+            className={cn("h-8 text-xs px-3 rounded-xl gap-1.5 font-semibold", aiEnabled ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "border-border/70 text-muted-foreground")}
+          >
+            <Bot className="h-3.5 w-3.5" />
+            <span>{aiEnabled ? "Pausar IA" : "Ativar IA"}</span>
+          </Button>
+
           {viewMode === "complete" && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => toggleCard("workspace")}
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
             >
               <ChevronDown className={cn("h-4 w-4 transition-transform", !collapsedCards.workspace && "rotate-180")} />
             </Button>
@@ -666,25 +701,31 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
       </div>
 
       {!collapsedCards.workspace && (
-        <AgentWorkspace
-          agent={activeWorkspaceAgent}
-          isOnline={aiEnabled ?? true}
-          onToggleOnline={onToggleAI}
-          runtimeState={runtimeState as any}
-          onRuntimeStateChange={(st) => setRuntimeState(st as AgentRuntimeState)}
-          agentMode={characterMode}
-          onToggleMode={(mode) => {
-            setCharacterMode(mode);
-            onSelectAgent?.(mode);
-          }}
-          onOpenCustomizer={(tab) => {
-            if (tab === "visual" || tab === "roupas" || tab === "acessorios" || tab === "cenario") {
-              setAvatarEditorOpen(true);
-            } else {
-              onOpenCustomizer?.(activeWorkspaceAgent);
-            }
-          }}
-        />
+        <CardContent className="p-4 sm:p-5 bg-background/30 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="rounded-xl border border-border/60 bg-card/60 p-3 space-y-1">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Canal Principal</span>
+              <span className="font-semibold text-foreground flex items-center gap-1.5">
+                <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                WhatsApp Conectado
+              </span>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-card/60 p-3 space-y-1">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Modelo Cognitivo</span>
+              <span className="font-semibold text-foreground flex items-center gap-1.5">
+                <Cpu className="w-3.5 h-3.5 text-primary" />
+                OpenAI GPT-4o / Claude
+              </span>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-card/60 p-3 space-y-1">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Estado Operacional</span>
+              <span className="font-mono font-bold text-emerald-400 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                {runtimeState === "WORKING" ? "Operando no PC" : runtimeState === "TALKING" ? "Em conversa" : "Pronta para atendimento"}
+              </span>
+            </div>
+          </div>
+        </CardContent>
       )}
     </Card>
   );

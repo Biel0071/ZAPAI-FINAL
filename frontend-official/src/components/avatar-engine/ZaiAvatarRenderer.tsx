@@ -330,7 +330,8 @@ function ModularLayerAvatar({
   const profileDir = sinA >= 0 ? 1 : -1;
   const turnShiftX = Math.round(sinA * 4.2 * 10) / 10;
   const baseScaleMag = Math.round((0.84 + 0.16 * Math.abs(cosA)) * 100) / 100;
-  const turnScaleX = (sinA < -0.05 ? -1 : 1) * (isBackView ? 1 : baseScaleMag);
+  // Tripo3D orbit: Keep perspective foreshortening positive to prevent horizontal text mirroring (e.g. tablet ZAI turning into IAS)
+  const turnScaleX = isBackView ? 1 : baseScaleMag;
 
   // Resolve Hair Style & Palette
   const hairId = avatar.hair || (isFemale ? "hair_01" : "hair_05");
@@ -837,20 +838,10 @@ function ModularLayerAvatar({
             )}
           </g>
 
-          {/* ── CHIBI LAYER G: STORE BRANDING PIN ────────────────────── */}
+          {/* ── CHIBI LAYER G: STORE BRANDING PIN (pristine collar with zero floating artifacts) ── */}
           {showBrandingLayer && !isBackView && (
-            <g id="layer-branding">
-              <rect
-                x="78"
-                y="107"
-                width="8"
-                height="4.5"
-                rx="1"
-                fill={branding.secondaryColor || "#0f172a"}
-                stroke={primaryBrandColor}
-                strokeWidth="0.8"
-              />
-              <circle cx="80.5" cy="109.2" r="1" fill={primaryBrandColor} />
+            <g id="layer-branding" opacity="0">
+              <circle cx="80" cy="108" r="1.2" fill={primaryBrandColor} />
             </g>
           )}
 

@@ -692,7 +692,12 @@ function isCacheableGetEndpoint(endpoint: string): boolean {
     endpoint.includes("/session-status") ||
     endpoint.includes("/sessions") ||
     endpoint.includes("/stickers") ||
-    endpoint.includes("/agents")
+    endpoint.includes("/agents") ||
+    endpoint.includes("/metrics") ||
+    endpoint.includes("/ai/status") ||
+    endpoint.includes("/ai/metrics") ||
+    endpoint.includes("/quick-replies") ||
+    endpoint.includes("/tags")
   );
 }
 

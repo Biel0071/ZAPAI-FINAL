@@ -19,6 +19,7 @@ function mapSession(row) {
     sessionName: row.session_name || row.session_id,
     whatsappName: row.whatsapp_name || null,
     status: row.status,
+    automationPaused: row.automation_paused === true,
   };
 }
 
@@ -96,8 +97,26 @@ async function updateSessionStatus(sessionId, status, phoneNumber = null, compan
   });
 }
 
+async function getAutomationPaused(sessionId, companyId) {
+  const result = await query(
+    'SELECT automation_paused FROM sessions WHERE session_id = $1 AND company_id = $2 LIMIT 1',
+    [sessionId, getCompanyId(companyId)]
+  );
+  return result.rows[0]?.automation_paused === true;
+}
+
+async function setAutomationPaused(sessionId, companyId, paused) {
+  const result = await query(
+    'UPDATE sessions SET automation_paused = $3 WHERE session_id = $1 AND company_id = $2 RETURNING session_id',
+    [sessionId, getCompanyId(companyId), Boolean(paused)]
+  );
+  return result.rowCount > 0;
+}
+
 module.exports = {
   createSession,
   getSessions,
+  getAutomationPaused,
+  setAutomationPaused,
   updateSessionStatus,
 };

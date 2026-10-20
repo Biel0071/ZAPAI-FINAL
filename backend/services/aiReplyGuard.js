@@ -48,7 +48,12 @@ async function getAutomatedReplyPermission(item, dependencies = {}) {
   if (session?.systemConnected === false) {
     return { allowed: false, reason: 'session_ai_disabled' };
   }
-
+  if (session?.automationPaused === true && item?.sessionResumeApproved !== true) {
+    return { allowed: false, reason: 'session_automation_paused' };
+  }
+  if (!session?.sock || String(session.status || '').toLowerCase() !== 'connected') {
+    return { allowed: false, reason: 'session_disconnected' };
+  }
   if (!conversation) {
     return { allowed: false, reason: 'conversation_not_found' };
   }

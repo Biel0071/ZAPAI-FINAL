@@ -513,7 +513,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                       size="workspace"
                       showAura={true}
                       showStatusBadge={false}
-                      showBrandingLayer={true}
+                      showBrandingLayer={false}
                       rotationY={rotationY}
                       movement3D={movement3D}
                     />

@@ -1,5 +1,42 @@
 # ZapFlow API Reference - All Endpoints
 
+## Outbound Automation Safety
+
+### GET /api/outbound-queue/session/:sessionId/automations
+
+Lista as tarefas da fila, contatos de campanhas e follow-ups elegíveis que ficaram pendentes para uma sessão. A lista é agrupada por telefone e inclui `sources`, `campaignStates`, `attempts` (tentativas da fila) e `followupsSent` (follow-ups já enviados). Requer empresa autenticada, sessão pertencente à empresa e WhatsApp conectado.
+
+**Response (200):** `{ "items": [{ "id": "5511999999999", "contactId": "5511999999999", "phone": "5511999999999", "name": "Contato", "sources": ["Fila", "Campanha", "Follow-up IA"], "campaignStates": ["Campanha · paused"], "attempts": 2, "followupsSent": 1 }], "sessionPaused": true }`
+
+### POST /api/outbound-queue/session/:sessionId/automations/action
+
+Retoma ou cancela as pendências de um telefone específico. `resume` libera somente o contato escolhido e mantém a pausa global para os demais; `cancel` impede novos disparos das pendências daquele contato. Requer sessão conectada e pertencente à empresa autenticada.
+
+```http
+POST /api/outbound-queue/session/main/automations/action
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "action": "resume", "contactId": "5511999999999" }
+```
+
+**Status codes:** `400` ação/telefone inválidos; `401` sem empresa autenticada; `404` sessão ou contato sem pendências; `409` sessão desconectada; `500` falha ao atualizar.
+
+No fluxo de conexões, “Iniciar nova campanha” abre o compositor com os contatos selecionados pré-carregados; a campanha só é enviada após criação explícita. A tela também oferece retomada global como ação separada.
+
+### POST /api/outbound-queue/session/:sessionId/resume
+
+Reativa manualmente as automações do número, os itens da fila outbound e as campanhas pausadas por uma desconexão. Requer autenticação da empresa proprietária da sessão e uma sessão WhatsApp atualmente conectada. Itens e campanhas pausados manualmente permanecem pausados.
+
+**Response (200):** `{ "resumed": { "queueItems": 3, "campaigns": 1 } }`
+
+**Status codes:** `401` sem empresa autenticada; `404` sessão não vinculada à empresa; `409` sessão desconectada; `500` falha ao reativar.
+
+```http
+POST /api/outbound-queue/session/main/resume
+Authorization: Bearer <token>
+```
+
 ## Runtime Management Endpoints (New)
 
 ### GET /system/runtime/status

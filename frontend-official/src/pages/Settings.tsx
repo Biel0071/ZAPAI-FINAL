@@ -77,6 +77,8 @@ export default function Settings() {
   const settingsViewModel = useMemo(() => createSettingsLovableViewModel(), []);
   const tabParam = searchParams.get("tab") || searchParams.get("section");
 
+  const isMasterIndex = (idx: number) => idx >= 8;
+
   const [activeSection, setActiveSection] = useState<number>(() => {
     if (tabParam) {
       const found = settingsViewModel.sections.findIndex((s) => s.id === tabParam);
@@ -85,11 +87,22 @@ export default function Settings() {
     return 0;
   });
 
+  const [settingsMode, setSettingsMode] = useState<"user" | "master">(() => {
+    if (tabParam) {
+      const found = settingsViewModel.sections.findIndex((s) => s.id === tabParam);
+      if (found !== -1 && isMasterIndex(found)) return "master";
+    }
+    return "user";
+  });
+
   useEffect(() => {
     if (tabParam) {
       const found = settingsViewModel.sections.findIndex((s) => s.id === tabParam);
-      if (found !== -1 && found !== activeSection) {
-        setActiveSection(found);
+      if (found !== -1) {
+        if (found !== activeSection) {
+          setActiveSection(found);
+        }
+        setSettingsMode(isMasterIndex(found) ? "master" : "user");
       }
     }
   }, [tabParam, settingsViewModel.sections, activeSection]);
@@ -496,20 +509,41 @@ export default function Settings() {
     19: Robot
   }), []);
 
-  const navGroups = useMemo(() => [
+  const userNavGroups = useMemo(() => [
     {
-      title: "Geral",
-      indices: [0, 19, 1, 2, 3, 4, 5],
+      title: "Minha Conta",
+      indices: [0, 3, 4], // Perfil, Notificações, Segurança
     },
     {
-      title: "Preferências & Chaves",
-      indices: [6, 7, 8, 9, 10],
+      title: "Minha Empresa & Loja",
+      indices: [1, 2, 5], // Empresa, Equipe, Faturamento
     },
     {
-      title: "Sistema & Operações",
-      indices: [11, 12, 13, 14, 15, 16, 17, 18],
+      title: "Preferências & Visual",
+      indices: [6, 7], // Aparência, Idioma
     },
   ], []);
+
+  const masterNavGroups = useMemo(() => [
+    {
+      title: "Cluster & Mensageria",
+      indices: [12, 11, 14, 15], // Cluster Nodes, Fila de Envios, Deployments, Versões
+    },
+    {
+      title: "Auditoria & Acessos",
+      indices: [16, 13], // Logs, Usuários Master
+    },
+    {
+      title: "Integrações & Dados",
+      indices: [8, 9, 10], // API Keys, Webhooks, Dados
+    },
+    {
+      title: "Diagnóstico & IA Sistema",
+      indices: [18, 17, 19], // Diagnósticos, Central de Testes, Assistente ZAI
+    },
+  ], []);
+
+  const navGroups = settingsMode === "user" ? userNavGroups : masterNavGroups;
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
@@ -532,7 +566,57 @@ export default function Settings() {
         }
       />
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-4 sm:p-6 max-w-7xl mx-auto w-full">
+        {/* Top Segmented Mode Switcher: Usuário Normal / Loja vs Admin Master Enterprise */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 rounded-2xl border border-border/70 bg-card/60 backdrop-blur-md shadow-sm">
+          <div className="grid grid-cols-2 gap-1.5 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => {
+                setSettingsMode("user");
+                if (activeSection >= 8) {
+                  handleSectionChange(0);
+                }
+              }}
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
+                settingsMode === "user"
+                  ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              )}
+            >
+              <User className="w-3.5 h-3.5" weight={settingsMode === "user" ? "fill" : "regular"} />
+              <span>👤 Conta & Loja</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSettingsMode("master");
+                if (activeSection < 8) {
+                  handleSectionChange(12);
+                }
+              }}
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
+                settingsMode === "master"
+                  ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              )}
+            >
+              <Shield className="w-3.5 h-3.5" weight={settingsMode === "master" ? "fill" : "regular"} />
+              <span>🛡️ Painel Master Enterprise</span>
+            </button>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground pr-3 font-medium">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-mono text-[10.5px]">ZAI Enterprise OS v2.6.4</span>
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-border/70 text-muted-foreground">
+              {settingsMode === "user" ? "Operador Comercial" : "Cluster & DevOps"}
+            </Badge>
+          </div>
+        </div>
         <SettingsView
           navigation={
             <div className="w-full">

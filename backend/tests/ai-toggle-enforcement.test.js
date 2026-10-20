@@ -20,11 +20,12 @@ const aiItem = {
     conversationId: 'conversation-ai-toggle-test',
   },
 };
+const connectedSessionManager = { getSession: () => ({ sock: {}, status: 'connected' }) };
 
 test('blocks a queued AI reply when the backend conversation toggle is off', async () => {
   const permission = await getAutomatedReplyPermission(aiItem, {
     isAIEnabled: () => true,
-    sessionManager: { getSession: () => null },
+    sessionManager: connectedSessionManager,
     conversationRepository: {
       getConversationById: async () => ({ aiEnabled: false, companyId: 'default', sessionId: 'main' }),
       getConversationByPhone: async () => null,
@@ -37,7 +38,7 @@ test('blocks a queued AI reply when the backend conversation toggle is off', asy
 test('allows a queued AI reply only after the backend confirms it is enabled', async () => {
   const permission = await getAutomatedReplyPermission(aiItem, {
     isAIEnabled: () => true,
-    sessionManager: { getSession: () => null },
+    sessionManager: connectedSessionManager,
     conversationRepository: {
       getConversationById: async () => ({ aiEnabled: true, companyId: 'default', sessionId: 'main' }),
       getConversationByPhone: async () => null,
@@ -47,6 +48,30 @@ test('allows a queued AI reply only after the backend confirms it is enabled', a
   assert.deepEqual(permission, { allowed: true, reason: 'ai_enabled' });
 });
 
+test('blocks queued AI replies while their WhatsApp session is disconnected', async () => {
+  const permission = await getAutomatedReplyPermission(aiItem, {
+    isAIEnabled: () => true,
+    sessionManager: { getSession: () => ({ sock: null, status: 'disconnected' }) },
+    conversationRepository: {
+      getConversationById: async () => ({ aiEnabled: true, companyId: 'default', sessionId: 'main' }),
+      getConversationByPhone: async () => null,
+    },
+  });
+  assert.deepEqual(permission, { allowed: false, reason: 'session_disconnected' });
+});
+
+test('keeps queued AI replies blocked after a session reconnects until automations are reactivated', async () => {
+  const permission = await getAutomatedReplyPermission(aiItem, {
+    isAIEnabled: () => true,
+    sessionManager: { getSession: () => ({ sock: {}, status: 'connected', automationPaused: true }) },
+    conversationRepository: {
+      getConversationById: async () => ({ aiEnabled: true, companyId: 'default', sessionId: 'main' }),
+      getConversationByPhone: async () => null,
+    },
+  });
+  assert.deepEqual(permission, { allowed: false, reason: 'session_automation_paused' });
+});
+
 test('checks the queued AI toggle for the item tenant', async () => {
   let checkedTenant = null;
   const permission = await getAutomatedReplyPermission({ ...aiItem, companyId: 'store-42' }, {
@@ -54,7 +79,7 @@ test('checks the queued AI toggle for the item tenant', async () => {
       checkedTenant = tenantId;
       return true;
     },
-    sessionManager: { getSession: () => null },
+    sessionManager: connectedSessionManager,
     conversationRepository: {
       getConversationById: async () => ({ aiEnabled: true, companyId: 'store-42', sessionId: 'main' }),
       getConversationByPhone: async () => null,
@@ -67,7 +92,7 @@ test('checks the queued AI toggle for the item tenant', async () => {
 test('fails closed when the AI toggle cannot be verified', async () => {
   const permission = await getAutomatedReplyPermission(aiItem, {
     isAIEnabled: () => true,
-    sessionManager: { getSession: () => null },
+    sessionManager: connectedSessionManager,
     conversationRepository: {
       getConversationById: async () => { throw new Error('database unavailable'); },
       getConversationByPhone: async () => null,
@@ -124,7 +149,7 @@ test('uses a 24 hour human takeover pause and releases it after expiry', () => {
 
 test('denies an AI reply if saved conversation belongs to another company or connection', async () => {
   for (const conversation of [{companyId:'other',sessionId:'main'}, {companyId:'default',sessionId:'other'}]) {
-    const result=await getAutomatedReplyPermission(aiItem,{isAIEnabled:()=>true,sessionManager:{getSession:()=>null},conversationRepository:{getConversationById:async (id,companyId)=>{assert.equal(companyId,'default');return {...conversation,aiEnabled:true}},getConversationByPhone:async()=>null}});
+  const result=await getAutomatedReplyPermission(aiItem,{isAIEnabled:()=>true,sessionManager:connectedSessionManager,conversationRepository:{getConversationById:async (id,companyId)=>{assert.equal(companyId,'default');return {...conversation,aiEnabled:true}},getConversationByPhone:async()=>null}});
     assert.equal(result.allowed,false);assert.equal(result.reason,'conversation_context_mismatch');
   }
 });

@@ -208,10 +208,15 @@ const FOLLOWUP_DEDUP_WINDOW_MS = 60 * 1000;
  * Deactivates follow-up for a conversation, setting tags 'followup_esgotado' and 'followup_desativado'
  * and removing 'followup_ia_ativo'.
  */
-async function deactivateFollowupForConversation(conversationId, reason = 'auto_deactivated') {
+async function deactivateFollowupForConversation(conversationId, reason = 'auto_deactivated', context = {}) {
   if (!conversationId) return { ok: false };
   try {
-    const { rows } = await query(`SELECT tags FROM conversations WHERE id = $1`, [conversationId]);
+    const { rows } = await query(
+      `SELECT tags FROM conversations WHERE id = $1
+       AND ($2::text IS NULL OR company_id = $2)
+       AND ($3::text IS NULL OR session_id = $3)`,
+      [conversationId, context.companyId || null, context.sessionId || null]
+    );
     const currentTags = Array.isArray(rows[0]?.tags) ? rows[0].tags : [];
     const nextTags = Array.from(
       new Set([
@@ -226,8 +231,10 @@ async function deactivateFollowupForConversation(conversationId, reason = 'auto_
          SET tags = $2::text[],
              ai_last_followup_at = NOW(),
              updated_at = NOW()
-         WHERE id = $1`,
-        [conversationId, nextTags]
+         WHERE id = $1
+           AND ($3::text IS NULL OR company_id = $3)
+           AND ($4::text IS NULL OR session_id = $4)`,
+        [conversationId, nextTags, context.companyId || null, context.sessionId || null]
       );
     } catch (updateErr) {
       if (updateErr.message && updateErr.message.includes('ai_last_followup_at')) {
@@ -235,8 +242,10 @@ async function deactivateFollowupForConversation(conversationId, reason = 'auto_
           `UPDATE conversations
            SET tags = $2::text[],
                updated_at = NOW()
-           WHERE id = $1`,
-          [conversationId, nextTags]
+           WHERE id = $1
+             AND ($3::text IS NULL OR company_id = $3)
+             AND ($4::text IS NULL OR session_id = $4)`,
+          [conversationId, nextTags, context.companyId || null, context.sessionId || null]
         );
       } else {
         throw updateErr;
@@ -283,7 +292,7 @@ async function resetFollowupOnCustomerResponse(conversationId) {
  * Respects progressive touches (Attempt 1: check-in, Attempt 2: value/freight/payment, Attempt 3: soft closing)
  * and strictly caps at 3 attempts maximum, automatically deactivating on attempt 3 exhaustion.
  */
-async function executeAlgorithmicFollowupForLead({ conversationId, companyId = 'default', sessionId = null, attempt = null }) {
+async function executeAlgorithmicFollowupForLead({ conversationId, companyId = 'default', sessionId = null, attempt = null, allowSessionResume = false }) {
   const { conversation, history, leadAlgorithm } = await loadConversationWithHistory({
     conversationId,
     companyId,
@@ -291,6 +300,14 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
 
   if (!conversation) {
     return { ok: false, reason: 'conversation_not_found' };
+  }
+
+  const sessionManager = require('./sessionManager');
+  const session = sessionManager.getSession(sessionId || conversation.session_id);
+  if (!session?.sock || String(session.status || '').toLowerCase() !== 'connected'
+    || session.systemConnected === false || (session.automationPaused === true && allowSessionResume !== true)
+    || (session.companyId && String(session.companyId) !== String(companyId))) {
+    return { ok: false, skipped: true, reason: 'session_disconnected' };
   }
 
   // Count consecutive agent/bot messages without customer reply
@@ -446,7 +463,7 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
   const typingMs = Math.floor(Math.random() * (11000 - 6000 + 1)) + 6000;
   const dateKey = new Date().toISOString().slice(0, 13);
 
-  const queueResult = await outboundQueueService.enqueue({
+  const queuePayload = {
     companyId: conversation.company_id || companyId,
     phone: targetJid,
     sessionId: resolvedSessionId,
@@ -464,7 +481,10 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
       conversationStyle: leadAlgorithm.conversationStyle,
       source: 'ai_followup',
     },
-  });
+  };
+  const queueResult = allowSessionResume === true
+    ? await outboundQueueService.enqueueReviewed(queuePayload)
+    : await outboundQueueService.enqueue(queuePayload);
 
   return {
     ok: true,
@@ -478,6 +498,36 @@ async function executeAlgorithmicFollowupForLead({ conversationId, companyId = '
   };
 }
 
+async function listSessionFollowups({ companyId, sessionId }) {
+  if (!companyId || !sessionId) return [];
+  const { rows } = await query(
+    `SELECT c.id, c.remote_jid, COALESCE(l.phone, c.remote_jid) AS phone,
+            COALESCE(NULLIF(l.name, ''), 'Cliente') AS name, c.tags
+     FROM conversations c
+     LEFT JOIN leads l ON l.id = c.lead_id
+     WHERE c.company_id = $1 AND c.session_id = $2
+       AND c.status = 'open' AND c.ai_enabled = true
+       AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte', 'aguardando_pix', 'finalizado', 'pago', 'concluido', 'pedido_confirmado', 'won')
+       AND NOT ('followup_esgotado' = ANY(COALESCE(c.tags, '{}')))
+       AND NOT ('followup_desativado' = ANY(COALESCE(c.tags, '{}')))
+       AND c.updated_at < NOW() - INTERVAL '2 hours'
+       AND c.updated_at > NOW() - INTERVAL '14 days'
+       AND c.remote_jid NOT LIKE '%@g.us%'
+       AND c.remote_jid NOT LIKE '%@broadcast%'
+       AND c.remote_jid NOT LIKE '%status%'
+     ORDER BY c.updated_at DESC
+     LIMIT 500`,
+    [companyId, sessionId]
+  );
+  return rows.map((row) => {
+    const tags = Array.isArray(row.tags) ? row.tags : [];
+    const followupsSent = tags.includes('followup_toque_3') ? 3
+      : tags.includes('followup_toque_2') ? 2
+        : tags.includes('followup_toque_1') ? 1 : 0;
+    return { ...row, followupsSent };
+  });
+}
+
 module.exports = {
   generateFollowupPlan,
   generateRecoveryApproach,
@@ -485,4 +535,5 @@ module.exports = {
   deactivateFollowupForConversation,
   resetFollowupOnCustomerResponse,
   loadConversationWithHistory,
+  listSessionFollowups,
 };

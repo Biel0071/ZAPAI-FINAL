@@ -19,6 +19,7 @@ const sessionManager = require('./sessionManager');
 const backpressureController = require('./backpressureController');
 const whatsappService = require('./whatsappService');
 const conversationRepository = require('../src/data/repositories/conversationRepository');
+const { normalizePhone } = require('./whatsapp/shared/identifiers');
 
 const DEFAULT_COMPANY_ID = String(process.env.DEFAULT_COMPANY_ID || 'default').trim();
 
@@ -46,6 +47,10 @@ function normalizeCampaignDelayMs(val, fallbackMs) {
   if (!Number.isFinite(num) || num <= 0) return fallbackMs;
   if (num <= 300) return Math.round(num * 1000);
   return Math.round(num);
+}
+
+function campaignContactKey(contact) {
+  return String(contact?.id || contact?.phone || contact?.remoteJid || contact || '');
 }
 
 function createCampaignState(campaign) {
@@ -110,9 +115,14 @@ function createCampaignState(campaign) {
   const queueData = campaign.queue || {};
   const sentContactIds = Array.isArray(queueData.sentContactIds) ? queueData.sentContactIds : [];
   const sentSet = new Set(sentContactIds.map(String));
+  const cancelledContactIds = Array.isArray(queueData.cancelledContactIds) ? queueData.cancelledContactIds.map(String) : [];
+  const cancelledSet = new Set(cancelledContactIds);
+  const sessionResumedContactIds = Array.isArray(queueData.sessionResumedContactIds) ? queueData.sessionResumedContactIds.map(String) : [];
+  const sessionResumedSet = new Set(sessionResumedContactIds);
   const pendingQueue = contacts.filter((c) => {
-    const key = String(c?.id || c?.phone || c?.remoteJid || c);
-    return !sentSet.has(key);
+    const key = campaignContactKey(c);
+    return !sentSet.has(key) && !cancelledSet.has(key)
+      && (queueData.pausedBySession !== true || sessionResumedSet.has(key));
   });
 
   return {
@@ -120,6 +130,9 @@ function createCampaignState(campaign) {
     name: campaign.name || 'Unnamed',
     status: 'queued',
     pendingQueue,
+    cancelledContactIds,
+    sessionResumedContactIds,
+    sessionPaused: queueData.pausedBySession === true,
     sentQueue: sentContactIds.map((id) => ({ contact: { id }, at: new Date().toISOString() })),
     failedQueue: [],
     retryQueue: [],
@@ -168,26 +181,25 @@ function createCampaignState(campaign) {
 
 // ─── Dispatch Logic ───
 
-function isCampaignSessionConnected(session) {
-  return Boolean(session?.sock && String(session.status || '').toLowerCase() === 'connected');
+function isCampaignSessionConnected(session, allowSessionPause = false) {
+  return Boolean(session?.sock && String(session.status || '').toLowerCase() === 'connected'
+    && session.systemConnected !== false && (session.automationPaused !== true || allowSessionPause));
 }
 
-function resolveCampaignSession(preferredSessionId) {
+function resolveCampaignSession(preferredSessionId, companyId, allowSessionPause = false) {
   const preferred = preferredSessionId ? sessionManager.getSession(preferredSessionId) : null;
-  if (isCampaignSessionConnected(preferred)) return preferred;
-
-  const fallbackDefault = sessionManager.getDefaultSession?.();
-  if (isCampaignSessionConnected(fallbackDefault)) return fallbackDefault;
+  const belongsToCompany = (session) => Boolean(session?.companyId && String(session.companyId) === String(companyId));
+  if (preferredSessionId) return isCampaignSessionConnected(preferred, allowSessionPause) && belongsToCompany(preferred) ? preferred : null;
 
   const connectedInfo = (sessionManager.listSessions?.() || []).find((session) =>
-    String(session?.status || '').toLowerCase() === 'connected',
+    String(session?.status || '').toLowerCase() === 'connected' && belongsToCompany(session),
   );
   if (connectedInfo) {
     const connected = sessionManager.getSession(connectedInfo.sessionId || connectedInfo.id);
-    if (isCampaignSessionConnected(connected)) return connected;
+    if (isCampaignSessionConnected(connected, allowSessionPause) && belongsToCompany(connected)) return connected;
   }
 
-  return preferred || fallbackDefault || null;
+  return null;
 }
 
 function getCampaignTypingDelay(state, messageContent = '') {
@@ -370,7 +382,11 @@ async function dispatchSingleMessage(state, contact, io) {
           },
           actions: step.actions,
         };
-        await outboundQueueService.enqueue(itemPayload);
+        if (state.allowSessionResume === true) {
+          await outboundQueueService.enqueueReviewed(itemPayload);
+        } else {
+          await outboundQueueService.enqueue(itemPayload);
+        }
       }
 
       const deliveryMs = 0;
@@ -417,7 +433,7 @@ async function dispatchSingleMessage(state, contact, io) {
 
   try {
     // Simulate typing delay
-    const session = resolveCampaignSession(state.sessionId);
+    const session = resolveCampaignSession(state.sessionId, state.companyId, state.allowSessionResume === true);
 
     if (!session?.sock) {
       contact._sessionRetries = (contact._sessionRetries || 0) + 1;
@@ -500,6 +516,23 @@ async function dispatchSingleMessage(state, contact, io) {
 
     const dynamicTypingMs = getCampaignTypingDelay(state, textToSend);
     await interruptibleSleep(dynamicTypingMs, state);
+    const currentSession = sessionManager.getSession(state.sessionId);
+    if (!currentSession?.sock || currentSession.sock !== session.sock
+      || String(currentSession.status || '').toLowerCase() !== 'connected'
+      || currentSession.systemConnected === false
+      || (currentSession.automationPaused === true && state.allowSessionResume !== true)
+      || String(currentSession.companyId || '') !== String(state.companyId || '')) {
+      throw new Error('WhatsApp session changed or disconnected before campaign delivery.');
+    }
+    const beforeSend = async () => {
+      const latestSession = sessionManager.getSession(state.sessionId);
+      const allowed = Boolean(latestSession?.sock === session.sock
+        && String(latestSession.status || '').toLowerCase() === 'connected'
+        && latestSession.systemConnected !== false
+        && (latestSession.automationPaused !== true || state.allowSessionResume === true)
+        && String(latestSession.companyId || '') === String(state.companyId || ''));
+      return { allowed, reason: allowed ? undefined : 'session_disconnected' };
+    };
     let sendResult;
     if (isMediaCampaignMessage(campaignMessage)) {
       const mediaType = normalizeCampaignMediaType(campaignMessage.type);
@@ -512,9 +545,10 @@ async function dispatchSingleMessage(state, contact, io) {
         fileName: campaignMessage.fileName || campaignMessage.filename,
         mimetype: campaignMessage.mimetype,
         ptt: campaignMessage.ptt === true,
+        beforeSend,
       });
     } else {
-      sendResult = await whatsappService.sendMessage(session.sock, jid, textToSend);
+      sendResult = await whatsappService.sendMessage(session.sock, jid, textToSend, { beforeSend });
     }
 
     // Persist outgoing campaign message to database and update conversation
@@ -659,7 +693,7 @@ function emitProgress(state, io) {
 async function persistProgress(state) {
   try {
     const sentContactIds = Array.isArray(state.sentQueue)
-      ? state.sentQueue.map(c => String(c.contact?.id || c.contact?.phone || c.contact?.remoteJid || c.phone || ''))
+      ? state.sentQueue.map(c => campaignContactKey(c.contact || c))
       : [];
     await campaignRepository.updateCampaign(state.id, {
       status: state.status,
@@ -669,7 +703,10 @@ async function persistProgress(state) {
         sent: state.metrics.sent,
         failed: state.metrics.failed,
         paused: state.status === 'paused',
+        pausedBySession: state.sessionPaused === true,
         sentContactIds,
+        cancelledContactIds: state.cancelledContactIds || [],
+        sessionResumedContactIds: state.sessionResumedContactIds || [],
       },
       startedAt: state.metrics.startedAt,
       completedAt: state.metrics.completedAt,
@@ -727,11 +764,16 @@ async function runDispatchLoop(state, io) {
 
     // Campaign completed
     if (state.pendingQueue.length === 0 && state.status === 'running') {
-      state.status = 'completed';
-      state.metrics.completedAt = new Date().toISOString();
+      if (state.pauseAfterApprovedContacts === true) {
+        state.status = 'paused';
+        state.sessionPaused = true;
+      } else {
+        state.status = 'completed';
+        state.metrics.completedAt = new Date().toISOString();
+      }
       await persistProgress(state);
       emitProgress(state, io);
-      console.log(`[CampaignEngine] Campaign ${state.id} completed: ${state.metrics.sent} sent, ${state.metrics.failed} failed`);
+      console.log(`[CampaignEngine] Campaign ${state.id} ${state.status}: ${state.metrics.sent} sent, ${state.metrics.failed} failed`);
     }
   } catch (err) {
     console.error(`[CampaignEngine] Dispatch loop error for ${state.id}:`, err?.message || err);
@@ -773,6 +815,9 @@ async function startCampaign(campaignId, companyId, io) {
   }
 
   const state = createCampaignState({ ...campaign, companyId });
+  const selectedSession = resolveCampaignSession(state.sessionId, companyId);
+  if (!selectedSession) throw new Error('No connected WhatsApp session is available for this company.');
+  state.sessionId = selectedSession.sessionId || selectedSession.id || selectedSession.name;
   state.status = 'running';
   state.metrics.startedAt = new Date().toISOString();
 
@@ -781,6 +826,7 @@ async function startCampaign(campaignId, companyId, io) {
   await campaignRepository.updateCampaign(campaignId, {
     status: 'running',
     startedAt: state.metrics.startedAt,
+    settings: { ...campaign.settings, sessionId: state.sessionId },
   }, companyId);
 
   console.log(`[CampaignEngine] Starting campaign ${campaignId}: ${state.pendingQueue.length} contacts`);
@@ -808,16 +854,169 @@ function pauseCampaign(campaignId, companyId) {
   const state = activeCampaigns.get(campaignId);
   if (!state || (companyId && state.companyId !== companyId)) return null;
   state.status = 'paused';
+  state.sessionPaused = false;
   persistProgress(state).catch(() => {});
   return getStatus(campaignId);
+}
+
+async function pauseSessionCampaigns({ companyId, sessionId }) {
+  if (!companyId || !sessionId) return 0;
+  let paused = 0;
+  for (const [campaignId, state] of activeCampaigns) {
+    if (String(state.companyId) !== String(companyId) || String(state.sessionId || 'main') !== String(sessionId)
+      || state.status !== 'running') continue;
+    state.status = 'paused';
+    state.sessionPaused = true;
+    state.allowSessionResume = false;
+    state.pauseAfterApprovedContacts = false;
+    state.sessionResumedContactIds = [];
+    paused++;
+    await persistProgress(state);
+  }
+  const campaigns = await campaignRepository.listCampaigns(companyId);
+  for (const campaign of campaigns) {
+    if (campaign.status !== 'running' || String(campaign.settings?.sessionId || 'main') !== String(sessionId)) continue;
+    await campaignRepository.updateCampaign(campaign.id, {
+      status: 'paused',
+      queue: { ...campaign.queue, paused: true, pausedBySession: true, sessionResumedContactIds: [] },
+    }, companyId);
+  }
+  return paused;
 }
 
 function resumeCampaign(campaignId, io, companyId) {
   const state = activeCampaigns.get(campaignId);
   if (!state || (companyId && state.companyId !== companyId) || state.status !== 'paused') return null;
+  if (!resolveCampaignSession(state.sessionId, state.companyId)) return null;
   state.status = 'running';
+  state.sessionPaused = false;
+  persistProgress(state).catch(() => {});
   runDispatchLoop(state, io).catch(() => {});
   return getStatus(campaignId);
+}
+
+async function resumeSessionCampaigns({ companyId, sessionId, io }) {
+  if (!companyId || !sessionId) return 0;
+  const campaigns = await campaignRepository.listCampaigns(companyId);
+  let resumed = 0;
+  for (const campaign of campaigns) {
+    if (campaign.status !== 'paused' || campaign.queue?.pausedBySession !== true
+      || String(campaign.settings?.sessionId || 'main') !== String(sessionId)) continue;
+    const current = activeCampaigns.get(campaign.id);
+    if (current && current.sessionPaused !== true) {
+      resumeCampaign(campaign.id, io, companyId);
+      current.sessionPaused = false;
+      await persistProgress(current);
+    } else {
+      activeCampaigns.delete(campaign.id);
+      await campaignRepository.updateCampaign(campaign.id, {
+        queue: { ...campaign.queue, paused: false, pausedBySession: false },
+      }, companyId);
+      await startCampaign(campaign.id, companyId, io);
+    }
+    resumed++;
+  }
+  return resumed;
+}
+
+function contactPhone(contact) {
+  return normalizePhone(contact?.phone || contact?.number || contact?.remoteJid || '');
+}
+
+async function listSessionPausedCampaignContacts({ companyId, sessionId }) {
+  if (!companyId || !sessionId) return [];
+  const campaigns = await campaignRepository.listCampaigns(companyId);
+  return campaigns.flatMap((campaign) => {
+    if (campaign.queue?.pausedBySession !== true
+      || String(campaign.settings?.sessionId || 'main') !== String(sessionId)) return [];
+    const sent = new Set((campaign.queue?.sentContactIds || []).map(String));
+    const cancelled = new Set((campaign.queue?.cancelledContactIds || []).map(String));
+    return (campaign.selectedContacts || [])
+      .filter((contact) => !sent.has(campaignContactKey(contact)) && !cancelled.has(campaignContactKey(contact)))
+      .map((contact) => ({
+        campaignId: campaign.id,
+        campaignName: campaign.name,
+        contact,
+        state: campaign.status === 'running' ? 'em andamento' : 'pausada',
+      }));
+  });
+}
+
+async function resumeSessionContact({ companyId, sessionId, phone, io }) {
+  if (!companyId || !sessionId || !phone) return 0;
+  const targetPhone = normalizePhone(phone);
+  const campaigns = await campaignRepository.listCampaigns(companyId);
+  let resumed = 0;
+
+  for (const campaign of campaigns) {
+    if (campaign.queue?.pausedBySession !== true
+      || String(campaign.settings?.sessionId || 'main') !== String(sessionId)) continue;
+    const contact = (campaign.selectedContacts || []).find((candidate) => contactPhone(candidate) === targetPhone);
+    if (!contact) continue;
+
+    const contactId = campaignContactKey(contact);
+    const sent = new Set((campaign.queue?.sentContactIds || []).map(String));
+    const cancelled = new Set((campaign.queue?.cancelledContactIds || []).map(String));
+    if (sent.has(contactId) || cancelled.has(contactId) || activeCampaigns.get(campaign.id)?.processing) continue;
+
+    const approvedContactIds = Array.from(new Set([
+      ...(campaign.queue?.sessionResumedContactIds || []).map(String),
+      contactId,
+    ]));
+    const nextQueue = { ...campaign.queue, paused: true, pausedBySession: true, sessionResumedContactIds: approvedContactIds };
+    const updated = await campaignRepository.updateCampaign(campaign.id, { queue: nextQueue }, companyId);
+    const state = createCampaignState({ ...updated, queue: nextQueue, companyId });
+    if (!state.pendingQueue.length) continue;
+    const session = resolveCampaignSession(sessionId, companyId, true);
+    if (!session) throw new Error('Conecte o WhatsApp antes de retomar este contato da campanha.');
+
+    state.sessionId = session.sessionId || session.id || session.name || sessionId;
+    state.allowSessionResume = true;
+    state.pauseAfterApprovedContacts = true;
+    state.sessionPaused = true;
+    state.status = 'running';
+    state.metrics.startedAt = campaign.startedAt || new Date().toISOString();
+    activeCampaigns.delete(campaign.id);
+    activeCampaigns.set(campaign.id, state);
+    runDispatchLoop(state, io).catch((error) => console.error(`[CampaignEngine] Reviewed contact dispatch failed for ${campaign.id}:`, error?.message || error));
+    resumed++;
+  }
+  return resumed;
+}
+
+async function cancelSessionContact({ companyId, sessionId, phone }) {
+  if (!companyId || !sessionId || !phone) return 0;
+  const targetPhone = normalizePhone(phone);
+  const campaigns = await campaignRepository.listCampaigns(companyId);
+  let cancelled = 0;
+  for (const campaign of campaigns) {
+    if (campaign.queue?.pausedBySession !== true
+      || String(campaign.settings?.sessionId || 'main') !== String(sessionId)) continue;
+    const contact = (campaign.selectedContacts || []).find((candidate) => contactPhone(candidate) === targetPhone);
+    if (!contact) continue;
+    const contactId = campaignContactKey(contact);
+    const sent = new Set((campaign.queue?.sentContactIds || []).map(String));
+    const cancelledIds = new Set((campaign.queue?.cancelledContactIds || []).map(String));
+    if (sent.has(contactId) || cancelledIds.has(contactId)) continue;
+    cancelledIds.add(contactId);
+    const nextQueue = { ...campaign.queue, cancelledContactIds: Array.from(cancelledIds), paused: true, pausedBySession: true };
+    await campaignRepository.updateCampaign(campaign.id, { queue: nextQueue }, companyId);
+    const current = activeCampaigns.get(campaign.id);
+    if (current) {
+      current.cancelledContactIds = Array.from(cancelledIds);
+      current.pendingQueue = current.pendingQueue.filter((item) => campaignContactKey(item) !== contactId);
+      await persistProgress(current);
+    }
+    cancelled++;
+  }
+  return cancelled;
+}
+
+async function resumeSessionAutomationSet({ companyId, sessionId, io }) {
+  const queue = require('./outboundQueueService');
+  const queueItems = await queue.resumeSessionItems({ companyId, sessionId });
+  const campaigns = await resumeSessionCampaigns({ companyId, sessionId, io });
+  return { queueItems, campaigns };
 }
 
 function cancelCampaign(campaignId, companyId) {
@@ -879,7 +1078,13 @@ module.exports = {
   isRunning,
   listActive,
   pauseCampaign,
+  pauseSessionCampaigns,
   resumeCampaign,
+  resumeSessionAutomationSet,
+  resumeSessionCampaigns,
+  listSessionPausedCampaignContacts,
+  resumeSessionContact,
+  cancelSessionContact,
   startCampaign,
   stopAll,
 };

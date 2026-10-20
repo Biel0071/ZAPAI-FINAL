@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, memo } from "react";
 import {
   Bell,
   Bot,
@@ -328,7 +328,7 @@ function SharedMediaCard({
   );
 }
 
-export function SidebarPanel({
+export const SidebarPanel = memo(function SidebarPanel({
   selectedConversation,
   rightPanelTab,
   setRightPanelTab,
@@ -1762,4 +1762,4 @@ export function SidebarPanel({
       )}
     </aside>
   );
-}
+});

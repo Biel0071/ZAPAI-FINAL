@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const { query } = require('../src/infrastructure/config/database');
 const { getAgentsSync } = require('../src/ai/agents/services/aiAgentService');
 const { executeAlgorithmicFollowupForLead } = require('./aiFollowupEngine');
+const sessionManager = require('./sessionManager');
 
 let activeCron = null;
 let cronStatus = {
@@ -28,6 +29,7 @@ async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {
          FROM conversations c
          LEFT JOIN leads l ON l.id = c.lead_id
          WHERE c.status = 'open'
+           AND c.session_id IS NOT NULL
            AND c.ai_enabled = true
            AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte', 'aguardando_pix', 'finalizado', 'pago', 'concluido', 'pedido_confirmado', 'won')
            AND NOT ('followup_esgotado' = ANY(COALESCE(c.tags, '{}')))
@@ -54,6 +56,7 @@ async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {
            FROM conversations c
            LEFT JOIN leads l ON l.id = c.lead_id
            WHERE c.status = 'open'
+             AND c.session_id IS NOT NULL
              AND c.ai_enabled = true
              AND COALESCE(c.funnel_stage, '') NOT IN ('closed', 'fechamento', 'agendado', 'cancelado', 'suporte', 'aguardando_pix', 'finalizado', 'pago', 'concluido', 'pedido_confirmado', 'won')
              AND NOT ('followup_esgotado' = ANY(COALESCE(c.tags, '{}')))
@@ -86,6 +89,10 @@ async function runFollowupScan({ ignoreBusinessHours = false, maxBatch = 3 } = {
       if (dispatched >= maxBatch) break;
 
       const companyId = conv.company_id || 'default';
+      const session = sessionManager.getSession(conv.session_id);
+      if (!session?.sock || String(session.status || '').toLowerCase() !== 'connected'
+        || session.systemConnected === false || session.automationPaused === true
+        || (session.companyId && String(session.companyId) !== String(companyId))) continue;
       const agents = getAgentsSync(companyId) || [];
       const agent =
         agents.find(

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Brain,
@@ -176,7 +176,7 @@ interface ActiveChatPaneProps {
 
 const MOBILE_TOUCH_TARGET_CLASS = "h-10 w-10 min-h-10 min-w-10 rounded-full flex items-center justify-center shrink-0";
 
-export function ActiveChatPane({
+export const ActiveChatPane = memo(function ActiveChatPane({
   selectedConversation,
   messages,
   messageInput,
@@ -1824,4 +1824,4 @@ export function ActiveChatPane({
     </div>
     </Popover>
   );
-}
+});

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Megaphone,
   PaperPlaneTilt,
@@ -375,6 +376,8 @@ function parseAICampaignMessages(response?: string | null): AICampaignDraft | nu
 }
 
 export default function Campaigns() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [tagInputVal, setTagInputVal] = useState("");
@@ -386,6 +389,7 @@ export default function Campaigns() {
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
   const [editingQuickReplyId, setEditingQuickReplyId] = useState<string | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactsLoaded, setContactsLoaded] = useState(false);
   const [campaignStep, setCampaignStep] = useState(1);
   const [composerMode, setComposerMode] = useState<ComposerMode>("create");
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
@@ -577,12 +581,14 @@ export default function Campaigns() {
 
       const mergedContacts = [...byPhone.values()];
       setContacts(uniqueContacts(mergedContacts));
+      setContactsLoaded(true);
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Falha ao carregar campanhas");
       if (!options?.silent) {
         setCampaigns([]);
         setContacts([]);
       }
+      setContactsLoaded(true);
     } finally {
       if (!options?.silent) setLoading(false);
     }
@@ -635,6 +641,36 @@ export default function Campaigns() {
     setAiTone("profissional");
     setIsAiCampaignGenerating(false);
   }, []);
+
+  useEffect(() => {
+    const routeState = location.state as { reactivationContacts?: Array<{ id?: string; name?: string; phone?: string }> } | null;
+    const requestedContacts = routeState?.reactivationContacts;
+    if (!contactsLoaded || !Array.isArray(requestedContacts) || requestedContacts.length === 0) return;
+
+    const validContacts = requestedContacts.filter((contact) => String(contact?.phone || "").trim());
+    const mergedContacts = uniqueContacts([
+      ...contacts,
+      ...validContacts.map((contact) => ({
+        id: String(contact.id || contact.phone),
+        name: String(contact.name || contact.phone),
+        phone: String(contact.phone),
+        status: "",
+        updatedAt: new Date().toISOString(),
+      })),
+    ]);
+    const selectedKeys = Array.from(new Set(validContacts.map((requested) => {
+      const phoneKey = normalizePhone(requested.phone);
+      const match = mergedContacts.find((contact) => normalizePhone(contact.phone) === phoneKey);
+      return match?.phone || String(requested.phone);
+    })));
+
+    resetComposer();
+    setCreationMode("manual");
+    setContacts(mergedContacts);
+    setSelectedContactIds(selectedKeys);
+    navigate(location.pathname, { replace: true, state: null });
+    if (selectedKeys.length > 0) notify.success(`${selectedKeys.length} contato(s) selecionado(s) para a nova campanha.`);
+  }, [contacts, contactsLoaded, location.pathname, location.state, navigate, resetComposer]);
 
   const hydrateComposer = useCallback((campaign: CampaignRecord, mode: ComposerMode) => {
     setCampaignsTab("compose");
@@ -1886,25 +1922,27 @@ export default function Campaigns() {
                     </div>
                   
                   {creationMode === "ai" && (
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mt-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch mt-3 min-h-[calc(100vh-225px)]">
                       {/* Coluna Esquerda: Ingestão de Contexto e Visualização da Campanha Gerada */}
-                      <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
-                        <div className="rounded-2xl border border-border/70 bg-background/40 p-5 space-y-4">
-                          <div className="flex items-start gap-3">
+                      <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4 h-full min-h-0">
+                        <div className="rounded-2xl border border-border/70 bg-background/40 p-4 sm:p-5 space-y-3 flex-1 flex flex-col min-h-0 shadow-sm">
+                          <div className="flex items-start gap-3 shrink-0">
                             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                               <MagicWand className="h-5 w-5" weight="fill" />
                             </span>
                             <div>
-                              <h3 className="font-display font-bold text-foreground text-base">Contexto da Campanha</h3>
-                              <p className="text-xs text-muted-foreground mt-0.5">Cole informações, briefing, oferta, produtos ou instruções para a IA.</p>
+                              <h3 className="font-display font-bold text-foreground text-sm sm:text-base">Contexto da Campanha</h3>
+                              <p className="text-xs text-muted-foreground mt-0.5">Cole informações, briefing, oferta, produtos ou instruções para a IA estruturar o disparo.</p>
                             </div>
                           </div>
-                          <CampaignContextInput value={aiCampaignPrompt} onChange={setAiCampaignPrompt} />
+                          <div className="flex-1 flex flex-col min-h-0">
+                            <CampaignContextInput value={aiCampaignPrompt} onChange={setAiCampaignPrompt} className="flex-1 min-h-0" />
+                          </div>
                         </div>
 
                         {/* Visualização da Campanha Estruturada com WhatsApp Preview */}
                         {aiGeneratedCampaign && (
-                          <div className="rounded-2xl border border-border/70 bg-card/60 p-5 shadow-lg space-y-4 animate-fade-in">
+                          <div className="rounded-2xl border border-border/70 bg-card/60 p-5 shadow-lg space-y-4 animate-fade-in shrink-0">
                             <CampaignPreview
                               payload={aiGeneratedCampaign}
                               attendantName={aiAgents.find(a => (a.key || a.name) === selectedAiAgentKey)?.name || "Camila • Especialista ZAI"}
@@ -1923,144 +1961,200 @@ export default function Campaigns() {
                         )}
                       </div>
 
-                      {/* Coluna Direita: Parâmetros da IA e Atendente (Single-Screen Fit) */}
-                      <div className="lg:col-span-5 xl:col-span-4 rounded-2xl border border-border/70 bg-card/60 p-3.5 sm:p-4 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between pb-2.5 border-b border-border/50">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/10 text-primary shrink-0">
-                              <Sparkle className="w-3.5 h-3.5" weight="fill" />
+                      {/* Coluna Direita: Parâmetros da IA, Atendente e Resumo de Cadência (Full Screen Fill) */}
+                      <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4 h-full min-h-0 justify-between">
+                        <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5 sm:p-4 shadow-sm space-y-3">
+                          <div className="flex items-center justify-between pb-2.5 border-b border-border/50">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/10 text-primary shrink-0">
+                                <Sparkle className="w-3.5 h-3.5" weight="fill" />
+                              </div>
+                              <div>
+                                <h3 className="font-display font-bold text-foreground text-xs sm:text-sm leading-tight">Configurações da IA</h3>
+                                <p className="text-[10px] text-muted-foreground">Personalize como a IA irá estruturar a campanha.</p>
+                              </div>
                             </div>
+                          </div>
+
+                          {/* Atendente IA com identidade visual real compacta */}
+                          <div className="rounded-xl border border-border/60 bg-background/50 p-2.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="relative shrink-0">
+                                  {(() => {
+                                    const selectedAgentObj = aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey);
+                                    const spriteId =
+                                      selectedAgentObj?.avatarConfig?.catalogSpriteId ||
+                                      (selectedAgentObj?.avatarConfig?.body === "male" ? "sprite_r1_c1" : "sprite_r2_c1");
+                                    const agentAvatarUrl =
+                                      selectedAgentObj?.avatarUrl ||
+                                      `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
+                                    return (
+                                      <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/10 border border-primary/30 flex items-center justify-center">
+                                        <img src={agentAvatarUrl} alt={selectedAgentObj?.name || "Camila"} className="w-full h-full object-cover object-top" />
+                                      </div>
+                                    );
+                                  })()}
+                                  <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-background" />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-bold text-foreground truncate">
+                                      {aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || "Camila"}
+                                    </span>
+                                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
+                                      IA
+                                    </Badge>
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground block truncate">
+                                    {aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey)?.role || "Vendas / Comercial"}
+                                  </span>
+                                </div>
+                              </div>
+                              {aiAgents.length > 1 && (
+                                <select
+                                  value={selectedAiAgentKey}
+                                  onChange={(e) => setSelectedAiAgentKey(e.target.value)}
+                                  className="h-7 rounded-lg border border-border/60 bg-card px-2 text-[11px] text-foreground focus:border-primary focus:outline-none shrink-0"
+                                >
+                                  {aiAgents.map((ag) => (
+                                    <option key={ag.key || ag.id} value={ag.key || ag.name}>
+                                      {ag.name || ag.key}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Grid 2x2 para Parâmetros da IA */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                             <div>
-                              <h3 className="font-display font-bold text-foreground text-xs sm:text-sm leading-tight">Configurações da IA</h3>
-                              <p className="text-[10px] text-muted-foreground">Personalize como a IA irá estruturar a campanha.</p>
+                              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Público / Tipo de Lead</Label>
+                              <select
+                                value={aiLeadProfile}
+                                onChange={(event) => setAiLeadProfile(event.target.value)}
+                                className="mt-1 h-8 w-full rounded-lg border border-border/70 bg-background/60 px-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                              >
+                                <option value="all">Toda a base</option>
+                                <option value="hot">Leads Quentes</option>
+                                <option value="warm">Leads Mornos</option>
+                                <option value="cold">Leads Frios</option>
+                                <option value="inactive">Inativos</option>
+                              </select>
                             </div>
+
+                            <div>
+                              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Objetivo Principal</Label>
+                              <select
+                                value={aiObjective}
+                                onChange={(event) => setAiObjective(event.target.value)}
+                                className="mt-1 h-8 w-full rounded-lg border border-border/70 bg-background/60 px-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                              >
+                                <option value="gerar_orcamento">Gerar orçamento</option>
+                                <option value="fechar_venda">Fechar venda</option>
+                                <option value="agendar_reuniao">Agendar call</option>
+                                <option value="nutrir_lead">Nutrir lead</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tom da Comunicação</Label>
+                              <select
+                                value={aiTone}
+                                onChange={(event) => setAiTone(event.target.value)}
+                                className="mt-1 h-8 w-full rounded-lg border border-border/70 bg-background/60 px-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                              >
+                                <option value="profissional">Profissional</option>
+                                <option value="urgente">Urgente</option>
+                                <option value="descontraido">Descontraído</option>
+                                <option value="direto">Direto c/ oferta</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Follow-up (dias)</Label>
+                              <Input
+                                value={aiFollowUpDays}
+                                onChange={(event) => setAiFollowUpDays(event.target.value)}
+                                inputMode="numeric"
+                                className="mt-1 h-8 rounded-lg border-border/70 bg-background/60 text-xs px-2.5 focus-visible:ring-primary/50"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="pt-1">
+                            <Button
+                              type="button"
+                              className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_-5px_rgba(16,185,129,0.5)] h-9 text-xs font-bold transition-all hover:scale-[1.01] gap-2"
+                              onClick={() => void generateCampaignFromPrompt()}
+                              disabled={isAiCampaignGenerating}
+                            >
+                              {isAiCampaignGenerating ? (
+                                <ArrowClockwise className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Sparkle className="h-3.5 w-3.5" weight="fill" />
+                              )}
+                              {isAiCampaignGenerating ? "Atendente gerando campanha..." : "Gerar Campanha com IA"}
+                            </Button>
+                            <p className="text-center mt-1 text-[10px] text-muted-foreground">
+                              A IA interpreta o contexto e cria as etapas completas.
+                            </p>
                           </div>
                         </div>
 
-                        {/* Atendente IA com identidade visual real compacta */}
-                        <div className="rounded-xl border border-border/60 bg-background/50 p-2.5">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="relative shrink-0">
-                                {(() => {
-                                  const selectedAgentObj = aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey);
-                                  const spriteId =
-                                    selectedAgentObj?.avatarConfig?.catalogSpriteId ||
-                                    (selectedAgentObj?.avatarConfig?.body === "male" ? "sprite_r1_c1" : "sprite_r2_c1");
-                                  const agentAvatarUrl =
-                                    selectedAgentObj?.avatarUrl ||
-                                    `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
-                                  return (
-                                    <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/10 border border-primary/30 flex items-center justify-center">
-                                      <img src={agentAvatarUrl} alt={selectedAgentObj?.name || "Camila"} className="w-full h-full object-cover object-top" />
-                                    </div>
-                                  );
-                                })()}
-                                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-background" />
+                        {/* Card Preenchedor Inferior: Resumo de Cadência e Alcance da Campanha */}
+                        <div className="rounded-2xl border border-border/70 bg-card/45 p-3.5 sm:p-4 shadow-sm space-y-3 flex-1 flex flex-col justify-between min-h-[140px]">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                              <div className="flex items-center gap-2">
+                                <Gauge className="w-3.5 h-3.5 text-emerald-400" />
+                                <span className="text-xs font-bold text-foreground">Resumo de Disparo & Cadência</span>
                               </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-xs font-bold text-foreground truncate">
-                                    {aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || "Camila"}
-                                  </span>
-                                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
-                                    IA
-                                  </Badge>
-                                </div>
-                                <span className="text-[10px] text-muted-foreground block truncate">
-                                  {aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey)?.role || "Vendas / Comercial"}
+                              <Badge variant="outline" className="text-[10px] px-2 py-0 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
+                                2h Humanizada
+                              </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="rounded-xl border border-border/50 bg-background/40 p-2.5">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Leads na Fila</span>
+                                <span className="font-mono font-bold text-foreground text-sm">
+                                  {selectedContactIds.length > 0 ? selectedContactIds.length : contacts.length} contatos
                                 </span>
                               </div>
+                              <div className="rounded-xl border border-border/50 bg-background/40 p-2.5">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Estimativa Envio</span>
+                                <span className="font-mono font-bold text-emerald-400 text-sm">~1h 45m</span>
+                              </div>
                             </div>
-                            {aiAgents.length > 1 && (
-                              <select
-                                value={selectedAiAgentKey}
-                                onChange={(e) => setSelectedAiAgentKey(e.target.value)}
-                                className="h-7 rounded-lg border border-border/60 bg-card px-2 text-[11px] text-foreground focus:border-primary focus:outline-none shrink-0"
-                              >
-                                {aiAgents.map((ag) => (
-                                  <option key={ag.key || ag.id} value={ag.key || ag.name}>
-                                    {ag.name || ag.key}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          </div>
-                        </div>
 
-                        {/* Grid 2x2 para Parâmetros da IA */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Público / Tipo de Lead</Label>
-                            <select
-                              value={aiLeadProfile}
-                              onChange={(event) => setAiLeadProfile(event.target.value)}
-                              className="mt-1 h-8 w-full rounded-lg border border-border/70 bg-background/60 px-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                            >
-                              <option value="all">Toda a base</option>
-                              <option value="hot">Leads Quentes</option>
-                              <option value="warm">Leads Mornos</option>
-                              <option value="cold">Leads Frios</option>
-                              <option value="inactive">Inativos</option>
-                            </select>
+                            <div className="space-y-1.5 pt-1">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="text-muted-foreground flex items-center gap-1.5">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                                  Proteção Anti-bloqueio WhatsApp
+                                </span>
+                                <span className="text-emerald-400 font-semibold font-mono text-[10px]">Ativa</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="text-muted-foreground flex items-center gap-1.5">
+                                  <Clock className="w-3.5 h-3.5 text-primary" />
+                                  Intervalo Humanizado com Digitação
+                                </span>
+                                <span className="text-muted-foreground font-mono text-[10px]">85s - 140s</span>
+                              </div>
+                            </div>
                           </div>
 
-                          <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Objetivo Principal</Label>
-                            <select
-                              value={aiObjective}
-                              onChange={(event) => setAiObjective(event.target.value)}
-                              className="mt-1 h-8 w-full rounded-lg border border-border/70 bg-background/60 px-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                            >
-                              <option value="gerar_orcamento">Gerar orçamento</option>
-                              <option value="fechar_venda">Fechar venda</option>
-                              <option value="agendar_reuniao">Agendar call</option>
-                              <option value="nutrir_lead">Nutrir lead</option>
-                            </select>
+                          <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[10.5px]">
+                            <span className="text-muted-foreground">
+                              {campaignName.trim() ? "Pronto para gerar rascunho" : "Dê um nome à campanha"}
+                            </span>
+                            <span className={cn("font-bold", campaignName.trim() ? "text-emerald-400" : "text-amber-400")}>
+                              {campaignName.trim() ? "● 100% Configurado" : "● Nome pendente"}
+                            </span>
                           </div>
-
-                          <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tom da Comunicação</Label>
-                            <select
-                              value={aiTone}
-                              onChange={(event) => setAiTone(event.target.value)}
-                              className="mt-1 h-8 w-full rounded-lg border border-border/70 bg-background/60 px-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                            >
-                              <option value="profissional">Profissional</option>
-                              <option value="urgente">Urgente</option>
-                              <option value="descontraido">Descontraído</option>
-                              <option value="direto">Direto c/ oferta</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Follow-up (dias)</Label>
-                            <Input
-                              value={aiFollowUpDays}
-                              onChange={(event) => setAiFollowUpDays(event.target.value)}
-                              inputMode="numeric"
-                              className="mt-1 h-8 rounded-lg border-border/70 bg-background/60 text-xs px-2.5 focus-visible:ring-primary/50"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="pt-1">
-                          <Button
-                            type="button"
-                            className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_-5px_rgba(16,185,129,0.5)] h-9 text-xs font-bold transition-all hover:scale-[1.01] gap-2"
-                            onClick={() => void generateCampaignFromPrompt()}
-                            disabled={isAiCampaignGenerating}
-                          >
-                            {isAiCampaignGenerating ? (
-                              <ArrowClockwise className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Sparkle className="h-3.5 w-3.5" weight="fill" />
-                            )}
-                            {isAiCampaignGenerating ? "Atendente gerando campanha..." : "Gerar Campanha com IA"}
-                          </Button>
-                          <p className="text-center mt-1 text-[10px] text-muted-foreground">
-                            A IA interpreta o contexto e cria as etapas completas.
-                          </p>
                         </div>
                       </div>
                     </div>

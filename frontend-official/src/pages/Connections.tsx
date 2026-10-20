@@ -46,6 +46,39 @@ import { normalizeSession as backendNormalizeSession } from "@/core/services/nor
 import { SafeRender } from "@/components/system/SafeRender";
 import { HistoryBootstrapPanel } from '@/components/evolution/HistoryBootstrapPanel';
 
+type SessionAutomationItem = {
+  id: string;
+  contactId?: string;
+  kind: "contact";
+  sources: string[];
+  campaignStates: string[];
+  conversationId?: string;
+  phone: string;
+  name?: string;
+  attempts: number;
+  followupsSent: number;
+};
+
+type SessionAutomationContact = {
+  key: string;
+  phone: string;
+  name?: string;
+  items: SessionAutomationItem[];
+};
+
+function groupSessionAutomations(items: SessionAutomationItem[]): SessionAutomationContact[] {
+  const groups = new Map<string, SessionAutomationContact>();
+  items.forEach((item) => {
+    const phone = String(item.phone || "").trim();
+    const key = phone || item.conversationId || item.id;
+    const group = groups.get(key) || { key, phone, name: item.name, items: [] };
+    if (!group.name && item.name) group.name = item.name;
+    group.items.push(item);
+    groups.set(key, group);
+  });
+  return Array.from(groups.values());
+}
+
 interface Session extends SessionInfo {
   name: string;
   status: "connected" | "connecting" | "qr" | "disconnected";
@@ -145,6 +178,13 @@ export default function Connections() {
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [createStatus, setCreateStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [restartingSessionId, setRestartingSessionId] = useState<string | null>(null);
+  const [reactivatingSessionId, setReactivatingSessionId] = useState<string | null>(null);
+  const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
+  const [reviewItems, setReviewItems] = useState<SessionAutomationItem[]>([]);
+  const [selectedReviewContactKeys, setSelectedReviewContactKeys] = useState<string[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [contactActionKey, setContactActionKey] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [activeModalSessionId, setActiveModalSessionId] = useState<string | null>(null);
   const [deleteConfirmSessionId, setDeleteConfirmSessionId] = useState<string | null>(null);
@@ -552,6 +592,89 @@ export default function Connections() {
     }
   };
 
+  const isReviewSessionConnected = (sessionId: string) =>
+    safeSessions.some((session) => session.id === sessionId && session.status === "connected");
+
+  const loadSessionAutomations = async (sessionId: string) => {
+    if (!isReviewSessionConnected(sessionId)) {
+      setReviewError("Conecte este número antes de revisar ou reativar envios.");
+      return;
+    }
+    setReviewLoading(true);
+    setReviewError(null);
+    try {
+      const response = await requestApiEndpoint<{ items: SessionAutomationItem[] }>(
+        `/api/outbound-queue/session/${encodeURIComponent(sessionId)}/automations`,
+        "GET",
+      );
+      setReviewItems(Array.isArray(response?.items) ? response.items : []);
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "Falha ao carregar as pendências deste número.");
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const openAutomationReview = async (sessionId: string) => {
+    if (!isReviewSessionConnected(sessionId)) {
+      notify.error("Conecte este número antes de revisar ou reativar envios.");
+      return;
+    }
+    setReviewSessionId(sessionId);
+    setReviewItems([]);
+    setSelectedReviewContactKeys([]);
+    setReviewError(null);
+    await loadSessionAutomations(sessionId);
+  };
+
+  const handleSessionAutomationAction = async (contact: SessionAutomationContact, action: "resume" | "cancel") => {
+    const sessionId = reviewSessionId;
+    if (!sessionId || !isReviewSessionConnected(sessionId)) {
+      setReviewError("A sessão foi desconectada. Reconecte o número para continuar.");
+      return;
+    }
+    setContactActionKey(contact.key);
+    setReviewError(null);
+    try {
+      await requestApiEndpoint<{ success: true }>(
+        `/api/outbound-queue/session/${encodeURIComponent(sessionId)}/automations/action`,
+        "POST",
+        { action, contactId: contact.items[0]?.contactId || contact.items[0]?.id || contact.key },
+      );
+      await loadSessionAutomations(sessionId);
+      notify.success(action === "resume" ? "Pendências do contato retomadas." : "Pendências do contato canceladas.");
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "Falha ao atualizar as pendências do contato.");
+    } finally {
+      setContactActionKey(null);
+    }
+  };
+
+  const handleResumeSessionAutomations = async (sessionId: string) => {
+    if (!isReviewSessionConnected(sessionId)) {
+      setReviewError("A sessão foi desconectada. Reconecte o número para retomar os envios.");
+      return;
+    }
+    setReactivatingSessionId(normalizeSessionName(sessionId));
+    setReviewError(null);
+    try {
+      const response = await requestApiEndpoint<{ resumed: { queueItems: number; campaigns: number } }>(
+        `/api/outbound-queue/session/${encodeURIComponent(sessionId)}/resume`,
+        "POST",
+      );
+      const { queueItems = 0, campaigns = 0 } = response?.resumed || {};
+      notify.success(queueItems || campaigns
+        ? `Reativados: ${queueItems} tarefas e ${campaigns} campanhas.`
+        : "Não há tarefas ou campanhas pausadas para este número.");
+      setReviewSessionId(null);
+      setReviewItems([]);
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "Falha ao reativar os envios pausados.");
+    } finally {
+      setReactivatingSessionId(null);
+    }
+  };
+
   const openDeleteConfirm = (sessionId: string) => {
     setDeleteConfirmSessionId(normalizeSessionName(sessionId));
     setDeleteConfirmOpen(true);
@@ -855,6 +978,21 @@ export default function Connections() {
                           </Button>
                           
                           {session.status === "connected" ? (
+                            <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 rounded-xl px-2.5 gap-1.5 text-[11px] border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void openAutomationReview(session.id);
+                              }}
+                              disabled={reviewLoading && reviewSessionId === session.id}
+                              title="Revisar tarefas, campanhas e follow-ups pausados antes de reativar"
+                            >
+                              {reviewLoading && reviewSessionId === session.id ? <Spinner className="h-3 w-3 animate-spin" /> : <ArrowClockwise className="h-3.5 w-3.5" />}
+                              <span>Reativar envios</span>
+                            </Button>
                             <Button 
                               variant="outline" 
                               size="sm" 
@@ -869,6 +1007,7 @@ export default function Connections() {
                               <XCircle className="h-3.5 w-3.5" />
                               <span>Desconectar</span>
                             </Button>
+                            </>
                           ) : session.status === "disconnected" ? (
                             <Button 
                               variant="default"
@@ -931,6 +1070,109 @@ export default function Connections() {
           <Label htmlFor="edited-session-name">Nome exibido</Label>
           <Input id="edited-session-name" value={editedSessionName} maxLength={100} onChange={(event) => setEditedSessionName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void handleRenameSession(); }} />
           <Button disabled={!editedSessionName.trim()} onClick={() => void handleRenameSession()}>Salvar nome</Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(reviewSessionId)} onOpenChange={(open) => {
+        if (!open && !contactActionKey && !reactivatingSessionId) {
+          setReviewSessionId(null);
+          setReviewItems([]);
+          setReviewError(null);
+          setSelectedReviewContactKeys([]);
+        }
+      }}>
+        <DialogContent className="max-h-[85vh] max-w-4xl overflow-y-auto border-border/80 bg-card/95">
+          <DialogHeader>
+            <DialogTitle>Revisar envios pausados</DialogTitle>
+            <DialogDescription>
+              Cada escolha vale somente para as pendências do contato. Nada será enviado enquanto permanecer pausado.
+            </DialogDescription>
+          </DialogHeader>
+
+          {reviewSessionId && !isReviewSessionConnected(reviewSessionId) && (
+            <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              Este número está desconectado. Reconecte para retomar ou cancelar pendências.
+            </div>
+          )}
+          {reviewError && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{reviewError}</div>}
+
+          {reviewLoading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Spinner className="h-4 w-4 animate-spin" /> Carregando pendências…</div>
+          ) : reviewItems.length === 0 ? (
+            <div className="rounded-lg border border-border/70 px-4 py-8 text-center text-sm text-muted-foreground">
+              {reviewError ? "Não foi possível carregar as pendências." : "Não há tarefas, campanhas ou follow-ups aguardando revisão."}
+            </div>
+          ) : (
+            <div className="max-h-[48vh] space-y-2 overflow-y-auto pr-1">
+              {groupSessionAutomations(reviewItems).map((contact) => {
+                const queueAttempts = contact.items.reduce((total, item) => total + Number(item.attempts || 0), 0);
+                const followupsSent = contact.items.reduce((maximum, item) => Math.max(maximum, Number(item.followupsSent || 0)), 0);
+                const sources = Array.from(new Set(contact.items.flatMap((item) => item.sources || []).filter(Boolean)));
+                const campaignStates = Array.from(new Set(contact.items.flatMap((item) => item.campaignStates || []).filter(Boolean)));
+                const busy = contactActionKey === contact.key;
+                const selected = selectedReviewContactKeys.includes(contact.key);
+                return (
+                  <div key={contact.key} className="grid gap-3 rounded-xl border border-border/70 bg-background/40 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Selecionar ${contact.name || contact.phone || "contato"} para nova campanha`}
+                        checked={selected}
+                        onChange={(event) => setSelectedReviewContactKeys((current) => event.target.checked ? [...current, contact.key] : current.filter((key) => key !== contact.key))}
+                        className="mt-1 h-4 w-4 accent-primary"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-foreground">{contact.name || "Contato"}</div>
+                        <div className="truncate text-xs text-muted-foreground">{contact.phone || "Telefone indisponível"}</div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {campaignStates.map((state) => <Badge key={state} variant="secondary" className="text-[10px]">Campanha: {state}</Badge>)}
+                          <span className="self-center text-[10px] text-muted-foreground">Follow-ups enviados: {followupsSent}</span>
+                          <span className="self-center text-[10px] text-muted-foreground">Tentativas da tarefa: {queueAttempts}</span>
+                          <span className="self-center text-[10px] text-muted-foreground">Origem: {sources.join(", ") || "—"}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" className="h-8" disabled={!reviewSessionId || !isReviewSessionConnected(reviewSessionId) || Boolean(contactActionKey) || Boolean(reactivatingSessionId)} onClick={() => void handleSessionAutomationAction(contact, "cancel")}>
+                        {busy ? <Spinner className="mr-1 h-3 w-3 animate-spin" /> : null}Cancelar
+                      </Button>
+                      <Button size="sm" className="h-8" disabled={!reviewSessionId || !isReviewSessionConnected(reviewSessionId) || Boolean(contactActionKey) || Boolean(reactivatingSessionId)} onClick={() => void handleSessionAutomationAction(contact, "resume")}>
+                        {busy ? <Spinner className="mr-1 h-3 w-3 animate-spin" /> : <ArrowClockwise className="mr-1 h-3.5 w-3.5" />}Retomar
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex flex-col-reverse justify-between gap-2 border-t border-border/60 pt-3 sm:flex-row sm:items-center">
+            <Button
+              variant="outline"
+              disabled={!reviewSessionId || !isReviewSessionConnected(reviewSessionId) || Boolean(contactActionKey) || Boolean(reactivatingSessionId) || selectedReviewContactKeys.length === 0}
+              onClick={() => {
+                const selectedContacts = groupSessionAutomations(reviewItems)
+                  .filter((contact) => selectedReviewContactKeys.includes(contact.key))
+                  .map((contact) => ({ id: contact.items.find((item) => item.conversationId)?.conversationId || contact.phone, name: contact.name, phone: contact.phone }));
+                navigate("/campaigns", { state: { reactivationContacts: selectedContacts } });
+                setReviewSessionId(null);
+              }}
+            >
+              Iniciar nova campanha ({selectedReviewContactKeys.length})
+            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="ghost" disabled={reviewLoading || Boolean(contactActionKey) || Boolean(reactivatingSessionId) || !reviewSessionId || !isReviewSessionConnected(reviewSessionId)} onClick={() => reviewSessionId && void loadSessionAutomations(reviewSessionId)}>Atualizar lista</Button>
+              <Button
+                variant="outline"
+                className="border-amber-500/40 text-amber-300 hover:bg-amber-500/10"
+                disabled={!reviewSessionId || !isReviewSessionConnected(reviewSessionId) || Boolean(contactActionKey) || Boolean(reactivatingSessionId) || reviewItems.length === 0}
+                onClick={() => reviewSessionId && void handleResumeSessionAutomations(reviewSessionId)}
+              >
+                {reactivatingSessionId ? <Spinner className="mr-1 h-3.5 w-3.5 animate-spin" /> : <ArrowClockwise className="mr-1 h-3.5 w-3.5" />}
+                Retomar todas
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
