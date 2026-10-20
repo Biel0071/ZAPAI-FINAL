@@ -33,7 +33,18 @@ import {
   ShieldCheck,
   Lightning,
   Gauge,
+  CaretDown,
+  FileCsv,
+  UploadSimple,
+  Tag as TagIcon,
 } from "@phosphor-icons/react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Header } from "@/components/layout/Header";
 import { CampaignsView, type CampaignsTab } from "@/pages/lovable/pages/CampaignsView";
 import { CampaignContextInput } from '@/components/campaigns/CampaignContextInput';
@@ -367,6 +378,8 @@ export default function Campaigns() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [tagInputVal, setTagInputVal] = useState("");
+  const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
+  const [pasteInputVal, setPasteInputVal] = useState("");
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
   const [quickReplies, setQuickReplies] = useState<QuickReplyItem[]>([]);
@@ -1514,6 +1527,88 @@ export default function Campaigns() {
     reader.readAsText(file);
   };
 
+  const handleImportAllCrmContacts = async () => {
+    try {
+      const conversations = await apiService.getConversations(false);
+      const crmContacts: Contact[] = [];
+      const newSelectedIds: string[] = [];
+
+      for (const conv of conversations) {
+        const phone = normalizePhone(conv.phone || (conv as any).remoteJid || (conv as any).contactPhone);
+        if (!phone) continue;
+        const phoneKey = String(phone);
+        crmContacts.push({
+          id: conv.id || phoneKey,
+          name: conv.name || `Contato ${phoneKey.slice(-4)}`,
+          phone: phoneKey,
+          tags: conv.tags || [],
+          status: "pending",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        newSelectedIds.push(phoneKey);
+      }
+
+      if (crmContacts.length === 0) {
+        notify.info("Nenhum contato encontrado no CRM.");
+        return;
+      }
+
+      setContacts((prev) => {
+        const existingPhones = new Set(prev.map((c) => normalizePhone(c.phone)));
+        const unique = crmContacts.filter((c) => !existingPhones.has(normalizePhone(c.phone)));
+        return [...prev, ...unique];
+      });
+
+      setSelectedContactIds((current) => Array.from(new Set([...current, ...newSelectedIds])));
+      notify.success(`${newSelectedIds.length} contatos do CRM importados com sucesso!`);
+    } catch (err) {
+      console.error(err);
+      notify.error("Erro ao importar contatos do CRM.");
+    }
+  };
+
+  const handleApplyPastedNumbers = () => {
+    const raw = pasteInputVal.trim();
+    if (!raw) return;
+
+    const tokens = raw.split(/[\n,;]+/).map((t) => t.trim()).filter(Boolean);
+    const pastedContacts: Contact[] = [];
+    const newSelectedIds: string[] = [];
+
+    for (const token of tokens) {
+      const cleanPhone = normalizePhone(token.replace(/\D/g, ""));
+      if (!cleanPhone || cleanPhone.length < 8) continue;
+      const phoneKey = String(cleanPhone);
+      pastedContacts.push({
+        id: `pasted-${phoneKey}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        name: `Lead ${phoneKey.slice(-4)}`,
+        phone: phoneKey,
+        tags: ["Manual"],
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      newSelectedIds.push(phoneKey);
+    }
+
+    if (pastedContacts.length === 0) {
+      notify.error("Nenhum número de telefone válido encontrado no texto colado.");
+      return;
+    }
+
+    setContacts((prev) => {
+      const existingPhones = new Set(prev.map((c) => normalizePhone(c.phone)));
+      const unique = pastedContacts.filter((c) => !existingPhones.has(normalizePhone(c.phone)));
+      return [...prev, ...unique];
+    });
+
+    setSelectedContactIds((current) => Array.from(new Set([...current, ...newSelectedIds])));
+    notify.success(`${newSelectedIds.length} números importados e selecionados!`);
+    setIsPasteModalOpen(false);
+    setPasteInputVal("");
+  };
+
   const handleApplyTagSelection = async () => {
     const tag = tagInputVal.trim();
     if (!tag) return;
@@ -1659,74 +1754,136 @@ export default function Campaigns() {
             composer={
               <div className="w-full flex flex-col gap-4">
                 <Card className="glass-card rounded-2xl border-border/70 bg-card/85">
-                  <CardContent className="space-y-6 p-6">
-                  <div className="flex flex-col gap-6 border-b border-border/50 pb-6">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      <div>
-                        <h2 className="font-display text-2xl sm:text-3xl font-bold">Nova Campanha</h2>
-                        <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 sm:mt-1">Escolha o modo de criação e configure seu disparo.</p>
+                  <CardContent className="space-y-4 p-4 sm:p-5">
+                    {/* Linha Única: Modos de Criação + Importações + Ações */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border/50 pb-3.5">
+                      {/* Seletor Compacto de Modos */}
+                      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-background/60 border border-border/70 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setCreationMode("ai")}
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                            creationMode === "ai"
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                          )}
+                        >
+                          <Sparkle className="w-3.5 h-3.5" weight={creationMode === "ai" ? "fill" : "regular"} />
+                          <span>✨ Gerar com IA</span>
+                          {creationMode === "ai" && (
+                            <span className="hidden sm:inline-block text-[9px] px-1.5 py-0.2 rounded-full bg-black/20 text-white font-bold uppercase tracking-wider">
+                              Recomendado
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCreationMode("manual")}
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                            creationMode === "manual"
+                              ? "bg-card text-foreground border border-border/80 shadow-xs"
+                              : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                          )}
+                        >
+                          <Plus className="w-3.5 h-3.5" weight="bold" />
+                          <span>⚙️ Criar Manualmente</span>
+                        </button>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                        <Button variant="outline" size="sm" className="rounded-xl text-xs sm:text-sm h-9" onClick={() => fileInputRef.current?.click()}>
-                          Importar CSV
-                        </Button>
-                        <Button variant="outline" size="sm" className="rounded-xl text-xs sm:text-sm h-9" onClick={() => void persistCampaign("save")}>
+
+                      {/* Importações & Ações na Mesma Linha */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="rounded-xl text-xs h-8 sm:h-9 gap-1.5 font-semibold">
+                              <UploadSimple className="w-3.5 h-3.5" />
+                              <span>Importar Contatos</span>
+                              <CaretDown className="w-3 h-3 text-muted-foreground" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56 rounded-xl border-border/80 bg-card/95 backdrop-blur-md p-1.5 shadow-xl">
+                            <DropdownMenuItem
+                              onClick={() => fileInputRef.current?.click()}
+                              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium cursor-pointer"
+                            >
+                              <FileCsv className="w-4 h-4 text-emerald-400" />
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-foreground">Importar CSV / Planilha</span>
+                                <span className="text-[10px] text-muted-foreground">Arquivo .csv ou .xlsx</span>
+                              </div>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => void handleImportAllCrmContacts()}
+                              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium cursor-pointer"
+                            >
+                              <Users className="w-4 h-4 text-cyan-400" />
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-foreground">Contatos do CRM</span>
+                                <span className="text-[10px] text-muted-foreground">Puxar conversas ativas</span>
+                              </div>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setIsTagModalOpen(true)}
+                              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium cursor-pointer"
+                            >
+                              <TagIcon className="w-4 h-4 text-purple-400" />
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-foreground">Filtrar por Etiquetas / Tags</span>
+                                <span className="text-[10px] text-muted-foreground">Leads quentes, orçamentos</span>
+                              </div>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="my-1 border-border/50" />
+                            <DropdownMenuItem
+                              onClick={() => setIsPasteModalOpen(true)}
+                              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium cursor-pointer"
+                            >
+                              <FileText className="w-4 h-4 text-amber-400" />
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-foreground">Colar Telefones Manualmente</span>
+                                <span className="text-[10px] text-muted-foreground">Linha por linha ou vírgula</span>
+                              </div>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <Button variant="outline" size="sm" className="rounded-xl text-xs h-8 sm:h-9" onClick={() => void persistCampaign("save")}>
                           Salvar Rascunho
                         </Button>
+
                         {creationMode === "ai" && (
-                          <Button className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 px-4 sm:px-5 h-9 text-xs sm:text-sm shrink-0" onClick={() => void generateCampaignFromPrompt()} disabled={isAiCampaignGenerating}>
+                          <Button
+                            className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 px-4 h-8 sm:h-9 text-xs shrink-0"
+                            onClick={() => void generateCampaignFromPrompt()}
+                            disabled={isAiCampaignGenerating}
+                          >
                             Próximo Passo <span className="ml-0.5">→</span>
                           </Button>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Card 
-                        className={cn("flex-1 cursor-pointer transition-all border", creationMode === "ai" ? "border-primary bg-primary/5 ring-1 ring-primary/50" : "border-border/50 bg-background/50 hover:border-primary/30")}
-                        onClick={() => setCreationMode("ai")}
-                      >
-                        <CardContent className="p-3 flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", creationMode === "ai" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground")}>
-                              <Sparkle className="w-5 h-5" weight={creationMode === "ai" ? "fill" : "regular"} />
-                            </div>
-                            <div>
-                              <h3 className={cn("font-bold text-sm", creationMode === "ai" ? "text-primary" : "text-foreground")}>✨ Gerar com IA</h3>
-                              <p className="text-xs text-muted-foreground mt-0.5">A IA cria sua campanha completa com base nos seus objetivos.</p>
-                            </div>
-                          </div>
-                          {creationMode === "ai" && <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 rounded-full font-semibold hidden md:flex text-[10px]">Recomendado</Badge>}
-                        </CardContent>
-                      </Card>
-
-                      <Card 
-                        className={cn("flex-1 cursor-pointer transition-all border", creationMode === "manual" ? "border-border/70 bg-card/50 ring-1 ring-border/80" : "border-border/50 bg-background/50 hover:border-foreground/20")}
-                        onClick={() => setCreationMode("manual")}
-                      >
-                        <CardContent className="p-3 flex items-center gap-3">
-                          <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", creationMode === "manual" ? "bg-muted text-foreground" : "bg-muted/50 text-muted-foreground")}>
-                            <Plus className="w-5 h-5" weight={creationMode === "manual" ? "bold" : "regular"} />
-                          </div>
-                          <div>
-                            <h3 className={cn("font-bold text-sm", creationMode === "manual" ? "text-foreground" : "text-foreground/70")}>⚙️ Criar Manualmente</h3>
-                            <p className="text-xs text-muted-foreground mt-0.5">Configure cada passo da sua campanha manualmente.</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-border/70 bg-background/40 p-4">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <Label htmlFor="campaign-name" className="text-sm font-semibold text-foreground whitespace-nowrap">Nome da campanha</Label>
-                        <Input id="campaign-name" value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="Ex: Campanha orcamento quente Julho" className="h-9 rounded-lg border-border/70 bg-card/70 text-sm font-medium flex-1 max-w-md" />
-                        <p className="text-[10px] text-muted-foreground hidden lg:block">Aparece apenas na sua lista de campanhas.</p>
+                    {/* Barra Slim de Nome da Campanha */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 py-2 px-3 rounded-xl border border-border/70 bg-background/40">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <Label htmlFor="campaign-name" className="text-xs font-semibold text-foreground whitespace-nowrap">
+                          Nome da campanha:
+                        </Label>
+                        <Input
+                          id="campaign-name"
+                          value={campaignName}
+                          onChange={(event) => setCampaignName(event.target.value)}
+                          placeholder="Ex: Campanha orçamento quente Julho"
+                          className="h-7 rounded-lg border-border/70 bg-card/70 text-xs font-medium max-w-sm"
+                        />
+                        <span className="text-[10px] text-muted-foreground hidden lg:inline">Aparece na sua lista de campanhas.</span>
                       </div>
-                      {!campaignName.trim() ? <OperationalStatusBadge label="Nome obrigatorio para lancar" tone="warning" /> : <div/>}
+                      {!campaignName.trim() && (
+                        <span className="text-[10px] text-amber-400 font-semibold flex items-center gap-1 shrink-0">
+                          ● Nome obrigatório para lançar
+                        </span>
+                      )}
                     </div>
-                  </div>
                   
                   {creationMode === "ai" && (
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mt-4">
@@ -1766,130 +1923,142 @@ export default function Campaigns() {
                         )}
                       </div>
 
-                      {/* Coluna Direita: Parâmetros da IA e Atendente */}
-                      <div className="lg:col-span-5 xl:col-span-4 rounded-2xl border border-border/70 bg-card/60 p-5 shadow-sm sticky top-4 space-y-4">
-                        <div className="flex items-start gap-3 pb-3 border-b border-border/50">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10 text-primary shrink-0 mt-0.5">
-                            <Sparkle className="w-4 h-4" weight="fill" />
-                          </div>
-                          <div>
-                            <h3 className="font-display font-bold text-foreground text-sm">Configurações da IA</h3>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">Personalize como a IA irá estruturar a campanha.</p>
+                      {/* Coluna Direita: Parâmetros da IA e Atendente (Single-Screen Fit) */}
+                      <div className="lg:col-span-5 xl:col-span-4 rounded-2xl border border-border/70 bg-card/60 p-3.5 sm:p-4 shadow-sm space-y-3">
+                        <div className="flex items-center justify-between pb-2.5 border-b border-border/50">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/10 text-primary shrink-0">
+                              <Sparkle className="w-3.5 h-3.5" weight="fill" />
+                            </div>
+                            <div>
+                              <h3 className="font-display font-bold text-foreground text-xs sm:text-sm leading-tight">Configurações da IA</h3>
+                              <p className="text-[10px] text-muted-foreground">Personalize como a IA irá estruturar a campanha.</p>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Atendente IA com identidade visual real */}
-                        <div>
-                          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
-                            Atendente IA Responsável
-                          </Label>
-                          <div className="rounded-xl border border-border/60 bg-background/50 p-3.5 space-y-3">
-                            {(() => {
-                              const selectedAgentObj = aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey);
-                              const spriteId =
-                                selectedAgentObj?.avatarConfig?.catalogSpriteId ||
-                                (selectedAgentObj?.avatarConfig?.body === "male" ? "sprite_r1_c1" : "sprite_r2_c1");
-                              const agentAvatarUrl =
-                                selectedAgentObj?.avatarUrl ||
-                                `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
-                              return (
-                                <AIAssistantAvatar
-                                  name={selectedAgentObj?.name || selectedAiAgentKey || "Camila — Especialista ZAI"}
-                                  avatarUrl={agentAvatarUrl}
-                                  role={selectedAgentObj?.role || "Atendente Comercial de Alta Conversão"}
-                                  description="Treinada para criar mensagens humanizadas, ofertas irresistíveis e follow-up estratégico."
-                                  status="online"
-                                  size="md"
-                                />
-                              );
-                            })()}
-                            {aiAgents.length > 1 && (
-                              <div className="pt-1 border-t border-border/40">
-                                <Label className="text-[10px] text-muted-foreground mb-1 block">Trocar Atendente:</Label>
-                                <select
-                                  value={selectedAiAgentKey}
-                                  onChange={(e) => setSelectedAiAgentKey(e.target.value)}
-                                  className="h-8 w-full rounded-lg border border-border/60 bg-card/90 px-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-                                >
-                                  {aiAgents.map((ag) => (
-                                    <option key={ag.key || ag.id} value={ag.key || ag.name}>
-                                      {ag.name || ag.key} ({ag.role || "Atendente"})
-                                    </option>
-                                  ))}
-                                </select>
+                        {/* Atendente IA com identidade visual real compacta */}
+                        <div className="rounded-xl border border-border/60 bg-background/50 p-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="relative shrink-0">
+                                {(() => {
+                                  const selectedAgentObj = aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey);
+                                  const spriteId =
+                                    selectedAgentObj?.avatarConfig?.catalogSpriteId ||
+                                    (selectedAgentObj?.avatarConfig?.body === "male" ? "sprite_r1_c1" : "sprite_r2_c1");
+                                  const agentAvatarUrl =
+                                    selectedAgentObj?.avatarUrl ||
+                                    `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
+                                  return (
+                                    <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/10 border border-primary/30 flex items-center justify-center">
+                                      <img src={agentAvatarUrl} alt={selectedAgentObj?.name || "Camila"} className="w-full h-full object-cover object-top" />
+                                    </div>
+                                  );
+                                })()}
+                                <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-background" />
                               </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-bold text-foreground truncate">
+                                    {aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey)?.name || selectedAiAgentKey || "Camila"}
+                                  </span>
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
+                                    IA
+                                  </Badge>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground block truncate">
+                                  {aiAgents.find((a) => (a.key || a.name) === selectedAiAgentKey)?.role || "Vendas / Comercial"}
+                                </span>
+                              </div>
+                            </div>
+                            {aiAgents.length > 1 && (
+                              <select
+                                value={selectedAiAgentKey}
+                                onChange={(e) => setSelectedAiAgentKey(e.target.value)}
+                                className="h-7 rounded-lg border border-border/60 bg-card px-2 text-[11px] text-foreground focus:border-primary focus:outline-none shrink-0"
+                              >
+                                {aiAgents.map((ag) => (
+                                  <option key={ag.key || ag.id} value={ag.key || ag.name}>
+                                    {ag.name || ag.key}
+                                  </option>
+                                ))}
+                              </select>
                             )}
                           </div>
                         </div>
 
-                        <div>
-                          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Público / Tipo de Lead</Label>
-                          <select
-                            value={aiLeadProfile}
-                            onChange={(event) => setAiLeadProfile(event.target.value)}
-                            className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-xs text-foreground focus:border-primary focus:outline-none"
-                          >
-                            <option value="all">Toda a base (Segmentação automática)</option>
-                            <option value="hot">Leads Quentes (Prontos para comprar)</option>
-                            <option value="warm">Leads Mornos (Tirando dúvidas)</option>
-                            <option value="cold">Leads Frios (Primeira abordagem)</option>
-                            <option value="inactive">Reativação de Inativos</option>
-                          </select>
+                        {/* Grid 2x2 para Parâmetros da IA */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Público / Tipo de Lead</Label>
+                            <select
+                              value={aiLeadProfile}
+                              onChange={(event) => setAiLeadProfile(event.target.value)}
+                              className="mt-1 h-8 w-full rounded-lg border border-border/70 bg-background/60 px-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                            >
+                              <option value="all">Toda a base</option>
+                              <option value="hot">Leads Quentes</option>
+                              <option value="warm">Leads Mornos</option>
+                              <option value="cold">Leads Frios</option>
+                              <option value="inactive">Inativos</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Objetivo Principal</Label>
+                            <select
+                              value={aiObjective}
+                              onChange={(event) => setAiObjective(event.target.value)}
+                              className="mt-1 h-8 w-full rounded-lg border border-border/70 bg-background/60 px-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                            >
+                              <option value="gerar_orcamento">Gerar orçamento</option>
+                              <option value="fechar_venda">Fechar venda</option>
+                              <option value="agendar_reuniao">Agendar call</option>
+                              <option value="nutrir_lead">Nutrir lead</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tom da Comunicação</Label>
+                            <select
+                              value={aiTone}
+                              onChange={(event) => setAiTone(event.target.value)}
+                              className="mt-1 h-8 w-full rounded-lg border border-border/70 bg-background/60 px-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                            >
+                              <option value="profissional">Profissional</option>
+                              <option value="urgente">Urgente</option>
+                              <option value="descontraido">Descontraído</option>
+                              <option value="direto">Direto c/ oferta</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Follow-up (dias)</Label>
+                            <Input
+                              value={aiFollowUpDays}
+                              onChange={(event) => setAiFollowUpDays(event.target.value)}
+                              inputMode="numeric"
+                              className="mt-1 h-8 rounded-lg border-border/70 bg-background/60 text-xs px-2.5 focus-visible:ring-primary/50"
+                            />
+                          </div>
                         </div>
 
-                        <div>
-                          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Follow-up após (dias)</Label>
-                          <Input
-                            value={aiFollowUpDays}
-                            onChange={(event) => setAiFollowUpDays(event.target.value)}
-                            inputMode="numeric"
-                            className="mt-1 h-9 rounded-lg border-border/70 bg-background/60 text-xs focus-visible:ring-primary/50"
-                          />
-                        </div>
-
-                        <div>
-                          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Objetivo Principal</Label>
-                          <select
-                            value={aiObjective}
-                            onChange={(event) => setAiObjective(event.target.value)}
-                            className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-xs text-foreground focus:border-primary focus:outline-none"
-                          >
-                            <option value="gerar_orcamento">Gerar orçamento / proposta</option>
-                            <option value="fechar_venda">Fechar venda direto (Liquidação)</option>
-                            <option value="agendar_reuniao">Agendar reunião / call</option>
-                            <option value="nutrir_lead">Nutrir lead / gerar valor</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Tom da Comunicação</Label>
-                          <select
-                            value={aiTone}
-                            onChange={(event) => setAiTone(event.target.value)}
-                            className="mt-1 h-9 w-full rounded-lg border border-border/70 bg-background/60 px-3 text-xs text-foreground focus:border-primary focus:outline-none"
-                          >
-                            <option value="profissional">Profissional e consultivo</option>
-                            <option value="urgente">Urgente (escassez de estoque)</option>
-                            <option value="descontraido">Descontraído e amigável</option>
-                            <option value="direto">Direto ao ponto com oferta</option>
-                          </select>
-                        </div>
-
-                        <div className="pt-3">
+                        <div className="pt-1">
                           <Button
                             type="button"
-                            className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_-5px_rgba(16,185,129,0.5)] h-11 text-xs font-bold transition-all hover:scale-[1.01] gap-2"
+                            className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_-5px_rgba(16,185,129,0.5)] h-9 text-xs font-bold transition-all hover:scale-[1.01] gap-2"
                             onClick={() => void generateCampaignFromPrompt()}
                             disabled={isAiCampaignGenerating}
                           >
                             {isAiCampaignGenerating ? (
-                              <ArrowClockwise className="h-4 w-4 animate-spin" />
+                              <ArrowClockwise className="h-3.5 w-3.5 animate-spin" />
                             ) : (
-                              <Sparkle className="h-4 w-4" weight="fill" />
+                              <Sparkle className="h-3.5 w-3.5" weight="fill" />
                             )}
                             {isAiCampaignGenerating ? "Atendente gerando campanha..." : "Gerar Campanha com IA"}
                           </Button>
-                          <p className="text-center mt-2 text-[11px] text-muted-foreground">
+                          <p className="text-center mt-1 text-[10px] text-muted-foreground">
                             A IA interpreta o contexto e cria as etapas completas.
                           </p>
                         </div>
@@ -3360,6 +3529,41 @@ listSection={
           )}
         </DialogContent>
       </Dialog>
+      {/* Dialog para Colar Lista de Telefones Manualmente */}
+      <Dialog open={isPasteModalOpen} onOpenChange={setIsPasteModalOpen}>
+        <DialogContent className="max-w-md rounded-2xl border-border/70 bg-card/95">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2">
+              <FileText className="w-5 h-5 text-amber-400" />
+              <span>Colar Telefones Manualmente</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-xs text-muted-foreground">
+              Cole abaixo uma lista de telefones (um por linha ou separados por vírgula). O sistema normalizará os números automaticamente.
+            </p>
+            <textarea
+              rows={6}
+              placeholder="Ex:
+5531999991111
+5531988882222
+5511977773333"
+              value={pasteInputVal}
+              onChange={(e) => setPasteInputVal(e.target.value)}
+              className="w-full rounded-xl border border-border/70 bg-background/60 p-3 text-xs font-mono text-foreground focus:border-primary focus:outline-none"
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" className="rounded-xl" onClick={() => setIsPasteModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button className="rounded-xl bg-primary text-primary-foreground shadow-glow" onClick={handleApplyPastedNumbers}>
+                Importar Telefones
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
         <DialogContent className="max-w-md rounded-2xl border-border/70 bg-card/95">
           <DialogHeader>

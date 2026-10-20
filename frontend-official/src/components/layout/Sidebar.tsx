@@ -345,15 +345,15 @@ export function Sidebar() {
         boxShadow: "inset -1px 0 0 hsl(var(--sidebar-border)), 0 20px 40px -30px hsl(0 0% 0% / 0.9)",
       }}
     >
-      <div className={cn("border-b border-sidebar-border/60", compact ? "py-3 px-2 flex justify-center" : "py-3.5 px-4")}>
+      <div className={cn("border-b border-sidebar-border/60", compact ? "py-3 px-2 flex justify-center" : "pt-6 pb-5 px-4")}>
         {compact ? (
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/25 shadow-glow p-1">
-            <BrandLogo size={30} />
+          <div className="flex items-center justify-center transition-transform hover:scale-105 drop-shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+            <BrandLogo size={32} />
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center text-center w-full space-y-1.5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_24px_rgba(16,185,129,0.22)] p-2 transition-transform hover:scale-105">
-              <BrandLogo size={38} />
+          <div className="flex flex-col items-center justify-center text-center w-full">
+            <div className="flex items-center justify-center mb-[18px] transition-transform hover:scale-105 drop-shadow-[0_0_20px_rgba(16,185,129,0.25)]">
+              <BrandLogo size={72} />
             </div>
             <div className="flex flex-col items-center">
               <h1 className="font-display text-lg font-black tracking-widest text-sidebar-foreground leading-none">
@@ -363,7 +363,7 @@ export function Sidebar() {
                 CRM ENTERPRISE
               </span>
             </div>
-            <div className="flex items-center justify-center gap-1.5 pt-0.5">
+            <div className="flex items-center justify-center gap-1.5 pt-2">
               <span className="flex items-center gap-1 rounded-full border border-sidebar-border/80 bg-muted/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sidebar-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 VSTABLE
@@ -379,7 +379,7 @@ export function Sidebar() {
       </div>
 
       <TooltipProvider delayDuration={100}>
-        <nav className={cn("scrollbar-thin flex-1 space-y-2 overflow-y-auto py-3", compact ? "px-2" : "px-3")}>
+        <nav className={cn("scrollbar-thin flex-1 space-y-2 overflow-y-auto pt-4 pb-3", compact ? "px-2" : "px-3")}>
           <div className="space-y-1">
             {visibleCrmItems.map((item) => {
               if (item.path === "/ai") {

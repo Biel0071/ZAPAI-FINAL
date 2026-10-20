@@ -444,23 +444,38 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       onSessionConnected: (payload) => {
         const session = normalizeSession({ ...payload, status: "connected" });
         runtimeInfo(`[Runtime] session:connected id=${session.id} phone=${session.phone ?? "??"}`);
-        useAppStore.getState().upsertSession(session);
-        useAppStore.getState().clearLastQr(session.id);
+        const store = useAppStore.getState();
+        store.upsertSession(session);
+        store.clearLastQr(session.id);
+        if (!store.activeSessionId) {
+          store.setActiveSessionId(session.id);
+        }
+        window.dispatchEvent(new CustomEvent("whatsapp:session-connected", { detail: session }));
+        void loadFromApi({ forceConversations: true });
       },
 
       onSessionDisconnected: (payload) => {
         const session = normalizeSession({ ...payload, status: "disconnected" });
         runtimeWarn(`[Runtime] session:disconnected id=${session.id}`);
         useAppStore.getState().upsertSession(session);
+        window.dispatchEvent(new CustomEvent("whatsapp:session-disconnected", { detail: session }));
       },
 
       onSessionStatus: (payload) => {
         const session = normalizeSession(payload);
         runtimeInfo(`[Runtime] session:status id=${session.id} status=${session.status}`);
-        useAppStore.getState().upsertSession(session);
+        const store = useAppStore.getState();
+        store.upsertSession(session);
 
         if (session.status === "connected") {
-          useAppStore.getState().clearLastQr(session.id);
+          store.clearLastQr(session.id);
+          if (!store.activeSessionId) {
+            store.setActiveSessionId(session.id);
+          }
+          window.dispatchEvent(new CustomEvent("whatsapp:session-connected", { detail: session }));
+          void loadFromApi({ forceConversations: true });
+        } else if (session.status === "disconnected") {
+          window.dispatchEvent(new CustomEvent("whatsapp:session-disconnected", { detail: session }));
         }
       },
 
