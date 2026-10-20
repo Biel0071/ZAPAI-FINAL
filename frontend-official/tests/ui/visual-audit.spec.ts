@@ -366,7 +366,7 @@ test("captures every canonical route, tab, theme, and viewport with sanitized re
 
   const outputDir = path.resolve(process.cwd(), "docs", "visual-evidence", setName);
   await fs.mkdir(outputDir, { recursive: true });
-  const authState = path.resolve(process.cwd(), "tests", ".auth", "user.json");
+  const authState = path.resolve(__dirname, "..", ".auth", "user.json");
   const audit = {
     capturedAt: new Date().toISOString(),
     fixture: "sanitized-read-only",

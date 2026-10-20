@@ -224,19 +224,19 @@ sudo certbot --nginx -d seu-dominio.com
 
 ### 5. Primeiro deploy
 ```bash
-chmod +x deploy/*.sh
-./deploy/auto-deploy.sh
+chmod +x ops/deploy/*.sh
+./ops/deploy/auto-deploy.sh
 # Acompanhar: pm2 logs zapflow-api
 ```
 
 ### Deploys subsequentes
 ```bash
-./deploy/auto-deploy.sh
+./ops/deploy/auto-deploy.sh
 ```
 
 ### Rollback para versão estável
 ```bash
-./deploy/rollback.sh v1-stable-freeze
+./ops/deploy/rollback.sh v1-stable-freeze
 ```
 
 ---

@@ -244,15 +244,7 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
     if (leadStatus.state === "pago") {
       return "border border-teal-500/40 bg-teal-500/[0.09] shadow-[inset_0_0_14px_rgba(20,184,166,0.08)] hover:bg-teal-500/[0.14]";
     }
-    if (leadStatus.state === "pausado") {
-      return "border border-rose-500/40 bg-rose-500/[0.08] shadow-[inset_0_0_14px_rgba(244,63,94,0.08)] hover:bg-rose-500/[0.13]";
-    }
-    if (leadStatus.state === "chegou") {
-      return "border border-emerald-500/40 bg-emerald-500/[0.08] shadow-[inset_0_0_14px_rgba(16,185,129,0.08)] hover:bg-emerald-500/[0.13]";
-    }
-    if (leadStatus.state === "rodando") {
-      return "border border-amber-500/40 bg-amber-500/[0.08] shadow-[inset_0_0_14px_rgba(245,158,11,0.08)] hover:bg-amber-500/[0.13]";
-    }
+    // Contatos normais, em andamento, chegou ou pausados mantêm fundo limpo e neutro do tema
     return "border border-border/40 bg-card/60 hover:bg-accent/40 shadow-xs";
   }, [leadStatus.state]);
 
@@ -298,31 +290,19 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
             </AvatarFallback>
           </Avatar>
 
-          {/* Indicador Visual: Vermelho Piscando (Intervenção), Azul Piscando (Finalizado / Aguarda PIX), Verde (Chegou), Amarelo (Rodando), Vermelho (Pausado), Teal (Pago) */}
+          {/* Indicador Visual: Verde (Online/Digitando) se ativo, Alerta Piscando se Intervenção Urgente, caso contrário limpo */}
           <div className="absolute -bottom-0.5 -right-0.5 z-10 flex items-center justify-center pointer-events-none">
             {leadStatus.state === "intervencao" ? (
               <span className="relative flex h-3.5 w-3.5" title={leadStatus.tooltip}>
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-90" />
                 <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-600 border-2 border-background shadow-[0_0_12px_rgba(239,68,68,1)] ring-2 ring-red-400/80 animate-pulse" />
               </span>
-            ) : leadStatus.ping ? (
-              <span className="relative flex h-3.5 w-3.5" title={leadStatus.tooltip}>
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-80" />
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-600 border-2 border-background shadow-[0_0_10px_rgba(37,99,235,0.9)]" />
+            ) : (isTyping || conversation.status === "online") ? (
+              <span className="relative flex h-3.5 w-3.5" title="Contato online no momento">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-background shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
               </span>
-            ) : (
-              <span
-                className={cn(
-                  "inline-flex rounded-full h-3.5 w-3.5 border-2 border-background",
-                  leadStatus.dotColor,
-                  leadStatus.state === "chegou" && "shadow-[0_0_6px_rgba(16,185,129,0.7)]",
-                  leadStatus.state === "rodando" && "shadow-[0_0_6px_rgba(251,191,36,0.7)]",
-                  leadStatus.state === "pausado" && "shadow-[0_0_6px_rgba(244,63,94,0.7)]",
-                  leadStatus.state === "pago" && "shadow-[0_0_6px_rgba(20,184,166,0.7)]"
-                )}
-                title={leadStatus.tooltip}
-              />
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -342,7 +322,7 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
                 <span className="sr-only" title={leadStatus.tooltip}>INTERVENÇÃO</span>
               )}
               {leadStatus.state === "finalizado" && (
-                <span className="sr-only" title={leadStatus.tooltip}>AGUARDA PIX</span>
+                <span className="sr-only" title={leadStatus.tooltip}>AGUARDANDO PAGAMENTO</span>
               )}
               {conversation.tags && conversation.tags.length > 0 && (
                 <div

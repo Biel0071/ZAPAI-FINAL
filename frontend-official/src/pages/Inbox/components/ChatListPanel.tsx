@@ -218,13 +218,13 @@ export const ChatListPanel = memo(function ChatListPanel({
                 ? "bg-blue-600 text-white border-blue-400 font-bold shadow-[0_0_10px_rgba(59,130,246,0.5)]"
                 : "bg-muted/30 text-blue-400 hover:bg-blue-500/10 border-border/30"
             )}
-            title="Filtrar por Aguarda PIX (Ficha gerada / aguardando pagamento)"
+            title="Filtrar por Aguardando Pagamento (Ficha gerada / aguardando pagamento)"
           >
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-80" />
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
             </span>
-            <span>Aguarda PIX</span>
+            <span>Pagamento</span>
             <span className="text-[9px] opacity-75 font-mono">{funnelCounts.finalizado}</span>
           </button>
 

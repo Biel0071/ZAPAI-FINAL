@@ -236,7 +236,8 @@ test.describe("ZapAI CRM Deep Hardening & Stress Suite", () => {
 
       // Re-spawn backend server
       const backendDir = path.resolve(rootDir, "backend");
-      const logsDir = path.resolve(rootDir, "logs");
+      const logsDir = path.resolve(rootDir, "data", "logs");
+      fs.mkdirSync(logsDir, { recursive: true });
       const stdout = fs.openSync(path.join(logsDir, "local-backend.log"), "a");
       const stderr = fs.openSync(path.join(logsDir, "local-backend.log"), "a");
 

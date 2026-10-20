@@ -378,8 +378,8 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
       }
     }
 
-    // 5. Save discovery-map.json to tests folder
-    const testsDir = path.join(rootDir, "tests");
+    // 5. Save discovery-map.json to outros/diagnostics folder
+    const testsDir = path.join(rootDir, "outros", "diagnostics");
     if (!fs.existsSync(testsDir)) {
       fs.mkdirSync(testsDir, { recursive: true });
     }

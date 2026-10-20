@@ -1525,29 +1525,32 @@ export function classifyConversationFunnel(
     };
   }
 
-  // 2. AZUL PISCANDO: Atendimento finalizado / Ficha gerada aguardando PIX
+  // 2. AZUL PISCANDO: Atendimento finalizado / Ficha gerada aguardando Pagamento
   const isFinalizado =
     tags.some((t) => {
       const lower = String(t).toLowerCase();
       return (
         lower.includes("aguarda_pix") ||
         lower.includes("pix") ||
+        lower.includes("pagamento") ||
         lower.includes("finalizado") ||
         lower.includes("fechamento")
       );
     }) ||
     status === "aguarda_pix" ||
+    status === "aguardando_pagamento" ||
     status === "finalizado" ||
     status === "closed_won" ||
     funnelStage === "fechamento" ||
     funnelStage === "aguarda_pix" ||
+    funnelStage === "aguardando_pagamento" ||
     Boolean(conversation.hasSheet || conversation.orderSheet);
 
   if (isFinalizado) {
     return {
       state: "finalizado",
-      label: "Aguarda PIX",
-      tooltip: "Atendimento finalizado com Ficha de Pedido — Aguardando PIX do cliente",
+      label: "Aguardando Pagamento",
+      tooltip: "Atendimento finalizado com Ficha de Pedido — Aguardando Pagamento / PIX",
       dotColor: "bg-blue-500",
       badgeBg: "bg-blue-600",
       badgeText: "text-white",
@@ -1556,28 +1559,7 @@ export function classifyConversationFunnel(
     };
   }
 
-  // 3. VERMELHO: Pausado Normal
-  const isPaused =
-    humanActive ||
-    !globalAiEnabled ||
-    !conversationAiAllowed ||
-    status === "paused" ||
-    tags.some((t) => String(t).toLowerCase().includes("pausado"));
-
-  if (isPaused) {
-    return {
-      state: "pausado",
-      label: "Pausado",
-      tooltip: "Atendimento pausado — Operador humano no controle",
-      dotColor: "bg-rose-500",
-      badgeBg: "bg-rose-500/20",
-      badgeText: "text-rose-300",
-      badgeBorder: "border-rose-500/40",
-      ping: false,
-    };
-  }
-
-  // 4. VERDE: Chegou / Novo Lead / Frio
+  // 3. VERDE: Chegou / Novo Lead / Frio / Mensagens não lidas
   const isChegou =
     (Number(conversation.unread) || 0) > 0 ||
     (Number(conversation.unreadCount) || 0) > 0 ||
@@ -1602,11 +1584,33 @@ export function classifyConversationFunnel(
     };
   }
 
-  // 5. AMARELO: Rodando / IA em Atendimento Ativo
+  // 4. Pausado: Apenas se houver marcação ou tag explícita de pausa no sistema
+  const isPaused =
+    status === "paused" ||
+    status === "intervencao_humana" ||
+    tags.some((t) => {
+      const lower = String(t).toLowerCase();
+      return lower.includes("pausado") || lower.includes("pausa");
+    });
+
+  if (isPaused) {
+    return {
+      state: "pausado",
+      label: "Pausado",
+      tooltip: "Atendimento com marcação de pausa no sistema",
+      dotColor: "bg-rose-500",
+      badgeBg: "bg-rose-500/20",
+      badgeText: "text-rose-300",
+      badgeBorder: "border-rose-500/40",
+      ping: false,
+    };
+  }
+
+  // 5. AMARELO: Rodando / Conversa em andamento (afunilamento normal para contatos sem marcação)
   return {
     state: "rodando",
     label: "Rodando",
-    tooltip: "Atendimento em andamento pela IA (anúncio rodando)",
+    tooltip: "Atendimento em andamento (anúncio rodando)",
     dotColor: "bg-amber-400",
     badgeBg: "bg-amber-500/20",
     badgeText: "text-amber-300",

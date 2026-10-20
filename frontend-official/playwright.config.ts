@@ -1,4 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   testDir: "tests/ui",
@@ -27,7 +31,7 @@ export default defineConfig({
     colorScheme: "dark",
     video: "on",
     // Use the saved authentication state
-    storageState: "tests/.auth/user.json",
+    storageState: path.resolve(__dirname, "tests", ".auth", "user.json"),
   },
   projects: [
     {

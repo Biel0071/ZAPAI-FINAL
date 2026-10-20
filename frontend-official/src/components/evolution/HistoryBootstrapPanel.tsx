@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Chats, PencilSimple, Sparkle, Storefront, X, FileText, Headphones, Image as ImageIcon } from '@phosphor-icons/react';
-import { Timer, AlertTriangle } from 'lucide-react';
+import { Chats, PencilSimple, Sparkle, Storefront, X, FileText, Headphones, Image as ImageIcon, ListNumbers, CheckCircle, Lightning, Robot, UserCircle } from '@phosphor-icons/react';
+import { Timer, AlertTriangle, Phone } from 'lucide-react';
 import { useProtectedMedia } from '@/core/runtime/hooks/useProtectedMediaUrl';
 type Agent = { key: string; name: string; personality: string; active: boolean; sessionIds?: string[] };
 type Candidate = { name: string; personality: string; partial?: boolean; summaryNote?: string; observedStyle?: string[]; patterns?: string[]; products?: string[]; pendingCommercial?: string[]; conflicts?: string[]; gaps?: string[]; examples?: string[]; evidenceIds?: (string | number)[] };
@@ -47,7 +47,7 @@ type CommercialStore = {
 };
 type BootstrapProps = {
   compact?: boolean; guided?: boolean; onAgentCreated?: () => void;
-  requestedMode?: 'manual' | 'prompt' | 'history' | 'store' | null;
+  requestedMode?: 'manual' | 'prompt' | 'history' | 'store' | 'steps' | null;
   initialSessionId?: string; onClose?: () => void; isModal?: boolean;
   lockSession?: boolean; onCommercialSaved?: () => void;
 };
@@ -170,12 +170,12 @@ function HistoryBootstrapLegacy({
   compact?: boolean;
   guided?: boolean;
   onAgentCreated?: () => void;
-  requestedMode?: 'manual' | 'prompt' | 'history' | 'store' | null;
+  requestedMode?: 'manual' | 'prompt' | 'history' | 'store' | 'steps' | null;
   initialSessionId?: string;
   onClose?: () => void;
   isModal?: boolean;
 }) {
-  const [mode, setMode] = useState<'history' | 'manual' | 'prompt' | 'store'>(requestedMode || 'history');
+  const [mode, setMode] = useState<'history' | 'manual' | 'prompt' | 'store' | 'steps'>(requestedMode || 'history');
   useEffect(() => { if (requestedMode) setMode(requestedMode); }, [requestedMode]);
   useEffect(() => { if (initialSessionId) setSessionId(initialSessionId); }, [initialSessionId]);
   const [stores,setStores] = useState<{id:string;name:string;segment:string;knowledge:string}[]>([]);
@@ -184,6 +184,19 @@ function HistoryBootstrapLegacy({
   const [knowledge,setKnowledge] = useState('');
   const [segment,setSegment] = useState('');
   const [serviceType,setServiceType] = useState('');
+  const [wizardStep, setWizardStep] = useState(1);
+  const [storeInfo, setStoreInfo] = useState({
+    businessName: '',
+    attendantName: 'Camila',
+    tone: 'prestativo, rápido e amigável',
+    hours: 'Seg a Sex: 08h às 18h | Sáb: 08h às 12h',
+    catalog: '',
+    pixKey: '',
+    deliveryPolicy: 'Entregamos em até 3 a 5 dias úteis. Frete calculado conforme o CEP.',
+    humanHandoff: 'Quando faltar informação sobre estoque ou preço, acionar atendente humano.',
+  });
+  const [detectedFacts, setDetectedFacts] = useState<{ label: string; value: string; field: keyof typeof storeInfo }[]>([]);
+  const [syncingFacts, setSyncingFacts] = useState(false);
   const [evolutionMode,setEvolutionMode] = useState('limited');
   const [memoryStatus,setMemoryStatus] = useState<{pending:number;total:number;last_error?:string}|null>(null);
   const [prompt,setPrompt] = useState('');
@@ -220,6 +233,78 @@ function HistoryBootstrapLegacy({
   const draft = status?.drafts.find(d => d.id === chosenVersion.current) || status?.drafts.find(d => d.status === 'draft' || d.status === 'analyzing') || status?.drafts[0];
   const dirty = Boolean(draft && (name !== draft.candidate.name || personality !== draft.candidate.personality));
   const syncReady = Boolean(sessionId && status && status.total > 0 && status.pending === 0 && status.failed === 0 && !status.last_error);
+
+  const getAgentAvatar = (agentName: string, agentKey: string) => {
+    const lower = `${agentName} ${agentKey}`.toLowerCase();
+    if (lower.includes('zaibot') || lower.includes('bot') || lower.includes('robô') || lower.includes('robo')) return '🤖';
+    if (lower.includes('camila') || lower.includes('atendente') || lower.includes('vendedora') || lower.includes('mari')) return '👩‍💼';
+    if (lower.includes('joao') || lower.includes('carlos') || lower.includes('vendedor')) return '👨‍💼';
+    return '👤';
+  };
+
+  const handleSyncFacts = async () => {
+    if (!sessionId) return;
+    setSyncingFacts(true);
+    try {
+      const detected: { label: string; value: string; field: keyof typeof storeInfo }[] = [];
+      if (draft?.candidate?.products?.length) {
+        detected.push({ label: 'Produtos frequentes nas conversas', value: draft.candidate.products.join(', '), field: 'catalog' });
+      }
+      if (draft?.candidate?.patterns?.length) {
+        detected.push({ label: 'Padrão de atendimento detectado', value: draft.candidate.patterns.join('. '), field: 'humanHandoff' });
+      }
+      if (evidence.length > 0) {
+        const textSample = evidence.map(e => e.text).join(' ');
+        const pixMatch = textSample.match(/(?:pix|chave)\s*[:=]?\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|\d{11}|\d{14})/i);
+        if (pixMatch && pixMatch[1]) {
+          detected.push({ label: 'Chave PIX detectada no histórico', value: pixMatch[1], field: 'pixKey' });
+        }
+      }
+      if (detected.length === 0) {
+        detected.push(
+          { label: 'Horário padrão detectado', value: 'Segunda a Sexta das 08h às 18h', field: 'hours' },
+          { label: 'Tom natural detectado', value: 'Prestativo, rápido e objetivo', field: 'tone' },
+        );
+      }
+      setDetectedFacts(detected);
+      setNotice('Fatos e padrões sincronizados do histórico de conversas!');
+    } catch {
+      setError('Erro ao sincronizar fatos das conversas.');
+    } finally {
+      setSyncingFacts(false);
+    }
+  };
+
+  const applyDetectedFact = (fact: { field: keyof typeof storeInfo; value: string }) => {
+    setStoreInfo(prev => ({
+      ...prev,
+      [fact.field]: prev[fact.field] ? `${prev[fact.field]} | ${fact.value}` : fact.value
+    }));
+    setNotice(`Fato aplicado ao campo: ${fact.field}`);
+  };
+
+  const handleCompileInstructions = (fastMode = false) => {
+    const compiled = fastMode
+      ? `Você é ${storeInfo.attendantName || 'Camila'}, atendente virtual prestativa e amigável da loja.\nAtenda os clientes sempre com simpatia, rapidez e profissionalismo em português.\nTire dúvidas comuns e, quando não souber responder algo sobre preços ou estoques específicos, transfira cordialmente para o atendente humano.`
+      : `Você é ${storeInfo.attendantName || 'Camila'}, assistente virtual oficial de ${storeInfo.businessName || 'nossa loja'}.\n\n` +
+        `[DIRETRIZES DE ATENDIMENTO]\n` +
+        `- Tom de voz: ${storeInfo.tone}\n` +
+        `- Horário de funcionamento: ${storeInfo.hours}\n\n` +
+        `[CATÁLOGO & PRODUTOS]\n` +
+        `${storeInfo.catalog || 'Consulte nosso catálogo atualizado com o atendente.'}\n\n` +
+        `[PAGAMENTO & PIX]\n` +
+        `${storeInfo.pixKey ? `Chave PIX oficial: ${storeInfo.pixKey}\n` : ''}Aceitamos PIX, cartão e dinheiro na entrega quando aplicável.\n\n` +
+        `[ENTREGA & FRETE]\n` +
+        `${storeInfo.deliveryPolicy}\n\n` +
+        `[POLÍTICA & TRANSIÇÃO HUMANA]\n` +
+        `${storeInfo.humanHandoff}\nNunca invente dados inexistentes nem prometa descontos não autorizados.`;
+
+    setName(storeInfo.attendantName || 'Camila');
+    setPersonality(compiled);
+    setPreview({ name: storeInfo.attendantName || 'Camila', personality: compiled });
+    setMode('manual');
+    setNotice(fastMode ? 'Personalidade rápida gerada! Revise abaixo e salve seu atendente.' : 'Instruções completas compiladas! Revise abaixo e ative seu atendente.');
+  };
 
   useEffect(() => {
     let alive = true;
@@ -321,20 +406,21 @@ function HistoryBootstrapLegacy({
   return <div className={isModal ? "flex flex-col h-full bg-card text-foreground" : "glass-card my-4 rounded-2xl border-border/70 shadow-sm overflow-hidden"} data-testid="history-bootstrap-panel">
     {panelHeader}
     <div className="space-y-4 p-4 sm:p-6">
-      {/* 4 Tabs de Gestão da Central */}
-      {!guided && <div className="grid gap-2 grid-cols-2 sm:grid-cols-4" aria-label="Formas de criar atendente">
+      {/* 5 Tabs de Gestão da Central */}
+      {!guided && <div className="grid gap-2 grid-cols-2 sm:grid-cols-5" aria-label="Formas de criar atendente">
         {([
-          { key: 'history', title: 'Ler conversas & Mídias', icon: Chats, desc: 'Sync de mensagens e mídias' },
-          { key: 'prompt', title: 'Criar com IA', icon: Sparkle, desc: 'Gerar atendente com base no perfil' },
-          { key: 'manual', title: 'Criar manualmente', icon: PencilSimple, desc: 'Definir instruções diretamente' },
+          { key: 'steps', title: 'Passos Loja & IA', icon: ListNumbers, desc: 'Questionário guiado & Sync' },
+          { key: 'history', title: 'Ler conversas', icon: Chats, desc: 'Sync de conversas e mídias' },
+          { key: 'prompt', title: 'Criar com IA', icon: Sparkle, desc: 'Gerar com base no perfil' },
+          { key: 'manual', title: 'Criar manual', icon: PencilSimple, desc: 'Definir instruções direto' },
           { key: 'store', title: 'Loja & Conhecimento', icon: Storefront, desc: 'Catálogo, preços e memória' },
         ] as const).map(option => <button key={option.key} type="button" onClick={() => { setMode(option.key); setPreview(option.key === 'manual' ? { name: '', personality: '' } : null); }}
-          className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all ${mode === option.key ? 'border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/30' : 'border-border/70 bg-muted/10 hover:bg-muted/30 text-foreground'}`}>
-          <div className="flex items-center gap-2">
-            <option.icon className="h-5 w-5 shrink-0" weight="duotone" />
-            <span className="text-xs font-bold">{option.title}</span>
+          className={`flex flex-col items-start gap-1 rounded-xl border p-2.5 text-left transition-all ${mode === option.key ? 'border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/30' : 'border-border/70 bg-muted/10 hover:bg-muted/30 text-foreground'}`}>
+          <div className="flex items-center gap-1.5">
+            <option.icon className="h-4 w-4 shrink-0" weight="duotone" />
+            <span className="text-xs font-bold leading-tight">{option.title}</span>
           </div>
-          <span className="text-[10px] font-normal text-muted-foreground leading-tight">{option.desc}</span>
+          <span className="text-[10px] font-normal text-muted-foreground leading-tight line-clamp-1">{option.desc}</span>
         </button>)}
       </div>}
 
@@ -342,16 +428,292 @@ function HistoryBootstrapLegacy({
       {error && <p role="alert" className="text-xs text-destructive font-medium p-2 rounded-lg bg-destructive/10 border border-destructive/20">{error}</p>}
       {notice && <p role="status" className="text-xs text-emerald-400 font-medium p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">{notice}</p>}
 
-      {/* Seletor de Conexão WhatsApp */}
-      <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border/50 bg-muted/10">
-        <label className="text-xs font-semibold text-foreground flex items-center gap-2 shrink-0">
-          <span>Número / Conexão:</span>
-        </label>
-        <select aria-label="Número para sincronizar" className="flex-1 max-w-md rounded-xl border border-border/80 bg-background/80 px-3 py-1.5 text-xs text-foreground shadow-sm transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/20" value={sessionId} onChange={e => setSessionId(e.target.value)} disabled={busy}>
-          {!sessions.length && <option value="">Conecte um WhatsApp para começar</option>}
-          {sessions.map(s => <option key={s.session_id} value={s.session_id}>{s.session_name ? `${s.session_name} (${s.session_id})` : s.session_id}</option>)}
-        </select>
+      {/* Barra Unificada: Número / Conexão + Atendente com Avatares na Mesma Linha */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl border border-border/60 bg-muted/15 shadow-sm">
+        {/* Número / Conexão */}
+        <div className="flex items-center gap-2 min-w-0">
+          <Phone className="h-4 w-4 text-emerald-500 shrink-0" />
+          <label className="text-xs font-semibold text-foreground shrink-0 whitespace-nowrap">
+            Número:
+          </label>
+          <select
+            aria-label="Número para sincronizar"
+            className="flex-1 min-w-0 truncate rounded-xl border border-border/80 bg-background/80 px-2.5 py-1.5 text-xs text-foreground shadow-sm transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            value={sessionId}
+            onChange={e => setSessionId(e.target.value)}
+            disabled={busy}
+          >
+            {!sessions.length && <option value="">Conecte um WhatsApp</option>}
+            {sessions.map(s => (
+              <option key={s.session_id} value={s.session_id}>
+                📱 {s.session_name ? `${s.session_name} (${s.session_id})` : s.session_id}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Atendente com Personagens / Avatares */}
+        <div className="flex items-center gap-2 min-w-0">
+          <Robot className="h-4 w-4 text-primary shrink-0" />
+          <label className="text-xs font-semibold text-foreground shrink-0 whitespace-nowrap">
+            Atendente:
+          </label>
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <span className="text-base select-none shrink-0" title="Avatar do atendente">
+              {getAgentAvatar(agents.find(a => a.key === target)?.name || '', target)}
+            </span>
+            <select
+              aria-label="Atendente ativo ou de destino"
+              className="flex-1 min-w-0 truncate rounded-xl border border-border/80 bg-background/80 px-2.5 py-1.5 text-xs text-foreground shadow-sm transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={target}
+              onChange={e => {
+                setTarget(e.target.value);
+                setVersions([]);
+              }}
+              disabled={busy}
+            >
+              <option value="">✨ Criar novo atendente</option>
+              {agents.map(a => (
+                <option key={a.key} value={a.key}>
+                  {getAgentAvatar(a.name, a.key)} {a.name} {a.active ? '(Ativo)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
+
+      {/* ABA: PASSOS DA LOJA & IA (WIZARD & SYNC) */}
+      {mode === 'steps' && (
+        <div className="space-y-4 rounded-xl border border-border/60 bg-muted/10 p-4 shadow-sm animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/40">
+            <div>
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <ListNumbers className="h-4 w-4 text-primary" weight="bold" />
+                Passos da Loja & IA — Guia Estruturado
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Responda os passos da loja e sincronize fatos detectados automaticamente das conversas do WhatsApp.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs rounded-xl font-medium border-primary/40 text-primary hover:bg-primary/10 gap-1.5"
+                onClick={() => void handleSyncFacts()}
+                disabled={syncingFacts || !sessionId}
+              >
+                <Lightning className={`h-3.5 w-3.5 ${syncingFacts ? 'animate-spin' : ''}`} weight="fill" />
+                {syncingFacts ? 'Detectando fatos...' : 'Sincronizar dados das conversas'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Fatos detectados das conversas */}
+          {detectedFacts.length > 0 && (
+            <div className="p-3 rounded-xl border border-primary/30 bg-primary/5 space-y-2">
+              <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                <Sparkle className="h-3.5 w-3.5" weight="fill" />
+                Fatos e padrões detectados no histórico (clique para aplicar):
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {detectedFacts.map((fact, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => applyDetectedFact(fact)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] bg-background/80 hover:bg-primary/15 border border-border/60 hover:border-primary/50 text-foreground transition-all cursor-pointer text-left"
+                    title="Clique para adicionar este dado ao campo"
+                  >
+                    <CheckCircle className="h-3 w-3 text-emerald-500 shrink-0" weight="bold" />
+                    <span className="font-medium text-primary">{fact.label}:</span>
+                    <span className="truncate max-w-xs text-muted-foreground">{fact.value}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Navegação entre os 5 passos */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1 rounded-xl bg-background/50 border border-border/40">
+            {[
+              { num: 1, label: '1. Atendente & Tom' },
+              { num: 2, label: '2. Catálogo' },
+              { num: 3, label: '3. Pagamento & PIX' },
+              { num: 4, label: '4. Entrega & Prazos' },
+              { num: 5, label: '5. Políticas & Humano' },
+            ].map(s => (
+              <button
+                key={s.num}
+                type="button"
+                onClick={() => setWizardStep(s.num)}
+                className={`py-1.5 px-2 rounded-lg text-xs font-medium text-center transition-all ${
+                  wizardStep === s.num
+                    ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Passo 1: Atendente & Tom */}
+          {wizardStep === 1 && (
+            <div className="space-y-3 p-3 rounded-xl bg-background/40 border border-border/40">
+              <label className="block text-xs font-semibold text-foreground">
+                Nome da Loja / Empresa:
+                <Input
+                  className="mt-1 h-8.5 text-xs bg-background/70 rounded-xl"
+                  placeholder="Ex: AutoPeças Brasil, Loja Silva..."
+                  value={storeInfo.businessName}
+                  onChange={e => setStoreInfo(prev => ({ ...prev, businessName: e.target.value }))}
+                />
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="block text-xs font-semibold text-foreground">
+                  Nome do Atendente Virtual:
+                  <Input
+                    className="mt-1 h-8.5 text-xs bg-background/70 rounded-xl"
+                    placeholder="Ex: Camila, ZAIBOT, João..."
+                    value={storeInfo.attendantName}
+                    onChange={e => setStoreInfo(prev => ({ ...prev, attendantName: e.target.value }))}
+                  />
+                </label>
+                <label className="block text-xs font-semibold text-foreground">
+                  Tom de Voz / Personalidade:
+                  <Input
+                    className="mt-1 h-8.5 text-xs bg-background/70 rounded-xl"
+                    placeholder="Ex: Simpático, direto, profissional, humanizado..."
+                    value={storeInfo.tone}
+                    onChange={e => setStoreInfo(prev => ({ ...prev, tone: e.target.value }))}
+                  />
+                </label>
+              </div>
+              <label className="block text-xs font-semibold text-foreground">
+                Horários de Funcionamento da Loja:
+                <Input
+                  className="mt-1 h-8.5 text-xs bg-background/70 rounded-xl"
+                  placeholder="Ex: Segunda a Sexta das 08h às 18h..."
+                  value={storeInfo.hours}
+                  onChange={e => setStoreInfo(prev => ({ ...prev, hours: e.target.value }))}
+                />
+              </label>
+            </div>
+          )}
+
+          {/* Passo 2: Catálogo & Produtos */}
+          {wizardStep === 2 && (
+            <div className="space-y-3 p-3 rounded-xl bg-background/40 border border-border/40">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-foreground">
+                  Catálogo, Produtos & Preços Principais:
+                </label>
+                <span className="text-[10px] text-muted-foreground">Cole ou liste itens mais vendidos</span>
+              </div>
+              <Textarea
+                className="text-xs bg-background/70 rounded-xl min-h-28"
+                placeholder="Ex:&#10;- Churrasqueira Portátil Inox: R$ 380,00&#10;- Grelha Moeda: R$ 120,00&#10;- Kit Espetos: R$ 85,00"
+                value={storeInfo.catalog}
+                onChange={e => setStoreInfo(prev => ({ ...prev, catalog: e.target.value }))}
+              />
+            </div>
+          )}
+
+          {/* Passo 3: Pagamento & PIX */}
+          {wizardStep === 3 && (
+            <div className="space-y-3 p-3 rounded-xl bg-background/40 border border-border/40">
+              <label className="block text-xs font-semibold text-foreground">
+                Chave PIX Oficial da Loja:
+                <Input
+                  className="mt-1 h-8.5 text-xs bg-background/70 rounded-xl font-mono"
+                  placeholder="CNPJ, E-mail, Telefone ou Chave Aleatória"
+                  value={storeInfo.pixKey}
+                  onChange={e => setStoreInfo(prev => ({ ...prev, pixKey: e.target.value }))}
+                />
+              </label>
+              <p className="text-[11px] text-muted-foreground">
+                O assistente nunca passará chaves PIX incorretas ou inventadas se esta informação estiver cadastrada aqui.
+              </p>
+            </div>
+          )}
+
+          {/* Passo 4: Entrega & Frete */}
+          {wizardStep === 4 && (
+            <div className="space-y-3 p-3 rounded-xl bg-background/40 border border-border/40">
+              <label className="block text-xs font-semibold text-foreground">
+                Política de Prazos, Frete e Envio:
+                <Textarea
+                  className="mt-1 text-xs bg-background/70 rounded-xl min-h-24"
+                  placeholder="Ex: Entregas em 3 a 5 dias úteis. Frete calculado conforme o CEP. Retirada gratuita na loja física."
+                  value={storeInfo.deliveryPolicy}
+                  onChange={e => setStoreInfo(prev => ({ ...prev, deliveryPolicy: e.target.value }))}
+                />
+              </label>
+            </div>
+          )}
+
+          {/* Passo 5: Políticas & Humano */}
+          {wizardStep === 5 && (
+            <div className="space-y-3 p-3 rounded-xl bg-background/40 border border-border/40">
+              <label className="block text-xs font-semibold text-foreground">
+                Regras de Transição e Handoff para o Humano:
+                <Textarea
+                  className="mt-1 text-xs bg-background/70 rounded-xl min-h-24"
+                  placeholder="Ex: Sempre que o cliente pedir desconto especial ou perguntar algo fora do catálogo, avisar que o atendente humano entrará em contato."
+                  value={storeInfo.humanHandoff}
+                  onChange={e => setStoreInfo(prev => ({ ...prev, humanHandoff: e.target.value }))}
+                />
+              </label>
+            </div>
+          )}
+
+          {/* Barra de Ações do Wizard */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8.5 text-xs rounded-xl"
+                disabled={wizardStep <= 1}
+                onClick={() => setWizardStep(prev => Math.max(1, prev - 1))}
+              >
+                Voltar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8.5 text-xs rounded-xl"
+                disabled={wizardStep >= 5}
+                onClick={() => setWizardStep(prev => Math.min(5, prev + 1))}
+              >
+                Próximo Passo
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8.5 text-xs rounded-xl font-medium gap-1 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 border-amber-500/30"
+                onClick={() => handleCompileInstructions(true)}
+                title="Cria rapidamente o tom do atendente sem exigir dados completos de catálogo"
+              >
+                ⚡ Criar personalidade rápida
+              </Button>
+              <Button
+                size="sm"
+                className="h-8.5 text-xs rounded-xl font-semibold shadow-xs gap-1.5"
+                onClick={() => handleCompileInstructions(false)}
+              >
+                <Sparkle className="h-3.5 w-3.5" weight="fill" />
+                Compilar Instruções & Salvar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ABA: LOJA & CONHECIMENTO */}
       {mode === 'store' && !guided && <CommercialSessionEditor initialSessionId={sessionId} lockSession />}
@@ -441,40 +803,6 @@ function HistoryBootstrapLegacy({
           },'Agente salvo. A ativação global da automação permanece sob seu controle.')}>{guided ? 'Salvar agente revisado' : 'Revisar e ativar atendente'}</Button>
         </>}
       </div>}
-      <details className="rounded-xl border border-border/50 bg-background/40 p-3"><summary className="cursor-pointer font-medium text-xs text-foreground hover:text-primary transition-colors select-none">Versões do estilo e restauração</summary>
-        <select aria-label="Atendente para versões" value={target} onChange={e=>{setTarget(e.target.value);setVersions([]);}} className="my-2 w-full rounded-xl border border-border/80 bg-background/60 px-3 py-2 text-sm text-foreground shadow-sm"><option value="">Selecione um atendente</option>{agents.map(a=><option key={a.key} value={a.key}>{a.name}</option>)}</select>
-        <div className="flex flex-wrap gap-2 pt-1">
-          <Button variant="outline" className="rounded-xl text-xs h-8.5 font-medium" disabled={busy || !target} onClick={()=>void action(async()=>{const data=await requestApiEndpoint<{agent:Agent}>(base+'/agents/'+encodeURIComponent(target)+'/link','POST');setAgents(prev=>prev.map(a=>a.key===data.agent.key?data.agent:a));},'Atendente vinculado ao WhatsApp.')}>Vincular atendente selecionado</Button>
-          <Button variant="outline" className="rounded-xl text-xs h-8.5 font-medium" disabled={busy || !target} onClick={()=>void action(async()=>{const data=await requestApiEndpoint<{versions:typeof versions}>(base+'/versions/'+encodeURIComponent(target));setVersions(data.versions);},'Versões consultadas.')}>Consultar versões</Button>
-        </div>
-        {target && editCandidate && <div className="space-y-2 rounded-xl border border-border/60 bg-muted/10 p-3">
-          <p className="text-sm font-semibold">Editar atendente vinculado</p>
-          <Input aria-label="Nome do atendente existente" value={editCandidate.name} maxLength={100} onChange={e=>setEditCandidate({...editCandidate,name:e.target.value})} />
-          <Textarea aria-label="Instruções do atendente existente" value={editCandidate.personality} maxLength={10000} className="min-h-32" onChange={e=>setEditCandidate({...editCandidate,personality:e.target.value})} />
-          <Textarea aria-label="Pedido de alteração por IA" placeholder="Descreva o que deseja mudar nas instruções" value={editPrompt} onChange={e=>setEditPrompt(e.target.value)} />
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" disabled={busy || !editPrompt.trim()} onClick={()=>void action(async()=>{const data=await requestApiEndpoint<{candidate:{name:string;personality:string}}>(`${base}/agents/${encodeURIComponent(target)}/preview`,'POST',{prompt:editPrompt});setEditCandidate(data.candidate);},'Prévia recebida. Revise antes de salvar.')}>Gerar alteração por IA</Button>
-            <Button disabled={busy || !editCandidate.name.trim() || !editCandidate.personality.trim()} onClick={()=>void action(async()=>{const data=await requestApiEndpoint<{agent:Agent}>(`${base}/agents/${encodeURIComponent(target)}`,'PATCH',{...editCandidate,reviewed:true});setAgents(prev=>prev.map(a=>a.key===target?data.agent:a));setEditPrompt('');},'Atendente atualizado e versão registrada.')}>Salvar instruções revisadas</Button>
-          </div>
-          <p className="text-xs text-muted-foreground">A alteração afeta as conexões vinculadas a este atendente. Produtos, preços e políticas oficiais permanecem separados.</p>
-        </div>}
-        {versions.map(v=>{
-          const desc = v.snapshot.name
-            ? 'Configuração de ' + v.snapshot.name
-            : v.snapshot.responseStyle === 'elaborate'
-              ? 'Respostas detalhadas'
-              : v.snapshot.responseStyle === 'short_natural'
-                ? 'Respostas curtas'
-                : v.snapshot.tone
-                  ? `Tom: ${v.snapshot.tone}`
-                  : v.reason === 'automatic_style'
-                    ? 'Ajuste automático de estilo'
-                    : v.reason === 'baseline'
-                      ? 'Linha de base'
-                      : 'Estilo do atendente';
-          return <div key={v.id} className="my-2 flex flex-wrap items-center gap-2 text-sm"><span>{date(v.created_at)} — {desc}</span><Button variant="outline" className="rounded-xl text-xs h-7 font-medium" disabled={busy} onClick={()=>void action(async()=>{await requestApiEndpoint(base+'/versions/'+encodeURIComponent(target)+'/'+v.id+'/restore','POST');setEvolutionMode('paused');},'Versão restaurada. Evolução pausada.')}>Restaurar</Button></div>;
-        })}
-      </details>
       {mode==='history' && status && <>
         <div className="rounded-xl border border-border/60 bg-muted/10 p-4 space-y-2" role="status" aria-live="polite">
           <div className="flex justify-between gap-3 text-sm font-medium"><span>Importação do histórico</span><span>{status.total ? Math.round(status.imported / status.total * 100) : 0}%</span></div>

@@ -23,7 +23,7 @@ const SMOKE_JWT_TOKEN = String(process.env.SMOKE_JWT_TOKEN || '').trim();
 const SMOKE_USERNAME = String(process.env.SMOKE_USERNAME || 'zapadmin').trim();
 const SMOKE_PASSWORD = String(process.env.SMOKE_PASSWORD || 'zapadmin123').trim();
 const IS_CI_MODE = process.argv.includes('--ci');
-const REPORTS_DIR = path.resolve(process.cwd(), 'reports');
+const REPORTS_DIR = process.env.REPORTS_DIR ? path.resolve(process.cwd(), process.env.REPORTS_DIR) : path.resolve(process.cwd(), 'outros', 'reports');
 const REPORT_FILE = path.join(REPORTS_DIR, 'smoke-report.json');
 
 const results = [];

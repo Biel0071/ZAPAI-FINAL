@@ -10,7 +10,7 @@ services:
       # Uncomment to enable HTTPS (requires SSL certs):
       # - "443:443"
     volumes:
-      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ops/deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
       - ./frontend-official/dist:/usr/share/nginx/html:ro
@@ -53,7 +53,7 @@ services:
     # Not exposed to host — backend accesses via Docker network only
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backups/postgres:/backups
+      - ./data/backups/postgres:/backups
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zapai} -d ${POSTGRES_DB:-zapai_crm}"]
       interval: 10s
@@ -99,7 +99,7 @@ services:
       BACKUP_KEEP_MONTHS: ${BACKUP_KEEP_MONTHS:-6}
       BACKUP_DIR: /backups
     volumes:
-      - ./backups/postgres:/backups
+      - ./data/backups/postgres:/backups
     depends_on:
       postgres:
         condition: service_healthy

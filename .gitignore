@@ -112,5 +112,8 @@ tmp_ssh/
 outros/
 data/logs/*.log
 data/uploads/*
+data/backups/*
+data/storage/*
+data/sessions/*
 .cursor/
 

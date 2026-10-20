@@ -4,7 +4,7 @@ import path from 'node:path';
 
 async function globalSetup(config: FullConfig) {
   const { baseURL } = config.projects[0].use;
-  const authDir = path.join(process.cwd(), 'tests', '.auth');
+  const authDir = path.resolve(__dirname, '.auth');
   const authFile = path.join(authDir, 'user.json');
 
   if (!fs.existsSync(authDir)) {

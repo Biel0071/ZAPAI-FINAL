@@ -46,6 +46,7 @@ import {
   Workflow,
   X,
   Zap,
+  Volume2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -287,6 +288,11 @@ function SharedMediaCard({
           />
         ) : type === "video" && mediaUrl && !failed ? (
           <video src={mediaUrl} className="h-full w-full object-cover" preload="metadata" onError={() => setFailed(true)} />
+        ) : type === "audio" && mediaUrl && !failed ? (
+          <div className="flex flex-col items-center justify-center gap-1.5 p-3 w-full h-full bg-emerald-500/10 text-emerald-400">
+            <Volume2 className="h-8 w-8 text-emerald-400 animate-pulse" />
+            <span className="text-[10px] font-semibold tracking-wider uppercase text-emerald-300">Mensagem de Áudio</span>
+          </div>
         ) : (
           <FileText className="h-8 w-8 text-muted-foreground" />
         )}
@@ -297,6 +303,11 @@ function SharedMediaCard({
       <p className="mt-0.5 text-xs text-muted-foreground">
         {failed ? "Não foi possível abrir este arquivo" : getMediaTypeLabel(type)}
       </p>
+      {type === "audio" && mediaUrl && !failed && (
+        <div className="mt-1.5 w-full">
+          <audio controls preload="none" src={mediaUrl} className="w-full h-7 rounded" />
+        </div>
+      )}
       <div className="mt-2 flex items-center gap-1">
         <Button size="sm" variant="ghost" className="h-8 flex-1 px-1 text-xs" disabled={!mediaUrl || failed} onClick={open}>
           Abrir
