@@ -496,6 +496,7 @@ export default function UnifiedAIPage({ defaultSection }: AIPageProps) {
               agentKey={selectedAgentKey || "camila"}
               onSelectAgent={setSelectedAgentKey}
               agents={agentProfiles}
+              isSessionConnected={sessions.some((s) => s.connected || s.status === "connected")}
             />
           )}
 

@@ -49,6 +49,7 @@ import { MemoryDetailDrawer, type MemoryNodeData } from "@/components/evolution/
 import { ConversationScoresSection } from "@/components/evolution/ConversationScoresSection";
 import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
 import { createAgentAvatar } from "@/components/avatar-engine/CharacterFactory";
+import { useAppStore } from "@/state/stores/appStore";
 
 interface EvolutionOverview {
   score: number | null;
@@ -121,7 +122,10 @@ const KNOWN_MEMORY_CATEGORIES = [
   { id: "objection", label: "Objeções Resolvidas", color: "#8b5cf6" },
 ];
 
-export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, selectedAgent, isSessionConnected = true }: EvolutionTabProps = {}) {
+export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, selectedAgent, isSessionConnected: propIsSessionConnected }: EvolutionTabProps = {}) {
+  const storeSessions = useAppStore((state) => state.sessions);
+  const hasLiveSession = storeSessions.some((s) => s.connected || s.status === "connected");
+  const isSessionConnected = propIsSessionConnected !== undefined ? propIsSessionConnected : hasLiveSession;
   const { toast } = useToast();
   const onSelectAgentRef = useRef(onSelectAgent);
   onSelectAgentRef.current = onSelectAgent;
