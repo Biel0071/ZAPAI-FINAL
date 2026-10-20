@@ -345,34 +345,37 @@ export function Sidebar() {
         boxShadow: "inset -1px 0 0 hsl(var(--sidebar-border)), 0 20px 40px -30px hsl(0 0% 0% / 0.9)",
       }}
     >
-      <div className={cn("border-b border-sidebar-border/60 py-3", compact ? "px-2 flex justify-center" : "px-4")}>
-        <div className={cn("flex items-center", compact ? "justify-center w-full" : "gap-3")}>
-          <div className={cn(
-            "flex flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/25 shadow-glow p-1",
-            compact ? "h-10 w-10" : "h-11 w-11"
-          )}>
-            <BrandLogo size={compact ? 30 : 38} />
+      <div className={cn("border-b border-sidebar-border/60", compact ? "py-3 px-2 flex justify-center" : "py-3.5 px-4")}>
+        {compact ? (
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/25 shadow-glow p-1">
+            <BrandLogo size={30} />
           </div>
-          {!compact && (
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-col">
-                <h1 className="truncate font-display text-[15px] font-bold leading-tight text-sidebar-foreground">ZAI</h1>
-                <span className="truncate text-xs text-sidebar-foreground/70">CRM ENTERPRISE</span>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="flex items-center gap-1.5 rounded-full border border-sidebar-border/80 bg-muted/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-sidebar-foreground">
-                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                  VSTABLE
-                </span>
-                {!isLoading && (
-                  <Badge variant="outline" className="h-6 rounded-full border-sidebar-border/80 bg-muted/20 px-2.5 text-[10px] uppercase tracking-wide text-sidebar-foreground">
-                    {role}
-                  </Badge>
-                )}
-              </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center text-center w-full space-y-1.5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_24px_rgba(16,185,129,0.22)] p-2 transition-transform hover:scale-105">
+              <BrandLogo size={38} />
             </div>
-          )}
-        </div>
+            <div className="flex flex-col items-center">
+              <h1 className="font-display text-lg font-black tracking-widest text-sidebar-foreground leading-none">
+                ZAI
+              </h1>
+              <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-emerald-400 mt-1">
+                CRM ENTERPRISE
+              </span>
+            </div>
+            <div className="flex items-center justify-center gap-1.5 pt-0.5">
+              <span className="flex items-center gap-1 rounded-full border border-sidebar-border/80 bg-muted/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sidebar-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                VSTABLE
+              </span>
+              {!isLoading && (
+                <Badge variant="outline" className="h-5 rounded-full border-sidebar-border/80 bg-muted/20 px-2 text-[9px] uppercase tracking-wide text-sidebar-foreground">
+                  {role}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <TooltipProvider delayDuration={100}>

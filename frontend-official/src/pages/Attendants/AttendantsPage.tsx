@@ -1070,65 +1070,6 @@ export default function AttendantsPage() {
             </div>
           </div>
 
-          {/* 360 Turntable Degree Presets & Rotation Controls */}
-          <div className="flex items-center justify-between gap-1 p-1 rounded-xl bg-muted/20 border border-border/50">
-            <button
-              type="button"
-              data-studio-action="rotate-left"
-              onClick={() => {
-                const nextAngle = (((studioRotationY - 45) % 360) + 360) % 360;
-                setStudioRotationY(nextAngle);
-                handleUpdateAvatar({ rotationY: nextAngle });
-              }}
-              className="px-2 py-1 rounded-lg text-[10px] font-mono border border-border/60 bg-card/80 text-muted-foreground hover:text-emerald-400 hover:border-emerald-500/50 transition-colors cursor-pointer"
-              title="Girar 45° anti-horário"
-            >
-              ↺ -45°
-            </button>
-            {[
-              { angle: 0, label: "0°", title: "Frente (0°)" },
-              { angle: 45, label: "45°", title: "3/4 (45°)" },
-              { angle: 90, label: "90°", title: "Perfil (90°)" },
-              { angle: 180, label: "180°", title: "Costas (180°)" },
-              { angle: 270, label: "270°", title: "Perfil E (270°)" },
-            ].map((p) => {
-              const isSelected = Math.abs((((studioRotationY % 360) + 360) % 360) - p.angle) < 10;
-              return (
-                <button
-                  key={p.angle}
-                  type="button"
-                  data-studio-angle={p.angle}
-                  onClick={() => {
-                    setStudioRotationY(p.angle);
-                    handleUpdateAvatar({ rotationY: p.angle });
-                  }}
-                  title={p.title}
-                  className={cn(
-                    "px-2 py-1 rounded-lg text-[10px] font-mono border transition-all cursor-pointer",
-                    isSelected
-                      ? "bg-emerald-500/25 border-emerald-500/60 text-emerald-300 font-bold shadow-xs"
-                      : "bg-card/60 border-border/50 text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              data-studio-action="rotate-right"
-              onClick={() => {
-                const nextAngle = (((studioRotationY + 45) % 360) + 360) % 360;
-                setStudioRotationY(nextAngle);
-                handleUpdateAvatar({ rotationY: nextAngle });
-              }}
-              className="px-2 py-1 rounded-lg text-[10px] font-mono border border-border/60 bg-card/80 text-muted-foreground hover:text-emerald-400 hover:border-emerald-500/50 transition-colors cursor-pointer"
-              title="Girar 45° horário"
-            >
-              +45° ↻
-            </button>
-          </div>
-
           {/* 3D Movement Controls */}
           <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-muted/15 border border-border/50">
             {([
@@ -1249,11 +1190,19 @@ export default function AttendantsPage() {
                       data-avatar-item={h.id}
                       onClick={() => {
                         const hairColor = resolveHairColorForHair(h.id, previewAgent?.avatarConfig?.hairColor, inlineGender !== "male");
+                        const nextConfig = {
+                          ...resolvedInlineAvatar,
+                          body: inlineGender,
+                          base: inlineGender,
+                          hair: h.id,
+                          hairColor,
+                        };
                         handleUpdateAvatar({
                           body: inlineGender,
                           base: inlineGender,
                           hair: h.id,
                           hairColor,
+                          catalogSpriteId: resolveSpriteForAvatar(nextConfig, true),
                         });
                       }}
                       className={cn(
@@ -1292,10 +1241,17 @@ export default function AttendantsPage() {
                       type="button"
                       data-avatar-item={f.id}
                       onClick={() => {
+                        const nextConfig = {
+                          ...resolvedInlineAvatar,
+                          body: inlineGender,
+                          base: inlineGender,
+                          face: f.id,
+                        };
                         handleUpdateAvatar({
                           body: inlineGender,
                           base: inlineGender,
                           face: f.id,
+                          catalogSpriteId: resolveSpriteForAvatar(nextConfig, true),
                         });
                       }}
                       className={cn(
@@ -1334,11 +1290,19 @@ export default function AttendantsPage() {
                       type="button"
                       data-avatar-item={o.id}
                       onClick={() => {
+                        const nextConfig = {
+                          ...resolvedInlineAvatar,
+                          body: inlineGender,
+                          base: inlineGender,
+                          outfit: o.id,
+                          clothing: o.id,
+                        };
                         handleUpdateAvatar({
                           body: inlineGender,
                           base: inlineGender,
                           outfit: o.id,
                           clothing: o.id,
+                          catalogSpriteId: resolveSpriteForAvatar(nextConfig, true),
                         });
                       }}
                       className={cn(

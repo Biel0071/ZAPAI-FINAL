@@ -368,7 +368,7 @@ export const ActiveBrainGraph: React.FC<ActiveBrainGraphProps> = ({
       {activeMemories.length === 0 && (
         <div role="status" className="absolute inset-x-4 top-1/2 z-10 -translate-y-1/2 text-center pointer-events-none">
           <span className="inline-block rounded-xl border border-border/70 bg-card/90 px-4 py-2 text-xs font-medium text-muted-foreground shadow-sm">
-            Nenhuma memória nesta categoria
+            {!isSessionConnected ? "WhatsApp Desconectado · Atendente em Pausa Operacional" : "Nenhuma memória nesta categoria"}
           </span>
         </div>
       )}

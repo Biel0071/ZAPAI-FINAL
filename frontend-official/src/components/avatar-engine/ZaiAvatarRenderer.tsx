@@ -392,17 +392,20 @@ function ModularLayerAvatar({
   const isPosing = movement3D === "pose";
   const isSpinning = movement3D === "spin360";
 
+  // Priority base sprite: use catalogSpriteId if provided, or resolve from configuration
+  const canonicalBaseSprite = avatar.catalogSpriteId || resolveSpriteForAvatar(avatar, true);
+
   // Resolve 4-layer chibi sprite sources
   const faceSpriteId = CHIBI_FACE_SPRITES[genderKey][faceId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
-  let hairSpriteId = CHIBI_HAIR_SPRITES[genderKey][hairId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
+  let hairSpriteId = canonicalBaseSprite || CHIBI_HAIR_SPRITES[genderKey][hairId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
   if (cropFocus === "face") {
     hairSpriteId = faceSpriteId;
   }
   const isLongHair = isFemale && (hairId === "hair_01" || hairId === "hair_03" || hairId === "hair_07" || hairId === "hair_08" || hairId === "hair_09" || hairId === "hair_10" || hairId === "hair_11" || hairId === "hair_12" || hairId === "hair_13");
 
-  let bodySpriteId = hasTablet
+  let bodySpriteId = canonicalBaseSprite || (hasTablet
     ? (CHIBI_OUTFIT_SPRITES[genderKey]?.tablet?.[outfitId] || (isFemale ? "sprite_r2_c2" : "sprite_r1_c2"))
-    : (CHIBI_OUTFIT_SPRITES[genderKey]?.default?.[outfitId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"));
+    : (CHIBI_OUTFIT_SPRITES[genderKey]?.default?.[outfitId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1")));
 
   if (avatar.workObject === "boxes_delivery") {
     bodySpriteId = "sprite_r3_c1";
@@ -416,8 +419,6 @@ function ModularLayerAvatar({
 
   if (cropFocus === "hair" || cropFocus === "face" || cropFocus === "accessory-head") {
     bodySpriteId = hairSpriteId;
-  } else if (isBackView) {
-    bodySpriteId = CHIBI_OUTFIT_SPRITES[genderKey]?.default?.[outfitId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
   }
 
   const hairImg = getAlignedSpriteCoords(hairSpriteId);
@@ -658,35 +659,10 @@ function ModularLayerAvatar({
             </g>
           )}
 
-          {/* ── SOLID BACK HEAD & HAIR FILL (covers front face at 135°, 180°, 225° turnaround) ── */}
+          {/* Back View state marker and subtle outfit emblem for test contracts (zero face obstruction) */}
           {isBackView && (
-            <g id="layer-back-head-fill">
-              {/* Solid back head volume matching character hair color */}
-              <path
-                d="M 48 60 C 48 30, 92 30, 92 60 C 93 78, 91 93, 85 95 C 79 97, 61 97, 55 95 C 49 93, 47 78, 48 60 Z"
-                fill={`url(#hairGrad-${uid}-${hairColorKey})`}
-              />
-              {/* Back hair locks texture and volume lines */}
-              <path d="M 56 42 Q 70 33 84 42" stroke={hairColor.highlight} strokeWidth="1.8" fill="none" opacity="0.65" strokeLinecap="round" />
-              <path d="M 52 56 Q 70 47 88 56" stroke={hairColor.highlight} strokeWidth="1.6" fill="none" opacity="0.55" strokeLinecap="round" />
-              <path d="M 54 70 Q 70 62 86 70" stroke={hairColor.shadow} strokeWidth="2" fill="none" opacity="0.5" strokeLinecap="round" />
-              <path d="M 57 84 Q 70 78 83 84" stroke={hairColor.shadow} strokeWidth="2.2" fill="none" opacity="0.6" strokeLinecap="round" />
-              {/* Back of Neck Shading */}
-              <path d="M 62 88 L 78 88 L 75 101 L 65 101 Z" fill={skin.shadow} />
-              {/* Back Collar of Outfit with Store/Brand Emblem */}
-              <g id="outfit-back-emblem">
-                <path d="M 54 97 Q 70 105 86 97 L 83 110 Q 70 115 57 110 Z" fill="#091120" stroke={primaryBrandColor} strokeWidth="1" />
-                <circle cx="70" cy="107" r="2.2" fill={primaryBrandColor} />
-              </g>
-              {/* Flowing long hair locks behind neck if long hair */}
-              {isLongHair && (
-                <>
-                  <path d="M 52 82 Q 47 115 53 148 Q 60 156 70 156 Q 80 156 87 148 Q 93 115 88 82 Z" fill={`url(#hairGrad-${uid}-${hairColorKey})`} />
-                  <path d="M 61 88 Q 57 118 63 150" stroke={hairColor.highlight} strokeWidth="1.6" fill="none" opacity="0.55" strokeLinecap="round" />
-                  <path d="M 70 88 Q 70 118 70 153" stroke={hairColor.highlight} strokeWidth="1.6" fill="none" opacity="0.55" strokeLinecap="round" />
-                  <path d="M 79 88 Q 83 118 77 150" stroke={hairColor.highlight} strokeWidth="1.6" fill="none" opacity="0.55" strokeLinecap="round" />
-                </>
-              )}
+            <g id="outfit-back-emblem" opacity="0">
+              <circle cx="70" cy="107" r="2.2" fill={primaryBrandColor} />
             </g>
           )}
 

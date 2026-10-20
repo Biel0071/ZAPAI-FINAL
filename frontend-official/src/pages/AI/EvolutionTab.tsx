@@ -832,7 +832,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {memoryLoading ? "…" : memoryError ? "—" : dateFilteredMemoryItems.length}
+                {!isSessionConnected ? "0" : (memoryLoading ? "…" : memoryError ? "—" : dateFilteredMemoryItems.length)}
               </strong>
             </div>
           </div>
@@ -848,7 +848,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {isLoading ? "…" : loadError ? "—" : dateFilteredLearnedPatterns.length}
+                {!isSessionConnected ? "0" : (isLoading ? "…" : loadError ? "—" : dateFilteredLearnedPatterns.length)}
               </strong>
             </div>
           </div>
@@ -864,7 +864,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {loadError ? "—" : humanStats.objectionsLearned ?? "—"}
+                {!isSessionConnected ? "0" : (loadError ? "—" : humanStats.objectionsLearned ?? "—")}
               </strong>
             </div>
           </div>
@@ -880,7 +880,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
-                {loadError ? "—" : humanStats.totalAnalyzed ?? "—"}
+                {!isSessionConnected ? "0" : (loadError ? "—" : humanStats.totalAnalyzed ?? "—")}
               </strong>
             </div>
           </div>
@@ -1031,13 +1031,13 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
                 Categorias do Cérebro
               </span>
               <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300">
-                {memoryLoading ? "…" : memoryError ? "—" : dateFilteredMemoryItems.length} Nós
+                {!isSessionConnected ? 0 : (memoryLoading ? "…" : memoryError ? "—" : dateFilteredMemoryItems.length)} Nós
               </Badge>
             </div>
 
             <div className="space-y-1 pt-1">
               {[
-                { id: "todos", label: "Todos os Nós", color: "#8b5cf6", count: dateFilteredMemoryItems.length },
+                { id: "todos", label: "Todos os Nós", color: "#8b5cf6", count: !isSessionConnected ? 0 : dateFilteredMemoryItems.length },
                 ...memoryCategories,
               ].map((cat) => (
                 <button
@@ -1056,7 +1056,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
                     <span>{cat.label}</span>
                   </span>
                   <span className="text-[10px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-muted/40">
-                {memoryLoading ? "…" : memoryError ? "—" : cat.count}
+                {!isSessionConnected ? 0 : (memoryLoading ? "…" : memoryError ? "—" : cat.count)}
                   </span>
                 </button>
               ))}
@@ -1083,10 +1083,10 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             ) : <ActiveBrainGraph
               attendantName={currentAgent?.name || selectedAgentKey}
               avatarConfig={currentAvatarConfig}
-              memories={dateFilteredMemoryItems}
+              memories={!isSessionConnected ? [] : dateFilteredMemoryItems}
               centralConnectionIds={centralConnectionIds}
               selectedCategory={graphCategoryFilter}
-              selectedMemoryId={selectedMemoryNode?.id || null}
+              selectedMemoryId={!isSessionConnected ? null : (selectedMemoryNode?.id || null)}
               onSelectMemory={(mem) => setSelectedMemoryNode(mem)}
               onSelectCategory={(cat) => setGraphCategoryFilter(cat)}
               height={580}
@@ -1095,7 +1095,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
           </div>
 
           {/* Right Column: Memory Detail Drawer */}
-          {selectedMemoryNode && (
+          {selectedMemoryNode && isSessionConnected && (
             <div className="min-w-0">
               <MemoryDetailDrawer
                 memory={selectedMemoryNode}
