@@ -124,7 +124,9 @@ const KNOWN_MEMORY_CATEGORIES = [
 
 export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, selectedAgent, isSessionConnected: propIsSessionConnected }: EvolutionTabProps = {}) {
   const storeSessions = useAppStore((state) => state.sessions);
-  const hasLiveSession = storeSessions.some((s) => s.connected || s.status === "connected");
+  const hasLiveSession = storeSessions.length > 0
+    ? storeSessions.some((s) => s.connected || s.status === "connected")
+    : true;
   const isSessionConnected = propIsSessionConnected !== undefined ? propIsSessionConnected : hasLiveSession;
   const { toast } = useToast();
   const onSelectAgentRef = useRef(onSelectAgent);
