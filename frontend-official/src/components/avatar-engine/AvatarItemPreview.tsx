@@ -43,7 +43,7 @@ const FOCUS_WRAPPER_STYLES: Record<AvatarPreviewFocus, React.CSSProperties> = {
   },
 };
 
-export const AvatarItemPreview: React.FC<AvatarItemPreviewProps> = ({
+export const AvatarItemPreview: React.FC<AvatarItemPreviewProps> = React.memo(({
   spriteRef = "sprite_r2_c1",
   itemId,
   gender = "female",
@@ -100,7 +100,7 @@ export const AvatarItemPreview: React.FC<AvatarItemPreviewProps> = ({
       }
     }
     return base;
-  }, [itemId, gender]);
+  }, [itemId, gender, spriteRef]);
 
   return (
     <div
@@ -140,5 +140,7 @@ export const AvatarItemPreview: React.FC<AvatarItemPreviewProps> = ({
       </div>
     </div>
   );
-};
+});
+
+AvatarItemPreview.displayName = "AvatarItemPreview";
 

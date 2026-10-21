@@ -222,8 +222,22 @@ export default function AttendantsPage() {
       const safeSessions = Array.isArray(sessionsRes) ? sessionsRes : [];
       setSessions(safeSessions);
       setAIStatus(statusRes.data || statusRes);
-      setPreviewAgent((current: any) => cleanAgents.find((agent: any) => agent.key === current?.key) || cleanAgents[0] || null);
+      setPreviewAgent((current: any) =>
+        cleanAgents.find((agent: any) => agent.key === current?.key) ||
+        cleanAgents[0] ||
+        (current?.isExample ? current : EXAMPLE_ATTENDANTS[0])
+      );
     } catch (err: any) {
+      if (
+        err?.code === "AUTH_SESSION_CHANGED" ||
+        err?.name === "AuthSessionChangedError" ||
+        err?.message?.includes?.("sessão de acesso mudou")
+      ) {
+        if (version === requestVersion.current) {
+          setTimeout(() => { void fetchData(); }, 150);
+          return;
+        }
+      }
       if (version === requestVersion.current) setLoadError(err?.message || "Erro ao carregar atendentes.");
     } finally {
       if (version === requestVersion.current) setIsLoading(false);
@@ -299,6 +313,10 @@ export default function AttendantsPage() {
   const [isStudioDragging, setIsStudioDragging] = useState(false);
   const studioDragStartXRef = useRef<number>(0);
   const studioDragStartAngleRef = useRef<number>(0);
+  const studioRotationYRef = useRef<number>(0);
+  const studioMovement3DRef = useRef<string>("idle");
+  studioRotationYRef.current = studioRotationY;
+  studioMovement3DRef.current = studioMovement3D;
 
   useEffect(() => {
     setStudioRotationY(typeof previewAgent?.avatarConfig?.rotationY === "number" ? previewAgent.avatarConfig.rotationY : 0);
@@ -312,8 +330,8 @@ export default function AttendantsPage() {
     let lastTime = performance.now();
     const spinLoop = (now: number) => {
       const dt = now - lastTime;
-      if (!isStudioDragging && dt >= 25) {
-        setStudioRotationY((prev) => (prev + 1) % 360);
+      if (!isStudioDragging && dt >= 40) {
+        setStudioRotationY((prev) => (prev + 2) % 360);
         lastTime = now;
       }
       animFrame = requestAnimationFrame(spinLoop);
@@ -339,23 +357,36 @@ export default function AttendantsPage() {
   useEffect(() => {
     if (!isStudioDragging) return;
 
+    let rafId: number | null = null;
     const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - studioDragStartXRef.current;
-      const sensitivity = 0.85;
-      const newAngle = Math.round((((studioDragStartAngleRef.current + deltaX * sensitivity) % 360) + 360) % 360);
-      setStudioRotationY(newAngle);
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const deltaX = e.clientX - studioDragStartXRef.current;
+        const sensitivity = 0.85;
+        const newAngle = Math.round((((studioDragStartAngleRef.current + deltaX * sensitivity) % 360) + 360) % 360);
+        setStudioRotationY(newAngle);
+      });
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 1) {
-        const deltaX = e.touches[0].clientX - studioDragStartXRef.current;
-        const sensitivity = 0.85;
-        const newAngle = Math.round((((studioDragStartAngleRef.current + deltaX * sensitivity) % 360) + 360) % 360);
-        setStudioRotationY(newAngle);
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          const deltaX = e.touches[0].clientX - studioDragStartXRef.current;
+          const sensitivity = 0.85;
+          const newAngle = Math.round((((studioDragStartAngleRef.current + deltaX * sensitivity) % 360) + 360) % 360);
+          setStudioRotationY(newAngle);
+        });
       }
     };
 
     const handleDragEnd = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       setIsStudioDragging(false);
       setStudioRotationY((curr) => {
         handleUpdateAvatar({ rotationY: curr });
@@ -370,6 +401,7 @@ export default function AttendantsPage() {
     window.addEventListener("touchcancel", handleDragEnd);
 
     return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleDragEnd);
       window.removeEventListener("touchmove", handleTouchMove);
@@ -458,8 +490,8 @@ export default function AttendantsPage() {
         clothing: previewAgent.avatarConfig?.outfit || previewAgent.avatarConfig?.clothing || configToSave.clothing,
         accessories: previewAgent.avatarConfig?.accessories || configToSave.accessories,
         style: previewAgent.avatarConfig?.style || configToSave.style || "style_vendas",
-        rotationY: previewAgent.avatarConfig?.rotationY ?? studioRotationY,
-        movement3D: previewAgent.avatarConfig?.movement3D ?? studioMovement3D,
+        rotationY: previewAgent.avatarConfig?.rotationY ?? studioRotationYRef.current,
+        movement3D: previewAgent.avatarConfig?.movement3D ?? studioMovement3DRef.current,
         catalogSpriteId: spriteId,
       };
       const avatarUrl = `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
@@ -477,7 +509,7 @@ export default function AttendantsPage() {
     } finally {
       setIsSavingAvatar(false);
     }
-  }, [previewAgent, previewStore, studioRotationY, studioMovement3D, fetchData]);
+  }, [previewAgent, previewStore, fetchData]);
 
   const activeHairItem = useMemo(() => {
     const hair = previewAgent?.avatarConfig?.hair;
@@ -719,9 +751,14 @@ export default function AttendantsPage() {
     return stores.find(store => store.id === storeId)?.numbers?.some((number: any) => agent.sessionIds.includes(number.sessionId)) === true;
   }, [stores]);
   const filteredAttendants = useMemo(() => {
-    if (selectedWhatsApp) return agents.filter(a => a.sessionIds?.includes(selectedWhatsApp));
-    if (selectedStoreFilter === "all") return agents;
-    return agents.filter((a) => belongsToStore(a, selectedStoreFilter));
+    let list = agents;
+    if (selectedWhatsApp) list = agents.filter(a => a.sessionIds?.includes(selectedWhatsApp));
+    else if (selectedStoreFilter !== "all") list = agents.filter((a) => belongsToStore(a, selectedStoreFilter));
+
+    if (list.length === 0 && !selectedWhatsApp && selectedStoreFilter === "all") {
+      return EXAMPLE_ATTENDANTS;
+    }
+    return list;
   }, [agents, selectedStoreFilter, belongsToStore, selectedWhatsApp]);
 
   // Operational Cards Pagination (Max 4 cards per page to prevent infinite page growth)
@@ -2097,9 +2134,9 @@ export default function AttendantsPage() {
 
           {/* Attendants row with real attendants + [+ Novo Atendente] alongside */}
           <div className="grid grid-cols-2 gap-2.5 w-full sm:flex sm:items-center sm:gap-3 sm:overflow-x-auto pb-1 scrollbar-zai">
-            {/* Real Registered Agents (Camila) */}
-            {agents.map((agent) => {
-              const isSelected = !previewAgent?.isExample && previewAgent?.key === agent.key;
+            {/* Real Registered Agents or Example Archetypes (João, Ana, Pedro, Mariana) */}
+            {(agents.length > 0 ? agents : EXAMPLE_ATTENDANTS).map((agent) => {
+              const isSelected = previewAgent?.key === agent.key;
               const liveAvatar =
                 isSelected && previewAgent?.avatarConfig
                   ? previewAgent.avatarConfig

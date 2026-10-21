@@ -181,26 +181,42 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
   useEffect(() => {
     if (!isDragging) return;
 
+    let rafId: number | null = null;
+    let latestAngle = rotationY;
+
     const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - dragStartXRef.current;
-      const sensitivity = 0.85;
-      const newAngle = Math.round((((dragStartAngleRef.current + deltaX * sensitivity) % 360) + 360) % 360);
-      setRotationY(newAngle);
-      setAvatar((curr) => ({ ...curr, rotationY: newAngle }));
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const deltaX = e.clientX - dragStartXRef.current;
+        const sensitivity = 0.85;
+        const newAngle = Math.round((((dragStartAngleRef.current + deltaX * sensitivity) % 360) + 360) % 360);
+        latestAngle = newAngle;
+        setRotationY(newAngle);
+      });
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 1) {
-        const deltaX = e.touches[0].clientX - dragStartXRef.current;
-        const sensitivity = 0.85;
-        const newAngle = Math.round((((dragStartAngleRef.current + deltaX * sensitivity) % 360) + 360) % 360);
-        setRotationY(newAngle);
-        setAvatar((curr) => ({ ...curr, rotationY: newAngle }));
+        if (rafId !== null) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          const deltaX = e.touches[0].clientX - dragStartXRef.current;
+          const sensitivity = 0.85;
+          const newAngle = Math.round((((dragStartAngleRef.current + deltaX * sensitivity) % 360) + 360) % 360);
+          latestAngle = newAngle;
+          setRotationY(newAngle);
+        });
       }
     };
 
     const handleDragEnd = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       setIsDragging(false);
+      setAvatar((curr) => ({ ...curr, rotationY: latestAngle }));
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -210,6 +226,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     window.addEventListener("touchcancel", handleDragEnd);
 
     return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleDragEnd);
       window.removeEventListener("touchmove", handleTouchMove);

@@ -482,6 +482,7 @@ async function updateConversationState(conversationId, fields = {}, companyId, o
     summary: 'summary',
     tags: 'tags',
     unreadCount: 'unread_count',
+    unread_count: 'unread_count',
     updatedAt: 'updated_at',
     is_pinned: 'is_pinned',
     pinned: 'is_pinned',

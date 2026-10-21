@@ -22,7 +22,7 @@ interface AttendantItemCardProps {
   onEdit?: (attendant: AttendantCardData) => void;
 }
 
-export const AttendantItemCard: React.FC<AttendantItemCardProps> = ({
+export const AttendantItemCard: React.FC<AttendantItemCardProps> = React.memo(({
   attendant,
   isSelected,
   onSelect,
@@ -113,4 +113,6 @@ export const AttendantItemCard: React.FC<AttendantItemCardProps> = ({
       </div>
     </div>
   );
-};
+});
+
+AttendantItemCard.displayName = "AttendantItemCard";

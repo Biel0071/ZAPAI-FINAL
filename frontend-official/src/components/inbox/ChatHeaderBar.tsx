@@ -94,14 +94,14 @@ export function ChatHeaderBar({
               </span>
             )}
             <div className="mt-0.5 sm:mt-1 flex min-w-0 flex-wrap items-center gap-1 sm:gap-1.5">
-              {statusLabel && (
+              {statusLabel && statusLabel !== "offline" && (
                 <span
                   className={cn(
                     "text-[10px] leading-tight font-medium",
                     isOnlineOrTyping ? "text-emerald-400 font-semibold" : "text-muted-foreground/80"
                   )}
                 >
-                  {isOnlineOrTyping ? statusLabel : "não no momento"}
+                  {statusLabel}
                 </span>
               )}
               {statusBadges}

@@ -256,6 +256,9 @@ export default function Inbox() {
       onTogglePin: state.handleTogglePin,
       archivedChatIds: state.archivedChatIds,
       onToggleArchive: state.handleToggleArchive,
+      mutedChatIds: state.mutedChatIds,
+      onToggleMute: state.handleToggleMute,
+      onToggleUnread: state.handleToggleUnread,
       onDeleteConversation: state.handleDeleteConversation,
       onSetConversationAiEnabled: state.handleSetConversationAiEnabledById,
       isMultiSelectMode: state.isMultiSelectMode,
@@ -281,6 +284,7 @@ export default function Inbox() {
       state.draftsByConversationId,
       state.pinnedChatIds,
       state.archivedChatIds,
+      state.mutedChatIds,
       state.setSelectedConversationId,
       state.loadConversationMessages,
       state.scrollToLatestMessage,
@@ -290,6 +294,8 @@ export default function Inbox() {
       state.setSelectedChatIds,
       state.handleTogglePin,
       state.handleToggleArchive,
+      state.handleToggleUnread,
+      state.handleToggleMute,
       state.handleDeleteConversation,
       state.handleSetConversationAiEnabledById,
       state.handleUpdateConversationTags,
@@ -301,11 +307,11 @@ export default function Inbox() {
     return state.leadInsight ?? state.leadByConversationId[state.selectedConversation.id] ?? null;
   }, [state.leadByConversationId, state.leadInsight, state.selectedConversation]);
 
-  const lovableInboxViewModel = createInboxLovableViewModel({
+  const lovableInboxViewModel = useMemo(() => createInboxLovableViewModel({
     conversations: state.conversations,
     selectedConversation: state.selectedConversation,
     messages: state.messages,
-  });
+  }), [state.conversations, state.selectedConversation, state.messages]);
 
   const selectedLeadMeta = getLeadTemperatureMeta(selectedLead);
 

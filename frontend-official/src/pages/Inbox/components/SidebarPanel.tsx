@@ -356,11 +356,11 @@ export const SidebarPanel = memo(function SidebarPanel({
   setRightPanelCollapsed,
   isTabletLayout,
   aiEnabledForConversation,
-  aiRuntime,
+  aiRuntime = { loading: false, globalEnabled: true, aiOn: true, providerReady: true } as InboxAiRuntime,
   conversationAiOverrideEnabled,
   suggestingResponse,
   handleSuggestResponse,
-  messages,
+  messages = [],
   aiMemory,
   leadNotes,
   setLeadNotes,
@@ -373,7 +373,7 @@ export const SidebarPanel = memo(function SidebarPanel({
   handleSetConversationAiEnabled,
   responseSearchQuery,
   setResponseSearchQuery,
-  quickReplies,
+  quickReplies = [],
   setQuickReplies,
   quickReplyCategoryAppearance = {},
   quickReplyCategoryAppearanceError = false,
@@ -519,7 +519,7 @@ export const SidebarPanel = memo(function SidebarPanel({
   }, [rightPanelTab]);
 
   const categories = useMemo(
-    () => Array.from(new Set(quickReplies.map((reply) => reply.category).filter(Boolean))),
+    () => Array.from(new Set((quickReplies || []).map((reply) => reply.category).filter(Boolean))),
     [quickReplies]
   );
 
@@ -530,7 +530,7 @@ export const SidebarPanel = memo(function SidebarPanel({
   };
 
   const filteredReplies = useMemo(() => {
-    return quickReplies.filter((reply) => {
+    return (quickReplies || []).filter((reply) => {
       // Search query
       const matchesSearch = `${reply.title} ${reply.text}`
         .toLocaleLowerCase()
@@ -751,14 +751,14 @@ export const SidebarPanel = memo(function SidebarPanel({
     selectedConversation?.assigned_to ||
     selectedConversation?.assignedAgentName ||
     "";
-  const hasCustomerMessage = messages.some((message) => !message.fromMe && Boolean(message.content?.trim()));
-  const aiStatus = aiRuntime.loading
+  const hasCustomerMessage = (messages || []).some((message) => !message.fromMe && Boolean(message.content?.trim()));
+  const aiStatus = aiRuntime?.loading
     ? "Verificando IA"
     : aiEnabledForConversation
     ? "Respondendo automaticamente"
-    : !aiRuntime.globalEnabled
+    : !aiRuntime?.globalEnabled
     ? "IA global pausada"
-    : !aiRuntime.aiOn
+    : !aiRuntime?.aiOn
     ? "Provedor indisponível"
     : "IA pausada nesta conversa";
 
@@ -989,7 +989,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                   id="conversation-ai-toggle"
                   checked={conversationAiOverrideEnabled}
                   onCheckedChange={handleSetConversationAiEnabled}
-                  disabled={updatingAiToggle || aiRuntime.loading}
+                  disabled={updatingAiToggle || Boolean(aiRuntime?.loading)}
                   aria-label="Ativar ou pausar IA nesta conversa"
                 />
               </div>
@@ -1028,7 +1028,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                   size="sm"
                   variant="outline"
                   className="h-8 w-full gap-1.5 rounded-lg border-border/80 text-xs font-medium hover:bg-muted/50 transition-colors"
-                  disabled={aiRuntime.loading || !aiRuntime.providerReady || suggestingResponse || !hasCustomerMessage}
+                  disabled={Boolean(aiRuntime?.loading) || !aiRuntime?.providerReady || suggestingResponse || !hasCustomerMessage}
                   onClick={() => void handleSuggestResponse()}
                 >
                   <Bot className="h-3.5 w-3.5 text-primary" />
@@ -1796,7 +1796,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                   </span>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     {aiEnabledForConversation
-                      ? `Provedor: ${aiRuntime.provider || "Padrão"} · Modelo: ${aiRuntime.model || "Configurado"}`
+                      ? `Provedor: ${aiRuntime?.provider || "Padrão"} · Modelo: ${aiRuntime?.model || "Configurado"}`
                       : "Operador humano no controle da conversa"}
                   </p>
                 </div>

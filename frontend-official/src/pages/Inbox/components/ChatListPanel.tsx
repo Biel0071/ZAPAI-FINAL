@@ -40,6 +40,7 @@ import {
 } from "../utils";
 import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
+import { WhatsAppContextMenuContent } from "./WhatsAppConversationMenu";
 
 interface ChatListPanelProps {
   isCollapsed?: boolean;
@@ -78,7 +79,7 @@ interface ChatListPanelProps {
 
 const BUSINESS_TAG_OPTIONS = ["Novo Lead", "Cliente", "Orçamento", "Venda", "Suporte", "VIP", "Urgente"] as const;
 const CONVERSATION_ROW_HEIGHT = 72;
-const COLLAPSED_ROW_HEIGHT = 60;
+const COLLAPSED_ROW_HEIGHT = 64;
 
 export const CollapsedConversationRow = memo(function CollapsedConversationRow(props: RowComponentProps<ConversationRowData>) {
   const { index, style } = props;
@@ -94,6 +95,9 @@ export const CollapsedConversationRow = memo(function CollapsedConversationRow(p
     onTogglePin = () => {},
     archivedChatIds = [],
     onToggleArchive = () => {},
+    mutedChatIds = [],
+    onToggleMute = () => {},
+    onToggleUnread = () => {},
     onDeleteConversation = () => {},
     onSetConversationAiEnabled = () => {},
     onUpdateTags = () => {},
@@ -183,6 +187,7 @@ export const CollapsedConversationRow = memo(function CollapsedConversationRow(p
   const unread = conversation.unread ?? 0;
   const isPinned = pinnedChatIds.includes(conversation.id);
   const isArchived = archivedChatIds.includes(conversation.id);
+  const isMuted = (mutedChatIds || []).includes(conversation.id);
 
   // Avatar ring color based on funnel
   const avatarRingClass = useMemo(() => {
@@ -266,13 +271,6 @@ export const CollapsedConversationRow = memo(function CollapsedConversationRow(p
                       <Robot className="h-2.5 w-2.5" weight="bold" />
                     </span>
 
-                    {/* 1 Etiqueta (bottom-left) */}
-                    {firstTag && (
-                      <div className="absolute -bottom-1 -left-1 z-20 pointer-events-none" title={firstTag}>
-                        <TagIconBadge tag={firstTag} colorClass={getTagColor(firstTag)} size="xs" interactive={false} />
-                      </div>
-                    )}
-
                     {/* Unread badge (top-right) */}
                     {unread > 0 && (
                       <span className="absolute -top-1 -right-1 z-20 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white shadow-[0_0_6px_rgba(16,185,129,0.7)]">
@@ -345,60 +343,23 @@ export const CollapsedConversationRow = memo(function CollapsedConversationRow(p
           </div>
         </ContextMenuTrigger>
 
-        {/* Submenu interno de ações */}
-        <ContextMenuContent className="w-48 text-xs">
-          <ContextMenuItem onClick={() => onSelect(conversation.id)} className="gap-2 cursor-pointer">
-            <ChatCircleDots className="h-3.5 w-3.5 text-primary" />
-            <span>Abrir conversa</span>
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onTogglePin(conversation.id)} className="gap-2 cursor-pointer">
-            <Star className="h-3.5 w-3.5 text-amber-400" />
-            <span>{isPinned ? "Desafixar conversa" : "Fixar conversa"}</span>
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onToggleArchive(conversation.id)} className="gap-2 cursor-pointer">
-            <CaretRight className="h-3.5 w-3.5 text-blue-400" />
-            <span>{isArchived ? "Desarquivar conversa" : "Arquivar conversa"}</span>
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onSetConversationAiEnabled(conversation.id, !conversationAiAllowed)} className="gap-2 cursor-pointer">
-            <Robot className={cn("h-3.5 w-3.5", aiEnabled ? "text-emerald-400" : "text-muted-foreground")} />
-            <span>{aiEnabled ? "Pausar IA neste contato" : "Ativar IA neste contato"}</span>
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuSub>
-            <ContextMenuSubTrigger className="gap-2 cursor-pointer">
-              <Plus className="h-3.5 w-3.5" />
-              <span>Adicionar etiqueta</span>
-            </ContextMenuSubTrigger>
-            <ContextMenuSubContent className="w-44 text-xs">
-              {BUSINESS_TAG_OPTIONS.map((tag) => {
-                const currentTags = conversation.tags ?? [];
-                const hasTag = currentTags.includes(tag);
-                return (
-                  <ContextMenuItem
-                    key={tag}
-                    onClick={() => {
-                      if (hasTag) {
-                        onUpdateTags(conversation.id, currentTags.filter((t) => t !== tag));
-                      } else {
-                        onUpdateTags(conversation.id, [...currentTags, tag]);
-                      }
-                    }}
-                    className="gap-2 cursor-pointer"
-                  >
-                    <TagIconBadge tag={tag} colorClass={getTagColor(tag)} size="xs" interactive={false} />
-                    <span className="flex-1">{tag}</span>
-                    {hasTag && <Check className="h-3 w-3 text-primary" />}
-                  </ContextMenuItem>
-                );
-              })}
-            </ContextMenuSubContent>
-          </ContextMenuSub>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => onDeleteConversation(conversation.id)} className="gap-2 text-destructive hover:bg-destructive/10 cursor-pointer">
-            <Trash className="h-3.5 w-3.5" />
-            <span>Excluir conversa</span>
-          </ContextMenuItem>
-        </ContextMenuContent>
+        <WhatsAppContextMenuContent
+          conversation={conversation}
+          isPinned={isPinned}
+          isArchived={isArchived}
+          isMuted={isMuted}
+          aiEnabled={aiEnabled}
+          conversationAiAllowed={conversationAiAllowed}
+          onSelect={onSelect}
+          onTogglePin={onTogglePin}
+          onToggleArchive={onToggleArchive}
+          onToggleMute={onToggleMute}
+          onToggleUnread={onToggleUnread}
+          onSetConversationAiEnabled={onSetConversationAiEnabled}
+          onUpdateTags={onUpdateTags}
+          onDeleteConversation={onDeleteConversation}
+          showOpenChat={true}
+        />
       </ContextMenu>
     </div>
   );
@@ -476,13 +437,18 @@ export const ChatListPanel = memo(function ChatListPanel({
 
   useEffect(() => {
     if (!listContainerRef.current) return;
+    let frameId: number | null = null;
     const updateHeight = () => {
-      if (listContainerRef.current) {
-        const rect = listContainerRef.current.getBoundingClientRect();
-        if (rect.height > 100) {
-          setDynamicHeight(Math.floor(rect.height));
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        if (listContainerRef.current) {
+          const rect = listContainerRef.current.getBoundingClientRect();
+          if (rect.height > 100) {
+            const nextH = Math.floor(rect.height);
+            setDynamicHeight((prev) => (Math.abs(prev - nextH) > 2 ? nextH : prev));
+          }
         }
-      }
+      });
     };
     updateHeight();
     const observer = new ResizeObserver(() => {
@@ -491,6 +457,7 @@ export const ChatListPanel = memo(function ChatListPanel({
     observer.observe(listContainerRef.current);
     window.addEventListener("resize", updateHeight);
     return () => {
+      if (frameId !== null) cancelAnimationFrame(frameId);
       observer.disconnect();
       window.removeEventListener("resize", updateHeight);
     };

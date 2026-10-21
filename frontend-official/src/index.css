@@ -718,3 +718,28 @@ html, body {
 .dark .google-map-tiles {
   filter: grayscale(100%) invert(100%) sepia(20%) hue-rotate(180deg) saturate(200%) contrast(90%) brightness(90%);
 }
+
+
+/* Fluidity & Responsiveness Enhancements */
+html {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+.gpu-accelerate {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.will-change-transform {
+  will-change: transform;
+  backface-visibility: hidden;
+}

@@ -48,9 +48,11 @@ export function InboxView({
     const container = layoutRef.current;
     if (!container || isMobile) return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry.contentRect.width > 0) {
-        setRailSize(Math.min(19, (64 / entry.contentRect.width) * 100));
-        setContextMinSize(Math.min(34, (300 / entry.contentRect.width) * 100));
+      if (entry?.contentRect?.width && entry.contentRect.width > 0) {
+        const nextRail = Math.round(Math.min(19, (64 / entry.contentRect.width) * 100));
+        const nextContext = Math.round(Math.min(34, (300 / entry.contentRect.width) * 100));
+        setRailSize((prev) => (prev !== nextRail ? nextRail : prev));
+        setContextMinSize((prev) => (prev !== nextContext ? nextContext : prev));
       }
     });
     observer.observe(container);

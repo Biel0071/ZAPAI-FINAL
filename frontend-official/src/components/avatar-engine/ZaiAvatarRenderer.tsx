@@ -901,7 +901,7 @@ function ModularLayerAvatar({
   );
 }
 
-export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
+export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
   avatar,
   renderStyle,
   state: stateProp,
@@ -1087,4 +1087,6 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = ({
       )}
     </div>
   );
-};
+});
+
+ZaiAvatarRenderer.displayName = "ZaiAvatarRenderer";

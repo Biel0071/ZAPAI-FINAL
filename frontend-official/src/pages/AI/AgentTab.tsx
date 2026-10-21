@@ -383,8 +383,12 @@ export function AgentTab({
       setIsLoading(true);
       try {
         const [promptRes, providersRes] = await Promise.all([
-          apiService.getAIPrompt().catch(() => ({ success: false, prompt: "" })),
-          apiService.getAIProviders().catch(() => ({ success: false, providers: [] })),
+          typeof apiService.getAIPrompt === "function"
+            ? apiService.getAIPrompt().catch(() => ({ success: false, prompt: "" }))
+            : Promise.resolve({ success: false, prompt: "" }),
+          typeof apiService.getAIProviders === "function"
+            ? apiService.getAIProviders().catch(() => ({ success: false, providers: [] }))
+            : Promise.resolve({ success: false, providers: [] }),
         ]);
 
         if (!mounted) return;

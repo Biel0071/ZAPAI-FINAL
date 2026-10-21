@@ -2399,7 +2399,7 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: `/api/contacts/${encodeURIComponent(phone)}/block`, method: "POST" }),
   unblockContact: (phone: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/contacts/${encodeURIComponent(phone)}/unblock`, method: "POST" }),
-  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string }) =>
+  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
   createConversation: (payload: { phone: string; name?: string; sessionId?: string }) => {
     invalidateCache("conversations");

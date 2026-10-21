@@ -2,10 +2,11 @@ import { useState, useEffect, useMemo, memo } from "react";
 import type { RowComponentProps } from "react-window";
 import {
   Star,
+  PushPin,
   Paperclip,
   Robot,
   User,
-  DotsThreeVertical,
+  CaretDown,
   Trash,
   Plus,
   CaretRight,
@@ -15,6 +16,7 @@ import {
   Microphone,
   Sparkle,
   WarningCircle,
+  BellSimpleSlash,
 } from "@phosphor-icons/react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,14 +24,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   DropdownMenu,
   DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  WhatsAppDropdownMenuContent,
+  WhatsAppContextMenuContent,
+} from "./WhatsAppConversationMenu";
 import { cn } from "@/core/lib/utils";
 import type { Conversation } from "@/core/services/apiService";
 import type { ConversationControl } from "../types";
@@ -62,6 +65,9 @@ export interface ConversationRowData {
   onTogglePin: (id: string) => void;
   archivedChatIds: string[];
   onToggleArchive: (id: string) => void;
+  mutedChatIds?: string[];
+  onToggleMute?: (id: string) => void;
+  onToggleUnread?: (id: string) => void;
   onDeleteConversation: (id: string) => void;
   onSetConversationAiEnabled: (id: string, enabled: boolean) => void;
   isMultiSelectMode: boolean;
@@ -87,6 +93,9 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
     onTogglePin = () => {},
     archivedChatIds = [],
     onToggleArchive = () => {},
+    mutedChatIds = [],
+    onToggleMute = () => {},
+    onToggleUnread = () => {},
     onDeleteConversation = () => {},
     onSetConversationAiEnabled = () => {},
     isMultiSelectMode = false,
@@ -97,6 +106,10 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
 
   const conversation = conversations[index];
   if (!conversation) return null;
+
+  const isPinned = pinnedChatIds.includes(conversation.id);
+  const isArchived = archivedChatIds.includes(conversation.id) || String(conversation.status).toLowerCase() === 'archived';
+  const isMuted = (mutedChatIds || []).includes(conversation.id);
 
   const { avatar: resolvedAvatar } = useResolvedAvatar(conversation.id, conversation.avatar);
 
@@ -258,8 +271,10 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
 
   return (
     <div style={style} className="px-1 py-0.5">
-      <div
-        role="button"
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            role="button"
         data-conversation-id={conversation.id}
         tabIndex={0}
         onClick={handleClick}
@@ -298,12 +313,17 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
             </AvatarFallback>
           </Avatar>
 
-          {/* Indicador Visual: Verde (Online/Digitando) se ativo, Alerta Piscando se Intervenção Urgente, caso contrário limpo */}
+          {/* Indicador Visual: Verde (Online/Digitando) se ativo, Alerta Piscando se Intervenção Urgente ou Finalizado (PIX), caso contrário limpo */}
           <div className="absolute -bottom-0.5 -right-0.5 z-10 flex items-center justify-center pointer-events-none">
             {leadStatus.state === "intervencao" ? (
               <span className="relative flex h-3.5 w-3.5" title={leadStatus.tooltip}>
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-90" />
                 <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-600 border-2 border-background shadow-[0_0_12px_rgba(239,68,68,1)] ring-2 ring-red-400/80 animate-pulse" />
+              </span>
+            ) : (leadStatus.ping || leadStatus.state === "finalizado") ? (
+              <span className="relative flex h-3.5 w-3.5" title={leadStatus.tooltip}>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-80" />
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-600 border-2 border-background shadow-[0_0_10px_rgba(37,99,235,0.9)]" />
               </span>
             ) : (isTyping || conversation.status === "online") ? (
               <span className="relative flex h-3.5 w-3.5" title="Contato online no momento">
@@ -330,7 +350,7 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
                 <span className="sr-only" title={leadStatus.tooltip}>INTERVENÇÃO</span>
               )}
               {leadStatus.state === "finalizado" && (
-                <span className="sr-only" title={leadStatus.tooltip}>AGUARDANDO PAGAMENTO</span>
+                <span className="sr-only" title={leadStatus.tooltip}>AGUARDA PIX AGUARDANDO PAGAMENTO</span>
               )}
               {conversation.tags && conversation.tags.length > 0 && (
                 <div
@@ -359,8 +379,11 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
               )}
             </h4>
             <div className="flex items-center gap-1.5 shrink-0 ml-1">
-              {pinnedChatIds.includes(conversation.id) && (
-                <Star weight="fill" className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              {isPinned && (
+                <PushPin weight="fill" className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              )}
+              {isMuted && (
+                <BellSimpleSlash className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" title="Silenciado" />
               )}
               <span className="text-[10px] text-muted-foreground/70 font-medium tabular-nums">
                 {formatConversationTimestamp((conversation as any).lastMessageAt || (conversation as any).lastInteractionAt || (conversation as any).timestamp || conversation.updatedAt)}
@@ -438,78 +461,28 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                          className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-[#202c33] dark:hover:bg-white/10 transition-colors"
                           onClick={(e) => e.stopPropagation()}
                           aria-label="Mais opções da conversa"
                         >
-                          <DotsThreeVertical className="h-4 w-4" />
+                          <CaretDown className="h-4 w-4" weight="bold" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem
-                          className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
-                          onClick={() => onTogglePin(conversation.id)}
-                        >
-                          <Star className="h-3.5 w-3.5" weight={pinnedChatIds.includes(conversation.id) ? "fill" : "regular"} />
-                          {pinnedChatIds.includes(conversation.id) ? "Desfixar" : "Fixar"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
-                          onClick={() => onToggleArchive(conversation.id)}
-                        >
-                          {(archivedChatIds.includes(conversation.id) || String(conversation.status).toLowerCase() === 'archived') ? (
-                            <>
-                              <CaretLeft className="h-3.5 w-3.5" />
-                              Desarquivar
-                            </>
-                          ) : (
-                            <>
-                              <CaretRight className="h-3.5 w-3.5" />
-                              Arquivar
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuSub>
-                          <DropdownMenuSubTrigger className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted">
-                            <Plus className="h-3.5 w-3.5" />
-                            Trocar Etiqueta
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent className="w-48">
-                            {BUSINESS_TAG_OPTIONS.map((tag) => {
-                              const hasTag = (conversation.tags ?? []).includes(tag);
-                              return (
-                                <DropdownMenuCheckboxItem
-                                  key={tag}
-                                  checked={hasTag}
-                                  onCheckedChange={(checked) => {
-                                    const currentTags = conversation.tags ?? [];
-                                    const nextTags = checked
-                                      ? [...currentTags, tag]
-                                      : currentTags.filter((t) => t !== tag);
-                                    onUpdateTags(conversation.id, nextTags);
-                                  }}
-                                  className="text-xs cursor-pointer py-1.5"
-                                >
-                                  <TagIconBadge
-                                    tag={tag}
-                                    colorClass={getTagColor(tag)}
-                                    size="xs"
-                                    interactive={false}
-                                  />
-                                </DropdownMenuCheckboxItem>
-                              );
-                            })}
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                        <DropdownMenuSeparator className="border-t border-border/40 my-1" />
-                        <DropdownMenuItem
-                          className="flex items-center gap-2 text-xs cursor-pointer text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:text-destructive"
-                          onClick={() => onDeleteConversation(conversation.id)}
-                        >
-                          <Trash className="h-3.5 w-3.5" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
+                      <WhatsAppDropdownMenuContent
+                        conversation={conversation}
+                        isPinned={isPinned}
+                        isArchived={isArchived}
+                        isMuted={isMuted}
+                        aiEnabled={aiEnabled}
+                        conversationAiAllowed={conversationAiAllowed}
+                        onTogglePin={onTogglePin}
+                        onToggleArchive={onToggleArchive}
+                        onToggleMute={onToggleMute}
+                        onToggleUnread={onToggleUnread}
+                        onSetConversationAiEnabled={onSetConversationAiEnabled}
+                        onUpdateTags={onUpdateTags}
+                        onDeleteConversation={onDeleteConversation}
+                      />
                     </DropdownMenu>
                   </div>
                 )}
@@ -518,6 +491,23 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
           )}
         </div>
       </div>
-    </div>
+    </ContextMenuTrigger>
+    <WhatsAppContextMenuContent
+      conversation={conversation}
+      isPinned={isPinned}
+      isArchived={isArchived}
+      isMuted={isMuted}
+      aiEnabled={aiEnabled}
+      conversationAiAllowed={conversationAiAllowed}
+      onTogglePin={onTogglePin}
+      onToggleArchive={onToggleArchive}
+      onToggleMute={onToggleMute}
+      onToggleUnread={onToggleUnread}
+      onSetConversationAiEnabled={onSetConversationAiEnabled}
+      onUpdateTags={onUpdateTags}
+      onDeleteConversation={onDeleteConversation}
+    />
+  </ContextMenu>
+</div>
   );
 });

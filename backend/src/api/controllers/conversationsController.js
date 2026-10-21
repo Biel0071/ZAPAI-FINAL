@@ -1131,7 +1131,9 @@ async function updateConversationMeta(req, res) {
     'notes',
     'is_pinned',
     'pinned',
-    'archived'
+    'archived',
+    'unread_count',
+    'unreadCount'
   ];
 
   for (const field of allowedFields) {
@@ -1294,6 +1296,30 @@ async function updateConversationMeta(req, res) {
         }
       } catch (archiveErr) {
         console.warn('[WHATSAPP_ARCHIVE] Failed to sync archive state:', archiveErr.message);
+      }
+    }
+
+    // Sync UNREAD to WhatsApp Baileys
+    if (updated && (typeof fields.unread_count !== 'undefined' || typeof fields.unreadCount !== 'undefined')) {
+      try {
+        const nextUnread = Number(fields.unread_count ?? fields.unreadCount) || 0;
+        const preferredSessionId = sessionManager.normalizeSessionName(
+          updated.session_id || sessionManager.DEFAULT_SESSION
+        );
+        const preferredSession = sessionManager.getSession(preferredSessionId);
+        const fallbackSession = await sessionManager.getDefaultSession().catch(() => null);
+        const connectedSession = sessionManager.getConnectedSessionOrNull();
+        const activeSession = preferredSession?.sock ? preferredSession : (fallbackSession?.sock ? fallbackSession : connectedSession);
+        const sock = activeSession?.sock;
+
+        if (sock) {
+          const jid = updated.phone.includes('@') ? updated.phone : `${updated.phone}@s.whatsapp.net`;
+          await sock.chatModify({ markRead: nextUnread === 0 }, jid).catch((err) => {
+            console.warn('[WHATSAPP_UNREAD] Failed to sync unread state:', err.message);
+          });
+        }
+      } catch (unreadErr) {
+        console.warn('[WHATSAPP_UNREAD] Error syncing unread state:', unreadErr.message);
       }
     }
 

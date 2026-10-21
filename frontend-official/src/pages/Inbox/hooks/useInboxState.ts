@@ -403,6 +403,18 @@ export function useInboxState() {
     localStorage.setItem("zapai_pinned_chats", JSON.stringify(pinnedChatIds));
   }, [pinnedChatIds]);
 
+  const [mutedChatIds, setMutedChatIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("zapai_muted_chats") ?? "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("zapai_muted_chats", JSON.stringify(mutedChatIds));
+  }, [mutedChatIds]);
+
   // Bulk actions
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedChatIds, setSelectedChatIds] = useState<string[]>([]);
@@ -1031,15 +1043,23 @@ export function useInboxState() {
   }, [persistDraftSnapshot, replyingTo, selectedConversationId]);
 
   useEffect(() => {
+    let frameId: number | null = null;
     const onResize = () => {
-      setConversationListHeight(Math.max(360, window.innerHeight - 200));
-      const compactRightPanel = window.innerWidth < 1440;
-      setIsTabletLayout(compactRightPanel);
-      if (compactRightPanel) setRightPanelCollapsed(true);
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        const nextH = Math.max(360, window.innerHeight - 200);
+        setConversationListHeight((prev) => (Math.abs(prev - nextH) > 4 ? nextH : prev));
+        const compactRightPanel = window.innerWidth < 1440;
+        setIsTabletLayout((prev) => (prev !== compactRightPanel ? compactRightPanel : prev));
+        if (compactRightPanel) setRightPanelCollapsed(true);
+      });
     };
     onResize();
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => {
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   useEffect(() => {
@@ -3076,6 +3096,33 @@ export function useInboxState() {
     void persistConversationMetadata(conversationId, { tags });
   }, [persistConversationMetadata, setConversations]);
 
+  const handleToggleMute = useCallback((conversationId: string) => {
+    setMutedChatIds((current) => {
+      const next = current.includes(conversationId)
+        ? current.filter((id) => id !== conversationId)
+        : [...current, conversationId];
+      const isMutedNow = next.includes(conversationId);
+      toast({ title: isMutedNow ? "Notificações silenciadas." : "Notificações ativadas." });
+      return next;
+    });
+  }, [toast]);
+
+  const handleToggleUnread = useCallback((conversationId: string) => {
+    const conv = conversationsRef.current.find((c) => String(c.id) === String(conversationId));
+    const currentUnread = Number(conv?.unread ?? (conv as any)?.unreadCount ?? (conv as any)?.unread_count ?? 0);
+    const nextUnread = currentUnread > 0 ? 0 : 1;
+
+    setConversations((prev) =>
+      prev.map((c) =>
+        String(c.id) === String(conversationId)
+          ? { ...c, unread: nextUnread, unreadCount: nextUnread, unread_count: nextUnread }
+          : c
+      )
+    );
+    void persistConversationMetadata(conversationId, { unread_count: nextUnread, unreadCount: nextUnread });
+    toast({ title: nextUnread > 0 ? "Conversa marcada como não lida." : "Conversa marcada como lida." });
+  }, [persistConversationMetadata, setConversations, toast]);
+
   const handleBulkArchive = useCallback(() => {
     const allArchived = selectedChatIds.every((id) => {
       const conv = conversationsRef.current.find((c) => String(c.id) === String(id));
@@ -3650,6 +3697,7 @@ export function useInboxState() {
     previewZoom, setPreviewZoom,
     archivedChatIds,
     pinnedChatIds,
+    mutedChatIds,
     isMultiSelectMode, setIsMultiSelectMode,
     selectedChatIds, setSelectedChatIds,
     playingAudioMessageId,
@@ -3725,6 +3773,8 @@ export function useInboxState() {
     handleBulkPin,
     handleTogglePin,
     handleToggleArchive,
+    handleToggleUnread,
+    handleToggleMute,
     handleDeleteConversation,
     handleUpdateConversationTags,
     handleBulkArchive,
