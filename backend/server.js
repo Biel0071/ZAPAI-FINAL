@@ -548,24 +548,26 @@ const requireJwtAuth = createJwtAuthMiddleware({
     '/api',
     '/api/health',
     '/api/test',
-    '/diagnostics',
-    '/api/diagnostics',
     '/auth/login',
+    '/api/auth/login',
     '/status-whatsapp',
     '/session-status',
     '/api/session-status',
   ],
-  // Prefix-match (covers mounted sub-routes like /auth/refresh).
+  // Prefix-match (covers mounted public auth sub-routes like /auth/refresh).
   publicPrefixes: [
     '/auth/',
     '/api/auth/',
+  ],
+  protectedPrefixes: [
+    '/api/admin/',
+    '/admin/',
+    '/api/system/',
+    '/system/',
     '/api/node/',
     '/api/master/',
-    '/api/system/',
-    '/api/cluster/metrics/',
-    '/system/',
+    '/api/cluster/',
   ],
-  protectedPrefixes: ['/api/admin/', '/admin/'],
 });
 
 // Auth enforcement is now centralized in createJwtAuthMiddleware.

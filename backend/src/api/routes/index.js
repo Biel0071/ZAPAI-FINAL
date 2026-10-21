@@ -34,7 +34,6 @@ function registerRoutes(app, options = {}) {
   const enableAdminMasterRoutes = options.enableAdminMasterRoutes !== false;
   const enableNodeRegistrationServer = options.enableNodeRegistrationServer !== false;
 
-  app.use('/system', systemRouter);
   // Brute-force protection: applied before the auth router so /auth/login
   // and /api/auth/login are rate-limited even when called unauthenticated.
   if (authRateLimiter) {
@@ -46,7 +45,8 @@ function registerRoutes(app, options = {}) {
   app.use(requireJwtAuth);
   app.use('/api/ai/history', require('../../ai/evolutionary/historyRoutes').createHistoryRouter());
 
-  // System routes
+  // System routes (protected by requireJwtAuth)
+  app.use('/system', systemRouter);
   app.use('/api/system', systemRouter);
   if (enableAdminMasterRoutes) {
     app.use('/api/admin', adminMasterRouter);

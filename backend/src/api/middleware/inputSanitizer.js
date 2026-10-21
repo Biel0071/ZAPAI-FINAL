@@ -19,7 +19,14 @@ function sanitizeValue(value, depth = 0) {
   if (value && typeof value === 'object') {
     const output = {};
     for (const [key, entry] of Object.entries(value)) {
-      output[key] = sanitizeValue(entry, depth + 1);
+      // Shield against Prototype Pollution and property injection via Burp Suite
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        continue;
+      }
+      const cleanKey = sanitizeString(key);
+      if (cleanKey) {
+        output[cleanKey] = sanitizeValue(entry, depth + 1);
+      }
     }
     return output;
   }

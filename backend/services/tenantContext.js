@@ -12,12 +12,18 @@ function resolveTenantHeader(req) {
 
 function resolveTenantIdFromRequest(req) {
   const authTenant = req?.authTenantId || req?.auth?.tenantId || req?.auth?.companyId;
+  // Security shield: if request has authenticated JWT tenant, enforce it strictly.
+  // Attackers in Burp cannot spoof another tenant by injecting headers or query/body params.
+  if (authTenant) {
+    return String(authTenant).trim();
+  }
+
   const headerTenant = resolveTenantHeader(req);
   const queryTenant = req.query?.tenantId || req.query?.companyId;
   const bodyTenant = req.body?.tenantId || req.body?.companyId;
 
   return String(
-    authTenant || headerTenant || queryTenant || bodyTenant ||
+    headerTenant || queryTenant || bodyTenant ||
     process.env.DEFAULT_COMPANY_ID || 'default'
   ).trim();
 }
@@ -35,8 +41,6 @@ function shouldSkipTenantValidation(req) {
     path.startsWith('/auth/forgot-password') ||
     path.startsWith('/api/auth/forgot-password') ||
     path === '/api' ||
-    path.startsWith('/system') ||
-    path.startsWith('/api/system') ||
     path.startsWith('/api/master/register-node') ||
     path.startsWith('/api/master/heartbeat') ||
     path.startsWith('/api/cluster/metrics/ingest')
@@ -57,6 +61,16 @@ function tenantContextMiddleware(req, res, next) {
   const strictHeader = isStrictTenantHeaderRequired();
   const headerTenant = resolveTenantHeader(req);
   const defaultCompanyId = String(process.env.DEFAULT_COMPANY_ID || '').trim();
+
+  // Shield against Burp Suite IDOR / Cross-Tenant snooping:
+  if (req?.authTenantId && headerTenant && headerTenant !== req.authTenantId) {
+    const isMaster = req?.auth?.role === 'master_admin' || req?.auth?.role === 'master';
+    if (!isMaster) {
+      return res.status(403).json({
+        error: 'Acesso negado: tentativa de manipulação de tenant interceptada.',
+      });
+    }
+  }
 
   // Only block if: strict mode ON, no header, no JWT tenant, AND no DEFAULT_COMPANY_ID configured.
   // If DEFAULT_COMPANY_ID is set (always in production), use it as fallback — never 400.
