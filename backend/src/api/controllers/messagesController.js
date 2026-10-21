@@ -362,6 +362,7 @@ async function sendMessage(req, res) {
       correlationId,
       metadata: {
         source: 'human',
+        isManual: true,
         conversationId: context.conversationId || apiMessage.conversationId,
         contactId: context.contactId,
         persistedMessageId: apiMessage.id,

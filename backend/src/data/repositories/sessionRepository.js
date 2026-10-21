@@ -98,19 +98,27 @@ async function updateSessionStatus(sessionId, status, phoneNumber = null, compan
 }
 
 async function getAutomationPaused(sessionId, companyId) {
-  const result = await query(
-    'SELECT automation_paused FROM sessions WHERE session_id = $1 AND company_id = $2 LIMIT 1',
-    [sessionId, getCompanyId(companyId)]
-  );
-  return result.rows[0]?.automation_paused === true;
+  try {
+    const result = await query(
+      'SELECT automation_paused FROM sessions WHERE session_id = $1 AND company_id = $2 LIMIT 1',
+      [sessionId, getCompanyId(companyId)]
+    );
+    return result.rows[0]?.automation_paused === true;
+  } catch (_err) {
+    return false;
+  }
 }
 
 async function setAutomationPaused(sessionId, companyId, paused) {
-  const result = await query(
-    'UPDATE sessions SET automation_paused = $3 WHERE session_id = $1 AND company_id = $2 RETURNING session_id',
-    [sessionId, getCompanyId(companyId), Boolean(paused)]
-  );
-  return result.rowCount > 0;
+  try {
+    const result = await query(
+      'UPDATE sessions SET automation_paused = $3 WHERE session_id = $1 AND company_id = $2 RETURNING session_id',
+      [sessionId, getCompanyId(companyId), Boolean(paused)]
+    );
+    return result.rowCount > 0;
+  } catch (_err) {
+    return false;
+  }
 }
 
 module.exports = {

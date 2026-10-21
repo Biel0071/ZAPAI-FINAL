@@ -120,3 +120,35 @@ test('a batch containing another tenant media is never accepted', async () => {
   assert.equal(queue.listPending().length, 0);
   mediaAllowed = true;
 });
+
+test('manual messages and quick replies are never paused when session automation is paused', async () => {
+  sessionAutomationPaused = true;
+  const manual = await queue.enqueue(payload({
+    correlationId: 'manual-human-1',
+    nextAttemptAt: new Date().toISOString(),
+    metadata: { conversationId: 'conv-a', isManual: true, source: 'human' }
+  }));
+  const quick = await queue.enqueue(payload({
+    correlationId: 'quick-reply-1',
+    nextAttemptAt: new Date().toISOString(),
+    metadata: { conversationId: 'conv-a', isQuickReply: true, source: 'quick_reply' }
+  }));
+
+  // Even if pauseSessionItems is invoked:
+  await queue.pauseSessionItems({ companyId: 'tenant-a', sessionId: 'wa-a' });
+
+  assert.equal(manual.sessionPaused, false);
+  assert.equal(quick.sessionPaused, false);
+
+  const pending = queue.listPending();
+  const manualPending = pending.find(i => i.correlationId === 'manual-human-1');
+  const quickPending = pending.find(i => i.correlationId === 'quick-reply-1');
+
+  assert.equal(manualPending?.sessionPaused, false);
+  assert.equal(quickPending?.sessionPaused, false);
+
+  await new Promise(resolve => setTimeout(resolve, 50));
+  await queue.processOneItem();
+  assert.equal(sendCalls, 2);
+});
+

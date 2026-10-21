@@ -1287,12 +1287,12 @@ async function createStableSession({
     return originalSend.call(sock, node);
   };
 
-  let automationPaused = true;
+  let automationPaused = false;
   try {
     automationPaused = await require('../../../src/data/repositories/sessionRepository')
       .getAutomationPaused(normalizedSessionName, historyOwner);
   } catch (error) {
-    console.error(`[WHATSAPP] Could not read automation pause for ${normalizedSessionName}; keeping automations paused:`, error?.message || error);
+    console.warn(`[WHATSAPP] Could not read automation pause for ${normalizedSessionName}; defaulting to false:`, error?.message || error);
   }
 
   const session = {

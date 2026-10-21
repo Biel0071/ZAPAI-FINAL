@@ -57,6 +57,16 @@ function normalizePhone(phone) {
   return whatsappService.normalizePhone(String(phone || ''));
 }
 
+function isExemptFromAutomationPause(item) {
+  if (!item) return false;
+  // Human operator manual messages and quick replies triggered from inbox must NEVER be blocked by session automation pause
+  if (item.metadata?.isManual === true) return true;
+  if (item.metadata?.source === 'human') return true;
+  if (item.metadata?.source === 'quick_reply') return true;
+  if (item.metadata?.isQuickReply === true) return true;
+  return false;
+}
+
 function nextBackoffMs(attempt) {
   const exp = Math.max(0, Number(attempt) - 1);
   const base = Math.min(DEFAULT_CONFIG.baseDelayMs * 2 ** exp, DEFAULT_CONFIG.maxDelayMs);
@@ -287,7 +297,7 @@ async function executeOutbound(item) {
     });
   }
 
-  const approvedSessionPause = item.sessionResumeApproved === true;
+  const approvedSessionPause = item.sessionResumeApproved === true || isExemptFromAutomationPause(item);
   const { session, sock } = await getSessionSocket(item.sessionId, item.companyId, approvedSessionPause);
 
   // Handle delay/typing simulator for any item in outbound queue (AI, flows, quick replies, campaigns)
@@ -479,10 +489,13 @@ function pickNextProcessableItem() {
   const candidates = queueState.items
     .filter((item) => {
       if (uncommittedItems.has(item.id)) return false;
-      if (item.isPaused || item.sessionPaused) return false;
+      const isManual = isExemptFromAutomationPause(item);
+      if (item.isPaused) return false;
+      if (item.sessionPaused && !isManual) return false;
       const session = sessionManager.getSession(item.sessionId);
       if (!session?.sock || String(session.status || '').toLowerCase() !== 'connected'
-        || session.systemConnected === false || (session.automationPaused === true && item.sessionResumeApproved !== true)) return false;
+        || session.systemConnected === false) return false;
+      if (session.automationPaused === true && item.sessionResumeApproved !== true && !isManual) return false;
       if (item.state === STATES.QUEUED) {
         return new Date(item.nextAttemptAt || item.createdAt).getTime() <= now;
       }
@@ -503,6 +516,7 @@ async function pauseSessionItems({ companyId, sessionId }) {
   let paused = 0;
   for (const item of queueState.items) {
     if (String(item.companyId) !== String(companyId) || item.sessionId !== sessionId) continue;
+    if (isExemptFromAutomationPause(item)) continue;
     if ([STATES.QUEUED, STATES.FAILED, STATES.PROCESSING].includes(item.state) && !item.sessionPaused) {
       item.sessionPaused = true;
       item.sessionResumeApproved = false;
@@ -631,10 +645,9 @@ async function enqueueBatch(payloads, options = {}) {
       const session = sessionManager.getSession(item.sessionId);
       const connected = Boolean(session?.sock && String(session.status || '').toLowerCase() === 'connected'
         && session.systemConnected !== false);
-      item.sessionResumeApproved = connected && options.approvedSessionPause === true;
-      if (!connected || (session.automationPaused === true && !item.sessionResumeApproved)) {
-        item.sessionPaused = true;
-      }
+      const isManual = isExemptFromAutomationPause(item);
+      item.sessionResumeApproved = (connected && options.approvedSessionPause === true) || isManual;
+      item.sessionPaused = Boolean(!connected || (session?.automationPaused === true && !item.sessionResumeApproved && !isManual));
       const existing = findByCorrelation(item.correlationId, item.companyId, { sessionId: item.sessionId, conversationId: item.metadata?.conversationId, phone: item.phone });
       if (existing) return existing;
       added.push(item);
@@ -744,8 +757,10 @@ async function reprocessDeadLetterItem(id, options = {}) {
   item.state = STATES.QUEUED;
   item.isPaused = false;
   const session = sessionManager.getSession(item.sessionId);
-  item.sessionPaused = !session?.sock || String(session.status || '').toLowerCase() !== 'connected'
-    || session.systemConnected === false || session.automationPaused === true;
+  const isManual = isExemptFromAutomationPause(item);
+  item.sessionResumeApproved = isManual;
+  item.sessionPaused = !isManual && (!session?.sock || String(session.status || '').toLowerCase() !== 'connected'
+    || session.systemConnected === false || session.automationPaused === true);
   item.attemptCount = 0;
   item.processingStartedAt = null;
   item.nextAttemptAt = nowIso();
