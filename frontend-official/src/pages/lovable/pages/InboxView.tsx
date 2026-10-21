@@ -11,6 +11,8 @@ export interface InboxViewProps {
   previewDialog?: ReactNode;
   isMobile?: boolean;
   mobileScreen?: "conversations" | "chat";
+  leftPanelCollapsed?: boolean;
+  onLeftPanelCollapsedChange?: (collapsed: boolean) => void;
   rightPanelCollapsed?: boolean;
   onRightPanelCollapsedChange?: (collapsed: boolean) => void;
 }
@@ -23,14 +25,24 @@ export function InboxView({
   previewDialog,
   isMobile = false,
   mobileScreen = "conversations",
+  leftPanelCollapsed = false,
+  onLeftPanelCollapsedChange,
   rightPanelCollapsed = false,
   onRightPanelCollapsedChange,
 }: InboxViewProps) {
   const layoutRef = useRef<HTMLDivElement>(null);
   const contextPanelRef = useRef<ImperativePanelHandle>(null);
+  const conversationsPanelRef = useRef<ImperativePanelHandle>(null);
   const [railSize, setRailSize] = useState(5);
   const [contextMinSize, setContextMinSize] = useState(25);
   const hasRightPanel = Boolean(rightPanel);
+
+  useEffect(() => {
+    const panel = conversationsPanelRef.current;
+    if (!panel) return;
+    if (leftPanelCollapsed) panel.collapse();
+    else panel.expand();
+  }, [leftPanelCollapsed, railSize, isMobile]);
 
   useEffect(() => {
     const container = layoutRef.current;
@@ -94,9 +106,14 @@ export function InboxView({
           className="h-full w-full"
         >
           <ResizablePanel
+            ref={conversationsPanelRef}
             defaultSize={hasRightPanel ? 25 : 42}
-            minSize={hasRightPanel ? 20 : 36}
+            minSize={leftPanelCollapsed ? railSize : (hasRightPanel ? 20 : 36)}
             maxSize={hasRightPanel ? 34 : 52}
+            collapsible
+            collapsedSize={railSize}
+            onCollapse={() => onLeftPanelCollapsedChange?.(true)}
+            onExpand={() => onLeftPanelCollapsedChange?.(false)}
             id="inbox-conversations-panel"
             order={1}
             className="flex flex-col h-full overflow-hidden"

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, memo } from "react";
 import {
+  ArrowDown,
+  ArrowUp,
   Bell,
   Bot,
   CheckCircle2,
@@ -16,6 +18,7 @@ import {
   Filter,
   Flame,
   Folder,
+  FolderInput,
   Handshake,
   HelpCircle,
   History,
@@ -62,12 +65,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InboxSectionBoundary } from "@/components/system/InboxSectionBoundary";
 import { useProtectedMediaUrl } from "@/core/runtime/hooks/useProtectedMediaUrl";
-import type { ChatMessage, Conversation } from "@/core/services/apiService";
+import { apiService, type ChatMessage, type Conversation } from "@/core/services/apiService";
 import type { AiMemoryRecord, InboxAiRuntime, PreviewMediaState, QuickReplyCategoryAppearance, QuickReplyItem } from "../types";
 import {
   extractMessageAssetUrl,
@@ -113,6 +120,7 @@ interface SidebarPanelProps {
   responseSearchQuery: string;
   setResponseSearchQuery: (val: string) => void;
   quickReplies: QuickReplyItem[];
+  setQuickReplies?: (updater: QuickReplyItem[] | ((prev: QuickReplyItem[]) => QuickReplyItem[])) => void;
   quickReplyCategoryAppearance?: QuickReplyCategoryAppearance;
   quickReplyCategoryAppearanceError?: boolean;
   onRetryQuickReplyCategoryAppearance?: () => Promise<void>;
@@ -365,6 +373,7 @@ export const SidebarPanel = memo(function SidebarPanel({
   responseSearchQuery,
   setResponseSearchQuery,
   quickReplies,
+  setQuickReplies,
   quickReplyCategoryAppearance = {},
   quickReplyCategoryAppearanceError = false,
   onRetryQuickReplyCategoryAppearance,
@@ -559,6 +568,73 @@ export const SidebarPanel = memo(function SidebarPanel({
     }
     return groups;
   }, [filteredReplies]);
+
+  const [categoryOrder, setCategoryOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("zapflow_qr_category_order");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleMoveCategory = (categoryName: string, direction: "up" | "down") => {
+    const allCats = Object.keys(groupedReplies);
+    let currentOrder = [...categoryOrder];
+    for (const c of allCats) {
+      if (!currentOrder.includes(c)) currentOrder.push(c);
+    }
+    const idx = currentOrder.indexOf(categoryName);
+    if (idx < 0) return;
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= currentOrder.length) return;
+    const nextOrder = [...currentOrder];
+    const temp = nextOrder[idx];
+    nextOrder[idx] = nextOrder[targetIdx];
+    nextOrder[targetIdx] = temp;
+    setCategoryOrder(nextOrder);
+    try {
+      localStorage.setItem("zapflow_qr_category_order", JSON.stringify(nextOrder));
+    } catch {}
+  };
+
+  const sortedCategoryEntries = useMemo(() => {
+    const entries = Object.entries(groupedReplies);
+    return entries.sort(([catA], [catB]) => {
+      const idxA = categoryOrder.indexOf(catA);
+      const idxB = categoryOrder.indexOf(catB);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return catA.localeCompare(catB);
+    });
+  }, [groupedReplies, categoryOrder]);
+
+  const handleMoveReplyToFolder = async (replyId: string, targetCategory: string) => {
+    try {
+      const reply = quickReplies.find((r) => r.id === replyId);
+      if (!reply) return;
+      const updated = { ...reply, category: targetCategory };
+      setQuickReplies?.((prev) => prev.map((r) => (r.id === replyId ? updated : r)));
+      await apiService.updateQuickReply(replyId, { category: targetCategory });
+    } catch (err) {
+      console.error("[SidebarPanel] Erro ao mover resposta rápida de pasta:", err);
+    }
+  };
+
+  const handleMoveReplyOrder = (replyId: string, direction: "up" | "down") => {
+    setQuickReplies?.((prev) => {
+      const idx = prev.findIndex((r) => r.id === replyId);
+      if (idx < 0) return prev;
+      const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const next = [...prev];
+      const temp = next[idx];
+      next[idx] = next[targetIdx];
+      next[targetIdx] = temp;
+      return next;
+    });
+  };
 
   const [remoteMediaMessages, setRemoteMediaMessages] = useState<ChatMessage[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
@@ -1252,7 +1328,7 @@ export const SidebarPanel = memo(function SidebarPanel({
               </p>
             ) : (
               <div className="space-y-3">
-                {Object.entries(groupedReplies).map(([categoryName, items]) => {
+                {sortedCategoryEntries.map(([categoryName, items], catIndex) => {
                   const isCollapsed = Boolean(collapsedCategories[categoryName]);
                   const appearance = quickReplyCategoryAppearance[categoryName.toLocaleLowerCase()] || { emoji: "📁", color: "#16a34a" };
                   return (
@@ -1271,13 +1347,47 @@ export const SidebarPanel = memo(function SidebarPanel({
                           <span className="rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] text-muted-foreground font-normal">{items.length}</span>
                           {isCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
                         </button>
-                        <button type="button" className="ml-2 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-background/70 hover:text-foreground" onClick={() => openCategoryEditor(categoryName)}>Editar</button>
+                        <div className="flex items-center gap-1 shrink-0 ml-1">
+                          <button
+                            type="button"
+                            disabled={catIndex === 0}
+                            title="Mover pasta para cima"
+                            aria-label={`Mover pasta ${categoryName} para cima`}
+                            className="p-1 rounded text-muted-foreground hover:bg-background/80 hover:text-foreground disabled:opacity-25 disabled:pointer-events-none transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveCategory(categoryName, "up");
+                            }}
+                          >
+                            <ArrowUp className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={catIndex === sortedCategoryEntries.length - 1}
+                            title="Mover pasta para baixo"
+                            aria-label={`Mover pasta ${categoryName} para baixo`}
+                            className="p-1 rounded text-muted-foreground hover:bg-background/80 hover:text-foreground disabled:opacity-25 disabled:pointer-events-none transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveCategory(categoryName, "down");
+                            }}
+                          >
+                            <ArrowDown className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-background/70 hover:text-foreground"
+                            onClick={() => openCategoryEditor(categoryName)}
+                          >
+                            Editar
+                          </button>
+                        </div>
                       </div>
 
                       {/* Items List */}
                       {!isCollapsed && (
                         <div className="divide-y divide-border/30">
-                          {items.map((reply) => (
+                          {items.map((reply, replyIndex) => (
                             <div
                               key={reply.id}
                               className="group flex items-center justify-between gap-1.5 py-1 px-2 hover:bg-muted/30 transition-colors"
@@ -1321,7 +1431,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                                       <MoreHorizontal className="h-3.5 w-3.5" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
+                                  <DropdownMenuContent align="end" className="w-52">
                                     <DropdownMenuItem onClick={() => duplicateQuickReply(reply)}>
                                       <Copy className="mr-2 h-3.5 w-3.5" />
                                       Duplicar Resposta rápida
@@ -1334,6 +1444,52 @@ export const SidebarPanel = memo(function SidebarPanel({
                                       <Eye className="mr-2 h-3.5 w-3.5" />
                                       Editar e enviar
                                     </DropdownMenuItem>
+
+                                    <DropdownMenuSeparator />
+
+                                    <DropdownMenuSub>
+                                      <DropdownMenuSubTrigger>
+                                        <FolderInput className="mr-2 h-3.5 w-3.5 text-primary" />
+                                        Mover para pasta
+                                      </DropdownMenuSubTrigger>
+                                      <DropdownMenuSubContent className="max-h-60 overflow-y-auto">
+                                        <DropdownMenuItem
+                                          disabled={!reply.category}
+                                          onClick={() => handleMoveReplyToFolder(reply.id, "")}
+                                        >
+                                          <Folder className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                                          Sem pasta (Geral)
+                                        </DropdownMenuItem>
+                                        {categories.map((cat) => (
+                                          <DropdownMenuItem
+                                            key={cat}
+                                            disabled={cat.toUpperCase() === categoryName.toUpperCase()}
+                                            onClick={() => handleMoveReplyToFolder(reply.id, cat)}
+                                          >
+                                            <Folder className="mr-2 h-3.5 w-3.5 text-primary" />
+                                            {cat}
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </DropdownMenuSubContent>
+                                    </DropdownMenuSub>
+
+                                    <DropdownMenuItem
+                                      disabled={replyIndex === 0}
+                                      onClick={() => handleMoveReplyOrder(reply.id, "up")}
+                                    >
+                                      <ArrowUp className="mr-2 h-3.5 w-3.5" />
+                                      Mover para cima
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      disabled={replyIndex === items.length - 1}
+                                      onClick={() => handleMoveReplyOrder(reply.id, "down")}
+                                    >
+                                      <ArrowDown className="mr-2 h-3.5 w-3.5" />
+                                      Mover para baixo
+                                    </DropdownMenuItem>
+
+                                    <DropdownMenuSeparator />
+
                                     <DropdownMenuItem
                                       className="text-destructive"
                                       onClick={() => deleteQuickReply(reply.id)}

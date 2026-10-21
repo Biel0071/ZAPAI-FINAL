@@ -246,6 +246,19 @@ export function useInboxState() {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("zapai_right_panel_collapsed") === "1";
   });
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("zapai_left_panel_collapsed") === "1";
+  });
+  const toggleLeftPanelCollapsed = useCallback(() => {
+    setLeftPanelCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("zapai_left_panel_collapsed", next ? "1" : "0");
+      } catch {}
+      return next;
+    });
+  }, []);
   const [mobileScreen, setMobileScreen] = useState<"conversations" | "chat">("conversations");
   const [isTabletLayout, setIsTabletLayout] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -3617,6 +3630,7 @@ export function useInboxState() {
     showLeadPanel, setShowLeadPanel,
     rightPanelTab, setRightPanelTab,
     rightPanelCollapsed, setRightPanelCollapsed,
+    leftPanelCollapsed, setLeftPanelCollapsed, toggleLeftPanelCollapsed,
     mobileScreen, setMobileScreen,
     isMobile,
     isTabletLayout,

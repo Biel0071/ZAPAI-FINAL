@@ -1,11 +1,24 @@
 import { useRef, useState, useEffect, useMemo, memo } from "react";
-import { Check, ChatCircleDots, Star, CaretRight, Plus, Trash } from "@phosphor-icons/react";
+import { Check, ChatCircleDots, Star, CaretRight, CaretLeft, Plus, Trash, Robot, Microphone } from "@phosphor-icons/react";
 import { List } from "react-window";
+import type { RowComponentProps } from "react-window";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
+} from "@/components/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,10 +28,22 @@ import {
 import { cn } from "@/core/lib/utils";
 import type { Conversation, SessionInfo } from "@/core/services/apiService";
 import { ConversationRow } from "./ConversationRow";
-import { isSessionActive, getTagColor, classifyConversationFunnel } from "../utils";
+import type { ConversationRowData } from "./ConversationRow";
+import {
+  isSessionActive,
+  getTagColor,
+  classifyConversationFunnel,
+  getInitials,
+  formatPhoneNumber,
+  normalizeId,
+  inferConversationMessageType,
+} from "../utils";
+import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
 
 interface ChatListPanelProps {
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
   searchQuery: string;
   setSearchQuery: (val: string) => void;
   isMultiSelectMode: boolean;
@@ -53,8 +78,335 @@ interface ChatListPanelProps {
 
 const BUSINESS_TAG_OPTIONS = ["Novo Lead", "Cliente", "Orçamento", "Venda", "Suporte", "VIP", "Urgente"] as const;
 const CONVERSATION_ROW_HEIGHT = 72;
+const COLLAPSED_ROW_HEIGHT = 60;
+
+export const CollapsedConversationRow = memo(function CollapsedConversationRow(props: RowComponentProps<ConversationRowData>) {
+  const { index, style } = props;
+  const data: ConversationRowData = ((props as any).data || props) as ConversationRowData;
+  const {
+    conversations = [],
+    conversationControls = {},
+    globalAiEnabled = true,
+    selectedId = null,
+    onSelect = () => {},
+    typingByConversationId,
+    pinnedChatIds = [],
+    onTogglePin = () => {},
+    archivedChatIds = [],
+    onToggleArchive = () => {},
+    onDeleteConversation = () => {},
+    onSetConversationAiEnabled = () => {},
+    onUpdateTags = () => {},
+  } = data;
+
+  const conversation = conversations[index];
+  if (!conversation) return null;
+
+  const { avatar: resolvedAvatar } = useResolvedAvatar(conversation.id, conversation.avatar);
+
+  const cleanDisplayName = useMemo(() => {
+    const rawName = (conversation.contactName || "").trim();
+    const rawPhone = (conversation.phone || "").trim();
+    const isLidName =
+      rawName.includes("@lid") ||
+      (/^\d{14,16}$/.test(rawName.replace(/@.*$/, "")) && !rawName.startsWith("55"));
+
+    if (isLidName) {
+      const cleanPhoneDigits = rawPhone.replace(/@.*$/, "").replace(/\D/g, "");
+      if (rawPhone && !rawPhone.includes("@lid") && cleanPhoneDigits.length >= 10 && cleanPhoneDigits.length <= 13) {
+        return formatPhoneNumber(rawPhone);
+      }
+      return formatPhoneNumber(rawName);
+    }
+
+    let name = rawName;
+    if (name.includes("@s.whatsapp.net")) {
+      name = name.replace(/@s\.whatsapp\.net.*/, "").trim();
+    }
+    const digitsOnly = name.replace(/\D/g, "");
+    if (digitsOnly.length >= 10 && (digitsOnly === name || name.startsWith("+") || name.startsWith("55"))) {
+      return formatPhoneNumber(name);
+    }
+    if (!name && rawPhone) {
+      return formatPhoneNumber(rawPhone);
+    }
+    return name || "Contato";
+  }, [conversation.contactName, conversation.phone]);
+
+  const getTypingState = () => {
+    if (!typingByConversationId) return null;
+    const byId = typingByConversationId[conversation.id];
+    if (byId !== undefined) return byId;
+
+    if (conversation.chatId) {
+      const byChatId = typingByConversationId[conversation.chatId];
+      if (byChatId !== undefined) return byChatId;
+      const cleanChatId = conversation.chatId.replace(/@s\.whatsapp\.net$/i, "");
+      const byCleanChatId = typingByConversationId[cleanChatId];
+      if (byCleanChatId !== undefined) return byCleanChatId;
+    }
+
+    if (conversation.phone) {
+      const byPhone = typingByConversationId[conversation.phone];
+      if (byPhone !== undefined) return byPhone;
+      const cleanPhone = conversation.phone.replace(/\D/g, "");
+      const byCleanPhone = typingByConversationId[cleanPhone];
+      if (byCleanPhone !== undefined) return byCleanPhone;
+    }
+
+    return conversation.status === "typing" ? "composing" : null;
+  };
+
+  const typingState = getTypingState();
+  const isTyping = typingState === "composing" || typingState === "recording" || typingState === true;
+  const isOnline = isTyping || conversation.status === "online";
+  const isAudio = inferConversationMessageType(conversation) === "audio" || typingState === "recording";
+
+  const conversationAiAllowed = conversationControls[conversation.id]?.aiEnabled ?? conversation.aiEnabled ?? true;
+  const aiEnabled = globalAiEnabled && conversationAiAllowed;
+  const aiWaiting = !globalAiEnabled && conversationAiAllowed;
+  const aiTooltip = !globalAiEnabled 
+    ? "IA pausada globalmente" 
+    : conversationAiAllowed 
+      ? "IA ativa (clique para pausar)" 
+      : "IA desativada (clique para ativar)";
+
+  const leadStatus = useMemo(() => {
+    return classifyConversationFunnel(conversation, {
+      globalAiEnabled,
+      conversationControls,
+    });
+  }, [conversation, globalAiEnabled, conversationControls]);
+
+  const isSelected = normalizeId(selectedId) === normalizeId(conversation.id);
+  const firstTag = conversation.tags && conversation.tags.length > 0 ? conversation.tags[0] : null;
+  const unread = conversation.unread ?? 0;
+  const isPinned = pinnedChatIds.includes(conversation.id);
+  const isArchived = archivedChatIds.includes(conversation.id);
+
+  // Avatar ring color based on funnel
+  const avatarRingClass = useMemo(() => {
+    if (leadStatus.state === "intervencao") return "ring-2 ring-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-pulse";
+    if (leadStatus.state === "chegou") return "ring-2 ring-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.4)]";
+    if (leadStatus.state === "rodando") return "ring-2 ring-amber-500/80 shadow-[0_0_8px_rgba(245,158,11,0.4)]";
+    if (leadStatus.state === "finalizado") return "ring-2 ring-blue-500/80 shadow-[0_0_8px_rgba(59,130,246,0.3)]";
+    if (leadStatus.state === "pago") return "ring-2 ring-teal-500/80 shadow-[0_0_8px_rgba(20,184,166,0.3)]";
+    if (leadStatus.state === "pausado") return "ring-2 ring-rose-500/60";
+    return "ring-1 ring-border/50";
+  }, [leadStatus.state]);
+
+  return (
+    <div style={style} className="px-1 py-1 flex items-center justify-center">
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
+            <TooltipProvider delayDuration={120}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(conversation.id)}
+                    className={cn(
+                      "relative flex items-center justify-center h-12 w-12 rounded-xl transition-all duration-200 outline-none select-none",
+                      isSelected
+                        ? "bg-primary/20 ring-2 ring-primary shadow-sm scale-105"
+                        : "hover:bg-accent/50 hover:scale-105"
+                    )}
+                    aria-label={cleanDisplayName}
+                  >
+                    <Avatar className={cn("h-10 w-10 transition-transform", avatarRingClass)}>
+                      {resolvedAvatar ? (
+                        <AvatarImage
+                          src={resolvedAvatar}
+                          alt={cleanDisplayName}
+                          loading="lazy"
+                          className="object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : null}
+                      <AvatarFallback className="bg-primary/10 font-bold text-xs text-primary">
+                        {getInitials(cleanDisplayName)}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    {/* WhatsApp-style Online dot (bottom-right) */}
+                    {isOnline && (
+                      <span className="absolute bottom-0 right-0 z-20 flex h-3.5 w-3.5 items-center justify-center pointer-events-none" title="Online agora">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+                      </span>
+                    )}
+
+                    {/* IA Activation mini button (top-left) */}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSetConversationAiEnabled(conversation.id, !conversationAiAllowed);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.stopPropagation();
+                          onSetConversationAiEnabled(conversation.id, !conversationAiAllowed);
+                        }
+                      }}
+                      className={cn(
+                        "absolute -top-1 -left-1 z-20 h-4.5 w-4.5 rounded-full flex items-center justify-center border-2 border-background shadow-xs transition-transform hover:scale-110 cursor-pointer",
+                        aiWaiting
+                          ? "bg-amber-500 text-white"
+                          : aiEnabled
+                          ? "bg-emerald-600 text-white shadow-[0_0_6px_rgba(16,185,129,0.7)]"
+                          : "bg-muted text-muted-foreground/60 border-border"
+                      )}
+                      title={aiTooltip}
+                    >
+                      <Robot className="h-2.5 w-2.5" weight="bold" />
+                    </span>
+
+                    {/* 1 Etiqueta (bottom-left) */}
+                    {firstTag && (
+                      <div className="absolute -bottom-1 -left-1 z-20 pointer-events-none" title={firstTag}>
+                        <TagIconBadge tag={firstTag} colorClass={getTagColor(firstTag)} size="xs" interactive={false} />
+                      </div>
+                    )}
+
+                    {/* Unread badge (top-right) */}
+                    {unread > 0 && (
+                      <span className="absolute -top-1 -right-1 z-20 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white shadow-[0_0_6px_rgba(16,185,129,0.7)]">
+                        {unread > 99 ? "99+" : unread}
+                      </span>
+                    )}
+
+                    {/* Audio note indicator */}
+                    {isAudio && !unread && (
+                      <span className="absolute -top-1 -right-1 z-20 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-sky-500 text-[8px] text-white shadow-xs" title="Mensagem de áudio">
+                        <Microphone className="h-2 w-2" weight="fill" />
+                      </span>
+                    )}
+
+                    {/* Pinned Star indicator */}
+                    {isPinned && !unread && !isAudio && (
+                      <span className="absolute -top-1 -right-1 z-20 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-500/90 text-white shadow-xs" title="Fixado">
+                        <Star className="h-2 w-2" weight="fill" />
+                      </span>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={12} className="p-3 max-w-xs space-y-1.5 shadow-xl bg-popover/95 backdrop-blur border border-border">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-sm text-foreground truncate">{cleanDisplayName}</span>
+                    {isOnline ? (
+                      <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 shrink-0">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                        Online
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground shrink-0">Offline</span>
+                    )}
+                  </div>
+                  {conversation.phone && (
+                    <p className="text-[11px] text-muted-foreground/80 font-mono">
+                      {formatPhoneNumber(conversation.phone)}
+                    </p>
+                  )}
+                  {/* Lead Funnel status badge */}
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", leadStatus.badgeClass || "bg-muted text-muted-foreground")}>
+                      {leadStatus.label}
+                    </span>
+                    <span className={cn("text-[10px] px-1.5 py-0.5 rounded-md font-medium", aiEnabled ? "bg-emerald-500/15 text-emerald-400" : "bg-muted text-muted-foreground")}>
+                      {aiEnabled ? "IA Ativa" : "IA Pausada"}
+                    </span>
+                  </div>
+                  {/* Last message preview */}
+                  <p className="text-xs text-muted-foreground/90 line-clamp-2 pt-1 border-t border-border/40">
+                    {typingState ? (
+                      <span className="text-emerald-400 font-medium italic">
+                        {typingState === "recording" ? "Gravando áudio..." : "Digitando..."}
+                      </span>
+                    ) : (
+                      conversation.lastMessage || "Sem mensagens recentes"
+                    )}
+                  </p>
+                  {/* Tags list */}
+                  {conversation.tags && conversation.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {conversation.tags.map((tag) => (
+                        <TagIconBadge key={tag} tag={tag} colorClass={getTagColor(tag)} size="xs" interactive={false} />
+                      ))}
+                    </div>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </ContextMenuTrigger>
+
+        {/* Submenu interno de ações */}
+        <ContextMenuContent className="w-48 text-xs">
+          <ContextMenuItem onClick={() => onSelect(conversation.id)} className="gap-2 cursor-pointer">
+            <ChatCircleDots className="h-3.5 w-3.5 text-primary" />
+            <span>Abrir conversa</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onTogglePin(conversation.id)} className="gap-2 cursor-pointer">
+            <Star className="h-3.5 w-3.5 text-amber-400" />
+            <span>{isPinned ? "Desafixar conversa" : "Fixar conversa"}</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onToggleArchive(conversation.id)} className="gap-2 cursor-pointer">
+            <CaretRight className="h-3.5 w-3.5 text-blue-400" />
+            <span>{isArchived ? "Desarquivar conversa" : "Arquivar conversa"}</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onSetConversationAiEnabled(conversation.id, !conversationAiAllowed)} className="gap-2 cursor-pointer">
+            <Robot className={cn("h-3.5 w-3.5", aiEnabled ? "text-emerald-400" : "text-muted-foreground")} />
+            <span>{aiEnabled ? "Pausar IA neste contato" : "Ativar IA neste contato"}</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuSub>
+            <ContextMenuSubTrigger className="gap-2 cursor-pointer">
+              <Plus className="h-3.5 w-3.5" />
+              <span>Adicionar etiqueta</span>
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-44 text-xs">
+              {BUSINESS_TAG_OPTIONS.map((tag) => {
+                const currentTags = conversation.tags ?? [];
+                const hasTag = currentTags.includes(tag);
+                return (
+                  <ContextMenuItem
+                    key={tag}
+                    onClick={() => {
+                      if (hasTag) {
+                        onUpdateTags(conversation.id, currentTags.filter((t) => t !== tag));
+                      } else {
+                        onUpdateTags(conversation.id, [...currentTags, tag]);
+                      }
+                    }}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <TagIconBadge tag={tag} colorClass={getTagColor(tag)} size="xs" interactive={false} />
+                    <span className="flex-1">{tag}</span>
+                    {hasTag && <Check className="h-3 w-3 text-primary" />}
+                  </ContextMenuItem>
+                );
+              })}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => onDeleteConversation(conversation.id)} className="gap-2 text-destructive hover:bg-destructive/10 cursor-pointer">
+            <Trash className="h-3.5 w-3.5" />
+            <span>Excluir conversa</span>
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    </div>
+  );
+});
 
 export const ChatListPanel = memo(function ChatListPanel({
+  isCollapsed = false,
+  onToggleCollapse,
   searchQuery,
   setSearchQuery,
   isMultiSelectMode,
@@ -113,6 +465,15 @@ export const ChatListPanel = memo(function ChatListPanel({
     return counts;
   }, [sourceConversations, filteredConversations.length, filter, conversationCounts, conversationRowData?.globalAiEnabled, conversationRowData?.conversationControls]);
 
+  const aiActiveFallbackCount = useMemo(() => {
+    return sourceConversations.filter((c) => {
+      const aiAllowed = conversationRowData?.conversationControls?.[c.id]?.aiEnabled ?? c.aiEnabled ?? true;
+      return (conversationRowData?.globalAiEnabled ?? true) && aiAllowed;
+    }).length;
+  }, [sourceConversations, conversationRowData?.conversationControls, conversationRowData?.globalAiEnabled]);
+
+  const aiCount = conversationCounts?.ai_active ?? aiActiveFallbackCount;
+
   useEffect(() => {
     if (!listContainerRef.current) return;
     const updateHeight = () => {
@@ -135,10 +496,114 @@ export const ChatListPanel = memo(function ChatListPanel({
     };
   }, []);
 
+  // Rail colapsado com avatars, status online do WhatsApp, IA, etiquetas e tooltip lateral
+  if (isCollapsed) {
+    return (
+      <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/60 h-full w-full items-center select-none", isMobile && mobileScreen !== "conversations" && "hidden")}>
+        {/* Top Rail Controls */}
+        <div className="flex flex-col items-center gap-2 p-2 border-b border-border/40 w-full shrink-0">
+          {onToggleCollapse && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={onToggleCollapse}
+                    className="h-10 w-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all hover:scale-105"
+                    aria-label="Expandir lista de conversas"
+                  >
+                    <CaretRight className="h-5 w-5" weight="bold" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Expandir lista de conversas</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
+          {/* Session Status Dot */}
+          <div
+            onClick={() => navigate("/connections")}
+            className="cursor-pointer transition-transform hover:scale-125"
+            title={
+              activeSession?.isBanned || activeSession?.raw?.status === "banned" || activeSession?.status === "error"
+                ? "Sessão Banida"
+                : activeSession && isSessionActive(activeSession)
+                ? "Sessão Conectada (ON)"
+                : "Sessão Desconectada (OFF)"
+            }
+          >
+            <span
+              className={cn(
+                "h-2.5 w-2.5 rounded-full inline-block border border-background shadow-xs",
+                activeSession && isSessionActive(activeSession)
+                  ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse"
+                  : "bg-amber-500"
+              )}
+            />
+          </div>
+
+          {/* Unread badge count if any */}
+          {conversationCounts?.unread != null && conversationCounts.unread > 0 && (
+            <span
+              className="text-[9px] font-bold text-white bg-emerald-500 px-1 py-0.2 rounded-full min-w-[16px] text-center shadow-xs"
+              title={`${conversationCounts.unread} mensagens não lidas`}
+            >
+              {conversationCounts.unread > 99 ? "99+" : conversationCounts.unread}
+            </span>
+          )}
+        </div>
+
+        {/* Scrollable Rail List */}
+        <div ref={listContainerRef} className="min-h-0 flex-1 w-full overflow-hidden py-1">
+          {loadingConversations ? (
+            <div className="flex flex-col items-center gap-3 p-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-10 rounded-xl" />
+              ))}
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-2 text-center text-muted-foreground/50 py-8">
+              <ChatCircleDots className="h-6 w-6" />
+            </div>
+          ) : (
+            <List
+              rowComponent={CollapsedConversationRow}
+              rowCount={filteredConversations.length}
+              rowHeight={COLLAPSED_ROW_HEIGHT}
+              rowProps={conversationRowData}
+              style={{ height: dynamicHeight, width: "100%" }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex min-h-0 flex-col border-r border-border bg-card/50 lg:overflow-auto h-full", isMobile && mobileScreen !== "conversations" && "hidden")}>
       <div className="space-y-2 border-b border-border p-3">
         <div className="flex items-center gap-2">
+          {onToggleCollapse && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={onToggleCollapse}
+                    className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                    title="Recolher painel de conversas"
+                  >
+                    <CaretLeft className="h-4 w-4" weight="bold" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Recolher painel</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <div className="flex-1">
             <ChatSearchBar
               value={searchQuery}
@@ -172,7 +637,7 @@ export const ChatListPanel = memo(function ChatListPanel({
               Não lidas{conversationCounts?.unread != null && conversationCounts.unread > 0 ? ` (${conversationCounts.unread})` : ''}
             </TabsTrigger>
             <TabsTrigger value="ai" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">
-              IA ativa
+              IA ativa{aiCount > 0 ? ` (${aiCount})` : ''}
             </TabsTrigger>
             <TabsTrigger value="archived" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">
               Arquivadas{conversationCounts?.archived != null ? ` (${conversationCounts.archived})` : (filteredConversations.length > 0 && filter === 'archived' ? ` (${filteredConversations.length})` : '')}

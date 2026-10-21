@@ -474,6 +474,7 @@ export default function Inbox() {
     responseSearchQuery: state.responseSearchQuery,
     setResponseSearchQuery: state.setResponseSearchQuery,
     quickReplies: state.quickReplies,
+    setQuickReplies: state.setQuickReplies,
     quickReplyCategoryAppearance: state.quickReplyCategoryAppearance,
     quickReplyCategoryAppearanceError: state.quickReplyCategoryAppearanceError,
     onRetryQuickReplyCategoryAppearance: state.loadQuickReplyCategoryAppearance,
@@ -706,6 +707,8 @@ export default function Inbox() {
         <InboxView
           isMobile={state.isMobile}
           mobileScreen={state.mobileScreen}
+          leftPanelCollapsed={state.leftPanelCollapsed}
+          onLeftPanelCollapsedChange={state.setLeftPanelCollapsed}
           rightPanelCollapsed={state.rightPanelCollapsed}
           onRightPanelCollapsedChange={state.setRightPanelCollapsed}
           leftPanel={
@@ -740,6 +743,8 @@ export default function Inbox() {
               mobileScreen={state.mobileScreen}
               showGroups={showGroups}
               setShowGroups={setShowGroups}
+              isCollapsed={state.leftPanelCollapsed}
+              onToggleCollapse={state.toggleLeftPanelCollapsed}
             />
           }
           centerPanel={<ActiveChatPane {...activeChatPaneProps} />}

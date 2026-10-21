@@ -86,14 +86,6 @@ export function ChatHeaderBar({
             <div className="flex items-center gap-1.5 min-w-0">
               <h3 className="truncate font-semibold text-xs sm:text-sm md:text-base leading-tight text-foreground flex items-center gap-1.5">
                 <span className="truncate">{contactName}</span>
-                {/* Presence indicator: green if online/typing, clean omission when offline */}
-                {isOnlineOrTyping && (
-                  <span
-                    className="inline-flex h-2 w-2 rounded-full shrink-0 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse"
-                    title="Contato online no WhatsApp"
-                    aria-label="Online"
-                  />
-                )}
               </h3>
             </div>
             {phoneLabel && (

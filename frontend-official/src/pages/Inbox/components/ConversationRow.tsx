@@ -238,13 +238,21 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
     if (leadStatus.state === "intervencao") {
       return "border-2 border-red-500/80 bg-red-500/[0.14] shadow-[0_0_16px_rgba(239,68,68,0.35),inset_0_0_14px_rgba(239,68,68,0.12)]";
     }
+    if (leadStatus.state === "chegou") {
+      return "border border-emerald-500/70 bg-emerald-500/[0.06] shadow-[inset_0_0_12px_rgba(16,185,129,0.05)] hover:bg-emerald-500/[0.11]";
+    }
+    if (leadStatus.state === "rodando") {
+      return "border border-amber-500/60 bg-amber-500/[0.06] shadow-[inset_0_0_12px_rgba(245,158,11,0.05)] hover:bg-amber-500/[0.10]";
+    }
     if (leadStatus.state === "finalizado") {
-      return "border border-blue-500/40 bg-blue-500/[0.09] shadow-[inset_0_0_14px_rgba(59,130,246,0.08)] hover:bg-blue-500/[0.14]";
+      return "border border-blue-500/50 bg-blue-500/[0.09] shadow-[inset_0_0_14px_rgba(59,130,246,0.08)] hover:bg-blue-500/[0.14]";
     }
     if (leadStatus.state === "pago") {
-      return "border border-teal-500/40 bg-teal-500/[0.09] shadow-[inset_0_0_14px_rgba(20,184,166,0.08)] hover:bg-teal-500/[0.14]";
+      return "border border-teal-500/50 bg-teal-500/[0.09] shadow-[inset_0_0_14px_rgba(20,184,166,0.08)] hover:bg-teal-500/[0.14]";
     }
-    // Contatos normais, em andamento, chegou ou pausados mantêm fundo limpo e neutro do tema
+    if (leadStatus.state === "pausado") {
+      return "border border-rose-500/50 bg-rose-500/[0.06] hover:bg-rose-500/[0.10]";
+    }
     return "border border-border/40 bg-card/60 hover:bg-accent/40 shadow-xs";
   }, [leadStatus.state]);
 
