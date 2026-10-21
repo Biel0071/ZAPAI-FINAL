@@ -19,6 +19,7 @@ import {
   Flame,
   Folder,
   FolderInput,
+  GripVertical,
   Handshake,
   HelpCircle,
   History,
@@ -620,6 +621,51 @@ export const SidebarPanel = memo(function SidebarPanel({
     } catch (err) {
       console.error("[SidebarPanel] Erro ao mover resposta rápida de pasta:", err);
     }
+  };
+
+  // Drag and Drop state for Categories (Folders) and Quick Reply items
+  const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
+  const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
+  const [draggedReply, setDraggedReply] = useState<{ id: string; category: string } | null>(null);
+  const [dragOverReplyId, setDragOverReplyId] = useState<string | null>(null);
+
+  const handleReorderCategories = (sourceCat: string, targetCat: string) => {
+    if (!sourceCat || !targetCat || sourceCat === targetCat) return;
+    const allCats = Object.keys(groupedReplies);
+    let currentOrder = [...categoryOrder];
+    for (const c of allCats) {
+      if (!currentOrder.includes(c)) currentOrder.push(c);
+    }
+    const sourceIdx = currentOrder.indexOf(sourceCat);
+    const targetIdx = currentOrder.indexOf(targetCat);
+    if (sourceIdx < 0 || targetIdx < 0) return;
+
+    const nextOrder = [...currentOrder];
+    nextOrder.splice(sourceIdx, 1);
+    nextOrder.splice(targetIdx, 0, sourceCat);
+    setCategoryOrder(nextOrder);
+    try {
+      localStorage.setItem("zapflow_qr_category_order", JSON.stringify(nextOrder));
+    } catch {}
+  };
+
+  const handleReorderReplies = (sourceReplyId: string, targetReplyId: string, targetCategory: string) => {
+    if (!sourceReplyId || !targetReplyId || sourceReplyId === targetReplyId) return;
+    setQuickReplies?.((prev) => {
+      const sourceIdx = prev.findIndex((r) => r.id === sourceReplyId);
+      const targetIdx = prev.findIndex((r) => r.id === targetReplyId);
+      if (sourceIdx < 0 || targetIdx < 0) return prev;
+
+      const next = [...prev];
+      const [moved] = next.splice(sourceIdx, 1);
+      const updated = { ...moved, category: targetCategory };
+      next.splice(targetIdx, 0, updated);
+
+      if (moved.category !== targetCategory) {
+        void apiService.updateQuickReply(sourceReplyId, { category: targetCategory }).catch(console.error);
+      }
+      return next;
+    });
   };
 
   const handleMoveReplyOrder = (replyId: string, direction: "up" | "down") => {
@@ -1332,9 +1378,65 @@ export const SidebarPanel = memo(function SidebarPanel({
                   const isCollapsed = Boolean(collapsedCategories[categoryName]);
                   const appearance = quickReplyCategoryAppearance[categoryName.toLocaleLowerCase()] || { emoji: "📁", color: "#16a34a" };
                   return (
-                    <div key={categoryName} className="rounded-xl border border-border/60 bg-card/30 overflow-hidden">
-                      {/* Category Header */}
-                      <div className="flex items-center justify-between bg-muted/40 px-3 py-2 text-xs font-semibold text-foreground">
+                    <div
+                      key={categoryName}
+                      className={cn(
+                        "rounded-xl border transition-all overflow-hidden",
+                        dragOverCategory === categoryName
+                          ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/40 scale-[1.01]"
+                          : "border-border/60 bg-card/30"
+                      )}
+                    >
+                      {/* Category Header (Draggable Folder) */}
+                      <div
+                        draggable={true}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("application/json", JSON.stringify({ type: "category", name: categoryName }));
+                          e.dataTransfer.effectAllowed = "move";
+                          setDraggedCategory(categoryName);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedCategory(null);
+                          setDragOverCategory(null);
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          if (dragOverCategory !== categoryName) {
+                            setDragOverCategory(categoryName);
+                          }
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverCategory === categoryName) {
+                            setDragOverCategory(null);
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setDragOverCategory(null);
+                          try {
+                            const raw = e.dataTransfer.getData("application/json");
+                            if (!raw) return;
+                            const payload = JSON.parse(raw);
+                            if (payload.type === "category" && payload.name && payload.name !== categoryName) {
+                              handleReorderCategories(payload.name, categoryName);
+                            } else if (payload.type === "reply" && payload.id) {
+                              handleMoveReplyToFolder(payload.id, categoryName);
+                            }
+                          } catch (err) {
+                            console.error("[SidebarPanel] Erro no drop de categoria:", err);
+                          }
+                        }}
+                        className={cn(
+                          "flex items-center justify-between px-3 py-2 text-xs font-semibold text-foreground select-none cursor-grab active:cursor-grabbing transition-colors",
+                          draggedCategory === categoryName && "opacity-40",
+                          dragOverCategory === categoryName ? "bg-primary/20" : "bg-muted/40 hover:bg-muted/60"
+                        )}
+                        title="Arraste para reordenar esta pasta ou solte uma resposta aqui"
+                      >
+                        <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground/50 hover:text-foreground mr-1">
+                          <GripVertical className="h-3.5 w-3.5" />
+                        </div>
                         <button type="button" onClick={() => toggleCategoryCollapse(categoryName)} className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-primary transition-colors">
                           <span
                             aria-hidden="true"
@@ -1384,14 +1486,64 @@ export const SidebarPanel = memo(function SidebarPanel({
                         </div>
                       </div>
 
-                      {/* Items List */}
+                      {/* Items List (Draggable Quick Reply Items) */}
                       {!isCollapsed && (
                         <div className="divide-y divide-border/30">
                           {items.map((reply, replyIndex) => (
                             <div
                               key={reply.id}
-                              className="group flex items-center justify-between gap-1.5 py-1 px-2 hover:bg-muted/30 transition-colors"
+                              draggable={true}
+                              onDragStart={(e) => {
+                                e.stopPropagation();
+                                e.dataTransfer.setData("application/json", JSON.stringify({ type: "reply", id: reply.id, category: categoryName }));
+                                e.dataTransfer.effectAllowed = "move";
+                                setDraggedReply({ id: reply.id, category: categoryName });
+                              }}
+                              onDragEnd={() => {
+                                setDraggedReply(null);
+                                setDragOverReplyId(null);
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.dataTransfer.dropEffect = "move";
+                                if (dragOverReplyId !== reply.id) {
+                                  setDragOverReplyId(reply.id);
+                                }
+                              }}
+                              onDragLeave={(e) => {
+                                e.stopPropagation();
+                                if (dragOverReplyId === reply.id) {
+                                  setDragOverReplyId(null);
+                                }
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setDragOverReplyId(null);
+                                try {
+                                  const raw = e.dataTransfer.getData("application/json");
+                                  if (!raw) return;
+                                  const payload = JSON.parse(raw);
+                                  if (payload.type === "reply" && payload.id && payload.id !== reply.id) {
+                                    handleReorderReplies(payload.id, reply.id, categoryName);
+                                  }
+                                } catch (err) {
+                                  console.error("[SidebarPanel] Erro no drop de resposta rápida:", err);
+                                }
+                              }}
+                              className={cn(
+                                "group flex items-center justify-between gap-1.5 py-1 px-2 select-none cursor-grab active:cursor-grabbing transition-all",
+                                draggedReply?.id === reply.id && "opacity-40 scale-[0.98]",
+                                dragOverReplyId === reply.id
+                                  ? "bg-primary/20 border-y-2 border-primary shadow-xs"
+                                  : "hover:bg-muted/30"
+                              )}
+                              title="Arraste para reordenar ou mover para outra pasta"
                             >
+                              <div className="flex items-center text-muted-foreground/30 group-hover:text-muted-foreground/70 shrink-0 pr-0.5">
+                                <GripVertical className="h-3 w-3" />
+                              </div>
                               {/* Main Click Button (Inserts into composer or previews) */}
                               <button
                                 type="button"

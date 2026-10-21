@@ -1148,7 +1148,27 @@ async function updateConversationMeta(req, res) {
         if (conv.lead_id) {
           await query('UPDATE leads SET name = $1 WHERE id = $2', [req.body.name, conv.lead_id]);
         }
-        // contacts table is deprecated, leads table updated above
+      }
+    }
+
+    if (typeof req.body.phone !== 'undefined' && req.body.phone) {
+      const cleanPhone = String(req.body.phone).replace(/\D/g, '');
+      if (cleanPhone) {
+        const { query } = require('../../infrastructure/config/database');
+        const conv = await conversationRepository.getConversationById(conversationId);
+        if (conv) {
+          if (conv.lead_id) {
+            await query('UPDATE leads SET phone = $1 WHERE id = $2', [cleanPhone, conv.lead_id]);
+          }
+          const remoteJid = String(conv.remote_jid || '');
+          if (remoteJid.includes('@lid') || (!remoteJid.startsWith('55') && remoteJid.replace(/\D/g, '').length >= 14)) {
+            const cleanLid = remoteJid.replace(/@.*$/, '').replace(/\D/g, '');
+            if (cleanLid) {
+              const lidMapper = require('../../../services/whatsapp/shared/lidMapper');
+              await lidMapper.saveMapping(cleanLid, cleanPhone);
+            }
+          }
+        }
       }
     }
 

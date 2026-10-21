@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import { businessLabel } from '@/core/utils/tagEmojis';
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/core/lib/utils";
-import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban, Archive, Megaphone, Funnel, ArrowClockwise } from "@phosphor-icons/react";
+import { AddressBook, ChatCircleDots, Phone, SquaresFour, List, DotsThreeVertical, Tag, ChatCircle, PencilSimple, Kanban, Archive, Megaphone, Funnel, ArrowClockwise, Sparkle, Flame, Snowflake, Lightning, ShieldCheck, UsersThree, Copy } from "@phosphor-icons/react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ContactGrid, type ContactGridItem } from "@/components/contacts/ContactGrid";
 import { ContactSidebar, type ContactSegment } from "@/components/contacts/ContactSidebar";
 import { ChatSearchBar } from "@/components/inbox/ChatSearchBar";
+import { formatContactPhone, formatPhoneNumber } from "@/pages/Inbox/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -170,6 +171,112 @@ export function ContactsView({
           })}
         </div>
       )}
+
+      {/* Central de Análise de IA de Leads & Afunilamentos (Kanban) */}
+      <div className="rounded-2xl border border-slate-200/90 dark:border-border/80 bg-white/95 dark:bg-card/60 backdrop-blur-md p-4 space-y-3.5 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <Sparkle className="h-4 w-4" weight="fill" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-foreground">Análise de IA de Leads & Afunilamentos</h3>
+                <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-semibold">
+                  IA Preditiva Ativa
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-muted-foreground">
+                Qualificação preditiva de conversão, temperatura da base e direcionamento estratégico para o funil Kanban
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={viewMode === "kanban" ? "default" : "outline"}
+              size="sm"
+              onClick={() => onViewModeChange("kanban")}
+              className="h-8 rounded-xl text-xs gap-1.5 font-semibold shadow-xs"
+            >
+              <Kanban className="h-3.5 w-3.5" />
+              Ver no Funil Kanban
+            </Button>
+          </div>
+        </div>
+
+        {/* Funnel Stage Quick Metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 pt-1 border-t border-slate-200/70 dark:border-border/40">
+          <button
+            type="button"
+            onClick={() => onSegmentChange("lead_quente")}
+            className="flex items-center gap-2 p-2 rounded-xl bg-slate-50/80 dark:bg-background/50 hover:bg-rose-500/10 border border-slate-200/80 dark:border-border/60 hover:border-rose-500/40 text-left transition-all group"
+          >
+            <div className="h-7 w-7 rounded-lg bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
+              <Flame className="h-4 w-4" weight="fill" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] text-slate-500 dark:text-muted-foreground font-semibold uppercase tracking-wider block">Leads Quentes</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-foreground group-hover:text-rose-500 transition-colors">{counts.lead_quente ?? 0}</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSegmentChange("lead_morno")}
+            className="flex items-center gap-2 p-2 rounded-xl bg-slate-50/80 dark:bg-background/50 hover:bg-amber-500/10 border border-slate-200/80 dark:border-border/60 hover:border-amber-500/40 text-left transition-all group"
+          >
+            <div className="h-7 w-7 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-500 flex items-center justify-center shrink-0">
+              <Lightning className="h-4 w-4" weight="fill" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] text-slate-500 dark:text-muted-foreground font-semibold uppercase tracking-wider block">Leads Mornos</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-foreground group-hover:text-amber-500 transition-colors">{counts.lead_morno ?? 0}</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSegmentChange("lead_frio")}
+            className="flex items-center gap-2 p-2 rounded-xl bg-slate-50/80 dark:bg-background/50 hover:bg-sky-500/10 border border-slate-200/80 dark:border-border/60 hover:border-sky-500/40 text-left transition-all group"
+          >
+            <div className="h-7 w-7 rounded-lg bg-sky-500/15 text-sky-600 dark:text-sky-500 flex items-center justify-center shrink-0">
+              <Snowflake className="h-4 w-4" weight="fill" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] text-slate-500 dark:text-muted-foreground font-semibold uppercase tracking-wider block">Leads Frios</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-foreground group-hover:text-sky-500 transition-colors">{counts.lead_frio ?? 0}</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSegmentChange("inbox")}
+            className="flex items-center gap-2 p-2 rounded-xl bg-slate-50/80 dark:bg-background/50 hover:bg-emerald-500/10 border border-slate-200/80 dark:border-border/60 hover:border-emerald-500/40 text-left transition-all group"
+          >
+            <div className="h-7 w-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-500 flex items-center justify-center shrink-0">
+              <ChatCircleDots className="h-4 w-4" weight="fill" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] text-slate-500 dark:text-muted-foreground font-semibold uppercase tracking-wider block">Em Atendimento</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-foreground group-hover:text-emerald-500 transition-colors">{counts.inbox ?? 0}</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSegmentChange("archived")}
+            className="flex items-center gap-2 p-2 rounded-xl bg-slate-50/80 dark:bg-background/50 hover:bg-slate-500/10 border border-slate-200/80 dark:border-border/60 hover:border-slate-500/40 text-left transition-all group"
+          >
+            <div className="h-7 w-7 rounded-lg bg-slate-500/15 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0">
+              <Archive className="h-4 w-4" weight="fill" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] text-slate-500 dark:text-muted-foreground font-semibold uppercase tracking-wider block">Arquivados</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-foreground group-hover:text-slate-500 transition-colors">{counts.archived ?? 0}</span>
+            </div>
+          </button>
+        </div>
+      </div>
 
       {/* Mobile Segment Filter Bar (< xl) */}
       <div className="xl:hidden flex items-center justify-between gap-2 p-2.5 rounded-xl border border-border/70 bg-card/60 backdrop-blur-md">
@@ -543,19 +650,33 @@ export function ContactsView({
                                     : "opacity-60 cursor-not-allowed"
                                 }`}
                               >
-                                <div className="flex items-start justify-between gap-1">
-                                  <div className="min-w-0">
-                                    <h4 className="font-bold text-xs text-foreground truncate">
-                                      {contact.name}
-                                    </h4>
-                                    <p className="text-[10px] text-muted-foreground">{contact.phone}</p>
-                                  </div>
-                                  {!hasConv && (
-                                    <Badge variant="destructive" className="text-[8px] px-1 h-4">
-                                      Sem chat
-                                    </Badge>
-                                  )}
-                                </div>
+                                {(() => {
+                                  const phoneMeta = formatContactPhone(contact.phone, contact.isGroup);
+                                  return (
+                                    <div className="flex items-start justify-between gap-1">
+                                      <div className="min-w-0 flex-1">
+                                        <h4 className="font-bold text-xs text-foreground truncate">
+                                          {contact.name}
+                                        </h4>
+                                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                                          {phoneMeta.isGroup ? (
+                                            <UsersThree className="h-3 w-3 text-primary shrink-0" />
+                                          ) : phoneMeta.isLid ? (
+                                            <ShieldCheck className="h-3 w-3 text-emerald-500 shrink-0" />
+                                          ) : (
+                                            <Phone className="h-2.5 w-2.5 shrink-0" />
+                                          )}
+                                          <span className="truncate">{phoneMeta.display}</span>
+                                        </div>
+                                      </div>
+                                      {!hasConv && (
+                                        <Badge variant="destructive" className="text-[8px] px-1 h-4 shrink-0">
+                                          Sem chat
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                                 {contact.lastMessage && (
                                   <p className="text-[10px] text-muted-foreground line-clamp-2 italic">
                                     "{contact.lastMessage}"
@@ -634,10 +755,24 @@ export function ContactsView({
                                     {contact.name.slice(0, 2).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-sm text-foreground">{contact.name}</span>
-                                  <span className="text-xs text-muted-foreground">{contact.phone}</span>
-                                </div>
+                                {(() => {
+                                  const phoneMeta = formatContactPhone(contact.phone, contact.isGroup);
+                                  return (
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="font-bold text-sm text-slate-900 dark:text-foreground">{contact.name}</span>
+                                      <span className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1.5">
+                                        {phoneMeta.isGroup ? (
+                                          <UsersThree className="h-3 w-3 text-primary shrink-0" />
+                                        ) : phoneMeta.isLid ? (
+                                          <ShieldCheck className="h-3 w-3 text-emerald-500 shrink-0" />
+                                        ) : (
+                                          <Phone className="h-2.5 w-2.5 shrink-0" />
+                                        )}
+                                        {phoneMeta.display}
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </TableCell>
                             <TableCell className="max-w-xs truncate text-xs text-muted-foreground">

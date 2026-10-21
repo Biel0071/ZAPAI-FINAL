@@ -653,8 +653,8 @@ export const ChatListPanel = memo(function ChatListPanel({
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1 border",
               funnelFilter === "all"
-                ? "bg-primary/20 text-primary border-primary/40 font-bold shadow-xs"
-                : "bg-muted/30 text-muted-foreground/80 hover:bg-muted/60 border-border/30"
+                ? "bg-slate-900 text-white border-slate-900 font-bold shadow-xs dark:bg-primary/20 dark:text-primary dark:border-primary/40"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300 dark:bg-muted/30 dark:text-muted-foreground/80 dark:hover:bg-muted/60 dark:border-border/30"
             )}
           >
             <span>Todos</span>
@@ -667,14 +667,14 @@ export const ChatListPanel = memo(function ChatListPanel({
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
               funnelFilter === "chegou"
-                ? "bg-emerald-500/25 text-emerald-300 border-emerald-400 font-bold shadow-[0_0_8px_rgba(16,185,129,0.3)]"
-                : "bg-muted/30 text-emerald-400/90 hover:bg-emerald-500/10 border-border/30"
+                ? "bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs dark:bg-emerald-500/25 dark:text-emerald-300 dark:border-emerald-400 dark:shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+                : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-300 dark:bg-muted/30 dark:text-emerald-400/90 dark:hover:bg-emerald-500/10 dark:border-border/30"
             )}
             title="Filtrar por Chegou (Novos leads / Não lidas)"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.7)]" />
+            <span className={cn("h-1.5 w-1.5 rounded-full", funnelFilter === "chegou" ? "bg-white dark:bg-emerald-400" : "bg-emerald-600 dark:bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.7)]")} />
             <span>Chegou</span>
-            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.chegou}</span>
+            <span className="text-[9px] opacity-85 font-mono">{funnelCounts.chegou}</span>
           </button>
 
           <button
@@ -683,14 +683,14 @@ export const ChatListPanel = memo(function ChatListPanel({
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
               funnelFilter === "rodando"
-                ? "bg-amber-500/25 text-amber-300 border-amber-400 font-bold shadow-[0_0_8px_rgba(251,191,36,0.3)]"
-                : "bg-muted/30 text-amber-400/90 hover:bg-amber-500/10 border-border/30"
+                ? "bg-amber-500 text-slate-950 border-amber-600 font-bold shadow-xs dark:bg-amber-500/25 dark:text-amber-300 dark:border-amber-400 dark:shadow-[0_0_8px_rgba(251,191,36,0.3)]"
+                : "bg-amber-50 text-amber-900 hover:bg-amber-100 border-amber-300 dark:bg-muted/30 dark:text-amber-400/90 dark:hover:bg-amber-500/10 dark:border-border/30"
             )}
             title="Filtrar por Rodando (IA em atendimento ativo)"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.7)]" />
+            <span className={cn("h-1.5 w-1.5 rounded-full", funnelFilter === "rodando" ? "bg-slate-950 dark:bg-amber-300" : "bg-amber-600 dark:bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.7)]")} />
             <span>Rodando</span>
-            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.rodando}</span>
+            <span className="text-[9px] opacity-85 font-mono">{funnelCounts.rodando}</span>
           </button>
 
           <button
@@ -699,8 +699,8 @@ export const ChatListPanel = memo(function ChatListPanel({
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
               funnelFilter === "finalizado"
-                ? "bg-blue-600 text-white border-blue-400 font-bold shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-                : "bg-muted/30 text-blue-400 hover:bg-blue-500/10 border-border/30"
+                ? "bg-blue-600 text-white border-blue-600 font-bold shadow-xs dark:bg-blue-600 dark:text-white dark:border-blue-400 dark:shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                : "bg-blue-50 text-blue-800 hover:bg-blue-100 border-blue-300 dark:bg-muted/30 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:border-border/30"
             )}
             title="Filtrar por Aguardando Pagamento (Ficha gerada / aguardando pagamento)"
           >
@@ -709,7 +709,7 @@ export const ChatListPanel = memo(function ChatListPanel({
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
             </span>
             <span>Pagamento</span>
-            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.finalizado}</span>
+            <span className="text-[9px] opacity-85 font-mono">{funnelCounts.finalizado}</span>
           </button>
 
           <button
@@ -718,14 +718,14 @@ export const ChatListPanel = memo(function ChatListPanel({
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
               funnelFilter === "pausado"
-                ? "bg-rose-500/25 text-rose-300 border-rose-400 font-bold shadow-[0_0_8px_rgba(244,63,94,0.3)]"
-                : "bg-muted/30 text-rose-400/90 hover:bg-rose-500/10 border-border/30"
+                ? "bg-rose-600 text-white border-rose-600 font-bold shadow-xs dark:bg-rose-500/25 dark:text-rose-300 dark:border-rose-400 dark:shadow-[0_0_8px_rgba(244,63,94,0.3)]"
+                : "bg-rose-50 text-rose-800 hover:bg-rose-100 border-rose-300 dark:bg-muted/30 dark:text-rose-400/90 dark:hover:bg-rose-500/10 dark:border-border/30"
             )}
             title="Filtrar por Pausado (Operador humano / IA desligada)"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.7)]" />
+            <span className={cn("h-1.5 w-1.5 rounded-full", funnelFilter === "pausado" ? "bg-white dark:bg-rose-300" : "bg-rose-600 dark:bg-rose-500 shadow-[0_0_4px_rgba(244,63,94,0.7)]")} />
             <span>Pausado</span>
-            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.pausado}</span>
+            <span className="text-[9px] opacity-85 font-mono">{funnelCounts.pausado}</span>
           </button>
 
           <button
@@ -734,14 +734,14 @@ export const ChatListPanel = memo(function ChatListPanel({
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
               funnelFilter === "pago"
-                ? "bg-teal-500/25 text-teal-300 border-teal-400 font-bold shadow-[0_0_8px_rgba(20,184,166,0.3)]"
-                : "bg-muted/30 text-teal-400/90 hover:bg-teal-500/10 border-border/30"
+                ? "bg-teal-600 text-white border-teal-600 font-bold shadow-xs dark:bg-teal-500/25 dark:text-teal-300 dark:border-teal-400 dark:shadow-[0_0_8px_rgba(20,184,166,0.3)]"
+                : "bg-teal-50 text-teal-800 hover:bg-teal-100 border-teal-300 dark:bg-muted/30 dark:text-teal-400/90 dark:hover:bg-teal-500/10 dark:border-border/30"
             )}
             title="Filtrar por Pago (Pedido aprovado / comprovante recebido)"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-teal-400 shadow-[0_0_4px_rgba(20,184,166,0.7)]" />
+            <span className={cn("h-1.5 w-1.5 rounded-full", funnelFilter === "pago" ? "bg-white dark:bg-teal-300" : "bg-teal-600 dark:bg-teal-400 shadow-[0_0_4px_rgba(20,184,166,0.7)]")} />
             <span>Pago</span>
-            <span className="text-[9px] opacity-75 font-mono">{funnelCounts.pago}</span>
+            <span className="text-[9px] opacity-85 font-mono">{funnelCounts.pago}</span>
           </button>
         </div>
 

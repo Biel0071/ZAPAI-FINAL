@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X } from "@phosphor-icons/react";
+import { X, ShieldCheck } from "@phosphor-icons/react";
 
 type ContactRow = {
   id: string;
@@ -172,6 +172,7 @@ export default function Contacts() {
   // Edit contact modal state
   const [editContact, setEditContact] = useState<ContactRow | null>(null);
   const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [editTags, setEditTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [editSaving, setEditSaving] = useState(false);
@@ -495,6 +496,8 @@ export default function Contacts() {
     setEditContact(source);
     setEditName(source.name);
     setEditTags([...source.tags]);
+    const isLid = String(source.phone || "").includes("@lid") || /^\d{14,16}$/.test(String(source.phone || "").replace(/@.*$/, ""));
+    setEditPhone(isLid ? "" : source.phone);
     setNewTag("");
   };
 
@@ -516,9 +519,13 @@ export default function Contacts() {
     }
     setEditSaving(true);
     try {
-      await apiService.patchConversation(editContact.conversationId, { name: editName, tags: editTags });
+      const payload: { name: string; tags: string[]; phone?: string } = { name: editName, tags: editTags };
+      if (editPhone.trim()) {
+        payload.phone = editPhone.trim();
+      }
+      await apiService.patchConversation(editContact.conversationId, payload);
       setContacts((prev) =>
-        prev.map((c) => (c.id === editContact.id ? { ...c, name: editName, tags: editTags } : c)),
+        prev.map((c) => (c.id === editContact.id ? { ...c, name: editName, tags: editTags, phone: editPhone.trim() || c.phone } : c)),
       );
       toast({ title: "Contato atualizado com sucesso." });
       setEditContact(null);
@@ -596,8 +603,20 @@ export default function Contacts() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input value={editContact?.phone ?? ""} disabled className="rounded-xl bg-muted/30" />
+              <Label htmlFor="edit-phone">Telefone / WhatsApp</Label>
+              <Input
+                id="edit-phone"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                placeholder="Ex: 11999998888 ou +55 11 99999-8888"
+                className="rounded-xl"
+              />
+              {Boolean(editContact?.phone && (editContact.phone.includes("@lid") || editContact.phone.includes("@g.us") || editContact.phone.length >= 14)) && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-0.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <span>ID interno protegido: <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">{editContact?.phone}</code></span>
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Tags</Label>

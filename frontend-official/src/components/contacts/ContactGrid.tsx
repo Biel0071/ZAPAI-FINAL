@@ -1,4 +1,4 @@
-import { Phone, ChatCircleDots, PencilSimple, Tag, DotsThreeVertical, ChatCircle, Trash, Archive } from "@phosphor-icons/react";
+import { Phone, ChatCircleDots, PencilSimple, Tag, DotsThreeVertical, ChatCircle, Trash, Archive, UsersThree, ShieldCheck, Copy } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
-import { getTagColor } from "@/pages/Inbox/utils";
+import { getTagColor, formatContactPhone } from "@/pages/Inbox/utils";
 import { businessLabel } from '@/core/utils/tagEmojis';
 
 export interface ContactGridItem {
@@ -80,11 +80,14 @@ export function ContactGrid({
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {contacts.map((contact) => {
         const isSelected = selectedIds?.has(contact.id) ?? false;
+        const phoneMeta = formatContactPhone(contact.phone, contact.isGroup);
         return (
           <Card
             key={contact.id}
-            className={`group glass-card cursor-pointer overflow-hidden rounded-2xl border transition-all hover:shadow-lg hover:shadow-primary/5 ${
-              isSelected ? "border-primary bg-primary/5 shadow-md" : "border-border/70 bg-card/85"
+            className={`group glass-card cursor-pointer overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-lg hover:shadow-primary/5 bg-white dark:bg-card/85 ${
+              isSelected
+                ? "border-primary bg-primary/5 dark:bg-primary/5 shadow-md ring-1 ring-primary/40"
+                : "border-slate-200/90 dark:border-border/70 shadow-xs hover:border-primary/50"
             }`}
             onClick={() => onContactClick(contact)}
           >
@@ -112,18 +115,38 @@ export function ContactGrid({
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                   <TemperatureBadge temperature={contact.temperature} />
-                  {contact.isGroup && <Badge variant="secondary" className="rounded-full text-[10px]">Grupo</Badge>}
+                  {contact.isGroup && <Badge variant="secondary" className="rounded-full text-[10px] font-semibold">Grupo</Badge>}
                 </div>
               </div>
 
               <div className="mb-4 space-y-1">
-                <h4 className="truncate font-display text-sm font-bold">{contact.name}</h4>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Phone className="h-3 w-3" />
-                  <span>{contact.phone || "Sem telefone"}</span>
+                <h4 className="truncate font-display text-sm font-bold text-slate-900 dark:text-foreground">{contact.name}</h4>
+                <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-muted-foreground">
+                  {phoneMeta.isGroup ? (
+                    <UsersThree className="h-3.5 w-3.5 text-primary shrink-0" />
+                  ) : phoneMeta.isLid ? (
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  ) : (
+                    <Phone className="h-3.5 w-3.5 shrink-0" />
+                  )}
+                  <span className="truncate font-medium">{phoneMeta.display}</span>
+                  {phoneMeta.isLid && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void navigator.clipboard.writeText(phoneMeta.raw);
+                      }}
+                      title={`Copiar identificador interno: ${phoneMeta.raw}`}
+                      className="p-0.5 rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                      aria-label="Copiar ID interno"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
                 {contact.status && (
-                  <Badge variant="outline" className="mt-1 rounded-full text-[10px] capitalize">
+                  <Badge variant="outline" className="mt-1 rounded-full text-[10px] capitalize border-slate-200 dark:border-border">
                     {businessLabel(contact.status)}
                   </Badge>
                 )}

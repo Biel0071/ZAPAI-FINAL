@@ -1127,7 +1127,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           )}
 
           {aiRuntime?.globalEnabled === false && selectedConversation && !dismissedBanners["ai_paused"] && (
-            <div className="border-b border-primary/20 bg-primary/5 px-3 py-1.5 flex items-center justify-between gap-2 text-[11px] text-foreground select-none shrink-0 animate-fade-in">
+            <div className="border-b border-emerald-300 dark:border-primary/20 bg-emerald-50 text-emerald-950 dark:bg-primary/5 dark:text-foreground px-3 py-1.5 flex items-center justify-between gap-2 text-[11px] select-none shrink-0 animate-fade-in">
               <div className="flex items-center gap-1.5 min-w-0 truncate">
                 <Robot className="h-3.5 w-3.5 text-primary shrink-0" />
                 <span className="truncate">
@@ -1442,12 +1442,12 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                             messageInputRef.current?.focus();
                           }
                         }}
-                        className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/70 border border-border/40 rounded-full transition-all duration-150 active:scale-95 shrink-0"
+                        className="px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:text-muted-foreground hover:text-foreground bg-white dark:bg-muted/30 hover:bg-slate-100 dark:hover:bg-muted/70 border border-slate-200 dark:border-border/40 shadow-xs rounded-full transition-all duration-150 active:scale-95 shrink-0"
                       >
                         {item.title || item.text}
                       </button>
                     ))}
-                    {quickReplies.length > 5 && <button type="button" className="px-2 py-1 text-xs font-medium text-primary" onClick={() => { setRightPanelTab("ai"); setRightPanelCollapsed(false); if (isTabletLayout) setShowLeadPanel(true); }}>Todas as respostas</button>}
+                    {quickReplies.length > 5 && <button type="button" className="px-2 py-1 text-xs font-semibold text-primary hover:underline" onClick={() => { setRightPanelTab("ai"); setRightPanelCollapsed(false); if (isTabletLayout) setShowLeadPanel(true); }}>Todas as respostas</button>}
                   </div>
                 );
               })()}
