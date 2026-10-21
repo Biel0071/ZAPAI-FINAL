@@ -161,7 +161,7 @@ router.post('/auth/login', async (req, res) => {
   }
 
   const body = req.body || {};
-  const username = String(body.username || '').trim();
+  const username = String(body.username || body.email || '').trim();
   const password = String(body.password || '').trim();
   const requestedTenant = String(body.tenantId || body.companyId || '').trim();
   const tenantId = String(process.env.AUTH_DEFAULT_TENANT_ID || process.env.DEFAULT_COMPANY_ID || 'default').trim();
@@ -184,7 +184,7 @@ router.post('/auth/login', async (req, res) => {
   // Try database authentication first (production path)
   try {
     const result = await query(
-      'SELECT username, password_hash, tenant_id, role, is_active, blocked FROM users WHERE username = $1 LIMIT 1',
+      'SELECT username, password_hash, tenant_id, role, is_active, blocked FROM users WHERE username = $1 OR email = $1 LIMIT 1',
       [username]
     );
 
