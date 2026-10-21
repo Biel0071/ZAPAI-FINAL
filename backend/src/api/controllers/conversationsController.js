@@ -269,12 +269,11 @@ async function getConversations(req, res) {
 }
 
 async function getConversationCounts(req, res) {
-  const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || '').trim();
-  if (!companyId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+  const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || 'default').trim();
   const sessionId = getOptionalSessionId(req);
 
   try {
-    const params = [getCompanyId(companyId)];
+    const params = [companyId];
     let sessionFilter = '';
     if (sessionId) {
       params.push(sessionId);
@@ -290,7 +289,7 @@ async function getConversationCounts(req, res) {
           COUNT(*) FILTER (WHERE conv.unread_count > 0 AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')))::int AS unread,
           COUNT(*) FILTER (WHERE conv.ai_enabled = true AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')))::int AS ai_active
         FROM conversations conv
-        WHERE conv.company_id = $1 ${sessionFilter}
+        WHERE (conv.company_id = $1 OR conv.company_id = 'default') ${sessionFilter}
       `,
       params
     );

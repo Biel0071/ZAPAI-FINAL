@@ -513,17 +513,20 @@ async function updateConversationState(conversationId, fields = {}, companyId, o
 
   const updates = [];
   const values = [];
+  const assignedColumns = new Set();
 
   for (const [key, column] of Object.entries(mapping)) {
-    if (typeof fields[key] === 'undefined') {
+    if (typeof fields[key] === 'undefined' || assignedColumns.has(column)) {
       continue;
     }
 
+    assignedColumns.add(column);
     values.push(fields[key]);
     updates.push(`${column} = $${values.length}`);
   }
 
-  if (!options.preserveUpdatedAt && !updates.find((entry) => entry.startsWith('updated_at'))) {
+  if (!options.preserveUpdatedAt && !assignedColumns.has('updated_at')) {
+    assignedColumns.add('updated_at');
     updates.push('updated_at = NOW()');
   }
 
@@ -531,8 +534,9 @@ async function updateConversationState(conversationId, fields = {}, companyId, o
     (typeof fields.lastMessage !== 'undefined' || typeof fields.last_message !== 'undefined') &&
     typeof fields.lastMessageAt === 'undefined' &&
     typeof fields.last_message_at === 'undefined' &&
-    !updates.find((entry) => entry.startsWith('last_message_at'))
+    !assignedColumns.has('last_message_at')
   ) {
+    assignedColumns.add('last_message_at');
     updates.push('last_message_at = NOW()');
   }
 
