@@ -196,8 +196,12 @@ async function getConversations(req, res) {
     return res.status(400).json({ error: 'A busca deve conter até 100 caracteres.' });
   }
   const search = String(rawSearch || '').trim();
+  const rawFilter = String(req.query?.filter || req.query?.status || '').trim().toLowerCase();
+  const filter = ['archived', 'unread', 'ai', 'all', 'active'].includes(rawFilter) ? rawFilter : (req.query?.archived === 'true' ? 'archived' : '');
   const requestedLimit = Number(req.query?.limit);
-  const limit = Number.isFinite(requestedLimit) ? Math.min(100, Math.max(1, Math.floor(requestedLimit))) : 50;
+  const maxLimit = filter === 'archived' ? 1000 : 500;
+  const defaultLimit = filter === 'archived' ? 500 : 100;
+  const limit = Number.isFinite(requestedLimit) ? Math.min(maxLimit, Math.max(1, Math.floor(requestedLimit))) : defaultLimit;
   const store = getStore(req);
   const sessionId = getOptionalSessionId(req);
 
@@ -208,6 +212,8 @@ async function getConversations(req, res) {
         limit,
         sessionId: sessionId || undefined,
         search,
+        filter: filter || undefined,
+        archived: filter === 'archived' ? true : undefined,
         store,
       });
 
@@ -260,6 +266,41 @@ async function getConversations(req, res) {
   }));
 
   return res.status(200).json(normalized.map((conversation) => conversationRuntimeService.decorateConversation(store, conversation)));
+}
+
+async function getConversationCounts(req, res) {
+  const companyId = String(req.authTenantId || req.auth?.tenantId || req.auth?.companyId || '').trim();
+  if (!companyId) return res.status(401).json({ error: 'Autenticação da empresa obrigatória.' });
+  const sessionId = getOptionalSessionId(req);
+
+  try {
+    const params = [getCompanyId(companyId)];
+    let sessionFilter = '';
+    if (sessionId) {
+      params.push(sessionId);
+      sessionFilter = ` AND conv.session_id = $${params.length}`;
+    }
+
+    const result = await query(
+      `
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived'))::int AS active,
+          COUNT(*) FILTER (WHERE conv.archived = true OR conv.status = 'archived')::int AS archived,
+          COUNT(*) FILTER (WHERE conv.unread_count > 0 AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')))::int AS unread,
+          COUNT(*) FILTER (WHERE conv.ai_enabled = true AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')))::int AS ai_active
+        FROM conversations conv
+        WHERE conv.company_id = $1 ${sessionFilter}
+      `,
+      params
+    );
+
+    const counts = result.rows[0] || { total: 0, active: 0, archived: 0, unread: 0, ai_active: 0 };
+    return res.status(200).json(counts);
+  } catch (err) {
+    console.error('[CONVERSATIONS_COUNTS] Error querying counts:', err.message);
+    return res.status(500).json({ error: 'Falha ao buscar contadores de conversas.' });
+  }
 }
 
 async function updateConversationAI(req, res) {
@@ -1400,6 +1441,7 @@ module.exports = {
   getConversationMessages,
   getConversationRuntime,
   getConversations,
+  getConversationCounts,
   getPublicUrl,
   getWhatsappLabels,
   markConversationRead,

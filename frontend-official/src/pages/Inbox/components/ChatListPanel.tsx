@@ -31,6 +31,7 @@ interface ChatListPanelProps {
   setFunnelFilter?: (val: string) => void;
   filteredConversations: Conversation[];
   allConversations?: Conversation[];
+  conversationCounts?: { total: number; active: number; archived: number; unread: number; ai_active: number } | null;
   conversationsLoadFailed: boolean;
   loadingConversations: boolean;
   handleRetryConversations: () => Promise<void>;
@@ -66,6 +67,7 @@ export const ChatListPanel = memo(function ChatListPanel({
   setFunnelFilter,
   filteredConversations,
   allConversations,
+  conversationCounts,
   conversationsLoadFailed,
   loadingConversations,
   handleRetryConversations,
@@ -87,9 +89,18 @@ export const ChatListPanel = memo(function ChatListPanel({
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const [dynamicHeight, setDynamicHeight] = useState(conversationListHeight || 600);
 
-  const sourceConversations = allConversations || filteredConversations;
+  const sourceConversations = filter === "archived"
+    ? filteredConversations
+    : (allConversations || filteredConversations);
+
   const funnelCounts = useMemo(() => {
-    const counts = { all: sourceConversations.length, chegou: 0, rodando: 0, pausado: 0, finalizado: 0, pago: 0 };
+    const rawTotal = filter === "archived"
+      ? (conversationCounts?.archived ?? filteredConversations.length)
+      : filter === "unread"
+      ? (conversationCounts?.unread ?? sourceConversations.length)
+      : (conversationCounts?.active ?? sourceConversations.length);
+
+    const counts = { all: rawTotal, chegou: 0, rodando: 0, pausado: 0, finalizado: 0, pago: 0 };
     for (const c of sourceConversations) {
       const info = classifyConversationFunnel(c, {
         globalAiEnabled: conversationRowData?.globalAiEnabled,
@@ -100,7 +111,7 @@ export const ChatListPanel = memo(function ChatListPanel({
       }
     }
     return counts;
-  }, [sourceConversations, conversationRowData?.globalAiEnabled, conversationRowData?.conversationControls]);
+  }, [sourceConversations, filteredConversations.length, filter, conversationCounts, conversationRowData?.globalAiEnabled, conversationRowData?.conversationControls]);
 
   useEffect(() => {
     if (!listContainerRef.current) return;
@@ -154,10 +165,18 @@ export const ChatListPanel = memo(function ChatListPanel({
         </div>
         <Tabs value={filter} onValueChange={setFilter}>
           <TabsList className="grid w-full grid-cols-4 h-8 p-0.5 bg-muted/60">
-            <TabsTrigger value="all" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Todas</TabsTrigger>
-            <TabsTrigger value="unread" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Não lidas</TabsTrigger>
-            <TabsTrigger value="ai" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">IA ativa</TabsTrigger>
-            <TabsTrigger value="archived" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">Arquivadas</TabsTrigger>
+            <TabsTrigger value="all" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">
+              Todas{conversationCounts?.active != null ? ` (${conversationCounts.active})` : ''}
+            </TabsTrigger>
+            <TabsTrigger value="unread" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">
+              Não lidas{conversationCounts?.unread != null && conversationCounts.unread > 0 ? ` (${conversationCounts.unread})` : ''}
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">
+              IA ativa
+            </TabsTrigger>
+            <TabsTrigger value="archived" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">
+              Arquivadas{conversationCounts?.archived != null ? ` (${conversationCounts.archived})` : (filteredConversations.length > 0 && filter === 'archived' ? ` (${filteredConversations.length})` : '')}
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 

@@ -628,7 +628,8 @@ async function listConversations(companyId, limit = 50, options = {}) {
   const search = String(options?.search || '').trim().slice(0, 100);
   const strictSession = options?.strictSession === true;
   const requireMessages = options?.requireMessages === true;
-  const cacheKey = `${getCacheKey(companyId, limit, requestedSessionId || null)}:${requireMessages ? 'with-messages' : 'all'}:${strictSession ? 'strict' : 'fallback'}:${encodeURIComponent(search)}`;
+  const filter = options?.filter || (options?.archived ? 'archived' : null);
+  const cacheKey = `${getCacheKey(companyId, limit, requestedSessionId || null)}:${requireMessages ? 'with-messages' : 'all'}:${strictSession ? 'strict' : 'fallback'}:${filter || 'none'}:${encodeURIComponent(search)}`;
 
   if (options.useCache !== false) {
     const cached = readCache(cacheKey);
@@ -645,9 +646,16 @@ async function listConversations(companyId, limit = 50, options = {}) {
     whereClause += ` AND conv.session_id = $${values.length}`;
   }
 
-
   if (requireMessages) {
     whereClause += ' AND EXISTS (SELECT 1 FROM messages msg WHERE msg.conversation_id = conv.id)';
+  }
+
+  if (filter === 'archived' || options?.archived === true) {
+    whereClause += " AND (conv.archived = true OR conv.status = 'archived')";
+  } else if (filter === 'unread') {
+    whereClause += " AND conv.unread_count > 0 AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived'))";
+  } else if (filter === 'active' || options?.status === 'active' || options?.status === 'open') {
+    whereClause += " AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived'))";
   }
 
   let searchClause = '';

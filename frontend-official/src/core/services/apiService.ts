@@ -1381,22 +1381,29 @@ export const apiService = {
     return { connected: false, lastUpdate: Date.now() };
   },
 
-  async getConversations(forceRefresh = false, options?: { limit?: number; sessionId?: string; search?: string }) {
+  async getConversations(forceRefresh = false, options?: { limit?: number; sessionId?: string; search?: string; filter?: string }) {
     const authScope = getRequestAuthScope();
     const normalizedSessionId = String(options?.sessionId ?? "").trim();
     const normalizedSearch = String(options?.search ?? "").trim();
+    const normalizedFilter = String(options?.filter ?? "").trim();
     const cacheKey = [
       "conversations",
       options?.limit ? `limit:${options.limit}` : "",
       normalizedSessionId ? `session:${normalizedSessionId}` : "",
       normalizedSearch ? `search:${encodeURIComponent(normalizedSearch)}` : "",
+      normalizedFilter ? `filter:${normalizedFilter}` : "",
     ].filter(Boolean).join(":");
     if (!forceRefresh) {
       const cached = getCache<Conversation[]>(cacheKey, authScope);
       if (cached) return cached;
     }
 
-    const endpoints = [withQuery("/api/conversations", { limit: options?.limit, sessionId: normalizedSessionId, search: normalizedSearch })];
+    const endpoints = [withQuery("/api/conversations", {
+      limit: options?.limit,
+      sessionId: normalizedSessionId,
+      search: normalizedSearch,
+      filter: normalizedFilter || undefined,
+    })];
 
     let normalized: Conversation[] = [];
     let lastError: unknown = new Error("Falha ao carregar conversas");
@@ -1417,6 +1424,15 @@ export const apiService = {
 
     setCache(cacheKey, normalized, CACHE_TTL_MS, authScope);
     return normalized;
+  },
+
+  async getConversationCounts(options?: { sessionId?: string }) {
+    const normalizedSessionId = String(options?.sessionId ?? "").trim();
+    const endpoint = withQuery("/api/conversations/counts", { sessionId: normalizedSessionId || undefined });
+    return request<{ total: number; active: number; archived: number; unread: number; ai_active: number }>({
+      endpoint,
+      method: "GET",
+    });
   },
 
   async markConversationRead(conversationId: string) {

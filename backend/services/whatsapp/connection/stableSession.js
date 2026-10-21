@@ -2572,8 +2572,10 @@ async function createStableSession({
         try {
           const conversationRepository = require('../../../src/data/repositories/conversationRepository');
           const updatedConv = await conversationRepository.updateConversationState(chatId, {
-            status: isArchived ? 'archived' : 'open'
-          });
+            status: isArchived ? 'archived' : 'open',
+            archived: isArchived,
+            archived_at: isArchived ? new Date() : null
+          }, historyOwner || session.companyId || 'default');
 
           const conversationId = updatedConv ? String(updatedConv.id) : chatId;
           const eventPayload = {

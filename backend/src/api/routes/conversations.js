@@ -6,6 +6,7 @@ router.post('/conversations', conversationsController.createConversation);
 router.get('/conversations', conversationsController.getConversations);
 router.get('/inbox', conversationsController.getConversations);
 router.get('/crm', conversationsController.getConversations);
+router.get('/conversations/counts', conversationsController.getConversationCounts);
 router.get('/conversations/controls', conversationsController.listConversationControls);
 router.post('/conversations/controls', conversationsController.upsertConversationControl);
 router.get('/conversations/controls/:conversationId', conversationsController.getConversationControl);

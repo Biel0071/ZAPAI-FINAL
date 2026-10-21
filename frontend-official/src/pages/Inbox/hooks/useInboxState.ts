@@ -73,7 +73,7 @@ import type {
   QuickReplyMediaItem,
 } from "../types";
 
-const CONVERSATIONS_PAGE_SIZE = 100;
+const CONVERSATIONS_PAGE_SIZE = 250;
 const MESSAGE_PAGE_SIZE = 50;
 const MESSAGE_CACHE_TTL_MS = 60_000;
 const DRAFT_TTL_MS = 5 * 60 * 1000;
@@ -178,6 +178,15 @@ export function useInboxState() {
   const retrySendRequestIdsRef = useRef<Map<string, string>>(new Map());
   const lastSentTextRef = useRef("");
   const [error, setError] = useState<string | null>(null);
+  const [conversationCounts, setConversationCounts] = useState<{ total: number; active: number; archived: number; unread: number; ai_active: number } | null>(null);
+  const refreshConversationCounts = useCallback(async (sessionId?: string) => {
+    try {
+      const counts = await apiService.getConversationCounts({ sessionId });
+      if (counts) setConversationCounts(counts);
+    } catch (_err) {
+      // Non-blocking
+    }
+  }, []);
   const [backendOnline, setBackendOnline] = useState(true);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const runtime = useRuntime();
@@ -1215,6 +1224,7 @@ export function useInboxState() {
           return normalizeId(normalizedConversations[0]?.id) || null;
         });
         void loadConversationControls(normalizedConversations);
+        void refreshConversationCounts(conversationSessionId || undefined);
         setConversationsLoadFailed(false);
       } catch (err) {
         markBackendOffline(err);
@@ -1228,7 +1238,7 @@ export function useInboxState() {
     };
 
     void loadInitial();
-  }, [isOwnSessionConversation, loadConversationControls, markBackendOffline, markBackendOnline, refreshSessions, showErrorToast, setConversations, setSelectedConversationId, setSessions]);
+  }, [isOwnSessionConversation, loadConversationControls, markBackendOffline, markBackendOnline, refreshSessions, showErrorToast, setConversations, setSelectedConversationId, setSessions, refreshConversationCounts]);
 
   // Re-fetch conversations strictly for current session when session filter changes
   useEffect(() => {
@@ -1252,6 +1262,7 @@ export function useInboxState() {
         contactDirectoryRef.current = mergedDirectory;
         persistContactDirectory(mergedDirectory);
         setConversations(dedupeConversationsByScope(visibleIncoming, mergedDirectory));
+        void refreshConversationCounts(targetSession);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -1264,7 +1275,59 @@ export function useInboxState() {
     return () => {
       cancelled = true;
     };
-  }, [storeActiveSessionId, isOwnSessionConversation, markBackendOnline, setConversations]);
+  }, [storeActiveSessionId, isOwnSessionConversation, markBackendOnline, setConversations, refreshConversationCounts]);
+
+  // Carrega todas as conversas arquivadas completas sob demanda quando a aba "Arquivadas" é ativada
+  useEffect(() => {
+    if (filter !== "archived") return;
+    const targetSession = storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : undefined;
+    let cancelled = false;
+    setLoadingConversations(true);
+
+    apiService
+      .getConversations(true, {
+        limit: 1000,
+        filter: "archived",
+        sessionId: targetSession,
+      })
+      .then((archivedRows) => {
+        if (cancelled || !Array.isArray(archivedRows)) return;
+        markBackendOnline();
+        const sessionScoped = filterConversationsForSession(archivedRows, targetSession);
+        const validRows = sessionScoped.filter((c) => !isOwnSessionConversation(c));
+
+        setConversations((prev) => {
+          const map = new Map<string, Conversation>();
+          for (const c of prev) {
+            map.set(String(c.id), c);
+          }
+          for (const item of validRows) {
+            const prevItem = map.get(String(item.id));
+            map.set(String(item.id), {
+              ...prevItem,
+              ...item,
+              archived: true,
+              status: "archived",
+            });
+          }
+          return Array.from(map.values());
+        });
+
+        const newArchivedIds = validRows.map((c) => String(c.id));
+        setArchivedChatIds((prev) => Array.from(new Set([...prev, ...newArchivedIds])));
+        void refreshConversationCounts(targetSession);
+      })
+      .catch((err) => {
+        if (!cancelled) console.warn("[INBOX] Falha ao carregar conversas arquivadas:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingConversations(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filter, storeActiveSessionId, isOwnSessionConversation, markBackendOnline, setConversations, setArchivedChatIds, refreshConversationCounts]);
 
   const hydrateConversationHistoryForAnalysis = useCallback(async (conversationId: string, seedMessages: ChatMessage[]) => {
     if (!seedMessages.length) return;
@@ -3508,6 +3571,8 @@ export function useInboxState() {
     messageInput, setMessageInput,
     draftsByConversationId,
     filter, setFilter,
+    conversationCounts,
+    refreshConversationCounts,
     searchQuery, setSearchQuery,
     conversationSearchOpen, setConversationSearchOpen,
     conversationSearchQuery, setConversationSearchQuery,

@@ -722,6 +722,7 @@ export default function Inbox() {
               setFunnelFilter={setFunnelFilter}
               filteredConversations={filteredConversations}
               allConversations={state.conversations}
+              conversationCounts={state.conversationCounts}
               conversationsLoadFailed={state.conversationsLoadFailed}
               loadingConversations={state.loadingConversations}
               handleRetryConversations={state.handleRetryConversations}
