@@ -673,6 +673,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, i
   }
 
   if (!safeResponse) {
+    await enqueueAiQuickReply();
     return null;
   }
 
@@ -939,6 +940,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, i
   }
 
   // Disparar resposta rápida associada (se a IA pediu)
+  async function enqueueAiQuickReply() {
   if (aiResult?.analysis?.trigger_quick_reply) {
     try {
       const qrId = aiResult.analysis.trigger_quick_reply;
@@ -1036,6 +1038,9 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, i
       console.error('[WHATSAPP_AI] Failed to execute auto quick reply from AI:', err);
     }
   }
+  }
+
+  await enqueueAiQuickReply();
 
   if (shouldEmitMetricsForMessage({ savedMessage: savedOutgoingMessage, session })) {
     emitRealtimeMetrics(session.io || global.io, store);
