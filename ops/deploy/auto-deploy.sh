@@ -122,7 +122,7 @@ for attempt in $(seq 1 30); do
   if [[ "$attempt" == 30 ]]; then false; fi
   sleep 3
 done
-curl -fLsS --max-redirs 3 --max-time 30 --header 'Host: 209.50.241.22' http://127.0.0.1/ > "$SNAPSHOT/served-index.html"
+curl -fksS --max-time 30 --header 'Host: 209.50.241.22' "${SERVED_URL:-https://127.0.0.1:1000/}" > "$SNAPSHOT/served-index.html"
 cmp -s "$WEB_ROOT/index.html" "$SNAPSHOT/served-index.html"
 SOCKET_HANDSHAKE="$(curl -fsS "http://127.0.0.1:${PORT:-4025}/socket.io/?EIO=4&transport=polling")"
 [[ "${SOCKET_HANDSHAKE:0:1}" == 0 ]]
