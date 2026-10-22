@@ -56,6 +56,7 @@ import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
 import { OrderSheetModal } from "./OrderSheetModal";
 import { FlowExecutionBanner, matchesConversationFlow, type FlowExecutionData } from "./FlowExecutionBanner";
+import { buildSlashOptions, needsFlowPreview, type SlashOption } from "../quickReplySlash";
 import { ZaiAssistantComposer } from "./ZaiAssistantComposer";
 import { useAiCountdown } from "@/state/hooks/useAiCountdown";
 import { getSharedSocket } from "@/core/runtime/socket/socketManager";
@@ -402,6 +403,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     quickReplyDispatchRef.current = true;
     try {
       await sendQuickReply(item, customDelayMs);
+      // Do not rely only on the socket event: fetch the running flow so the banner always appears.
+      const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId };
+      void apiService.getActiveQuickReplyFlow(selectedConversation.phone, context).then((res) => {
+        if (matchesConversationFlow(res?.flow, context)) setActiveFlowData((prev) => ({ ...(prev || {}), ...res.flow }));
+      }).catch(() => undefined);
     } finally {
       quickReplyDispatchRef.current = false;
     }
@@ -409,9 +415,16 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
   const [slashMenuDismissed, setSlashMenuDismissed] = useState(false);
 
-  const handleSelectSlashSuggestion = useCallback((item: { cmd: string; desc: string; text: string }) => {
-    setMessageInput(item.text);
+  const handleSelectSlashSuggestion = useCallback((item: SlashOption) => {
     setSlashMenuDismissed(true);
+    if (needsFlowPreview(item.reply)) {
+      // Multi-step/media replies go through the flow executor (FlowExecutionBanner: steps, %, pause).
+      setMessageInput("");
+      setSelectedQuickReplyModal(item.reply);
+      setIsQuickReplyModalOpen(true);
+      return;
+    }
+    setMessageInput(item.text);
     setTimeout(() => {
       if (messageInputRef.current) {
         messageInputRef.current.focus();
@@ -578,35 +591,10 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     target?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [activeConversationSearchMessageId]);
 
-  const slashSuggestions = useMemo(() => {
-    if (slashMenuDismissed || !messageInput.startsWith("/")) return [] as { cmd: string; desc: string; text: string }[];
-    const rawNeedle = messageInput.slice(1);
-    const needle = rawNeedle.trim().toLowerCase();
-    const commandWord = needle.split(/\s+/)[0] || "";
-
-    // Combine with quick replies
-    const qrCmds = quickReplies.map((qr) => ({
-      cmd: `/${qr.text
-        .split(" ")
-        .slice(0, 2)
-        .join("_")
-        .toLowerCase()
-        .replace(/[^a-z0-9_]/g, "")}`,
-      desc: `Resposta Rápida: ${qr.category}`,
-      text: qr.text,
-    }));
-
-    const allOptions = qrCmds;
-    if (!needle) return allOptions;
-
-    return allOptions.filter(
-      (item) =>
-        item.cmd.toLowerCase().includes(needle) ||
-        item.cmd.toLowerCase().replace("/", "").startsWith(commandWord) ||
-        item.text.toLowerCase().includes(needle) ||
-        item.desc.toLowerCase().includes(needle),
-    );
-  }, [messageInput, quickReplies, slashMenuDismissed]);
+  const slashSuggestions = useMemo(
+    () => (slashMenuDismissed ? [] : buildSlashOptions(quickReplies, messageInput)),
+    [messageInput, quickReplies, slashMenuDismissed],
+  );
 
   const isInterventionNeeded = useMemo(() => {
     if (!selectedConversation) return false;

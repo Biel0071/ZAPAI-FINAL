@@ -28,6 +28,7 @@ import { apiService } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
 import { AIMessageFeedback } from "@/components/inbox/AIMessageFeedback";
 import { useProtectedMedia } from "@/core/runtime/hooks/useProtectedMediaUrl";
+import { bubbleClassFor, isWhatsappDeviceMessage } from "../messageOrigin";
 import type { PreviewMediaState } from "../types";
 import {
   getMessageStatusMeta,
@@ -198,10 +199,7 @@ export const MessageRow = memo(function MessageRow({
 
   const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
 
-  const isDeviceMessage = Boolean(
-    message.fromMe &&
-      ((message as any).origin === "whatsapp_device" || (message as any).message_origin === "whatsapp_device"),
-  );
+  const isDeviceMessage = isWhatsappDeviceMessage(message as any);
 
   const isAiMessage = Boolean(
     message.isAI ||
@@ -282,13 +280,7 @@ export const MessageRow = memo(function MessageRow({
           onContextMenu={(event) => { event.preventDefault(); onToggleMenu(message.id); }}
           className={cn(
             "chat-bubble text-left transition-all duration-150",
-            message.fromMe
-              ? (isDeviceMessage
-                  ? "chat-bubble-wa"
-                  : isAiMessage
-                  ? "chat-bubble-ai-sent"
-                  : "chat-bubble-sent")
-              : "chat-bubble-received"
+            bubbleClassFor({ fromMe: message.fromMe, isDevice: isDeviceMessage, isAi: isAiMessage })
           )}
         >
           {!backendOnline && hasRenderableMedia && (

@@ -94,6 +94,7 @@ export interface Conversation {
   unread?: number;
   status?: "online" | "offline" | "typing" | "open" | "archived";
   tags?: string[];
+  whatsappLabels?: string[];
   isAI?: boolean;
   lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker";
   aiEnabled?: boolean;
@@ -560,6 +561,7 @@ type RawConversation = {
   unreadCount?: number;
   status?: "online" | "offline" | "typing";
   tags?: string[];
+  whatsappLabels?: string[];
   isAI?: boolean;
   lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
   messageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
@@ -985,6 +987,7 @@ export function normalizeConversation(item: RawConversation, index: number = 0):
     unread: item.unread ?? item.unread_count ?? item.unreadCount ?? 0,
     status: item.status ?? "offline",
     tags: item.tags ?? [],
+    whatsappLabels: Array.isArray(item.whatsappLabels) ? item.whatsappLabels.map(String) : [],
     isAI: item.isAI ?? false,
     lastMessageType:
       normalizedType === "image" || normalizedType === "video" || normalizedType === "audio" || normalizedType === "file" || normalizedType === "sticker" || normalizedType === "document" || normalizedType === "media"

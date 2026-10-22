@@ -50,6 +50,7 @@ import {
 import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
 import { StackedTagsBadge } from "@/components/inbox/StackedTagsBadge";
+import { WhatsappLabelBadges } from "@/components/inbox/WhatsappLabelBadges";
 import { getTagEmoji, cleanTagName } from "@/core/utils/tagEmojis";
 
 export interface ConversationRowData {
@@ -377,6 +378,7 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
                   />
                 </div>
               )}
+              <WhatsappLabelBadges labels={conversation.whatsappLabels} maxVisible={1} className="ml-1.5 shrink-0" />
             </h4>
             <div className="flex items-center gap-1.5 shrink-0 ml-1">
               {isPinned && (

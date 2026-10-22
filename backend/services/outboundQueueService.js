@@ -132,7 +132,36 @@ async function loadQueueState() {
 
 let pendingSave = null;
 
+// Terminal items are only kept long enough for idempotency / audit; dead letters are kept longer
+// (and capped) because operators reprocess them.
+const TERMINAL_RETENTION_MS = Number(process.env.OUTBOUND_QUEUE_TERMINAL_RETENTION_MS) || 15 * 60 * 1000;
+const DEAD_LETTER_RETENTION_MS = Number(process.env.OUTBOUND_QUEUE_DEAD_LETTER_RETENTION_MS) || 7 * 24 * 3600 * 1000;
+const DEAD_LETTER_MAX = Number(process.env.OUTBOUND_QUEUE_DEAD_LETTER_MAX) || 500;
+
+function pruneTerminalItems(now = Date.now()) {
+  const before = queueState.items.length;
+  let deadLetters = 0;
+  const kept = [];
+  // Newest first so the DEAD_LETTER_MAX cap keeps the most recent ones.
+  const items = queueState.items;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (uncommittedItems.has(item.id)) { kept.push(item); continue; }
+    const age = now - (new Date(item.updatedAt || item.createdAt).getTime() || 0);
+    if (item.state === STATES.SENT || item.state === STATES.CANCELLED) {
+      if (age <= TERMINAL_RETENTION_MS) kept.push(item);
+    } else if (item.state === STATES.DEAD_LETTER) {
+      if (age <= DEAD_LETTER_RETENTION_MS && ++deadLetters <= DEAD_LETTER_MAX) kept.push(item);
+    } else {
+      kept.push(item);
+    }
+  }
+  if (kept.length !== before) queueState.items = kept.reverse();
+  return before - kept.length;
+}
+
 async function writeQueueFileAtomic() {
+  pruneTerminalItems();
   // Serialize at write time so coalesced callers persist the latest state.
   const next = JSON.stringify(queueState) + '\n';
   // Bugfix#4: atomic write (tmp + rename) so a crash never corrupts the queue.
@@ -486,29 +515,29 @@ async function executeOutbound(item) {
 
 function pickNextProcessableItem() {
   const now = Date.now();
-  const candidates = queueState.items
-    .filter((item) => {
-      if (uncommittedItems.has(item.id)) return false;
-      const isManual = isExemptFromAutomationPause(item);
-      if (item.isPaused) return false;
-      if (item.sessionPaused && !isManual) return false;
-      const session = sessionManager.getSession(item.sessionId);
-      if (!session?.sock || String(session.status || '').toLowerCase() !== 'connected'
-        || session.systemConnected === false) return false;
-      if (session.automationPaused === true && item.sessionResumeApproved !== true && !isManual) return false;
-      if (item.state === STATES.QUEUED) {
-        return new Date(item.nextAttemptAt || item.createdAt).getTime() <= now;
-      }
-
-      if (item.state === STATES.FAILED) {
-        return new Date(item.nextAttemptAt || 0).getTime() <= now;
-      }
-
-      return false;
-    })
-    .sort((a, b) => new Date(a.nextAttemptAt || a.createdAt).getTime() - new Date(b.nextAttemptAt || b.createdAt).getTime());
-
-  return candidates[0] || null;
+  const sessionCache = new Map();
+  let best = null;
+  let bestAt = Infinity;
+  for (const item of queueState.items) {
+    // Cheap state check first: terminal items never need a session lookup.
+    if (item.state !== STATES.QUEUED && item.state !== STATES.FAILED) continue;
+    if (uncommittedItems.has(item.id) || item.isPaused) continue;
+    const isManual = isExemptFromAutomationPause(item);
+    if (item.sessionPaused && !isManual) continue;
+    const dueAt = new Date(item.state === STATES.QUEUED ? (item.nextAttemptAt || item.createdAt) : (item.nextAttemptAt || 0)).getTime();
+    if (!(dueAt <= now) || dueAt >= bestAt) continue;
+    let session = sessionCache.get(item.sessionId);
+    if (session === undefined) {
+      session = sessionManager.getSession(item.sessionId) || null;
+      sessionCache.set(item.sessionId, session);
+    }
+    if (!session?.sock || String(session.status || '').toLowerCase() !== 'connected'
+      || session.systemConnected === false) continue;
+    if (session.automationPaused === true && item.sessionResumeApproved !== true && !isManual) continue;
+    best = item;
+    bestAt = dueAt;
+  }
+  return best;
 }
 
 async function pauseSessionItems({ companyId, sessionId }) {
@@ -623,7 +652,7 @@ function findByCorrelation(correlationId, companyId, context = {}) {
   const found = queueState.items.find(item => item.correlationId === correlationId && String(item.companyId) === String(companyId)
     && (!context.sessionId || item.sessionId === context.sessionId)
     && (context.conversationId ? String(item.metadata?.conversationId) === String(context.conversationId) : !context.phone || normalizePhone(item.phone) === normalizePhone(context.phone))
-    && item.state !== STATES.CANCELLED && !uncommittedItems.has(item.id));
+    && item.state !== STATES.CANCELLED && (context.includeUncommitted === true || !uncommittedItems.has(item.id)));
   return found ? cloneItem(found) : null;
 }
 
@@ -639,7 +668,9 @@ async function enqueueBatch(payloads, options = {}) {
     if (!file) throw Object.assign(new Error('Arquivo de mídia não encontrado.'), { code: 'MEDIA_UNAVAILABLE', status: 404 });
     item.mediaPath = file;
   }
-  const work = async () => {
+  // Staging (dedupe + push) is synchronous and happens under the lock; the disk write happens
+  // outside it so a burst of N concurrent enqueues shares coalesced writes instead of N serial ones.
+  const stage = async () => {
     const added = [];
     const accepted = prepared.map(item => {
       const session = sessionManager.getSession(item.sessionId);
@@ -648,28 +679,29 @@ async function enqueueBatch(payloads, options = {}) {
       const isManual = isExemptFromAutomationPause(item);
       item.sessionResumeApproved = (connected && options.approvedSessionPause === true) || isManual;
       item.sessionPaused = Boolean(!connected || (session?.automationPaused === true && !item.sessionResumeApproved && !isManual));
-      const existing = findByCorrelation(item.correlationId, item.companyId, { sessionId: item.sessionId, conversationId: item.metadata?.conversationId, phone: item.phone });
+      const existing = findByCorrelation(item.correlationId, item.companyId, { sessionId: item.sessionId, conversationId: item.metadata?.conversationId, phone: item.phone, includeUncommitted: true });
       if (existing) return existing;
       added.push(item);
       uncommittedItems.add(item.id);
       queueState.items.push(item);
       return item;
     });
-    try {
-      if (added.length) await saveQueueState();
-    } catch (error) {
-      const ids = new Set(added.map(item => item.id));
-      queueState.items = queueState.items.filter(item => !ids.has(item.id));
-      throw error;
-    } finally {
-      for (const item of added) uncommittedItems.delete(item.id);
-    }
-    if (added.length) queueMicrotask(() => processOneItem().catch(error => console.error('[OUTBOUND_QUEUE] Immediate worker cycle failed:', error.message)));
-    return accepted.map(cloneItem);
+    return { added, accepted };
   };
-  const result = enqueueLock.then(work, work);
-  enqueueLock = result.catch(() => {});
-  return result;
+  const staged = enqueueLock.then(stage, stage);
+  enqueueLock = staged.catch(() => {});
+  const { added, accepted } = await staged;
+  try {
+    if (added.length) await saveQueueState();
+  } catch (error) {
+    const ids = new Set(added.map(item => item.id));
+    queueState.items = queueState.items.filter(item => !ids.has(item.id));
+    throw error;
+  } finally {
+    for (const item of added) uncommittedItems.delete(item.id);
+  }
+  if (added.length) queueMicrotask(() => processOneItem().catch(error => console.error('[OUTBOUND_QUEUE] Immediate worker cycle failed:', error.message)));
+  return accepted.map(cloneItem);
 }
 
 async function enqueue(payload = {}) {
@@ -1018,6 +1050,14 @@ function stopWorker() {
   }
 }
 
+// Persisted proof that the system (not the phone) sent a WhatsApp message id; survives restarts
+// because queue items (with whatsappMessageId) are stored in the queue file.
+function wasSentBySystem(whatsappMessageId) {
+  if (!whatsappMessageId) return false;
+  const id = String(whatsappMessageId);
+  return queueState.items.some((item) => item.whatsappMessageId === id);
+}
+
 async function initializeOutboundQueue({ store }) {
   storeRef = store;
   await loadQueueState();
@@ -1047,6 +1087,7 @@ module.exports = {
   getActiveFlow,
   findById: (id, companyId) => { const item = queueState.items.find(entry => entry.id === id && entry.companyId === companyId); return item ? cloneItem(item) : null; },
   initializeOutboundQueue,
+  wasSentBySystem,
   listDeadLetter,
   listPending,
   processOneItem,

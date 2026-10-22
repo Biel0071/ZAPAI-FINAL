@@ -51,6 +51,8 @@ async function readQuickReplies(companyId = null) {
       let mediaType = null;
       let aiMemory = null;
       let filename = null;
+      let source = 'system';
+      let shortcut = null;
 
       try {
         if (typeof row.content === 'string' && row.content.trim().startsWith('{')) {
@@ -64,6 +66,8 @@ async function readQuickReplies(companyId = null) {
           mediaType = obj.mediaType || null;
           aiMemory = obj.aiMemory || null;
           filename = obj.filename || obj.fileName || null;
+          source = obj.source === 'whatsapp' ? 'whatsapp' : 'system';
+          shortcut = obj.shortcut || null;
 
           // Se mediaUrl não estiver na raiz, procura nos items
           if (!mediaUrl && Array.isArray(items)) {
@@ -86,6 +90,8 @@ async function readQuickReplies(companyId = null) {
         steps,
         favorite,
         isFlow,
+        source,
+        shortcut,
         category: row.category,
         tags: Array.isArray(row.tags) ? row.tags : [],
         mediaUrl,
@@ -134,6 +140,8 @@ async function writeQuickReplies(items, companyId, removedId = null) {
         filename: item.filename || null,
         favorite: Boolean(item.favorite),
         isFlow: Boolean(item.isFlow),
+        source: item.source === 'whatsapp' ? 'whatsapp' : 'system',
+        shortcut: item.shortcut || null,
       });
 
       const saved = await query(
@@ -385,6 +393,8 @@ function normalizeQuickReply(payload = {}) {
     tags: Array.isArray(payload.tags) ? payload.tags.map((item) => String(item || '').trim()).filter(Boolean) : [],
     favorite: Boolean(payload.favorite),
     isFlow: Boolean(payload.isFlow),
+    source: payload.source === 'whatsapp' ? 'whatsapp' : 'system',
+    shortcut: payload.shortcut ? String(payload.shortcut).replace(/^\/+/, '').trim() : undefined,
     aiMemory: payload.aiMemory ? String(payload.aiMemory).trim() : undefined,
     mediaUrl: payload.mediaUrl ? String(payload.mediaUrl).trim() : undefined,
     mediaType: payload.mediaType ? String(payload.mediaType).trim().toLowerCase() : undefined,
@@ -542,6 +552,45 @@ async function saveQuickReply(payload = {}) {
   return createQuickReply(payload);
 }
 
+/**
+ * Manual/automatic import of WhatsApp Business quick replies (shortcut + text)
+ * as source='whatsapp'. Idempotent: id derives from the shortcut.
+ * NOTE: Baileys 6.7.x does not emit the app-state `quick_reply` action, so the
+ * list must be provided by the user until the library exposes it.
+ */
+async function importWhatsappQuickReplies(companyId, entries = []) {
+  companyId = requireCompanyId(companyId);
+  const list = (Array.isArray(entries) ? entries : []).slice(0, 500);
+  return serializeWrite(async () => {
+    const all = await readQuickReplies(companyId);
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    for (const entry of list) {
+      const shortcut = String(entry?.shortcut || '').replace(/^\/+/, '').trim().slice(0, 60);
+      const message = String(entry?.message ?? entry?.text ?? '').trim();
+      if (!shortcut || !message) { skipped += 1; continue; }
+      const id = `wa-qr-${crypto.createHash('sha1').update(shortcut.toLowerCase()).digest('hex').slice(0, 12)}`;
+      const index = all.findIndex((item) => item.id === id);
+      const next = normalizeQuickReply({
+        ...(index >= 0 ? all[index] : {}),
+        id,
+        companyId,
+        title: `/${shortcut}`,
+        shortcut,
+        source: 'whatsapp',
+        content: message,
+        items: [{ type: 'text', value: message }],
+        steps: [],
+        category: 'whatsapp',
+      });
+      if (index >= 0) { all[index] = next; updated += 1; } else { all.unshift(next); created += 1; }
+    }
+    if (created || updated) await writeQuickReplies(all, companyId);
+    return { created, updated, skipped };
+  });
+}
+
 module.exports = {
   createQuickReply,
   saveQuickReply,
@@ -550,4 +599,5 @@ module.exports = {
   updateQuickReply,
   getQuickReplyCategories,
   saveQuickReplyCategory,
+  importWhatsappQuickReplies,
 };

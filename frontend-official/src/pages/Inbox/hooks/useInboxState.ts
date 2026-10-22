@@ -3324,6 +3324,8 @@ export function useInboxState() {
             items: qr.items || [{ type: "text", value: qr.content || qr.title }],
             steps: qr.steps || [],
             isFlow: qr.isFlow,
+            source: (qr.source === "whatsapp" ? "whatsapp" : "system") as "whatsapp" | "system",
+            shortcut: qr.shortcut || undefined,
             tags: qr.tags || [],
           }));
           setQuickReplies(mapped);

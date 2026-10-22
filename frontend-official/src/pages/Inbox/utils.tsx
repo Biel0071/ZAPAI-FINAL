@@ -521,6 +521,7 @@ export function parseChatsLoadedPayload(payload: unknown): Conversation[] {
         unread: Number(item.unread ?? item.unread_count ?? item.unreadCount ?? 0) || 0,
         status: String(item.status ?? "online") as Conversation["status"],
         tags: Array.isArray(item.tags) ? item.tags.map((tag) => String(tag)) : [],
+        whatsappLabels: Array.isArray(item.whatsappLabels) ? item.whatsappLabels.map((tag) => String(tag)) : [],
         isAI: Boolean(item.isAI ?? false),
         lastMessageType,
       } as Conversation;

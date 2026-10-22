@@ -554,4 +554,5 @@ module.exports = {
   getMessagesByConversation,
   getMessagesByPhone,
   listRecentMessages,
+  markOrigin,
 };

@@ -160,8 +160,15 @@ async function executeQuickReplyFlow(req, res) {
       if (existing) return res.status(200).json({ success: true, stepsCount: 0, duplicate: true, flowRunId: sendId });
       return res.status(409).json({ success: false, error: 'Este fluxo ainda está sendo preparado.' });
     }
-    const enqueued = await outboundQueueService.enqueueBatch(payloads);
-    flowTrackerService.startFlow({ chatId: context.normalizedPhone, ...scope, flowRunId: sendId, flowName: flow.title || 'Resposta rápida', totalSteps: enqueued.length });
+    const flowScope = { chatId: context.normalizedPhone, ...scope, flowRunId: sendId };
+    flowTrackerService.startFlow({ ...flowScope, flowName: flow.title || 'Resposta rápida', totalSteps: payloads.length });
+    let enqueued;
+    try {
+      enqueued = await outboundQueueService.enqueueBatch(payloads);
+    } catch (enqueueError) {
+      flowTrackerService.cancelFlow(context.normalizedPhone, scope);
+      throw enqueueError;
+    }
     return res.status(200).json({ success: true, stepsCount: enqueued.length, flowRunId: sendId });
   } catch (error) {
     if (intentKey) messageDedupeService.forget('quick_reply_intent', intentKey);
@@ -208,7 +215,18 @@ async function getActiveQuickReplyFlow(req, res) {
   } catch (error) { return fail(res, error, 'Não foi possível carregar o fluxo ativo.'); }
 }
 
+async function importWhatsappQuickReplies(req, res) {
+  const companyId = company(req, res);
+  if (!companyId) return;
+  try {
+    const entries = Array.isArray(req.body?.entries) ? req.body.entries : [];
+    if (!entries.length) return res.status(400).json({ success: false, error: 'Envie entries: [{ shortcut, message }].' });
+    return res.status(200).json({ success: true, ...(await quickReplyService.importWhatsappQuickReplies(companyId, entries)) });
+  } catch (error) { return fail(res, error, 'Não foi possível importar as respostas rápidas do WhatsApp.'); }
+}
+
 module.exports = {
+  importWhatsappQuickReplies,
   createQuickReply,
   deleteQuickReply,
   listQuickReplies,

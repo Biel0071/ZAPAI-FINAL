@@ -62,6 +62,7 @@ import { ArrowClockwise } from "@phosphor-icons/react";
 import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
 import { StackedTagsBadge } from "@/components/inbox/StackedTagsBadge";
+import { WhatsappLabelBadges } from "@/components/inbox/WhatsappLabelBadges";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1244,6 +1245,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                     onAddTag={(tag) => handleAddTagToSelectedConversation(tag)}
                     onRemoveTag={(tag) => handleRemoveTagFromSelectedConversation(tag)}
                   />
+                  <WhatsappLabelBadges labels={selectedConversation.whatsappLabels} maxVisible={6} className="mt-1.5" />
                 </div>
               </div>
 

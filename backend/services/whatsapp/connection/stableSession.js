@@ -83,6 +83,7 @@ const {
 } = require('./persistence');
 const { logSessionEvent, pushConnectionLog } = require('./logger');
 const { sendMessage, sendAudio, sendMediaMessage } = require('../outbound/senders');
+const { shouldMarkWhatsappDevice } = require('../outbound/originPolicy');
 const quickReplyService = require('../../quickReplyService');
 const { saveMessage } = require('../chat/operations');
 const { activeSessions } = require('../state/registry');
@@ -1957,7 +1958,8 @@ async function createStableSession({
         // Transition state to SENT
         const existingAck = messageAckPipeline.getAckState(messageId);
         let dbId = existingAck?.dbMessageId;
-        const isSystemSent = Boolean(existingAck) || (global.systemSentMessageIds && global.systemSentMessageIds.has(messageId));
+        const isSystemSent = Boolean(existingAck) || (global.systemSentMessageIds && global.systemSentMessageIds.has(messageId))
+          || require('../../outboundQueueService').wasSentBySystem?.(messageId) === true;
 
         if (!existingAck) {
           // Check if message was already created in DB by our API (e.g. before worker reload or concurrent thread)
@@ -1987,7 +1989,7 @@ async function createStableSession({
               if (result?.message?.id) {
                 dbId = result.message.id;
                 messageAckPipeline.registerDbMapping(messageId, dbId);
-                if (!isSystemSent) {
+                if (shouldMarkWhatsappDevice({ isSystemSent, messageTimestampSec: incomingMessage?.messageTimestamp })) {
                   const marked = await messageRepository.markOrigin(dbId, 'whatsapp_device').catch(() => false);
                   if (marked) {
                     result.message.origin = 'whatsapp_device';
@@ -2564,79 +2566,19 @@ async function createStableSession({
     }
   });
 
-  // ── Labels Edit (labels.edit) ───────────────────────────────────────────
+  // ── Labels (labels.edit / labels.association) → whatsapp_labels (source=whatsapp) ──
+  const labelsCtx = () => ({ companyId: session.companyId || 'default', sessionId: normalizedSessionName, io: io || session.io || global.io });
   sock.ev.on('labels.edit', async (label) => {
     try {
-      if (!label?.id) return;
-      const { query } = require('../../../src/infrastructure/config/database');
-      const companyId = session.companyId || 'default';
-      const sessionId = normalizedSessionName;
-      const name = String(label.name || '').trim();
-      const color = Number.isInteger(label.color) ? label.color : 0;
-      const deleted = Boolean(label.deleted);
-
-      const WPP_LABEL_COLORS = [
-        '#00d26a', '#5ac8fa', '#5856d6', '#ff2d55', '#ff9500',
-        '#ffcc00', '#af52de', '#ff3b30', '#007aff', '#34c759',
-        '#a2845e', '#8e8e93', '#d1d1d6', '#e5e5ea', '#1c1c1e',
-        '#2c2c2e', '#3a3a3c', '#48484a', '#636366', '#8e8e93'
-      ];
-      const colorHex = WPP_LABEL_COLORS[color] || '#00d26a';
-
-      await query(
-        `INSERT INTO whatsapp_labels (id, company_id, session_id, name, color, color_hex, deleted, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-         ON CONFLICT (company_id, session_id, id)
-         DO UPDATE SET name = EXCLUDED.name, color = EXCLUDED.color, color_hex = EXCLUDED.color_hex, deleted = EXCLUDED.deleted, updated_at = NOW()`,
-        [String(label.id), companyId, sessionId, name, color, colorHex, deleted]
-      );
-
-      const activeIo = io || session.io || global.io;
-      if (activeIo) {
-        activeIo.emit('whatsapp:labels_updated', {
-          companyId,
-          sessionId,
-          label: { id: String(label.id), name, color, colorHex, deleted }
-        });
-      }
+      await require('../labelsSync').handleLabelEdit(label, labelsCtx());
     } catch (err) {
       console.warn('[WHATSAPP_LABELS] Error handling labels.edit:', err.message);
     }
   });
 
-  // ── Labels Association (labels.association) ─────────────────────────────
-  sock.ev.on('labels.association', async ({ type, association }) => {
+  sock.ev.on('labels.association', async (evt) => {
     try {
-      if (type !== 'label_jid' && type !== 'chat') return;
-      const { labelId, chatId } = association || {};
-      if (!labelId || !chatId) return;
-
-      const conversationRepository = require('../../../src/data/repositories/conversationRepository');
-      const { query } = require('../../../src/infrastructure/config/database');
-      const companyId = session.companyId || 'default';
-      const sessionId = normalizedSessionName;
-
-      const lblRes = await query(
-        'SELECT name FROM whatsapp_labels WHERE id = $1 AND company_id = $2 AND session_id = $3 LIMIT 1',
-        [String(labelId), companyId, sessionId]
-      );
-      const labelName = lblRes.rows[0]?.name || `Etiqueta ${labelId}`;
-
-      const conv = await conversationRepository.getConversationByPhone(chatId, companyId, sessionId);
-      if (conv) {
-        const currentTags = Array.isArray(conv.tags) ? [...conv.tags] : [];
-        if (!currentTags.includes(labelName)) {
-          currentTags.push(labelName);
-          const updatedConv = await conversationRepository.updateConversationState(conv.id, {
-            tags: currentTags
-          });
-          const activeIo = io || session.io || global.io;
-          if (activeIo && updatedConv) {
-            activeIo.emit('conversation:update', updatedConv);
-            activeIo.emit('conversation_updated', updatedConv);
-          }
-        }
-      }
+      await require('../labelsSync').handleLabelAssociation(evt, labelsCtx());
     } catch (err) {
       console.warn('[WHATSAPP_LABELS] Error handling labels.association:', err.message);
     }

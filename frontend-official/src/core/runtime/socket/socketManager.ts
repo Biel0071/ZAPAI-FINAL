@@ -223,6 +223,7 @@ type RawRealtimeConversation = {
   unread_count?: number;
   status?: "online" | "offline" | "typing";
   tags?: string[];
+  whatsappLabels?: string[];
   isAI?: boolean;
   lastMessageType?: "text" | "image" | "video" | "audio" | "file";
   mediaType?: "image" | "video" | "audio" | "file";
@@ -618,6 +619,7 @@ function normalizeRealtimeConversation(input: RawRealtimeConversation): Conversa
     unread: input.unread ?? input.unreadCount ?? input.unread_count ?? 0,
     status: input.status ?? "offline",
     tags: input.tags ?? [],
+    whatsappLabels: Array.isArray(input.whatsappLabels) ? input.whatsappLabels.map(String) : [],
     isAI: input.isAI ?? false,
     lastMessageType: toCanonicalMediaType(normalizedType),
   };

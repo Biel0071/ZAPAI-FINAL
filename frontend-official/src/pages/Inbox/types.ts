@@ -97,6 +97,8 @@ export interface QuickReplyItem {
   items?: QuickReplyMediaItem[];
   tags?: string[];
   isFlow?: boolean;
+  source?: "system" | "whatsapp";
+  shortcut?: string;
   steps?: FlowStep[];
   createdAt?: string;
   updatedAt?: string;
