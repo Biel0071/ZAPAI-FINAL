@@ -289,6 +289,21 @@ async function createConversation({
 }
 
 async function getConversationById(id, companyId) {
+  if (!id) return null;
+  const strId = String(id).trim();
+  const isSafeInt = /^\d+$/.test(strId) && Number(strId) <= 2147483647;
+  if (!isSafeInt) {
+    const cleanPhone = strId.replace(/@.*$/, '').replace(/\D/g, '');
+    if (cleanPhone.length >= 7) {
+      const byPhone = await getConversationByPhone(cleanPhone, companyId);
+      if (byPhone) return byPhone;
+    }
+    const result = await query(
+      `${getBaseSelect()} WHERE conv.remote_jid = $1${companyId ? ' AND conv.company_id = $2' : ''} LIMIT 1`,
+      companyId ? [strId, companyId] : [strId]
+    );
+    return mapConversation(result.rows[0]);
+  }
   const result = await query(
     `${getBaseSelect()} WHERE conv.id = $1${companyId ? ' AND conv.company_id = $2' : ''} LIMIT 1`,
     companyId ? [id, companyId] : [id]

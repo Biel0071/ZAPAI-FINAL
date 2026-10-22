@@ -749,7 +749,12 @@ export const ActiveChatPane = memo(function ActiveChatPane({
             isMobile={isMobile}
             onBack={onBack ?? (() => setShowLeadPanel(false))}
             onContactClick={() => {
-              if (isTabletLayout || isMobile) setShowLeadPanel(true);
+              if (isTabletLayout || isMobile) {
+                setShowLeadPanel(true);
+              } else {
+                setRightPanelTab("lead");
+                setRightPanelCollapsed(false);
+              }
             }}
             phoneLabel={(() => {
               const rawPhone = (selectedConversation.phone || "").trim();

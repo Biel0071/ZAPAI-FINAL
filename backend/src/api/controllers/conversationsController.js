@@ -542,11 +542,23 @@ async function getConversationInsights(req, res) {
     const { conversationId } = req.params;
     const insights = await inboxConversationService.getConversationInsights(conversationId);
     const runtime = conversationRuntimeService.getConversationRuntime(getStore(req), req.params.conversationId);
-    return res.status(200).json({
+    const leadScoreVal = typeof insights?.leadScore === 'number' ? insights.leadScore : 0;
+    const confidenceVal = leadScoreVal <= 1 ? leadScoreVal : leadScoreVal / 100;
+    const payload = {
       ...insights,
-      aiPausedUntil: runtime.aiPausedUntil,
-      controlMode: runtime.controlMode,
-      humanActive: runtime.controlMode === 'human_active' || runtime.controlMode === 'paused_ai',
+      confidence: confidenceVal,
+      summary: insights?.conversationSummary || insights?.summary || '',
+      intent: insights?.intent || 'information',
+      nextAction: insights?.nextSuggestedReply || insights?.nextAction || 'follow_up',
+      sentiment: insights?.sentiment || 'neutro',
+      aiPausedUntil: runtime?.aiPausedUntil,
+      controlMode: runtime?.controlMode,
+      humanActive: runtime?.controlMode === 'human_active' || runtime?.controlMode === 'paused_ai',
+    };
+    return res.status(200).json({
+      ok: true,
+      data: payload,
+      ...payload,
     });
   } catch (error) {
     return res.status(500).json({

@@ -189,29 +189,30 @@ export default function Contacts() {
     try {
       setError(null);
       const contactsData = await apiService.getContacts(true);
-      const normalizedContacts = (Array.isArray(contactsData) ? contactsData : [])
-        .filter((contact) => Boolean(contact.conversationId))
-        .map((contact) => ({
-          id: contact.id,
-          name: contact.name || contact.phone || "Contato",
-          phone: contact.phone || "",
-          lastMessage: contact.lastMessage || "",
-          updatedAt: contact.updatedAt || "",
-          unread: contact.unread ?? 0,
-          isGroup: contact.isGroup === true || isGroupIdentifier(contact.remoteJid, contact.phone),
-          tags: contact.tags ?? [],
-          conversationId: contact.conversationId,
-          sessionId: contact.sessionId,
-          status: contact.status,
-          temperature: contact.lead_temperature,
-          funnelStage: contact.funnel_stage,
-          avatarUrl: contact.profilePicUrl || contact.avatarUrl || contact.profilePictureUrl || contact.profile_picture_url || contact.avatar,
-        } satisfies ContactRow));
-
-
+      const rawList = Array.isArray(contactsData)
+        ? contactsData
+        : Array.isArray((contactsData as any)?.data)
+          ? (contactsData as any).data
+          : [];
+      const normalizedContacts = rawList.map((contact: any) => ({
+        id: String(contact.id || contact.phone || "").trim(),
+        name: contact.name || contact.phone || "Contato",
+        phone: contact.phone || "",
+        lastMessage: contact.lastMessage || "",
+        updatedAt: contact.updatedAt || contact.createdAt || "",
+        unread: contact.unread ?? 0,
+        isGroup: contact.isGroup === true || isGroupIdentifier(contact.remoteJid, contact.phone),
+        tags: Array.isArray(contact.tags) ? contact.tags : [],
+        conversationId: contact.conversationId || undefined,
+        sessionId: contact.sessionId,
+        status: contact.status,
+        temperature: contact.lead_temperature,
+        funnelStage: contact.funnel_stage,
+        avatarUrl: contact.profilePicUrl || contact.avatarUrl || contact.profilePictureUrl || contact.profile_picture_url || contact.avatar,
+      } satisfies ContactRow));
 
       const byPhone = new Map<string, ContactRow>();
-      normalizedContacts.forEach((contact) => {
+      normalizedContacts.forEach((contact: ContactRow) => {
         const key = JSON.stringify([contact.sessionId || "", normalizePhone(contact.phone) || String(contact.id || "").trim()]);
         const existing = byPhone.get(key);
         if (!existing || new Date(contact.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
@@ -233,9 +234,6 @@ export default function Contacts() {
   }, [loadContacts]);
 
   const sessionScopedContacts = useMemo(() => {
-    if (!isSessionConnected) {
-      return [];
-    }
     if (!targetSessionId) {
       return contacts;
     }
@@ -243,7 +241,7 @@ export default function Contacts() {
       const contactSession = String(contact.sessionId || "").trim().toLowerCase();
       return !contactSession || contactSession === targetSessionId;
     });
-  }, [contacts, isSessionConnected, targetSessionId]);
+  }, [contacts, targetSessionId]);
 
   const filteredContacts = useMemo(() => {
     let result = sessionScopedContacts.filter((contact) => matchesSegment(contact, activeSegment));
@@ -262,43 +260,23 @@ export default function Contacts() {
   }, [activeSegment, sessionScopedContacts, searchQuery, tagFilter]);
 
   const contactCounts = useMemo<Record<string, number>>(
-    () => {
-      if (!isSessionConnected) {
-        return {
-          all: 0,
-          individual: 0,
-          inbox: 0,
-          lead: 0,
-          saved: 0,
-          grupos: 0,
-          archived: 0,
-          lead_quente: 0,
-          lead_morno: 0,
-          lead_frio: 0,
-          ativo: 0,
-          recorrente: 0,
-          em_risco: 0,
-          bloqueado: 0,
-        };
-      }
-      return {
-        all: sessionScopedContacts.length,
-        individual: sessionScopedContacts.filter((contact) => !contact.isGroup).length,
-        inbox: sessionScopedContacts.filter((contact) => Boolean(contact.conversationId)).length,
-        lead: sessionScopedContacts.filter(isLeadContact).length,
-        saved: 0,
-        grupos: sessionScopedContacts.filter((contact) => contact.isGroup).length,
-        archived: sessionScopedContacts.filter((contact) => String(contact.status ?? "").toLowerCase() === "archived").length,
-        lead_quente: sessionScopedContacts.filter((contact) => isHotTemperature(contact.temperature)).length,
-        lead_morno: sessionScopedContacts.filter((contact) => isWarmTemperature(contact.temperature)).length,
-        lead_frio: sessionScopedContacts.filter((contact) => isColdTemperature(contact.temperature)).length,
-        ativo: sessionScopedContacts.filter((contact) => isAtivoStatus(contact.status)).length,
-        recorrente: sessionScopedContacts.filter((contact) => isRecorrenteStatus(contact.status)).length,
-        em_risco: sessionScopedContacts.filter((contact) => isEmRiscoStatus(contact.status)).length,
-        bloqueado: sessionScopedContacts.filter((contact) => isBloqueadoStatus(contact.status)).length,
-      };
-    },
-    [sessionScopedContacts, isSessionConnected],
+    () => ({
+      all: sessionScopedContacts.length,
+      individual: sessionScopedContacts.filter((contact) => !contact.isGroup).length,
+      inbox: sessionScopedContacts.filter((contact) => Boolean(contact.conversationId)).length,
+      lead: sessionScopedContacts.filter(isLeadContact).length,
+      saved: 0,
+      grupos: sessionScopedContacts.filter((contact) => contact.isGroup).length,
+      archived: sessionScopedContacts.filter((contact) => String(contact.status ?? "").toLowerCase() === "archived").length,
+      lead_quente: sessionScopedContacts.filter((contact) => isHotTemperature(contact.temperature)).length,
+      lead_morno: sessionScopedContacts.filter((contact) => isWarmTemperature(contact.temperature)).length,
+      lead_frio: sessionScopedContacts.filter((contact) => isColdTemperature(contact.temperature)).length,
+      ativo: sessionScopedContacts.filter((contact) => isAtivoStatus(contact.status)).length,
+      recorrente: sessionScopedContacts.filter((contact) => isRecorrenteStatus(contact.status)).length,
+      em_risco: sessionScopedContacts.filter((contact) => isEmRiscoStatus(contact.status)).length,
+      bloqueado: sessionScopedContacts.filter((contact) => isBloqueadoStatus(contact.status)).length,
+    }),
+    [sessionScopedContacts],
   );
 
   const gridContacts = useMemo<ContactGridItem[]>(
@@ -318,12 +296,12 @@ export default function Contacts() {
   );
 
   const groupCount = useMemo(
-    () => (!isSessionConnected ? 0 : sessionScopedContacts.filter((contact) => contact.isGroup).length),
-    [sessionScopedContacts, isSessionConnected],
+    () => sessionScopedContacts.filter((contact) => contact.isGroup).length,
+    [sessionScopedContacts],
   );
   const individualCount = useMemo(
-    () => (!isSessionConnected ? 0 : sessionScopedContacts.filter((contact) => !contact.isGroup).length),
-    [sessionScopedContacts, isSessionConnected],
+    () => sessionScopedContacts.filter((contact) => !contact.isGroup).length,
+    [sessionScopedContacts],
   );
 
   const handleToggleSelect = (id: string) => {

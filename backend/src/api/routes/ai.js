@@ -282,8 +282,15 @@ router.get('/ai/lead-knowledge-graph/:leadId', async (req, res) => {
       [String(leadId),companyId,req.query.sessionId || null]
     ).catch(() => ({ rows: [] }));
 
-    const lead = leadRes.rows[0] || null;
-    if(!lead) return res.status(404).json({error:'Conversa não encontrada.'});
+    let lead = leadRes.rows[0] || null;
+    if (!lead) {
+      const fallbackLeadRes = await query(
+        `SELECT id, name, phone, company_id FROM leads WHERE company_id = $2 AND (id::text = $1 OR phone = $1) LIMIT 1`,
+        [String(leadId), companyId]
+      ).catch(() => ({ rows: [] }));
+      lead = fallbackLeadRes.rows[0] || null;
+    }
+    if(!lead) return res.status(404).json({error:'Contato não encontrado.'});
     const name = lead?.name || 'Cliente';
     const phone = lead?.phone || String(leadId);
     const company = lead?.company_id || companyId;

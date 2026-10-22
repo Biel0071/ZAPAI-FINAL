@@ -92,10 +92,10 @@ function getInsightsFromConversation(conversation) {
 
   return {
     automationStatus: conversation.conversationStatus === 'closed' ? 'stopped' : 'active',
-    conversationSummary: conversation.summary || 'No summary yet.',
+    conversationSummary: conversation.summary || '',
     intent: conversation.intent || 'information',
     leadScore: Number(conversation.leadScore || 0),
-    nextSuggestedReply: conversation.next_action || 'Follow up with a concise answer and clear CTA.',
+    nextSuggestedReply: conversation.next_action || '',
   };
 }
 

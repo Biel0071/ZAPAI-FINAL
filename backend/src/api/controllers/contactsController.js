@@ -35,13 +35,106 @@ async function listContacts(req, res) {
         const limit = Math.min(Math.max(requestedLimit, 1), 10000);
         const forceRefresh = req.query?.refresh === 'true' || req.query?.force === 'true';
         const conversations = await conversationRepository.listConversations(companyId, limit, {
-          requireMessages: true,
+          requireMessages: false,
           useCache: !forceRefresh,
         });
-        // Contacts are a projection of real system conversations. Imported or
-        // orphan leads stay out of this screen until a conversation exists.
         contacts = contactsService.listContactsFromConversations(conversations);
 
+        // Fetch saved contacts directly from leads table in PostgreSQL
+        try {
+          const leadsRes = await query(
+            `SELECT id, company_id, phone, name, created_at, is_blocked 
+             FROM leads 
+             WHERE company_id = $1 
+             ORDER BY created_at DESC 
+             LIMIT $2`,
+            [companyId, limit]
+          );
+
+          const existingPhoneMap = new Map();
+          contacts.forEach((c) => {
+            const clean = String(c.phone || '').replace(/\D/g, '');
+            if (clean) existingPhoneMap.set(clean, c);
+          });
+
+          for (const lead of leadsRes?.rows || []) {
+            const cleanLeadPhone = String(lead.phone || '').replace(/\D/g, '');
+            if (!cleanLeadPhone) continue;
+            const existing = existingPhoneMap.get(cleanLeadPhone);
+            if (existing) {
+              if ((!existing.name || existing.name === 'Contato' || existing.name === existing.phone) && lead.name && lead.name !== lead.phone) {
+                existing.name = lead.name;
+              }
+              if (lead.id && !existing.leadId) {
+                existing.leadId = lead.id;
+              }
+            } else {
+              const newContact = {
+                id: String(lead.id),
+                leadId: lead.id,
+                conversationId: null,
+                name: lead.name || lead.phone || 'Contato',
+                phone: lead.phone,
+                status: lead.is_blocked ? 'blocked' : 'active',
+                isGroup: String(lead.phone || '').endsWith('@g.us'),
+                tags: [],
+                lead_temperature: 'cold',
+                funnel_stage: 'new_lead',
+                lastMessage: '',
+                lastMessageAt: null,
+                updatedAt: lead.created_at ? new Date(lead.created_at).toISOString() : new Date().toISOString(),
+                unread: 0,
+                sessionId: req.query?.sessionId || null,
+              };
+              contacts.push(newContact);
+              existingPhoneMap.set(cleanLeadPhone, newContact);
+            }
+          }
+        } catch (leadErr) {
+          backendLog('warn', 'contacts:list:leads_query_error', { error: leadErr?.message });
+        }
+
+        // Merge cached contacts from WhatsApp sync if available
+        try {
+          const contactsEngine = require('../../../services/contactsEngine');
+          const cachedContacts = contactsEngine.listCachedContacts({ companyId });
+          const existingPhoneMap = new Map();
+          contacts.forEach((c) => {
+            const clean = String(c.phone || '').replace(/\D/g, '');
+            if (clean) existingPhoneMap.set(clean, c);
+          });
+          for (const c of cachedContacts) {
+            const cleanPhone = String(c.phone || '').replace(/\D/g, '');
+            if (!cleanPhone) continue;
+            const existing = existingPhoneMap.get(cleanPhone);
+            if (existing) {
+              if (c.avatar && !existing.avatarUrl) existing.avatarUrl = c.avatar;
+              if (c.name && (!existing.name || existing.name === 'Contato') && c.name !== c.phone) {
+                existing.name = c.name;
+              }
+            } else {
+              const newContact = {
+                id: `cached-${cleanPhone}`,
+                conversationId: null,
+                name: c.name || c.phone || 'Contato',
+                phone: c.phone,
+                status: 'active',
+                isGroup: Boolean(c.isGroup),
+                tags: [],
+                lead_temperature: 'cold',
+                funnel_stage: 'new_lead',
+                lastMessage: '',
+                lastMessageAt: null,
+                updatedAt: c.updatedAt || new Date().toISOString(),
+                unread: 0,
+                sessionId: c.sessionId || req.query?.sessionId || null,
+                avatarUrl: c.avatar || null,
+              };
+              contacts.push(newContact);
+              existingPhoneMap.set(cleanPhone, newContact);
+            }
+          }
+        } catch (_) {}
 
         // Apply optional filters from query params
         const { region, state, ddd, search } = req.query;

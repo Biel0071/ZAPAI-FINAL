@@ -82,7 +82,9 @@ async function generateFollowupPlan({ conversationId, phone, companyId = 'defaul
       ? rawName.split(/\s+/)[0]
       : 'Cliente';
   const temperature = conversation?.lead_temperature || leadAlgorithm.leadTemperature || 'warm';
-  const productLabel = leadAlgorithm.primaryProductLabel || 'Churrasqueiras & Materiais';
+  const productLabel = leadAlgorithm.primaryProductLabel && !leadAlgorithm.primaryProductLabel.includes('Churrasqueir') 
+    ? leadAlgorithm.primaryProductLabel 
+    : '';
 
   if (leadAlgorithm.hasPurchased) {
     return {
@@ -103,6 +105,7 @@ async function generateFollowupPlan({ conversationId, phone, companyId = 'defaul
     };
   }
 
+  const productMention = productLabel ? ` sobre ${productLabel}` : '';
   const steps = [
     {
       delay: '4 a 6 horas',
@@ -110,25 +113,25 @@ async function generateFollowupPlan({ conversationId, phone, companyId = 'defaul
       timingLabel: '1º Toque (4h sem retorno — Check-in Consultivo)',
       message:
         (leadAlgorithm.getProgressiveHook ? leadAlgorithm.getProgressiveHook(1) : leadAlgorithm.followupHook) ||
-        `Olá ${name}, tudo bem? Fiquei pensando sobre o orçamento de ${productLabel} que conversamos. Ficou alguma dúvida sobre medidas ou entrega que eu possa esclarecer?`,
+        `Olá ${name}, tudo bem? Fiquei pensando sobre nossa conversa${productMention}. Ficou alguma dúvida que eu possa esclarecer?`,
       type: 'algoritmo_lead_imediato',
       algorithmId: leadAlgorithm.algorithmId,
       recommendedQuickReplyId: leadAlgorithm.recommendedQuickReplyId,
       recommendedQuickReplyTitle: leadAlgorithm.recommendedQuickReplyTitle,
-      goal: 'Check-in consultivo e acolhedor sobre o produto e dúvidas',
+      goal: 'Check-in consultivo e acolhedor sobre o atendimento e dúvidas',
     },
     {
       delay: '24 horas',
       delayMinutes: 1440,
-      timingLabel: '2º Toque (24h após Toque 1 — Frete e Condição de Pagamento)',
+      timingLabel: '2º Toque (24h após Toque 1 — Condição de Atendimento)',
       message:
         (leadAlgorithm.getProgressiveHook ? leadAlgorithm.getProgressiveHook(2) : null) ||
-        `Oi ${name}! Passando rapidinho: conseguimos condições facilitadas para ${productLabel} esta semana, com desconto no PIX ou parcelamento no cartão, além de agilizar o frete para a sua região. Quer que eu veja o frete certinho pra você?`,
+        `Oi ${name}! Passando rapidinho para saber se podemos dar continuidade ao seu atendimento${productMention}. Quer que eu veja as melhores opções para você?`,
       type: 'envio_catalogo_padrao_loja',
       algorithmId: 'ALGO_CONSULTIVO_TECNICO',
       recommendedQuickReplyId: leadAlgorithm.recommendedQuickReplyId,
       recommendedQuickReplyTitle: leadAlgorithm.recommendedQuickReplyTitle,
-      goal: 'Agregar valor comercial com opções de frete e pagamento facilitado',
+      goal: 'Agregar valor com opções facilitadas e esclarecimento de dúvidas',
     },
     {
       delay: '48 horas',
@@ -136,7 +139,7 @@ async function generateFollowupPlan({ conversationId, phone, companyId = 'defaul
       timingLabel: '3º Toque (48h após Toque 2 — Encerramento Suave & Finalização)',
       message:
         (leadAlgorithm.getProgressiveHook ? leadAlgorithm.getProgressiveHook(3) : null) ||
-        `Oi ${name}! Para não ficar te incomodando, estou deixando seu atendimento em aberto por aqui. Se precisar de algo para a sua obra ou quiser retomar a cotação de ${productLabel}, é só me chamar! Um abraço e boa semana!`,
+        `Oi ${name}! Para não ficar te incomodando, estou deixando seu atendimento em aberto por aqui. Se precisar de algo ou quiser retomar o contato${productMention}, é só me chamar! Um abraço e boa semana!`,
       type: 'oferta_condicao_fechamento',
       algorithmId: 'ALGO_QUEBRA_OBJECAO_VALOR',
       goal: 'Encerramento suave e respeitoso deixando canal aberto sem pressão',

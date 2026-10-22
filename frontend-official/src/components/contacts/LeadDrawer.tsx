@@ -72,14 +72,20 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
   useEffect(() => {
     let active = true;
     setAiData(null); setFollowupPlan(null); setRecoveryApproach(null); setAnalysisError(null); setActiveTab('summary');
-    if (!lead?.conversationId) { setLoadingAi(false); return; }
+    const targetId = lead?.conversationId || lead?.id;
+    if (!targetId) { setLoadingAi(false); return; }
     setLoadingAi(true);
-    apiService.getConversationInsights(lead.conversationId)
-      .then(res => { if (active) setAiData(res?.data || null); })
+    apiService.getConversationInsights(targetId)
+      .then(res => {
+        if (active) {
+          const data = (res as any)?.data && typeof (res as any).data === 'object' ? (res as any).data : res;
+          setAiData(data || null);
+        }
+      })
       .catch(() => { if (active) setAnalysisError('Não foi possível carregar a análise deste contato.'); })
       .finally(() => { if (active) setLoadingAi(false); });
     return () => { active = false; };
-  }, [leadScope, lead?.conversationId]);
+  }, [leadScope, lead?.conversationId, lead?.id]);
 
   if (!lead) return null;
 
@@ -91,6 +97,13 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
       ? { label: "Frio", color: "bg-blue-500/15 text-blue-400 border-blue-500/30", icon: <Snowflake className="h-3.5 w-3.5 text-blue-400" weight="fill" /> }
       : temp === "warm" || temp === "morno" ? { label: "Morno", color: "bg-amber-500/15 text-amber-400 border-amber-500/30", icon: <Sun className="h-3.5 w-3.5 text-amber-400" weight="fill" /> }
       : { label: "Não classificado", color: "bg-muted text-muted-foreground border-border", icon: null };
+
+  const confidence =
+    typeof aiData?.confidence === "number" && Number.isFinite(aiData.confidence)
+      ? aiData.confidence
+      : typeof aiData?.leadScore === "number" && Number.isFinite(aiData.leadScore)
+      ? (aiData.leadScore <= 1 ? aiData.leadScore : aiData.leadScore / 100)
+      : null;
 
   const handleGenerateFollowup = async () => {
     const scope = leadScope;
@@ -184,7 +197,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
               <span className="text-[10px] uppercase font-bold text-muted-foreground block">Confiança da análise IA</span>
               <span className="text-lg font-bold font-display text-success flex items-center gap-1 mt-0.5">
                 <TrendUp className="h-4 w-4" />
-                {typeof aiData?.confidence === "number" && Number.isFinite(aiData.confidence) ? `${Math.round(aiData.confidence * 100)}%` : "—"}
+                {confidence !== null ? `${Math.round(confidence * 100)}%` : "—"}
               </span>
             </Card>
 
@@ -205,7 +218,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
             <Card className="rounded-2xl border-border/60 bg-background/50 p-3">
               <span className="text-[10px] uppercase font-bold text-muted-foreground block">Próxima Ação IA</span>
               <span className="text-xs font-bold text-amber-400 mt-1 block truncate">
-                {aiData?.nextAction ? businessLabel(aiData.nextAction) : "—"}
+                {aiData?.nextAction ? businessLabel(aiData.nextAction) : (aiData?.nextSuggestedReply ? businessLabel(aiData.nextSuggestedReply) : "—")}
               </span>
             </Card>
           </div>
@@ -232,6 +245,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
                 </div>
                 <p className="text-xs text-foreground/90 leading-relaxed italic">
                   {aiData?.summary ||
+                    aiData?.conversationSummary ||
                     (loadingAi ? "Carregando análise…" : "Ainda não há resumo de IA disponível para este contato.")}
                 </p>
               </Card>
@@ -282,9 +296,15 @@ export function LeadDrawer({ lead, onClose, onUpdateLead }: LeadDrawerProps) {
                   </span>
                   <div className="space-y-1.5 text-xs">
                     <div className="flex justify-between text-muted-foreground">
-                      <span>Responsividade:</span>
-                      <strong className="text-foreground">—</strong>
+                      <span>Status do Contato:</span>
+                      <strong className="text-foreground capitalize">{lead.status || "Ativo"}</strong>
                     </div>
+                    {lead.lastMessage && (
+                      <div className="flex justify-between text-muted-foreground gap-2">
+                        <span className="shrink-0">Última mensagem:</span>
+                        <strong className="text-foreground truncate max-w-[180px]" title={lead.lastMessage}>{lead.lastMessage}</strong>
+                      </div>
+                    )}
                     <div className="flex justify-between text-muted-foreground">
                       <span>Última interação:</span>
                       <strong className="text-foreground">{lead.updatedAt ? new Date(lead.updatedAt).toLocaleString('pt-BR') : '—'}</strong>

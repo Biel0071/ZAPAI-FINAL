@@ -533,29 +533,33 @@ export function ContactsView({
             </Card>
           )}
 
-          {!isSessionConnected ? (
-            <Card className="glass-card rounded-2xl border-amber-500/30 bg-amber-500/5 p-8 text-center animate-in fade-in-0 duration-300">
-              <div className="flex flex-col items-center justify-center max-w-md mx-auto space-y-3">
-                <div className="rounded-2xl bg-amber-500/10 p-4 ring-1 ring-amber-500/20">
-                  <ArrowClockwise className="h-8 w-8 text-amber-500" />
+          {!isSessionConnected && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 text-xs animate-in fade-in-0">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                  <ArrowClockwise className="h-4 w-4 text-amber-500" />
                 </div>
-                <h3 className="text-base font-bold text-foreground">Sessão WhatsApp Desconectada</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {activeSessionName ? `A sessão "${activeSessionName}" está desconectada.` : "A conexão selecionada está offline."}{" "}
-                  Nenhum contato é exibido enquanto a sessão estiver offline para evitar dados inconsistentes ou cruzados. Conecte seu WhatsApp para sincronizar contatos em tempo real.
-                </p>
-                <div className="flex items-center gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    onClick={() => navigate("/connections")}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-xs font-semibold shadow-sm"
-                  >
-                    <span>Conectar WhatsApp</span>
-                  </Button>
+                <div>
+                  <p className="font-bold text-foreground">
+                    {activeSessionName ? `Sessão "${activeSessionName}" desconectada` : "WhatsApp desconectado"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Exibindo contatos salvos no CRM. Conecte o WhatsApp para sincronizar em tempo real.
+                  </p>
                 </div>
               </div>
-            </Card>
-          ) : loading ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate("/connections")}
+                className="h-8 rounded-xl border-amber-500/30 hover:bg-amber-500/10 text-amber-500 text-xs shrink-0 font-semibold"
+              >
+                Conectar WhatsApp
+              </Button>
+            </div>
+          )}
+
+          {loading ? (
             <ListSkeleton rows={6} />
           ) : viewModel.contacts.length === 0 ? (
             <Card className="glass-card rounded-2xl border-border/70 hover-lift">
@@ -644,10 +648,11 @@ export function ContactsView({
                                   }
                                   e.dataTransfer.setData("contactId", contact.id);
                                 }}
-                                className={`rounded-xl border border-border/50 bg-background/55 p-3 space-y-2 transition-all duration-300 select-none ${
+                                onClick={() => onGoToChat(contact)}
+                                className={`rounded-xl border border-border/50 bg-background/55 p-3 space-y-2 transition-all duration-300 select-none cursor-pointer ${
                                   hasConv
                                     ? "cursor-grab active:cursor-grabbing hover:border-primary/45 hover:shadow-md hover:-translate-y-0.5 hover:bg-background/80"
-                                    : "opacity-60 cursor-not-allowed"
+                                    : "hover:border-primary/45 hover:bg-background/80"
                                 }`}
                               >
                                 {(() => {
@@ -689,7 +694,10 @@ export function ContactsView({
                                       variant="ghost"
                                       size="icon"
                                       className="h-6 w-6 text-primary hover:bg-primary/10"
-                                      onClick={() => onGoToChat(contact)}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onGoToChat(contact);
+                                      }}
                                       title="Ir para conversa"
                                     >
                                       <ChatCircle className="h-3.5 w-3.5" />
