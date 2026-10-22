@@ -183,7 +183,6 @@ export const CollapsedConversationRow = memo(function CollapsedConversationRow(p
   }, [conversation, globalAiEnabled, conversationControls]);
 
   const isSelected = normalizeId(selectedId) === normalizeId(conversation.id);
-  const firstTag = conversation.tags && conversation.tags.length > 0 ? conversation.tags[0] : null;
   const unread = conversation.unread ?? 0;
   const isPinned = pinnedChatIds.includes(conversation.id);
   const isArchived = archivedChatIds.includes(conversation.id);
@@ -236,13 +235,20 @@ export const CollapsedConversationRow = memo(function CollapsedConversationRow(p
                       </AvatarFallback>
                     </Avatar>
 
-                    {/* WhatsApp-style Online dot (bottom-right) */}
-                    {isOnline && (
-                      <span className="absolute bottom-0 right-0 z-20 flex h-3.5 w-3.5 items-center justify-center pointer-events-none" title="Online agora">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
-                      </span>
-                    )}
+                    {/* Presença do contato: Bolinha Verde para Online / Vermelha para Offline */}
+                    <span
+                      className="absolute bottom-0 right-0 z-20 flex h-3 w-3 items-center justify-center pointer-events-none"
+                      title={isOnline ? "Online agora" : "Offline"}
+                    >
+                      {isOnline ? (
+                        <>
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+                        </>
+                      ) : (
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-background" />
+                      )}
+                    </span>
 
                     {/* IA Activation mini button (top-left) */}
                     <span
@@ -401,6 +407,46 @@ export const ChatListPanel = memo(function ChatListPanel({
 }: ChatListPanelProps) {
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const [dynamicHeight, setDynamicHeight] = useState(conversationListHeight || 600);
+
+  // Drag-to-scroll horizontal handler for funnel filter bar (eliminates clunky scrollbar tracks)
+  const funnelScrollRef = useRef<HTMLDivElement | null>(null);
+  const isDraggingFunnel = useRef(false);
+  const hasDraggedFunnel = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+
+  const handleFunnelMouseDown = (e: React.MouseEvent) => {
+    if (!funnelScrollRef.current) return;
+    isDraggingFunnel.current = true;
+    hasDraggedFunnel.current = false;
+    startX.current = e.pageX - funnelScrollRef.current.offsetLeft;
+    scrollLeft.current = funnelScrollRef.current.scrollLeft;
+  };
+
+  const handleFunnelMouseLeave = () => {
+    isDraggingFunnel.current = false;
+  };
+
+  const handleFunnelMouseUp = () => {
+    isDraggingFunnel.current = false;
+  };
+
+  const handleFunnelMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingFunnel.current || !funnelScrollRef.current) return;
+    const x = e.pageX - funnelScrollRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.4;
+    if (Math.abs(walk) > 4) {
+      hasDraggedFunnel.current = true;
+      e.preventDefault();
+      funnelScrollRef.current.scrollLeft = scrollLeft.current - walk;
+    }
+  };
+
+  const handleFunnelWheel = (e: React.WheelEvent) => {
+    if (!funnelScrollRef.current) return;
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    funnelScrollRef.current.scrollLeft += e.deltaY;
+  };
 
   const sourceConversations = filter === "archived"
     ? filteredConversations
@@ -596,27 +642,52 @@ export const ChatListPanel = memo(function ChatListPanel({
           </Button>
         </div>
         <Tabs value={filter} onValueChange={setFilter}>
-          <TabsList className="grid w-full grid-cols-4 h-8 p-0.5 bg-muted/60">
-            <TabsTrigger value="all" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">
-              Todas{conversationCounts?.active != null ? ` (${conversationCounts.active})` : ''}
+          <TabsList className="flex items-center gap-1 w-full h-8.5 p-1 bg-muted/40 rounded-xl overflow-x-auto no-scrollbar">
+            <TabsTrigger value="all" className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs">
+              <span>Todas</span>
+              {conversationCounts?.active != null ? (
+                <span className="text-[10px] opacity-75 font-mono px-1.5 py-0.2 rounded-full bg-muted/70">{conversationCounts.active}</span>
+              ) : null}
             </TabsTrigger>
-            <TabsTrigger value="unread" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">
-              Não lidas{conversationCounts?.unread != null && conversationCounts.unread > 0 ? ` (${conversationCounts.unread})` : ''}
+            <TabsTrigger value="unread" className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs">
+              <span>Não lidas</span>
+              {conversationCounts?.unread != null && conversationCounts.unread > 0 ? (
+                <span className="text-[10px] font-bold text-white bg-emerald-500 px-1.5 py-0.2 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.7)]">{conversationCounts.unread}</span>
+              ) : null}
             </TabsTrigger>
-            <TabsTrigger value="ai" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">
-              IA ativa{aiCount > 0 ? ` (${aiCount})` : ''}
+            <TabsTrigger value="ai" className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs">
+              <span>IA ativa</span>
+              {aiCount > 0 ? (
+                <span className="text-[10px] opacity-75 font-mono px-1.5 py-0.2 rounded-full bg-muted/70">{aiCount}</span>
+              ) : null}
             </TabsTrigger>
-            <TabsTrigger value="archived" className="min-w-0 truncate text-[10px] sm:text-xs px-0.5 sm:px-1 py-1 data-[state=active]:font-bold">
-              Arquivadas{conversationCounts?.archived != null ? ` (${conversationCounts.archived})` : (filteredConversations.length > 0 && filter === 'archived' ? ` (${filteredConversations.length})` : '')}
+            <TabsTrigger value="archived" className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs">
+              <span>Arquivadas</span>
+              {conversationCounts?.archived != null ? (
+                <span className="text-[10px] opacity-75 font-mono px-1.5 py-0.2 rounded-full bg-muted/70">{conversationCounts.archived}</span>
+              ) : (filteredConversations.length > 0 && filter === 'archived' ? (
+                <span className="text-[10px] opacity-75 font-mono px-1.5 py-0.2 rounded-full bg-muted/70">{filteredConversations.length}</span>
+              ) : null)}
             </TabsTrigger>
           </TabsList>
         </Tabs>
 
-        {/* Funnel Filter Bar Interativa: Todos, Chegou (Verde), Rodando (Amarelo), Aguarda PIX (Azul Piscando), Pausado (Vermelho), Pago (Teal) */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1 px-0.5 text-[10px] select-none border-t border-border/30 pt-1.5">
+        {/* Funnel Filter Bar Interativa com arrasto suave sem linha feia de scrollbar */}
+        <div
+          ref={funnelScrollRef}
+          onMouseDown={handleFunnelMouseDown}
+          onMouseLeave={handleFunnelMouseLeave}
+          onMouseUp={handleFunnelMouseUp}
+          onMouseMove={handleFunnelMouseMove}
+          onWheel={handleFunnelWheel}
+          className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1 px-0.5 text-[10px] select-none border-t border-border/30 pt-1.5 cursor-grab active:cursor-grabbing"
+        >
           <button
             type="button"
-            onClick={() => setFunnelFilter?.("all")}
+            onClick={() => {
+              if (hasDraggedFunnel.current) return;
+              setFunnelFilter?.("all");
+            }}
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1 border",
               funnelFilter === "all"
@@ -630,7 +701,10 @@ export const ChatListPanel = memo(function ChatListPanel({
 
           <button
             type="button"
-            onClick={() => setFunnelFilter?.(funnelFilter === "chegou" ? "all" : "chegou")}
+            onClick={() => {
+              if (hasDraggedFunnel.current) return;
+              setFunnelFilter?.(funnelFilter === "chegou" ? "all" : "chegou");
+            }}
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
               funnelFilter === "chegou"
@@ -646,7 +720,10 @@ export const ChatListPanel = memo(function ChatListPanel({
 
           <button
             type="button"
-            onClick={() => setFunnelFilter?.(funnelFilter === "rodando" ? "all" : "rodando")}
+            onClick={() => {
+              if (hasDraggedFunnel.current) return;
+              setFunnelFilter?.(funnelFilter === "rodando" ? "all" : "rodando");
+            }}
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
               funnelFilter === "rodando"
@@ -662,7 +739,10 @@ export const ChatListPanel = memo(function ChatListPanel({
 
           <button
             type="button"
-            onClick={() => setFunnelFilter?.(funnelFilter === "finalizado" ? "all" : "finalizado")}
+            onClick={() => {
+              if (hasDraggedFunnel.current) return;
+              setFunnelFilter?.(funnelFilter === "finalizado" ? "all" : "finalizado");
+            }}
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
               funnelFilter === "finalizado"
@@ -681,7 +761,10 @@ export const ChatListPanel = memo(function ChatListPanel({
 
           <button
             type="button"
-            onClick={() => setFunnelFilter?.(funnelFilter === "pausado" ? "all" : "pausado")}
+            onClick={() => {
+              if (hasDraggedFunnel.current) return;
+              setFunnelFilter?.(funnelFilter === "pausado" ? "all" : "pausado");
+            }}
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
               funnelFilter === "pausado"
@@ -697,7 +780,10 @@ export const ChatListPanel = memo(function ChatListPanel({
 
           <button
             type="button"
-            onClick={() => setFunnelFilter?.(funnelFilter === "pago" ? "all" : "pago")}
+            onClick={() => {
+              if (hasDraggedFunnel.current) return;
+              setFunnelFilter?.(funnelFilter === "pago" ? "all" : "pago");
+            }}
             className={cn(
               "px-2 py-0.5 rounded-full font-medium transition-all shrink-0 flex items-center gap-1.5 border",
               funnelFilter === "pago"

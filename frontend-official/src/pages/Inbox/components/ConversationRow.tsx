@@ -247,27 +247,22 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
     }
   };
 
+  const isUnread = (conversation.unread ?? 0) > 0;
+
   const leadBackgroundClass = useMemo(() => {
+    // Alerta máximo: Intervenção urgente sempre em destaque
     if (leadStatus.state === "intervencao") {
       return "border-2 border-red-500/80 bg-red-500/[0.14] shadow-[0_0_16px_rgba(239,68,68,0.35),inset_0_0_14px_rgba(239,68,68,0.12)]";
     }
-    if (leadStatus.state === "chegou") {
-      return "border border-emerald-500/70 bg-emerald-500/[0.06] shadow-[inset_0_0_12px_rgba(16,185,129,0.05)] hover:bg-emerald-500/[0.11]";
+
+    // Se NÃO LIDA: destaque visual para diferenciar imediatamente
+    if (isUnread) {
+      return "border border-emerald-500/70 bg-emerald-500/[0.08] shadow-[inset_0_0_12px_rgba(16,185,129,0.06)] hover:bg-emerald-500/[0.13]";
     }
-    if (leadStatus.state === "rodando") {
-      return "border border-amber-500/60 bg-amber-500/[0.06] shadow-[inset_0_0_12px_rgba(245,158,11,0.05)] hover:bg-amber-500/[0.10]";
-    }
-    if (leadStatus.state === "finalizado") {
-      return "border border-blue-500/50 bg-blue-500/[0.09] shadow-[inset_0_0_14px_rgba(59,130,246,0.08)] hover:bg-blue-500/[0.14]";
-    }
-    if (leadStatus.state === "pago") {
-      return "border border-teal-500/50 bg-teal-500/[0.09] shadow-[inset_0_0_14px_rgba(20,184,166,0.08)] hover:bg-teal-500/[0.14]";
-    }
-    if (leadStatus.state === "pausado") {
-      return "border border-rose-500/50 bg-rose-500/[0.06] hover:bg-rose-500/[0.10]";
-    }
+
+    // Se JÁ LIDA: fundo 100% neutro mantendo status de funil intacto (permite diferenciar por cor quem já foi lido)
     return "border border-border/40 bg-card/60 hover:bg-accent/40 shadow-xs";
-  }, [leadStatus.state]);
+  }, [leadStatus.state, isUnread]);
 
   return (
     <div style={style} className="px-1 py-0.5">
@@ -313,7 +308,7 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
             </AvatarFallback>
           </Avatar>
 
-          {/* Indicador Visual: Verde (Online/Digitando) se ativo, Alerta Piscando se Intervenção Urgente ou Finalizado (PIX), caso contrário limpo */}
+          {/* Indicador Visual: Verde para Online, Vermelho para Offline, ou Alerta Especial */}
           <div className="absolute -bottom-0.5 -right-0.5 z-10 flex items-center justify-center pointer-events-none">
             {leadStatus.state === "intervencao" ? (
               <span className="relative flex h-3.5 w-3.5" title={leadStatus.tooltip}>
@@ -326,11 +321,13 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
                 <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-600 border-2 border-background shadow-[0_0_10px_rgba(37,99,235,0.9)]" />
               </span>
             ) : (isTyping || conversation.status === "online") ? (
-              <span className="relative flex h-3.5 w-3.5" title="Contato online no momento">
+              <span className="relative flex h-3 w-3" title="Contato online no momento">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-background shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-background shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
               </span>
-            ) : null}
+            ) : (
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-background shadow-xs" title="Contato offline" />
+            )}
           </div>
         </div>
 
@@ -338,14 +335,17 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
           <div className="flex items-center justify-between gap-1.5">
             <h4 className="text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0 flex-1">
               <span className="truncate min-w-0">{cleanDisplayName}</span>
-              {/* Presence dot: green if online/typing, clean omission when offline */}
-              {(isTyping || conversation.status === "online") && (
-                <span
-                  className="inline-flex h-2 w-2 rounded-full shrink-0 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-pulse"
-                  title="Contato online"
-                  aria-label="Online"
-                />
-              )}
+              {/* Presence dot: green if online/typing, red when offline */}
+              <span
+                className={cn(
+                  "inline-flex h-2 w-2 rounded-full shrink-0",
+                  (isTyping || conversation.status === "online")
+                    ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-pulse"
+                    : "bg-rose-500/75"
+                )}
+                title={(isTyping || conversation.status === "online") ? "Contato online" : "Contato offline"}
+                aria-label={(isTyping || conversation.status === "online") ? "Online" : "Offline"}
+              />
               {leadStatus.state === "intervencao" && (
                 <span className="sr-only" title={leadStatus.tooltip}>INTERVENÇÃO</span>
               )}

@@ -73,6 +73,7 @@ import {
   getMediaTypeLabel,
   getQuickReplyPreviewText,
   formatPhoneNumber,
+  formatConversationTimestamp,
   getInitials,
 } from "../utils";
 
@@ -762,6 +763,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               }
               return undefined;
             })()}
+            lastSeenLabel={selectedConversation ? formatConversationTimestamp((selectedConversation as any).lastMessageAt || (selectedConversation as any).lastInteractionAt || (selectedConversation as any).timestamp || selectedConversation.updatedAt) : undefined}
             statusLabel={
               isTyping === "recording"
                 ? "gravando áudio..."

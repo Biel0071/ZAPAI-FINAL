@@ -80,6 +80,7 @@ import type { AiMemoryRecord, InboxAiRuntime, PreviewMediaState, QuickReplyCateg
 import {
   extractMessageAssetUrl,
   formatPhoneNumber,
+  formatConversationTimestamp,
   getConversationSourceLabel,
   getInitials,
   getMediaFileName,
@@ -97,6 +98,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 
 interface SidebarPanelProps {
   selectedConversation: Conversation | null;
+  isCustomerOnline?: boolean;
+  lastSeenLabel?: string;
   rightPanelTab: "ai" | "lead" | "files" | "qr" | "history" | null;
   setRightPanelTab: (val: "ai" | "lead" | "files" | "qr" | "history" | null) => void;
   rightPanelCollapsed: boolean;
@@ -400,7 +403,10 @@ export const SidebarPanel = memo(function SidebarPanel({
   onClose,
   onAttachMedia,
   isWhatsappConnected = true,
+  isCustomerOnline,
+  lastSeenLabel,
 }: SidebarPanelProps) {
+  const [showDetailedPresence, setShowDetailedPresence] = useState(false);
   const [fileFilter, setFileFilter] = useState("all");
   const [showAllFiles, setShowAllFiles] = useState(false);
   const [previewReply, setPreviewReply] = useState<QuickReplyItem | null>(null);
@@ -474,8 +480,10 @@ export const SidebarPanel = memo(function SidebarPanel({
         if (typeof window !== "undefined") {
           try {
             window.localStorage.setItem("zapflow_sidebar_tabs_order", JSON.stringify(next));
+            window.localStorage.setItem("zapai_right_panel_tab", next[0]);
           } catch {}
         }
+        setRightPanelTab(next[0] as any);
       }
       return next;
     });
@@ -515,8 +523,31 @@ export const SidebarPanel = memo(function SidebarPanel({
     if (rightPanelTab === "qr") return "qr";
     if (rightPanelTab === "files") return "files";
     if (rightPanelTab === "history") return "history";
-    return "ai"; // "ai" or "lead" both open the combined Atendimento & Cliente tab
-  }, [rightPanelTab]);
+    if (rightPanelTab === "ai") return "ai";
+    return (orderedSections[0]?.id as any) || "ai";
+  }, [rightPanelTab, orderedSections]);
+
+  const clientPhone = useMemo(() => {
+    if (!selectedConversation) return "";
+    const candidates = [
+      selectedConversation.phone,
+      (selectedConversation as any).customerPhone,
+      (selectedConversation as any).contactPhone,
+      (selectedConversation as any).realPhone,
+      (selectedConversation as any).whatsappNumber,
+      selectedConversation.chatId,
+      (selectedConversation as any).jid,
+      selectedConversation.id,
+    ];
+    for (const cand of candidates) {
+      if (!cand || typeof cand !== "string") continue;
+      const cleanDigits = cand.replace(/@.*$/, "").replace(/\D/g, "");
+      if (cleanDigits.length >= 10 && cleanDigits.length <= 13) {
+        return formatPhoneNumber(cand);
+      }
+    }
+    return selectedConversation.phone ? formatPhoneNumber(selectedConversation.phone) : "";
+  }, [selectedConversation]);
 
   const categories = useMemo(
     () => Array.from(new Set((quickReplies || []).map((reply) => reply.category).filter(Boolean))),
@@ -859,7 +890,15 @@ export const SidebarPanel = memo(function SidebarPanel({
   ) : selectedConversation ? (
     <Tabs
       value={activeTab}
-      onValueChange={(value) => setRightPanelTab(value as "ai" | "lead" | "files" | "qr" | "history")}
+      onValueChange={(value) => {
+        const nextTab = value as "ai" | "lead" | "files" | "qr" | "history";
+        setRightPanelTab(nextTab);
+        if (typeof window !== "undefined") {
+          try {
+            window.localStorage.setItem("zapai_right_panel_tab", nextTab);
+          } catch {}
+        }
+      }}
       className="flex h-full min-h-0 w-full flex-col"
     >
       <div className="shrink-0 border-b border-border/60 px-3 sm:px-4 pb-3 pt-3">
@@ -1063,7 +1102,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 
               <div className="border-t border-border/50" />
 
-              {/* Contact Avatar + Name + WhatsApp status */}
+              {/* Contact Avatar + Name + WhatsApp presence status */}
               <div className="flex items-center gap-2.5">
                 <div className="relative group/avatar shrink-0">
                   <Avatar className="h-10 w-10 border border-border/60 shadow-xs">
@@ -1078,6 +1117,20 @@ export const SidebarPanel = memo(function SidebarPanel({
                       {getInitials(cleanName)}
                     </AvatarFallback>
                   </Avatar>
+                  {/* Presença do contato: Bolinha Verde para Online / Vermelha para Offline */}
+                  <span
+                    className="absolute -bottom-0.5 -left-0.5 z-10 flex h-3.5 w-3.5 items-center justify-center pointer-events-none"
+                    title={(isCustomerOnline ?? (selectedConversation.status === "online")) ? "Cliente online no WhatsApp" : "Cliente offline"}
+                  >
+                    {(isCustomerOnline ?? (selectedConversation.status === "online")) ? (
+                      <>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+                      </>
+                    ) : (
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-background shadow-xs" />
+                    )}
+                  </span>
                   <button
                     type="button"
                     onClick={() => void handleRefreshAvatar()}
@@ -1094,12 +1147,67 @@ export const SidebarPanel = memo(function SidebarPanel({
                   <p className="truncate text-xs font-semibold text-foreground" title={cleanName}>
                     {cleanName}
                   </p>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {selectedConversation.phone ? formatPhoneNumber(selectedConversation.phone) : "WhatsApp"}
-                    {" • "}
-                    <span className="font-medium text-foreground/80">{selectedConversation.funnel_stage || "Lead Quente"}</span>
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {/* Status interativo clicável: alterna entre Online/Offline e Última visualização */}
+                    <button
+                      type="button"
+                      onClick={() => setShowDetailedPresence((prev) => !prev)}
+                      className={cn(
+                        "inline-flex items-center gap-1 text-[11px] font-medium transition-colors hover:underline cursor-pointer rounded px-1 py-0.2 -ml-1",
+                        (isCustomerOnline ?? (selectedConversation.status === "online")) ? "text-emerald-400 hover:bg-emerald-500/10" : "text-muted-foreground hover:bg-muted"
+                      )}
+                      title="Clique para alternar entre status e última visualização"
+                    >
+                      <span
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full inline-block shrink-0",
+                          (isCustomerOnline ?? (selectedConversation.status === "online")) ? "bg-emerald-400 animate-pulse" : "bg-rose-500"
+                        )}
+                      />
+                      <span>
+                        {showDetailedPresence
+                          ? ((isCustomerOnline ?? (selectedConversation.status === "online")) ? "Online agora" : (lastSeenLabel ? `Visto: ${lastSeenLabel}` : "Visto recentemente"))
+                          : ((isCustomerOnline ?? (selectedConversation.status === "online")) ? "Online" : "Offline")}
+                      </span>
+                    </button>
+                    <span className="text-muted-foreground/40">•</span>
+                    <span className="truncate text-[11px] font-medium text-foreground/80">
+                      {selectedConversation.funnel_stage || "Lead Quente"}
+                    </span>
+                  </div>
                 </div>
+              </div>
+
+              {/* Destaque do Número do Cliente com Botão de Copiar (Imagem 5) */}
+              <div className="flex items-center justify-between rounded-lg bg-emerald-500/[0.08] border border-emerald-500/20 px-2.5 py-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="h-7 w-7 rounded-md bg-emerald-500/15 flex items-center justify-center text-emerald-400 shrink-0">
+                    <Phone className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-medium text-emerald-400/90 uppercase tracking-wider">Número WhatsApp</p>
+                    <p className="text-xs font-bold text-foreground font-mono select-all truncate">
+                      {clientPhone || selectedConversation.phone || "Número não informado"}
+                    </p>
+                  </div>
+                </div>
+                {(clientPhone || selectedConversation.phone) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 gap-1 px-2 text-[11px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 shrink-0"
+                    onClick={() => {
+                      const num = (clientPhone || selectedConversation.phone || "").replace(/\D/g, "");
+                      navigator.clipboard.writeText(num || selectedConversation.phone || "");
+                      setCopiedPhone(true);
+                      setTimeout(() => setCopiedPhone(false), 2000);
+                    }}
+                    title="Copiar número de telefone"
+                  >
+                    <Copy className="h-3 w-3" />
+                    {copiedPhone ? "Copiado!" : "Copiar"}
+                  </Button>
+                )}
               </div>
 
               {/* 2-column compact grid for Origem & Etapa */}

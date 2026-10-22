@@ -241,7 +241,32 @@ export function useInboxState() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showLeadPanel, setShowLeadPanel] = useState(false);
-  const [rightPanelTab, setRightPanelTab] = useState<"ai" | "lead" | "files" | "qr" | "history" | null>("ai");
+  const [rightPanelTab, setRightPanelTab] = useState<"ai" | "lead" | "files" | "qr" | "history" | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedTab = window.localStorage.getItem("zapai_right_panel_tab");
+        if (savedTab && ["ai", "lead", "files", "qr", "history"].includes(savedTab)) {
+          return savedTab as any;
+        }
+        const savedOrder = window.localStorage.getItem("zapflow_sidebar_tabs_order");
+        if (savedOrder) {
+          const parsed = JSON.parse(savedOrder);
+          if (Array.isArray(parsed) && parsed.length > 0 && ["ai", "qr", "files", "history"].includes(parsed[0])) {
+            return parsed[0] as any;
+          }
+        }
+      } catch {}
+    }
+    return "ai";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && rightPanelTab) {
+      try {
+        window.localStorage.setItem("zapai_right_panel_tab", rightPanelTab);
+      } catch {}
+    }
+  }, [rightPanelTab]);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("zapai_right_panel_collapsed") === "1";
@@ -668,6 +693,15 @@ export function useInboxState() {
       // Ignore
     }
   }, [rightPanelCollapsed]);
+
+  // Persist right-panel active tab choice
+  useEffect(() => {
+    if (typeof window !== "undefined" && rightPanelTab) {
+      try {
+        window.localStorage.setItem("zapai_right_panel_tab", rightPanelTab);
+      } catch {}
+    }
+  }, [rightPanelTab]);
 
   // Keyboard shortcuts for right panel: Alt+1/2/3 to switch tabs, Alt+B to collapse
   useEffect(() => {
@@ -1569,11 +1603,26 @@ export function useInboxState() {
 
 
   const selectedConversationIdForEffect = selectedConversation?.id || null;
-  const selectedConversationUnread = selectedConversation?.unread || 0;
+  const selectedConversationUnread =
+    (selectedConversation?.unread ?? 0) ||
+    ((selectedConversation as any)?.unreadCount ?? 0) ||
+    ((selectedConversation as any)?.unread_count ?? 0);
 
   useEffect(() => {
     if (!selectedConversationIdForEffect) return;
     if (selectedConversationUnread > 0) {
+      // Zerar imediatamente no estado local para que o card fique neutro na hora, sem alterar funil
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConversationIdForEffect
+            ? { ...c, unread: 0, unreadCount: 0, unread_count: 0 }
+            : c
+        )
+      );
+      setConversationCounts((prev) =>
+        prev ? { ...prev, unread: Math.max(0, prev.unread - selectedConversationUnread) } : prev
+      );
+
       try {
         void apiService.markConversationRead(selectedConversationIdForEffect);
       } catch (e) {

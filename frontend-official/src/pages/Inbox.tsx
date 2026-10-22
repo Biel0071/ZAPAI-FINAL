@@ -47,6 +47,7 @@ import {
   downloadMediaFile,
   getQuickReplyPreviewText,
   formatPhoneNumber,
+  formatConversationTimestamp,
   getLeadTemperatureMeta,
   inferMediaTypeFromSource,
   resolveMediaUrl,
@@ -245,7 +246,9 @@ export default function Inbox() {
         });
         state.setConversations((prev) =>
           prev.map((conversation) =>
-            String(conversation.id) === normalizedId ? { ...conversation, unread: 0 } : conversation,
+            String(conversation.id) === normalizedId
+              ? { ...conversation, unread: 0, unreadCount: 0, unread_count: 0 }
+              : conversation,
           ),
         );
       },
@@ -453,6 +456,15 @@ export default function Inbox() {
   // Sidebar props mapped
   const sidebarProps = {
     selectedConversation: state.selectedConversation,
+    isCustomerOnline: Boolean(state.isTyping || state.selectedConversation?.status === "online"),
+    lastSeenLabel: state.selectedConversation
+      ? formatConversationTimestamp(
+          (state.selectedConversation as any).lastMessageAt ||
+          (state.selectedConversation as any).lastInteractionAt ||
+          (state.selectedConversation as any).timestamp ||
+          state.selectedConversation.updatedAt
+        )
+      : "",
     rightPanelTab: state.rightPanelTab,
     setRightPanelTab: state.setRightPanelTab,
     rightPanelCollapsed: state.rightPanelCollapsed,
