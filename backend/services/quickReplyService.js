@@ -482,7 +482,7 @@ async function createQuickReply(payload = {}) {
   assertPayload(payload);
   await assertOwnedMedia(payload, companyId);
   const all = await readQuickReplies(companyId);
-  const next = normalizeQuickReply(payload);
+  const next = normalizeQuickReply({ ...payload, source: 'system' });
   if (all.some(item => item.id === next.id)) throw Object.assign(new Error('Resposta rápida já cadastrada.'), { status: 409 });
   all.unshift(next);
   await writeQuickReplies(all, companyId);
@@ -516,6 +516,7 @@ async function updateQuickReply(id, payload = {}, companyId) {
     ...payload,
     id,
     companyId,
+    source: all[index].source === 'whatsapp' ? 'whatsapp' : 'system',
     createdAt: all[index].createdAt,
   };
 

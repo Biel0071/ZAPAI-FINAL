@@ -9,11 +9,13 @@ WEB_ROOT="${WEB_ROOT:-/etc/icontainer/apps/openresty/openresty/www/zapai}"
 TARGET_REF=""
 ARTIFACT=""
 DRY_RUN=false
+RUN_MIGRATIONS=true
 for arg in "$@"; do
   case "$arg" in
     --ref=*) TARGET_REF="${arg#*=}" ;;
     --artifact=*) ARTIFACT="${arg#*=}" ;;
     --dry-run) DRY_RUN=true ;;
+    --skip-migrate) RUN_MIGRATIONS=false ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -101,7 +103,16 @@ if ! git diff --quiet "$(cat "$SNAPSHOT/previous-commit")" "$TARGET_REF" -- back
   DEPENDENCIES_CHANGED=true
   (cd backend && npm ci --omit=dev --legacy-peer-deps --no-audit --no-fund)
 fi
-# Schema migrations are never automatic here; each change has its own reviewed gate.
+# Migrations run AFTER the pg_dump snapshot and BEFORE pm2 reload, so the new
+# code never boots against an old schema (avoids the ~2 min DB-init outage).
+# Skip with --skip-migrate. A failure triggers the ERR rollback (code restored).
+if $RUN_MIGRATIONS; then
+  (cd backend && node -e "
+    const fs = require('fs'); const dotenv = require('dotenv');
+    for (const f of ['../.env', '../.env.production', '.env.production', '.env']) if (fs.existsSync(f)) Object.assign(process.env, dotenv.parse(fs.readFileSync(f)));
+    require('./scripts/run-migrations.js');
+  ") | tee "$SNAPSHOT/migrations.log"
+fi
 mv "$WEB_ROOT" "${WEB_ROOT}.previous-$STAMP"
 SWAPPED=true
 mv "$NEXT_WEB" "$WEB_ROOT"

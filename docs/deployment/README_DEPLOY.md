@@ -2,7 +2,7 @@
 
 O ambiente atual usa `zapflow-api` em PM2 e o frontend em `/etc/icontainer/apps/openresty/openresty/www/zapai`. Use `ops/deploy/auto-deploy.sh` com o SHA completo revisado e um artefato do frontend que passou pela verificação de tipos, testes e build.
 
-O script exige árvore Git limpa, preserva os quatro arquivos de ambiente, sessões WhatsApp, uploads e mídias; cria snapshot do PostgreSQL e do frontend antes de trocar a versão. O banco do snapshot segue a mesma precedência de ambiente do `server.js`. Recarrega somente o processo da aplicação e verifica banco, API, Socket.IO e o HTML servido. Não executa seeds nem migrações automaticamente. A autorização de publicação continua obrigatória.
+O script exige árvore Git limpa, preserva os quatro arquivos de ambiente, sessões WhatsApp, uploads e mídias; cria snapshot do PostgreSQL e do frontend antes de trocar a versão. O banco do snapshot segue a mesma precedência de ambiente do `server.js`. **As migrações pendentes (`backend/scripts/run-migrations.js`) rodam logo após o snapshot e ANTES do `pm2 reload`**, para que o processo novo nunca suba contra o schema antigo (evita a indisponibilidade de ~2 min na inicialização do banco); falha na migração aciona o rollback de código. Use `--skip-migrate` para publicar sem migrar. Não executa seeds. Recarrega somente o processo da aplicação e verifica banco, API, Socket.IO e o HTML servido. A autorização de publicação continua obrigatória.
 
 ```bash
 ZAPAI_ROOT=/opt/zapai bash ops/deploy/auto-deploy.sh --ref=<SHA40> --artifact=/opt/zapai/releases/frontend.tar.gz --dry-run

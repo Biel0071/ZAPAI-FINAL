@@ -2448,6 +2448,9 @@ export const apiService = {
   async createQuickReply(payload: any) {
     return request<any>({ endpoint: "/api/quick-replies", method: "POST", body: payload });
   },
+  async importWhatsappQuickReplies(entries: Array<{ shortcut: string; message: string }>) {
+    return request<{ success: boolean; created: number; updated: number; skipped: number }>({ endpoint: "/api/quick-replies/import-whatsapp", method: "POST", body: { entries } });
+  },
   async updateQuickReply(id: string, payload: any) {
     return request<any>({ endpoint: `/api/quick-replies/${encodeURIComponent(id)}`, method: "PUT", body: payload });
   },

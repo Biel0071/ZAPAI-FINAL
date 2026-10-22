@@ -3338,6 +3338,9 @@ export function useInboxState() {
       }
     };
     void loadQuickReplies();
+    const reload = () => { void loadQuickReplies(); };
+    window.addEventListener("zapai:quick-replies-reload", reload);
+    return () => window.removeEventListener("zapai:quick-replies-reload", reload);
   }, [loadQuickReplyCategoryAppearance]);
 
   const saveQuickReplyCategoryAppearance = async (category: string, appearance: { emoji: string; color: string }) => {

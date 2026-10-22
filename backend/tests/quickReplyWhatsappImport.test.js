@@ -34,3 +34,8 @@ test('imports are tenant-isolated and system replies keep source=system', async 
   assert.equal(created.source, 'system');
   await assert.rejects(service.importWhatsappQuickReplies('', [{ shortcut: 'x', message: 'y' }]));
 });
+
+test('clients cannot forge source=whatsapp on create', async () => {
+  const forged = await service.createQuickReply({ companyId: 'tenant-a', title: 'Forjada', content: 'texto forjado', category: 'general', source: 'whatsapp' });
+  assert.equal(forged.source, 'system');
+});

@@ -63,6 +63,7 @@ import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
 import { StackedTagsBadge } from "@/components/inbox/StackedTagsBadge";
 import { WhatsappLabelBadges } from "@/components/inbox/WhatsappLabelBadges";
+import { ImportWhatsappQuickRepliesDialog, ImportWhatsappQuickRepliesMenuItem } from "./ImportWhatsappQuickRepliesDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1461,8 +1462,10 @@ export const SidebarPanel = memo(function SidebarPanel({
                       <Folder className="h-4 w-4 text-emerald-400" />
                       <span className="font-semibold text-xs">Categoria</span>
                     </DropdownMenuItem>
+                    <ImportWhatsappQuickRepliesMenuItem />
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <ImportWhatsappQuickRepliesDialog />
               </div>
             </div>
 
