@@ -642,32 +642,49 @@ export const ChatListPanel = memo(function ChatListPanel({
           </Button>
         </div>
         <Tabs value={filter} onValueChange={setFilter}>
-          <TabsList className="flex items-center gap-1 w-full h-8.5 p-1 bg-muted/40 rounded-xl overflow-x-auto no-scrollbar">
-            <TabsTrigger value="all" className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs">
-              <span>Todas</span>
-              {conversationCounts?.active != null ? (
-                <span className="text-[10px] opacity-75 font-mono px-1.5 py-0.2 rounded-full bg-muted/70">{conversationCounts.active}</span>
-              ) : null}
+          <TabsList className="grid grid-cols-4 gap-1 w-full h-auto p-1 bg-muted/40 rounded-xl">
+            <TabsTrigger
+              value="all"
+              className="flex flex-col items-center justify-center py-1 px-0.5 rounded-lg text-center transition-all min-w-0 data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs"
+            >
+              <span className="text-[11px] leading-tight truncate w-full text-center">Todas</span>
+              <span className="text-[10px] font-mono opacity-75 mt-0.5 leading-none">
+                {conversationCounts?.active ?? 0}
+              </span>
             </TabsTrigger>
-            <TabsTrigger value="unread" className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs">
-              <span>Não lidas</span>
+
+            <TabsTrigger
+              value="unread"
+              className="flex flex-col items-center justify-center py-1 px-0.5 rounded-lg text-center transition-all min-w-0 data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs"
+            >
+              <span className="text-[11px] leading-tight truncate w-full text-center">Não lidas</span>
               {conversationCounts?.unread != null && conversationCounts.unread > 0 ? (
-                <span className="text-[10px] font-bold text-white bg-emerald-500 px-1.5 py-0.2 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.7)]">{conversationCounts.unread}</span>
-              ) : null}
+                <span className="text-[10px] font-bold text-white bg-emerald-500 px-1.5 py-0.2 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.7)] mt-0.5 leading-none">
+                  {conversationCounts.unread}
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono opacity-50 mt-0.5 leading-none">0</span>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="ai" className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs">
-              <span>IA ativa</span>
-              {aiCount > 0 ? (
-                <span className="text-[10px] opacity-75 font-mono px-1.5 py-0.2 rounded-full bg-muted/70">{aiCount}</span>
-              ) : null}
+
+            <TabsTrigger
+              value="ai"
+              className="flex flex-col items-center justify-center py-1 px-0.5 rounded-lg text-center transition-all min-w-0 data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs"
+            >
+              <span className="text-[11px] leading-tight truncate w-full text-center">IA ativa</span>
+              <span className="text-[10px] font-mono opacity-75 mt-0.5 leading-none">
+                {aiCount ?? 0}
+              </span>
             </TabsTrigger>
-            <TabsTrigger value="archived" className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 text-xs whitespace-nowrap rounded-lg data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs">
-              <span>Arquivadas</span>
-              {conversationCounts?.archived != null ? (
-                <span className="text-[10px] opacity-75 font-mono px-1.5 py-0.2 rounded-full bg-muted/70">{conversationCounts.archived}</span>
-              ) : (filteredConversations.length > 0 && filter === 'archived' ? (
-                <span className="text-[10px] opacity-75 font-mono px-1.5 py-0.2 rounded-full bg-muted/70">{filteredConversations.length}</span>
-              ) : null)}
+
+            <TabsTrigger
+              value="archived"
+              className="flex flex-col items-center justify-center py-1 px-0.5 rounded-lg text-center transition-all min-w-0 data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs"
+            >
+              <span className="text-[11px] leading-tight truncate w-full text-center">Arquivadas</span>
+              <span className="text-[10px] font-mono opacity-75 mt-0.5 leading-none">
+                {conversationCounts?.archived ?? (filter === "archived" ? filteredConversations.length : 0)}
+              </span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
