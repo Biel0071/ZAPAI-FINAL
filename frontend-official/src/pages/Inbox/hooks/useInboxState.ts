@@ -744,7 +744,7 @@ export function useInboxState() {
   }, [setSessions]);
 
   const activeSession = useMemo(() => {
-    if (!Array.isArray(sessions)) return null;
+    if (!Array.isArray(sessions) || sessions.length === 0) return null;
     const targetId = storeActiveSessionId && storeActiveSessionId !== "all"
       ? String(storeActiveSessionId).trim().toLowerCase()
       : preferredSessionId
@@ -752,34 +752,26 @@ export function useInboxState() {
         : null;
 
     if (targetId) {
-      return sessions.find((s) => s && String(s.id).trim().toLowerCase() === targetId) ?? null;
+      const match = sessions.find(
+        (s) => s && (String(s.id).trim().toLowerCase() === targetId || String(s.name).trim().toLowerCase() === targetId)
+      );
+      if (match && isSessionActive(match)) return match;
     }
     if (selectedConversation?.sessionId) {
-      return sessions.find((s) => s && String(s.id).trim().toLowerCase() === String(selectedConversation.sessionId).trim().toLowerCase()) ?? null;
+      const convSessionId = String(selectedConversation.sessionId).trim().toLowerCase();
+      const match = sessions.find(
+        (s) => s && (String(s.id).trim().toLowerCase() === convSessionId || String(s.name).trim().toLowerCase() === convSessionId)
+      );
+      if (match && isSessionActive(match)) return match;
     }
-    return pickActiveSession(sessions, preferredSessionId) ?? sessions[0] ?? null;
+    return pickActiveSession(sessions, preferredSessionId) ?? sessions.find((s) => s && isSessionActive(s)) ?? sessions[0] ?? null;
   }, [sessions, storeActiveSessionId, preferredSessionId, selectedConversation?.sessionId]);
 
-  // Deselect conversation if it belongs to another session
-  useEffect(() => {
-    if (!storeActiveSessionId || storeActiveSessionId === "all") return;
-    const target = String(storeActiveSessionId).trim().toLowerCase();
-    if (selectedConversation) {
-      const convSession = String(selectedConversation.sessionId || "main").trim().toLowerCase();
-      if (convSession !== target) {
-        setSelectedConversationId(null);
-      }
-    }
-  }, [storeActiveSessionId, selectedConversation, setSelectedConversationId]);
-
-  const conversationSearch = useConversationSearch(
-    searchQuery,
-    mergeConversationSearchSnapshot,
-  );
-
   const isWhatsappConnected = useMemo(() => {
-    return Boolean(activeSession && isSessionActive(activeSession));
-  }, [activeSession]);
+    if (activeSession && isSessionActive(activeSession)) return true;
+    if (Array.isArray(sessions) && sessions.some(isSessionActive)) return true;
+    return false;
+  }, [activeSession, sessions]);
 
   const connectedPhone = useMemo(() => {
     return (
