@@ -198,6 +198,11 @@ export const MessageRow = memo(function MessageRow({
 
   const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
 
+  const isDeviceMessage = Boolean(
+    message.fromMe &&
+      ((message as any).origin === "whatsapp_device" || (message as any).message_origin === "whatsapp_device"),
+  );
+
   const isAiMessage = Boolean(
     message.isAI ||
     (message as any).is_ai ||
@@ -278,7 +283,9 @@ export const MessageRow = memo(function MessageRow({
           className={cn(
             "chat-bubble text-left transition-all duration-150",
             message.fromMe
-              ? (isAiMessage
+              ? (isDeviceMessage
+                  ? "chat-bubble-wa"
+                  : isAiMessage
                   ? "chat-bubble-ai-sent"
                   : "chat-bubble-sent")
               : "chat-bubble-received"

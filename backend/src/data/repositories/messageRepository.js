@@ -132,7 +132,7 @@ async function createMessage(data) {
     data.whatsappMessageId || null,
     data.remoteJid || null,
     data.participantJid || null,
-    ['human', 'ai', 'automation', 'campaign'].includes(data.origin) ? data.origin : 'unknown',
+    ['human', 'ai', 'automation', 'campaign', 'whatsapp_device', 'quick_reply'].includes(data.origin) ? data.origin : 'unknown',
   ];
 
   const result = await db.query(query, values);
@@ -522,6 +522,12 @@ async function findByWhatsappMessageId(whatsappMessageId) {
     [whatsappMessageId]
   );
   return mapMessage(result.rows[0]);
+}
+
+async function markOrigin(messageId, origin) {
+  if (!messageId || origin !== 'whatsapp_device') return false;
+  const result = await db.query(`UPDATE messages SET message_origin = $2 WHERE id = $1 AND message_origin = 'unknown' RETURNING id`, [messageId, origin]);
+  return Boolean(result.rows[0]);
 }
 
 async function deleteById(messageId, companyId) {

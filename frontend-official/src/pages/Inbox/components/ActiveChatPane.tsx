@@ -584,37 +584,6 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     const needle = rawNeedle.trim().toLowerCase();
     const commandWord = needle.split(/\s+/)[0] || "";
 
-    // Add default slash commands
-    const defaultCmds = [
-
-      {
-        cmd: "/catalogo",
-        desc: "Link do catálogo oficial",
-        text: "Aqui está o link para o nosso catálogo digital: https://zai.crm/catalogo",
-      },
-      {
-        cmd: "/desconto",
-        desc: "Cupom de 15% de desconto",
-        text: "Consegui um desconto de 15% para você fechar hoje! Use o cupom ZAPVIP15.",
-      },
-      {
-        cmd: "/agendar",
-        desc: "Link para agendamento de demo",
-        text: "Claro! Vamos agendar uma demonstração de 15 minutos? Escolha o melhor dia/horário aqui: calendly.com/zai",
-      },
-      { cmd: "/saudar", desc: "Saudação amigável padrão", text: "Olá! Como posso te ajudar hoje?" },
-      {
-        cmd: "/preço",
-        desc: "Valores das assinaturas",
-        text: "Temos planos de assinatura a partir de R$ 97/mês. Gostaria de ver nossa tabela detalhada?",
-      },
-      {
-        cmd: "/ajuda",
-        desc: "Link da base de conhecimento",
-        text: "Se precisar de ajuda com a configuração, acesse nossa base de conhecimento em docs.zai.crm.",
-      },
-    ];
-
     // Combine with quick replies
     const qrCmds = quickReplies.map((qr) => ({
       cmd: `/${qr.text
@@ -627,7 +596,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       text: qr.text,
     }));
 
-    const allOptions = [...defaultCmds, ...qrCmds];
+    const allOptions = qrCmds;
     if (!needle) return allOptions;
 
     return allOptions.filter(

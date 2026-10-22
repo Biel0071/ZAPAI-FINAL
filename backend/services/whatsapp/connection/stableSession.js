@@ -1987,6 +1987,13 @@ async function createStableSession({
               if (result?.message?.id) {
                 dbId = result.message.id;
                 messageAckPipeline.registerDbMapping(messageId, dbId);
+                if (!isSystemSent) {
+                  const marked = await messageRepository.markOrigin(dbId, 'whatsapp_device').catch(() => false);
+                  if (marked) {
+                    result.message.origin = 'whatsapp_device';
+                    result.message.message_origin = 'whatsapp_device';
+                  }
+                }
               }
 
               // Only trigger human takeover if this message was actually sent manually from phone app

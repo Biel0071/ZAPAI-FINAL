@@ -363,3 +363,17 @@ html.light .chat-area-bg::before,
   opacity: 0.05 !important;
 }
 
+
+/* Mensagens enviadas pelo WhatsApp real (celular/app): azul. Sistema/IA/campanha: verde. */
+.chat-bubble-wa {
+  background: #dbeafe !important;
+  color: #0f2a5c !important;
+  border: 1px solid rgba(59, 130, 246, 0.5) !important;
+  margin-left: auto;
+}
+.dark .chat-bubble-wa,
+:root:not(.light) .chat-bubble-wa {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.95) 0%, rgba(23, 37, 84, 0.95) 100%) !important;
+  color: #eff6ff !important;
+  border: 1px solid rgba(96, 165, 250, 0.55) !important;
+}
