@@ -773,6 +773,11 @@ export function useInboxState() {
     return false;
   }, [activeSession, sessions]);
 
+  const conversationSearch = useConversationSearch(
+    searchQuery,
+    mergeConversationSearchSnapshot,
+  );
+
   const connectedPhone = useMemo(() => {
     return (
       activeSession?.phone ||
