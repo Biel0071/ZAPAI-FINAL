@@ -130,29 +130,29 @@ async function loadQueueState() {
   }
 }
 
+let pendingSave = null;
+
+async function writeQueueFileAtomic() {
+  // Serialize at write time so coalesced callers persist the latest state.
+  const next = JSON.stringify(queueState) + '\n';
+  // Bugfix#4: atomic write (tmp + rename) so a crash never corrupts the queue.
+  const tmpPath = `${QUEUE_FILE_PATH}.${process.pid}.tmp`;
+  await fs.writeFile(tmpPath, next, 'utf8');
+  await fs.rename(tmpPath, QUEUE_FILE_PATH);
+}
+
+// While a write is in flight, all new callers share ONE trailing write that
+// starts after it, so N saves cost at most 2 serializations instead of N.
 async function saveQueueState() {
-  const next = JSON.stringify(queueState, null, 2) + '\n';
-
-  // Bugfix#4: atomic write. Previous implementation wrote directly to the
-  // final path, so a crash mid-write corrupted the JSON and loadQueueState
-  // silently reset the queue to []. We now write to a sibling tmp file and
-  // rename(), which is atomic on NTFS and POSIX.
-  persistLock = persistLock.then(
-    async () => {
-      const tmpPath = `${QUEUE_FILE_PATH}.${process.pid}.tmp`;
-      await fs.writeFile(tmpPath, next, 'utf8');
-      await fs.rename(tmpPath, QUEUE_FILE_PATH);
-    },
-    async () => {
-      // Previous persist rejected; still try to persist current state
-      // atomically so we don't amplify a failure into a corrupt file.
-      const tmpPath = `${QUEUE_FILE_PATH}.${process.pid}.tmp`;
-      await fs.writeFile(tmpPath, next, 'utf8');
-      await fs.rename(tmpPath, QUEUE_FILE_PATH);
-    }
-  );
-
-  await persistLock;
+  if (!pendingSave) {
+    const run = persistLock.catch(() => {}).then(() => {
+      pendingSave = null;
+      return writeQueueFileAtomic();
+    });
+    pendingSave = run;
+    persistLock = run;
+  }
+  await pendingSave;
 }
 
 async function getSessionSocket(sessionId, companyId, allowSessionPause = false) {
