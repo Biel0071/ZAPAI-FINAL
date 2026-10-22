@@ -672,108 +672,6 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, i
     return null;
   }
 
-  // Disparo automático de Resposta Rápida (Mídia/Texto pré-configurado)
-  const triggerQrId = aiResult?.analysis?.trigger_quick_reply;
-  if (triggerQrId) {
-    try {
-      const quickReplies = await quickReplyService.listQuickReplies({ companyId: session.companyId }).catch(() => []);
-      const matchedQr = quickReplies.find(qr => String(qr.id) === String(triggerQrId) || String(qr.title) === String(triggerQrId));
-      
-      if (matchedQr) {
-        console.log(`[WHATSAPP_AI] Triggering quick reply: ${matchedQr.title} (${matchedQr.id}) for ${chatId}`);
-        await sock.presenceSubscribe(chatId).catch(() => {});
-        
-        const itemsToSend = matchedQr.items && matchedQr.items.length > 0 ? matchedQr.items : matchedQr.steps;
-        
-        if (Array.isArray(itemsToSend)) {
-          for (const item of itemsToSend) {
-            await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
-            const delay = Number(item.delayMs) || 1000;
-            const typing = Number(item.typingMs) || 1500;
-            if (delay > 0) await sleep(delay);
-            await sleep(typing);
-            
-            if (!await isAIReplyStillAllowed({ chatId, conversationId: fresh?.id || incomingFormattedMessage?.conversationId, session })) {
-               return null;
-            }
-
-            const itemType = String(item.type || 'text').trim().toLowerCase();
-            const itemValue = String(item.value || '').trim();
-            const caption = item.caption ? String(item.caption).trim() : '';
-
-            let qrSent = null;
-            if (itemType === 'text') {
-              if (itemValue) {
-                qrSent = await sendMessage(sock, chatId, itemValue, { beforeSend });
-              }
-            } else {
-              // It's media
-              if (itemValue) {
-                let absolutePath = itemValue;
-                if (/^\/?uploads?\//i.test(itemValue)) {
-                  const cleanPath = itemValue.replace(/^\//, '');
-                  const candidates = [
-                    path.join(__dirname, '..', '..', '..', cleanPath),
-                    path.resolve(process.cwd(), cleanPath),
-                    path.resolve(process.cwd(), 'backend', cleanPath),
-                  ];
-                  for (const cand of candidates) {
-                    try {
-                      if (require('fs').existsSync(cand)) {
-                        absolutePath = cand;
-                        break;
-                      }
-                    } catch (_) {}
-                  }
-                }
-                qrSent = await sendMediaMessage(sock, chatId, itemType, absolutePath, { caption, ptt: itemType === 'audio', beforeSend });
-              }
-            }
-
-            if (qrSent) {
-              try {
-                const persistedQr = await enterpriseMessageService.persistInboundMessage({
-                  companyId,
-                  fromMe: true,
-                  mediaPath: itemType !== 'text' ? itemValue : null,
-                  mediaType: itemType !== 'text' ? itemType : null,
-                  name: session?.phone || 'AI QuickReply',
-                  phone: normalizePhone(chatId),
-                  sessionId: session?.sessionId || DEFAULT_SESSION,
-                  status: 'sent',
-                  text: itemType === 'text' ? itemValue : (caption || ''),
-                  timestamp: new Date().toISOString(),
-                  type: itemType,
-                  conversationId: fresh?.id || incomingFormattedMessage?.conversationId || null,
-                });
-                
-                const outgoingQrMessage = {
-                  chatId,
-                  conversationId: persistedQr?.conversation?.id || fresh?.id || null,
-                  content: itemType === 'text' ? itemValue : (caption || ''),
-                  fromMe: true,
-                  id: persistedQr?.message?.id || qrSent?.key?.id || `qr-${Date.now()}`,
-                  status: 'sent',
-                  text: itemType === 'text' ? itemValue : (caption || ''),
-                  timestamp: Date.now(),
-                  type: itemType,
-                  url: itemType !== 'text' ? itemValue : null,
-                };
-                addMessageToRealtimeStore(session, outgoingQrMessage);
-                enterpriseRealtimeService.emitNewMessage(session.io || global.io, outgoingQrMessage);
-              } catch (persistErr) {
-                console.error(`[WHATSAPP_AI] Failed to persist QR item:`, persistErr.message);
-              }
-            }
-          }
-          await sock.sendPresenceUpdate('paused', chatId).catch(() => {});
-        }
-      }
-    } catch (qrErr) {
-      console.error(`[WHATSAPP_AI] Failed to send triggered quick reply ${triggerQrId}:`, qrErr.message);
-    }
-  }
-
   if (!safeResponse) {
     return null;
   }
@@ -1079,12 +977,16 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, i
 
         if (validSteps.length > 0) {
           const totalSteps = validSteps.length;
+          const aiFlowConversationId = fresh?.id || incomingFormattedMessage?.conversationId || null;
+          const aiFlowRunId = `ai-${flow.id}-${Date.now()}`;
           flowTrackerService.startFlow({
             chatId: normalizePhone(chatId),
-            sessionId: session.sessionId,
+            sessionId: session?.sessionId || 'main',
             flowName: flow.title || flow.label || flow.cmd || 'Resposta Rápida Automática',
             totalSteps,
             companyId,
+            conversationId: aiFlowConversationId,
+            flowRunId: aiFlowRunId,
           });
 
           let cumulativeDelayMs = 0;
@@ -1110,8 +1012,9 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, i
               nextAttemptAt: scheduledTime,
               metadata: {
                 ai_response: true,
-                conversationId: fresh?.id || incomingFormattedMessage?.conversationId,
+                conversationId: aiFlowConversationId,
                 flowId: flow.id,
+                flowRunId: aiFlowRunId,
                 stepId: step.id || `step_${index + 1}`,
                 currentStep: index + 1,
                 totalSteps,

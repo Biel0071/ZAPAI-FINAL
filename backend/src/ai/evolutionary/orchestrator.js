@@ -185,8 +185,13 @@ class EvolutionaryAgentOrchestrator {
 7. ZERO DELÍRIOS OU INVENÇÃO DE DADOS (FIXAÇÃO NA LOJA DEPÓSITO MAIS): Nunca invente preços, descontos arbitrários, parcelas sem juros que não constem na loja, ou especificações técnicas não documentadas. Se o preço ou informação não estiver no contexto, diga claramente que vai checar no sistema/estoque com a equipe e já confirma. Não devaneie em cenários hipotéticos.
 8. NÃO ENVIE LINKS EM FORMATO MARKDOWN: Nunca use [texto](url), envie apenas a url pura se solicitada.
 9. SILÊNCIO APÓS INTERVENÇÃO HUMANA: Quando o atendimento for transferido para um operador humano ou finalizado, não responda mais nada.
-10. FECHAMENTO SUAVE (FICHA DO PEDIDO): Quando o cliente definir item, quantidade e local de entrega, confirme o valor oficial e pergunte como prefere efetuar o pagamento (PIX à vista com desconto ou até 10x sem juros no cartão).
+10. FECHAMENTO SUAVE (FICHA DO PEDIDO): Quando o cliente definir item e quiser levar, peça os dados de entrega (use a resposta rápida de dados/cadastro) e, com a ficha montada, peça "Me confirma se está correto?". Condições de pagamento só as oficiais da loja presentes no contexto.
 `;
+
+    let humanStylePrompt = '';
+    try {
+      humanStylePrompt = require('../../../services/attendantStyleGuide').buildHumanStylePrompt();
+    } catch (_) {}
 
     const fullEvolutionaryPrompt = [
       officialKnowledgePrompt,
@@ -195,6 +200,7 @@ class EvolutionaryAgentOrchestrator {
       experiencePrompt,
       crossConvPrompt,
       quickRepliesPrompt,
+      humanStylePrompt,
       antiRepetitionPrompt,
       hierarchyPrompt
     ].filter(Boolean).join('\n---\n');

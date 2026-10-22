@@ -251,6 +251,8 @@ async function findBestMatchForContext({ message = '', intent = '', product = ''
 /**
  * Formata capacidades de respostas rápidas para inclusão no System Prompt da IA.
  */
+const MAX_PROMPT_REPLIES_PER_CATEGORY = 80;
+
 function formatCapabilitiesForPrompt(quickReplies = []) {
   if (!Array.isArray(quickReplies) || quickReplies.length === 0) {
     return 'Nenhuma capacidade de resposta rápida registrada.';
@@ -271,7 +273,7 @@ function formatCapabilitiesForPrompt(quickReplies = []) {
 
   for (const [catName, catItems] of Object.entries(categories)) {
     lines.push(`\n[CATEGORIA: ${catName}]`);
-    for (const qr of catItems.slice(0, 8)) {
+    for (const qr of catItems.slice(0, MAX_PROMPT_REPLIES_PER_CATEGORY)) {
       const id = qr.id;
       const title = qr.title || qr.label || 'Recurso';
       const items = Array.isArray(qr.items) && qr.items.length > 0 ? qr.items : (qr.steps || []);
@@ -279,12 +281,15 @@ function formatCapabilitiesForPrompt(quickReplies = []) {
       if (qr.mediaUrl || qr.fileUrl) types.push(qr.mediaType || 'image');
       const uniqueTypes = [...new Set(types)];
       const mediaBadge = uniqueTypes.length > 0 ? `[Mídias: ${uniqueTypes.join(', ')}]` : '[Texto]';
-      const mem = qr.aiMemory ? ` - ${qr.aiMemory}` : '';
-      lines.push(`  * "${title}" (ID: ${id}) ${mediaBadge}${mem}`);
+      const stepsBadge = items.length > 1 ? ` [${items.length} etapas]` : '';
+      const mem = qr.aiMemory ? ` - ${String(qr.aiMemory).slice(0, 160)}` : '';
+      const textItem = items.find((i) => (i.type || 'text') === 'text' && String(i.value || '').trim());
+      const preview = !mem && textItem ? ` - "${String(textItem.value).replace(/\s+/g, ' ').trim().slice(0, 110)}"` : '';
+      lines.push(`  * "${title}" (ID: ${id}) ${mediaBadge}${stepsBadge}${mem}${preview}`);
     }
   }
 
-  lines.push('\nInstrução Multimodal: Se o cliente pedir fotos, vídeos de qualidade, áudios ou se estiver na etapa de fechamento/rastreio correspondente, adicione no JSON de análise: "trigger_quick_reply": "<ID ou Titulo da Skill>". O sistema cuidará de enviar a mídia com o atraso e digitação humana perfeitos.');
+  lines.push('\nInstrução Multimodal: Se o cliente pedir fotos, vídeos de qualidade, áudios ou se estiver na etapa de fechamento/rastreio correspondente, adicione no JSON de análise: "trigger_quick_reply": "<ID ou Titulo da Skill>". O sistema cuidará de enviar a mídia com o atraso e digitação humana perfeitos. Respostas rápidas com várias etapas são enviadas em sequência com pausa entre elas, e o atendente humano acompanha o progresso na Inbox. Use somente valores que constem nessas respostas; nunca invente preços.');
 
   return lines.join('\n');
 }
