@@ -162,7 +162,7 @@ async function executeQuickReplyFlow(req, res) {
       return res.status(409).json({ success: false, error: 'Este fluxo ainda está sendo preparado.' });
     }
     const flowScope = { chatId: context.normalizedPhone, ...scope, flowRunId: sendId };
-    flowTrackerService.startFlow({ ...flowScope, flowName: flow.title || 'Resposta rápida', totalSteps: payloads.length });
+    flowTrackerService.startFlow({ ...flowScope, flowName: flow.title || 'Resposta rápida', totalSteps: payloads.length, nextSendAt: new Date(payloads[0].nextAttemptAt).getTime(), stepDelaySeconds: Math.round(Number(payloads[0].metadata.stepDelayMs || 0) / 1000) });
     let enqueued;
     try {
       enqueued = await outboundQueueService.enqueueBatch(payloads);

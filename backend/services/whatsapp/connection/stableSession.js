@@ -990,6 +990,8 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, i
             companyId,
             conversationId: aiFlowConversationId,
             flowRunId: aiFlowRunId,
+            nextSendAt: Date.now() + Number(validSteps[0].delayMs || validSteps[0].delay || 1500),
+            stepDelaySeconds: Math.round(Number(validSteps[0].delayMs || validSteps[0].delay || 1500) / 1000),
           });
 
           let cumulativeDelayMs = 0;

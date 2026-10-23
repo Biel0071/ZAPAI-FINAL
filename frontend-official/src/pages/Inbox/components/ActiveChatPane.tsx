@@ -370,8 +370,8 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     }).catch((error) => console.warn("[FLOW_TIMELINE] active flow load failed", error));
     const socket = getSharedSocket();
     if (!socket) return () => { active = false; };
-    const started = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] started", data); setActiveFlowData(data); } };
-    const updated = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] updated", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data })); } };
+    const started = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] started", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, nextSendAt: data.nextSendAt ?? prev?.nextSendAt ?? null })); } };
+    const updated = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] updated", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, nextSendAt: data.nextSendAt ?? prev?.nextSendAt ?? null })); } };
     const paused = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] paused", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: true, status: "paused" })); } };
     const resumed = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] resumed", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: false, status: "running" })); } };
     const ended = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] completed", data); setActiveFlowData(null); } };
@@ -391,6 +391,23 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       socket.off("flow:finished", ended);
     };
   }, [selectedConversation?.id, selectedConversation?.phone, selectedConversation?.sessionId]);
+
+  // While a quick-reply flow is running, resync the real timer/steps every 5s (socket events can be missed).
+  const hasActiveFlow = Boolean(activeFlowData);
+  useEffect(() => {
+    const phone = selectedConversation?.phone;
+    if (!hasActiveFlow || !phone || !selectedConversation?.id) return;
+    const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId };
+    let active = true;
+    const interval = setInterval(() => {
+      apiService.getActiveQuickReplyFlow(phone, context).then((res) => {
+        if (!active) return;
+        if (matchesConversationFlow(res?.flow, context)) setActiveFlowData((prev) => ({ ...(prev || {}), ...res.flow }));
+        else if (res && !res.flow) setActiveFlowData(null);
+      }).catch(() => undefined);
+    }, 5000);
+    return () => { active = false; clearInterval(interval); };
+  }, [hasActiveFlow, selectedConversation?.id, selectedConversation?.phone, selectedConversation?.sessionId]);
 
   const targetReactivateAt = selectedConversation?.ai_reactivate_at || selectedConversation?.aiReactivateAt || selectedConversation?.aiPausedUntil;
   const { timeLeft, isWaiting: isAiCountdownActive } = useAiCountdown(targetReactivateAt);

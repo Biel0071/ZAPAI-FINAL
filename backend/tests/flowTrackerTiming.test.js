@@ -27,3 +27,13 @@ test('flow tracker carries sent-count (starts at 0) and real next send time', ()
   tracker.finishFlow('5511', scope);
   delete global.io;
 });
+
+test('startFlow keeps the first step real send time so the timer is visible from the start', () => {
+  delete require.cache[require.resolve('../services/flowTrackerService')];
+  const tracker = require('../services/flowTrackerService');
+  global.io = { to: () => ({ emit() {} }) };
+  const at = Date.now() + 8000;
+  const started = tracker.startFlow({ chatId: '5512', flowName: 'F', totalSteps: 2, companyId: 'c', sessionId: 's', conversationId: 'conv2', flowRunId: 'run2', nextSendAt: at, stepDelaySeconds: 8 });
+  assert.equal(started.nextSendAt, at);
+  assert.equal(started.stepDelaySeconds, 8);
+});

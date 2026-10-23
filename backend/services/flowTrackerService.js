@@ -12,15 +12,15 @@ function snapshot(flowData) {
 /**
  * Starts tracking a flow execution for a chat
  */
-function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default', sessionId = 'main', conversationId = null, flowRunId = null }) {
+function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default', sessionId = 'main', conversationId = null, flowRunId = null, nextSendAt = null, stepDelaySeconds = null }) {
   if (!chatId) return null;
 
   const flowData = {
     chatId,
     flowName: flowName || 'Fluxo de Resposta Rápida',
     currentStep: 0, // steps already sent
-    nextSendAt: null,
-    stepDelaySeconds: null,
+    nextSendAt: Number.isFinite(nextSendAt) ? nextSendAt : null,
+    stepDelaySeconds: Number.isFinite(stepDelaySeconds) ? stepDelaySeconds : null,
     totalSteps,
     stepDescription: 'Iniciando envio...',
     startedAt: Date.now(),
