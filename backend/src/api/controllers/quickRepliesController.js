@@ -142,6 +142,7 @@ async function executeQuickReplyFlow(req, res) {
           stepId: step.id || 'step_' + (index + 1),
           currentStep: index + 1,
           totalSteps: rawSteps.length,
+          stepDelayMs: stepDelay,
           isFlowStep: true,
           source: 'quick_reply',
           isManual: true,
@@ -210,7 +211,13 @@ async function getActiveQuickReplyFlow(req, res) {
   try {
     const context = await resolveOutboundContext(req, { requireConnected: false });
     const scope = { companyId: context.companyId, sessionId: context.targetSessionName, conversationId: context.conversationId, phone: context.normalizedPhone };
-    const flow = flowTrackerService.getRunningFlow(context.normalizedPhone, scope) || outboundQueueService.getActiveFlow?.(scope);
+    const queued = outboundQueueService.getActiveFlow?.(scope) || null;
+    const tracked = flowTrackerService.getRunningFlow(context.normalizedPhone, scope);
+    const flow = tracked
+      ? (queued && (!tracked.flowRunId || tracked.flowRunId === queued.flowRunId)
+        ? { ...tracked, currentStep: queued.currentStep, nextSendAt: queued.nextSendAt, stepDelaySeconds: queued.stepDelaySeconds }
+        : tracked)
+      : queued;
     return res.status(200).json({ flow: flow || null });
   } catch (error) { return fail(res, error, 'Não foi possível carregar o fluxo ativo.'); }
 }

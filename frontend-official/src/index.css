@@ -412,6 +412,10 @@
   .animate-fade-in {
     animation: fadeIn 0.2s ease-out;
   }
+
+  .animate-conversation-swap {
+    animation: conversationSwap 0.18s ease-out both;
+  }
 }
 
 @layer utilities {
@@ -510,6 +514,11 @@
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@keyframes conversationSwap {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {

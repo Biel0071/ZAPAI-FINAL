@@ -18,7 +18,9 @@ function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default', se
   const flowData = {
     chatId,
     flowName: flowName || 'Fluxo de Resposta Rápida',
-    currentStep: 1,
+    currentStep: 0, // steps already sent
+    nextSendAt: null,
+    stepDelaySeconds: null,
     totalSteps,
     stepDescription: 'Iniciando envio...',
     startedAt: Date.now(),
@@ -42,7 +44,7 @@ function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default', se
 /**
  * Updates the current step of a running flow
  */
-function updateFlowStep({ chatId, currentStep, stepDescription, status, ...scope }) {
+function updateFlowStep({ chatId, currentStep, stepDescription, status, nextSendAt, stepDelaySeconds, ...scope }) {
   if (!chatId) return null;
   const flowData = runningFlows.get(scopeKey(chatId, scope));
   if (!flowData) return null;
@@ -51,6 +53,8 @@ function updateFlowStep({ chatId, currentStep, stepDescription, status, ...scope
   flowData.currentStep = currentStep || flowData.currentStep;
   if (stepDescription) flowData.stepDescription = stepDescription;
   if (status) flowData.status = status;
+  if (nextSendAt !== undefined) flowData.nextSendAt = nextSendAt;
+  if (stepDelaySeconds !== undefined) flowData.stepDelaySeconds = stepDelaySeconds;
   flowData.updatedAt = Date.now();
 
   const io = global.io;

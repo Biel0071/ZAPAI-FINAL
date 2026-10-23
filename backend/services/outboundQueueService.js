@@ -769,12 +769,28 @@ async function resumeFlowItems({ companyId, sessionId, conversationId, phone }) 
   return resumed;
 }
 
+// Timing of the next pending step of a flow run. `currentStep` exposed to the UI = steps already sent.
+function getFlowTiming(pendingItems) {
+  const next = pendingItems.slice().sort((a, b) => Number(a.metadata?.currentStep || 0) - Number(b.metadata?.currentStep || 0))[0];
+  if (!next) return null;
+  const at = next.nextAttemptAt ? new Date(next.nextAttemptAt).getTime() : NaN;
+  const base = new Date(next.createdAt).getTime();
+  const nextSendAt = Number.isFinite(at) && !next.isPaused ? at : null;
+  const delayMs = Number(next.metadata?.stepDelayMs);
+  const stepDelaySeconds = Number.isFinite(delayMs) && delayMs >= 0 ? Math.round(delayMs / 1000)
+    : (Number.isFinite(at) && Number.isFinite(base) ? Math.max(0, Math.round((at - base) / 1000)) : null);
+  return { next, nextSendAt, stepDelaySeconds, sent: Math.max(0, Number(next.metadata?.currentStep || 1) - 1) };
+}
+
 function getActiveFlow({ companyId, sessionId, conversationId, phone }) {
-  const item = queueState.items.filter(item => item.companyId === companyId && item.sessionId === sessionId && item.metadata?.isFlowStep
+  const pending = queueState.items.filter(item => item.companyId === companyId && item.sessionId === sessionId && item.metadata?.isFlowStep
     && (conversationId ? String(item.metadata.conversationId) === String(conversationId) : normalizePhone(item.phone) === normalizePhone(phone))
-    && [STATES.QUEUED, STATES.PROCESSING, STATES.FAILED].includes(item.state) && !item.cancelRequested)
-    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0];
-  return item ? { chatId: item.phone, companyId, sessionId, conversationId: item.metadata.conversationId, flowName: item.metadata.flowName || 'Resposta rápida', flowRunId: item.metadata.flowRunId, currentStep: item.metadata.currentStep, totalSteps: item.metadata.totalSteps, startedAt: new Date(item.createdAt).getTime(), status: item.state } : null;
+    && [STATES.QUEUED, STATES.PROCESSING, STATES.FAILED].includes(item.state) && !item.cancelRequested);
+  const newest = pending.slice().sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0];
+  if (!newest) return null;
+  const timing = getFlowTiming(pending.filter(item => item.metadata.flowRunId === newest.metadata.flowRunId));
+  const item = timing.next;
+  return { chatId: item.phone, companyId, sessionId, conversationId: item.metadata.conversationId, flowName: item.metadata.flowName || 'Resposta rápida', flowRunId: item.metadata.flowRunId, currentStep: timing.sent, totalSteps: item.metadata.totalSteps, startedAt: new Date(item.createdAt).getTime(), status: item.state, isPaused: Boolean(item.isPaused), nextSendAt: timing.nextSendAt, stepDelaySeconds: timing.stepDelaySeconds };
 }
 
 async function reprocessDeadLetterItem(id, options = {}) {
@@ -913,6 +929,9 @@ async function processOneItem() {
       if (item.metadata?.currentStep && item.metadata?.totalSteps) {
         try {
           const flowTrackerService = require('./flowTrackerService');
+          const upcoming = getFlowTiming(queueState.items.filter(other => other !== item && other.companyId === item.companyId
+            && other.sessionId === item.sessionId && other.metadata?.isFlowStep && other.metadata.flowRunId === item.metadata.flowRunId
+            && [STATES.QUEUED, STATES.PROCESSING, STATES.FAILED].includes(other.state) && !other.cancelRequested));
           flowTrackerService.updateFlowStep({
             chatId: item.phone,
             companyId: item.companyId,
@@ -922,6 +941,8 @@ async function processOneItem() {
             currentStep: item.metadata.currentStep,
             stepDescription: `Etapa ${item.metadata.currentStep} enviada.`,
             status: 'delivered',
+            nextSendAt: upcoming?.nextSendAt ?? null,
+            stepDelaySeconds: upcoming?.stepDelaySeconds ?? null,
           });
           if (Number(item.metadata.currentStep) >= Number(item.metadata.totalSteps)) {
             flowTrackerService.finishFlow(item.phone, { companyId: item.companyId, sessionId: item.sessionId, conversationId: item.metadata.conversationId, flowRunId: item.metadata.flowRunId });

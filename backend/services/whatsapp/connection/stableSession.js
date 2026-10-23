@@ -1021,6 +1021,7 @@ async function runAIForChat({ chatId, incomingFormattedMessage, session, sock, i
                 stepId: step.id || `step_${index + 1}`,
                 currentStep: index + 1,
                 totalSteps,
+                stepDelayMs: stepDelay,
                 isFlowStep: true,
                 source: 'ai_auto_trigger',
                 typingMs: Math.min(stepDelay, 2000),

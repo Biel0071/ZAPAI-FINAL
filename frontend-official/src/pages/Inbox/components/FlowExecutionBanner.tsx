@@ -9,12 +9,15 @@ import { cn } from "@/core/lib/utils";
 export interface FlowExecutionData {
   chatId: string;
   conversationId?: string;
+  flowRunId?: string;
   sessionId?: string;
   flowName: string;
   currentStep: number;
   totalSteps: number;
   stepDescription?: string;
-  stepDelaySeconds?: number;
+  stepDelaySeconds?: number | null;
+  /** Epoch ms of the next scheduled send (from the backend queue); null/undefined = unknown. */
+  nextSendAt?: number | null;
   startedAt?: number;
   isPaused?: boolean;
   status?: "preparing" | "running" | "paused" | "sent" | "delivered" | "cancelled" | "completed";
@@ -28,6 +31,28 @@ export function matchesConversationFlow(
   return !context.sessionId || String(flow.sessionId ?? "") === context.sessionId;
 }
 
+/** Seconds left until nextSendAt, or null when there is no real data. */
+export function computeRemainingSeconds(nextSendAt: number | null | undefined, now: number): number | null {
+  if (typeof nextSendAt !== "number" || !Number.isFinite(nextSendAt)) return null;
+  return Math.max(0, (nextSendAt - now) / 1000);
+}
+
+export function formatCountdown(seconds: number | null): string {
+  if (seconds === null) return "—";
+  const whole = Math.ceil(seconds);
+  if (whole <= 60) return `${whole}s`;
+  const mm = Math.floor(whole / 60);
+  const ss = whole % 60;
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+
+/** Percent = steps already sent / total steps. */
+export function computeProgressPercent(sent: number | undefined, total: number | undefined): number {
+  const totalSteps = Number(total) > 0 ? Number(total) : 0;
+  if (!totalSteps) return 0;
+  return Math.min(100, Math.max(0, Math.round(((Number(sent) || 0) / totalSteps) * 100)));
+}
+
 interface FlowExecutionBannerProps {
   flowData: FlowExecutionData | null;
   onCancelFlow?: () => void;
@@ -39,40 +64,28 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
   const [togglingPause, setTogglingPause] = useState(false);
   const [isPaused, setIsPaused] = useState(Boolean(flowData?.isPaused || flowData?.status === "paused"));
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-
-  // Step delay countdown in seconds ("S")
-  const defaultStepDelay = flowData?.stepDelaySeconds || 6;
-  const [remainingDelaySeconds, setRemainingDelaySeconds] = useState(defaultStepDelay);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     setIsPaused(Boolean(flowData?.isPaused || flowData?.status === "paused"));
   }, [flowData?.isPaused, flowData?.status]);
 
-  // Reset countdown whenever currentStep advances
+  // Real countdown: derived from the backend's nextSendAt, refreshed every 250ms.
+  const hasTimer = Boolean(flowData) && !isPaused && flowData?.nextSendAt != null;
   useEffect(() => {
-    setRemainingDelaySeconds(flowData?.stepDelaySeconds || 6);
-  }, [flowData?.currentStep, flowData?.stepDelaySeconds]);
-
-  useEffect(() => {
-    if (!flowData || isPaused || flowData.status === "completed" || flowData.status === "cancelled") {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setRemainingDelaySeconds((prev) => (prev > 0 ? prev - 1 : defaultStepDelay));
-    }, 1000);
-
+    if (!hasTimer) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(timer);
-  }, [flowData, isPaused, defaultStepDelay]);
+  }, [hasTimer]);
 
   if (!flowData) {
     return null;
   }
 
-  const progressPercent = Math.min(
-    100,
-    Math.round(((flowData.currentStep || 1) / (flowData.totalSteps || 1)) * 100)
-  );
+  const progressPercent = computeProgressPercent(flowData.currentStep, flowData.totalSteps);
+  const stepLabel = `Etapa ${Math.min(Math.max(0, flowData.currentStep || 0), flowData.totalSteps || 0)} de ${flowData.totalSteps || 0}`;
+  const timerText = isPaused ? "—" : formatCountdown(computeRemainingSeconds(flowData.nextSendAt, now));
 
   const handleTogglePause = async () => {
     if (!flowData.chatId || !flowData.conversationId) return;
@@ -138,102 +151,88 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
   return (
     <>
       {/* Sleek 2x height progress bar mounted directly below customer header */}
-      <div className="w-full min-h-[52px] sm:min-h-[58px] bg-card/95 backdrop-blur-md border-b-2 border-emerald-500/40 px-3 sm:px-4 py-2 flex items-center justify-between gap-2.5 text-xs shadow-md select-none z-20 overflow-hidden">
-        {/* Left: Unified Glowing Green Lightning Bolt Charging Indicator + Flow info */}
-        <div className="flex items-center gap-2.5 shrink min-w-0">
+      <div
+        key={flowData.flowRunId || flowData.conversationId}
+        data-testid="flow-banner"
+        className="w-full h-16 bg-card/95 backdrop-blur-md border-b-2 border-emerald-500/40 px-3 sm:px-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-xs shadow-md select-none z-20 overflow-hidden animate-conversation-swap"
+      >
+        {/* Left: charging bolt + flow name + step label */}
+        <div className="flex items-center gap-2.5 min-w-0 justify-self-start">
           <div
             className={cn(
-              "relative flex items-center justify-center h-8 w-8 rounded-xl shrink-0 transition-all duration-300",
-              isPaused
-                ? "bg-amber-500/15 border border-amber-500/40 text-amber-400"
-                : "bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 shadow-[0_0_14px_rgba(16,185,129,0.4)]"
+              "relative h-9 w-9 rounded-xl shrink-0 flex items-center justify-center border transition-colors duration-300",
+              isPaused ? "bg-amber-500/10 border-amber-500/40" : "bg-emerald-500/10 border-emerald-500/40"
             )}
             title={isPaused ? "Disparo pausado" : `Disparo carregando: ${progressPercent}%`}
+            data-testid="flow-bolt"
+            data-percent={progressPercent}
           >
-            <Zap className={cn("h-4 w-4 fill-current", !isPaused && "animate-pulse drop-shadow-[0_0_6px_rgba(16,185,129,0.8)]")} />
-            {!isPaused && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-              </span>
-            )}
+            <Zap className="absolute h-5 w-5 text-muted-foreground/40" aria-hidden />
+            <Zap
+              data-testid="flow-bolt-fill"
+              className={cn("absolute h-5 w-5 fill-current transition-[clip-path] duration-500 ease-out", isPaused ? "text-amber-400" : "text-emerald-400")}
+              style={{ clipPath: `inset(${100 - progressPercent}% 0 0 0)` }}
+              aria-hidden
+            />
           </div>
-
-          <div className="flex flex-col min-w-0 justify-center">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-bold text-foreground text-xs sm:text-sm truncate max-w-[120px] sm:max-w-[200px]">
-                {flowData.flowName}
-              </span>
-              <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-bold text-[11px] whitespace-nowrap shrink-0">
-                {flowData.currentStep}/{flowData.totalSteps}
-              </span>
-            </div>
-            {flowData.stepDescription && (
-              <span className="text-[10px] text-muted-foreground truncate hidden sm:inline-block max-w-[240px]">
-                {flowData.stepDescription}
-              </span>
-            )}
+          <div className="flex flex-col min-w-0 justify-center leading-tight">
+            <span className="font-bold text-foreground text-sm truncate max-w-[110px] sm:max-w-[200px]">{flowData.flowName}</span>
+            <span data-testid="flow-step-label" className="text-[11px] text-muted-foreground whitespace-nowrap">{stepLabel}</span>
           </div>
         </div>
 
-        {/* Center / Right: Delay countdown in seconds ("S") + Percentage ("%") + Emoji buttons */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Relógio e contagem */}
+        {/* Center: timer + percentage + bar */}
+        <div className="flex items-center justify-center gap-3 sm:gap-4 justify-self-center">
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/70 border border-border/70 text-xs font-mono text-muted-foreground whitespace-nowrap shrink-0"
-            title="Delay restante para envio da próxima mensagem"
+            className="flex items-center gap-1.5 text-base font-mono text-foreground whitespace-nowrap"
+            title="Tempo restante para o envio da próxima mensagem"
           >
-            <Clock className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            <span className="font-semibold text-foreground/90">{remainingDelaySeconds}s</span>
+            <Clock className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span data-testid="flow-timer" className="font-semibold tabular-nums">{timerText}</span>
           </div>
-
-          {/* Porcentagem e barra de progresso carregando junto com a % */}
-          <div className="flex items-center gap-2 shrink-0" title={`Progresso do fluxo: ${progressPercent}%`}>
-            <span className="text-xs font-mono font-bold text-emerald-400">{progressPercent}%</span>
-            <div className="w-12 sm:w-24 h-2 rounded-full bg-muted/80 overflow-hidden border border-border/50 hidden xs:block">
+          <div className="flex items-center gap-2" title={`Progresso do fluxo: ${progressPercent}%`}>
+            <span data-testid="flow-percent" className={cn("text-lg font-mono font-bold tabular-nums", isPaused ? "text-amber-400" : "text-emerald-400")}>{progressPercent}%</span>
+            <div className="w-16 sm:w-32 h-2.5 rounded-full bg-muted/80 overflow-hidden border border-border/50 hidden xs:block">
               <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(16,185,129,0.6)]",
-                  isPaused ? "bg-amber-400" : "bg-emerald-500"
-                )}
+                className={cn("h-full rounded-full transition-all duration-500 ease-out", isPaused ? "bg-amber-400" : "bg-emerald-500")}
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
           </div>
+        </div>
 
-          {/* Apenas emojis/ícones de pausar e cancelar */}
-          <div className="flex items-center gap-1.5 pl-1 shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleTogglePause}
-              disabled={togglingPause}
-              aria-label={isPaused ? "Retomar disparo" : "Pausar disparo"}
-              title={isPaused ? "Retomar disparo (▶️)" : "Pausar disparo (⏸️)"}
-              className={cn(
-                "h-8 w-8 p-0 rounded-lg transition-all shadow-xs flex items-center justify-center text-sm",
-                isPaused
-                  ? "border-emerald-500/50 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 hover:border-emerald-400"
-                  : "border-amber-500/50 text-amber-400 bg-amber-500/10 hover:bg-amber-500/25 hover:border-amber-400"
-              )}
-            >
-              {isPaused ? <Play className="h-4 w-4 fill-current" /> : <Pause className="h-4 w-4 fill-current" />}
-            </Button>
+        {/* Right: actions */}
+        <div className="flex items-center gap-1.5 justify-self-end shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleTogglePause}
+            disabled={togglingPause}
+            aria-label={isPaused ? "Retomar disparo" : "Pausar disparo"}
+            title={isPaused ? "Retomar disparo (▶️)" : "Pausar disparo (⏸️)"}
+            className={cn(
+              "h-9 w-9 p-0 rounded-lg transition-all shadow-xs flex items-center justify-center text-sm",
+              isPaused
+                ? "border-emerald-500/50 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 hover:border-emerald-400"
+                : "border-amber-500/50 text-amber-400 bg-amber-500/10 hover:bg-amber-500/25 hover:border-amber-400"
+            )}
+          >
+            {isPaused ? <Play className="h-4 w-4 fill-current" /> : <Pause className="h-4 w-4 fill-current" />}
+          </Button>
 
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={() => setShowConfirmModal(true)}
-              disabled={cancelling}
-              aria-label="Cancelar disparo"
-              title="Cancelar disparo (⏹️)"
-              className="h-8 w-8 p-0 rounded-lg bg-red-600/85 hover:bg-red-600 text-white transition-all shadow-xs flex items-center justify-center text-sm"
-            >
-              <StopCircle className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowConfirmModal(true)}
+            disabled={cancelling}
+            aria-label="Cancelar disparo"
+            title="Cancelar disparo (⏹️)"
+            className="h-9 w-9 p-0 rounded-lg bg-red-600/85 hover:bg-red-600 text-white transition-all shadow-xs flex items-center justify-center text-sm"
+          >
+            <StopCircle className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 

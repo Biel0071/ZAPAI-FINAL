@@ -1141,16 +1141,15 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
 
 
-          {activeFlowData && (
-            <div className="animate-fade-in transition-opacity duration-300">
-              <FlowExecutionBanner flowData={activeFlowData} onCancelFlow={() => setActiveFlowData(null)} />
-            </div>
+          {activeFlowData && selectedConversation && matchesConversationFlow(activeFlowData, { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId }) && (
+            <FlowExecutionBanner key={selectedConversation.id} flowData={activeFlowData} onCancelFlow={() => setActiveFlowData(null)} />
           )}
           <ScrollArea className="min-h-0 flex-1 chat-area-bg">
             <div
+              key={selectedConversation?.id}
               ref={messagesScrollRef}
               className={cn(
-                "mx-auto max-w-3xl space-y-3 p-4 pb-24 md:pb-16",
+                "mx-auto max-w-3xl space-y-3 p-4 pb-24 md:pb-16 animate-conversation-swap",
                 isDraggingFiles && "rounded-xl border border-dashed border-primary p-3",
               )}
               onDragOver={(e) => {
