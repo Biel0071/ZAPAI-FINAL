@@ -147,11 +147,26 @@ async function matchQuickReplyFastPath(messageText, { companyId = 'default', bes
     return null;
   }
 
-  const responseText = (match.content && match.content.trim()) || (
-    match.requestedMediaType === 'audio' ? 'Segue o áudio gravado com a explicação detalhada:' :
-    match.requestedMediaType === 'image' ? 'Aqui está a foto solicitada do nosso catálogo:' :
-    'Segue a informação solicitada:'
-  );
+  let responseText = (match.content && match.content.trim()) || '';
+  if (responseText.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(responseText);
+      if (typeof parsed.text === 'string') {
+        responseText = parsed.text.trim();
+      }
+      if (!match.selectedMediaItem && Array.isArray(parsed.items) && parsed.items.length > 0) {
+        match.selectedMediaItem = parsed.items[0];
+      }
+    } catch (_) {}
+  }
+
+  if (!responseText) {
+    responseText = (
+      match.requestedMediaType === 'audio' || match.selectedMediaItem?.type === 'audio' ? 'Segue o áudio oficial com a explicação detalhada:' :
+      match.requestedMediaType === 'image' || match.selectedMediaItem?.type === 'image' ? 'Aqui está a foto solicitada do nosso catálogo:' :
+      'Segue a informação oficial solicitada da nossa loja:'
+    );
+  }
   const analysis = {
     trigger_quick_reply: match.id,
     fast_path: true,
