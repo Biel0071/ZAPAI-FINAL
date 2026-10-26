@@ -1951,7 +1951,7 @@ export default function Campaigns() {
                     </div>
                   
                   {creationMode === "ai" && (
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch mt-3 min-h-[calc(100vh-225px)]">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch mt-2.5">
                       {/* Coluna Esquerda: Ingestão de Contexto e Visualização da Campanha Gerada */}
                       <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4 h-full min-h-0">
                         <div className="rounded-2xl border border-border/70 bg-background/40 p-4 sm:p-5 space-y-3 flex-1 flex flex-col min-h-0 shadow-sm">
@@ -2133,7 +2133,7 @@ export default function Campaigns() {
                         </div>
 
                         {/* Card Preenchedor Inferior: Resumo de Cadência e Alcance da Campanha */}
-                        <div className="rounded-2xl border border-border/70 bg-card/45 p-3.5 sm:p-4 shadow-sm space-y-3 flex-1 flex flex-col justify-between min-h-[140px]">
+                        <div className="rounded-2xl border border-border/70 bg-card/45 p-3.5 sm:p-4 shadow-sm space-y-3 flex-1 flex flex-col justify-between min-h-0">
                           <div className="space-y-2">
                             <div className="flex items-center justify-between pb-2 border-b border-border/40">
                               <div className="flex items-center gap-2">

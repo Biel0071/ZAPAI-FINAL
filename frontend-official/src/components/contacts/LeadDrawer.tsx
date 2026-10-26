@@ -24,6 +24,8 @@ import {
   NotePencil,
   ArrowSquareOut,
   FolderPlus,
+  Target,
+  WhatsappLogo,
 } from "@phosphor-icons/react";
 import { formatPhoneNumber } from "@/pages/Inbox/utils";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -62,6 +64,60 @@ export interface LeadDrawerLead {
   sessionId?: string;
   avatarUrl?: string;
   notes?: string;
+  leadIntent?: string;
+  leadConfidence?: number;
+  nextAction?: string;
+  lastMessageAt?: string;
+  createdAt?: string;
+  channelName?: string;
+}
+
+function formatRelativeTime(dateStr?: string): string {
+  if (!dateStr) return "Recente";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "Recente";
+    const diffMs = Date.now() - d.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "Agora";
+    if (diffMin < 60) return `Há ${diffMin}m`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `Há ${diffHours}h`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `Há ${diffDays}d`;
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  } catch {
+    return "Recente";
+  }
+}
+
+function formatIntentLabel(intent?: string): string {
+  if (!intent) return "Interesse / Orçamento";
+  const map: Record<string, string> = {
+    information: "Informações",
+    quote: "Pedido de preço",
+    price_request: "Pedido de preço",
+    support: "Suporte",
+    purchase: "Fechamento",
+    complaint: "Reclamação",
+    scheduling: "Agendamento",
+    followup: "Follow-up",
+  };
+  return map[intent.toLowerCase()] || intent;
+}
+
+function formatActionLabel(action?: string): string {
+  if (!action) return "Orientar & Proposta";
+  const map: Record<string, string> = {
+    educate: "Orientar cliente",
+    send_quote: "Enviar orçamento",
+    send_price: "Enviar orçamento",
+    follow_up: "Realizar follow-up",
+    close_deal: "Fechar proposta",
+    schedule: "Confirmar agendamento",
+    wait_reply: "Aguardar retorno",
+  };
+  return map[action.toLowerCase()] || action;
 }
 
 interface LeadDrawerProps {
@@ -405,7 +461,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
       >
         <DialogContent
           aria-describedby={undefined}
-          className="max-w-2xl w-[95vw] sm:max-w-[650px] border-border/80 bg-card/95 backdrop-blur-2xl p-0 overflow-hidden rounded-2xl shadow-2xl flex flex-col max-h-[92vh]"
+          className="max-w-2xl w-[95vw] sm:max-w-[680px] border-border/80 bg-card/95 backdrop-blur-2xl p-0 overflow-hidden rounded-2xl shadow-2xl flex flex-col max-h-[88vh]"
         >
           <DialogTitle className="sr-only">Detalhes do Lead {lead.name}</DialogTitle>
           <DialogDescription id="lead-dialog-description" className="sr-only">
@@ -616,8 +672,55 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
           </div>
 
           {/* CORPO UNIFICADO NA MESMA TELA: 2 Colunas Lado a Lado (Padrão WhatsApp Web + Detalhes) */}
-          <div className="p-3 sm:p-4 space-y-3 flex-1 overflow-y-auto scrollbar-thin">
+          <div className="p-3 sm:p-4 space-y-2.5 flex-1 min-h-0 overflow-y-auto scrollbar-thin">
             {analysisError && <p role="alert" className="text-xs text-amber-400">{analysisError}</p>}
+
+            {/* RIBBON DE INTELIGÊNCIA COMPLETA (Canal/Chip, Último Contato, Intenção IA e Próxima Ação) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {/* 1. Conexão / Chip */}
+              <div className="rounded-xl border border-border/60 bg-muted/30 px-2.5 py-1.5 flex items-center gap-2">
+                <WhatsappLogo className="h-4 w-4 text-emerald-400 shrink-0" weight="fill" />
+                <div className="min-w-0">
+                  <span className="text-[9px] uppercase font-bold text-muted-foreground block leading-none">Canal / Chip</span>
+                  <span className="text-[11px] font-semibold text-foreground truncate block">
+                    {lead.channelName || lead.sessionId || "WhatsApp"}
+                  </span>
+                </div>
+              </div>
+
+              {/* 2. Última Interação */}
+              <div className="rounded-xl border border-border/60 bg-muted/30 px-2.5 py-1.5 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-cyan-400 shrink-0" weight="bold" />
+                <div className="min-w-0">
+                  <span className="text-[9px] uppercase font-bold text-muted-foreground block leading-none">Último Contato</span>
+                  <span className="text-[11px] font-semibold text-foreground truncate block">
+                    {formatRelativeTime(lead.lastMessageAt || lead.updatedAt)}
+                  </span>
+                </div>
+              </div>
+
+              {/* 3. Intenção Comercial IA */}
+              <div className="rounded-xl border border-border/60 bg-muted/30 px-2.5 py-1.5 flex items-center gap-2">
+                <Target className="h-4 w-4 text-violet-400 shrink-0" weight="bold" />
+                <div className="min-w-0">
+                  <span className="text-[9px] uppercase font-bold text-muted-foreground block leading-none">Intenção IA</span>
+                  <span className="text-[11px] font-semibold text-foreground truncate block">
+                    {formatIntentLabel(lead.leadIntent || aiData?.intent)}
+                  </span>
+                </div>
+              </div>
+
+              {/* 4. Próxima Ação IA */}
+              <div className="rounded-xl border border-border/60 bg-muted/30 px-2.5 py-1.5 flex items-center gap-2">
+                <Sparkle className="h-4 w-4 text-amber-400 shrink-0" weight="fill" />
+                <div className="min-w-0">
+                  <span className="text-[9px] uppercase font-bold text-muted-foreground block leading-none">Ação Sugerida</span>
+                  <span className="text-[11px] font-semibold text-foreground truncate block">
+                    {formatActionLabel(lead.nextAction || aiData?.nextAction)}
+                  </span>
+                </div>
+              </div>
+            </div>
 
             {activeTab === "summary" ? (
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
@@ -814,18 +917,8 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                       placeholder="Registre contexto ou preferências deste cliente..."
                       value={leadNotes}
                       onChange={(e) => setLeadNotes(e.target.value)}
-                      className="min-h-[85px] flex-1 text-xs rounded-lg bg-background/50 border-border/60 resize-none"
+                      className="min-h-[65px] max-h-[85px] flex-1 text-xs rounded-lg bg-background/50 border-border/60 resize-none"
                     />
-                  </Card>
-
-                  {/* Engajamento Compacto */}
-                  <Card className="rounded-xl border-border/60 bg-card/60 p-2 text-xs flex items-center justify-between text-muted-foreground">
-                    <span>
-                      Status: <strong className="text-foreground capitalize">{lead.status || "Ativo"}</strong>
-                    </span>
-                    <span>
-                      Canal: <strong className="text-primary font-bold">WhatsApp</strong>
-                    </span>
                   </Card>
                 </div>
               </div>

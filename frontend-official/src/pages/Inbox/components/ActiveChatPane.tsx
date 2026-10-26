@@ -991,6 +991,12 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                     updatedAt: selectedConversation.updatedAt,
                     sessionId: selectedConversation.sessionId,
                     notes: (selectedConversation as any).notes || "",
+                    leadIntent: (selectedConversation as any).lead_intent || (selectedConversation as any).leadIntent || "",
+                    leadConfidence: typeof (selectedConversation as any).lead_confidence === "number" ? Number((selectedConversation as any).lead_confidence) : undefined,
+                    nextAction: (selectedConversation as any).next_action || (selectedConversation as any).nextAction || "",
+                    lastMessageAt: (selectedConversation as any).lastMessageAt || (selectedConversation as any).lastInteractionAt || (selectedConversation as any).timestamp || selectedConversation.updatedAt,
+                    createdAt: (selectedConversation as any).created_at || (selectedConversation as any).createdAt,
+                    channelName: selectedConversation.sessionId || (selectedConversation as any).session_id || "main",
                   }
                 : null
             }
