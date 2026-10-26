@@ -336,9 +336,8 @@ async function dispatchSingleMessage(state, contact, io) {
     return { success: false, error: 'no_phone' };
   }
 
-  // If campaign has explicit messages defined, use direct campaign dispatch pipeline.
-  // Only use flow queue if NO explicit campaign messages were provided and flowId was specified.
-  if (state.flowId && (!state.messages || state.messages.length === 0)) {
+  // If flowId was specified, execute flow steps via outboundQueueService.
+  if (state.flowId) {
     try {
       const quickReplyService = require('./quickReplyService');
       const allReplies = await quickReplyService.listQuickReplies({ companyId: state.companyId });
