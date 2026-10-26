@@ -46,7 +46,7 @@ async function getMetrics(req, res) {
       const params = [companyId, sessionId, start.toISOString(), end.toISOString()];
       const [messageRows, conversationRows, connectedRows, memoryRows] = await Promise.all([
         pool.query(`SELECT COUNT(*)::int AS messages,
-          COUNT(*) FILTER (WHERE LOWER(COALESCE(sender, '')) IN ('ai','bot','assistant') OR message_origin='ai' OR origin='ai')::int AS ai_responses,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(sender, '')) IN ('ai','bot','assistant') OR message_origin='ai')::int AS ai_responses,
           COUNT(DISTINCT conversation_id)::int AS active_chats
           FROM messages WHERE company_id=$1 AND ($2::text IS NULL OR session_id=$2)
           AND timestamp >= $3::timestamp AND timestamp <= $4::timestamp`, params),
