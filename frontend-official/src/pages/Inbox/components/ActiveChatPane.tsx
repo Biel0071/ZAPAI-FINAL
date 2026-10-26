@@ -763,6 +763,8 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               setLeadDrawerOpen(true);
             }}
             phoneLabel={(() => {
+              const mapped = (selectedConversation as any).mapped_phone || (selectedConversation as any).mappedPhone;
+              if (mapped) return formatPhoneNumber(mapped);
               const rawPhone = (selectedConversation.phone || "").trim();
               const cleanPhoneDigits = rawPhone.replace(/@.*$/, "").replace(/\D/g, "");
               if (

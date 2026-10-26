@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   X,
@@ -387,17 +387,13 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
   };
 
   // Contagem de etiquetas reais do WhatsApp selecionadas (estilo WhatsApp Web)
-  const selectedWppCount = useMemo(() => {
-    return realLabels.filter((lbl) =>
-      currentTags.some((t) => t.toLowerCase() === lbl.name.toLowerCase())
-    ).length;
-  }, [realLabels, currentTags]);
+  const selectedWppCount = realLabels.filter((lbl) =>
+    currentTags.some((t) => t.toLowerCase() === lbl.name.toLowerCase())
+  ).length;
 
   // Outras tags do sistema/funil (não-WhatsApp)
-  const systemTags = useMemo(() => {
-    const wppNames = new Set(realLabels.map((l) => l.name.toLowerCase()));
-    return currentTags.filter((t) => !wppNames.has(t.toLowerCase()));
-  }, [currentTags, realLabels]);
+  const wppNames = new Set(realLabels.map((l) => l.name.toLowerCase()));
+  const systemTags = currentTags.filter((t) => !wppNames.has(t.toLowerCase()));
 
   return (
     <>
