@@ -25,10 +25,18 @@ export interface FlowExecutionData {
 
 export function matchesConversationFlow(
   flow: Partial<FlowExecutionData> | null | undefined,
-  context: { conversationId: string; sessionId?: string }
+  context: { conversationId: string; sessionId?: string; phone?: string }
 ): boolean {
-  if (!flow || String(flow.conversationId ?? "") !== context.conversationId) return false;
-  return !context.sessionId || String(flow.sessionId ?? "") === context.sessionId;
+  if (!flow) return false;
+  const sameConv = Boolean(flow.conversationId && context.conversationId && String(flow.conversationId) === String(context.conversationId));
+  const rawA = String(flow.chatId || "").replace(/\D/g, "");
+  const rawB = String(context.phone || "").replace(/\D/g, "");
+  const samePhone = Boolean(rawA && rawB && (rawA === rawB || rawA.endsWith(rawB) || rawB.endsWith(rawA)));
+  if (!sameConv && !samePhone) return false;
+  if (context.sessionId && flow.sessionId && flow.sessionId !== "main" && flow.sessionId !== "default" && context.sessionId !== "main" && context.sessionId !== "default") {
+    if (String(flow.sessionId) !== String(context.sessionId)) return false;
+  }
+  return true;
 }
 
 /** Seconds left until nextSendAt, or null when there is no real data. */
@@ -46,11 +54,25 @@ export function formatCountdown(seconds: number | null): string {
   return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
 
-/** Percent = steps already sent / total steps. */
-export function computeProgressPercent(sent: number | undefined, total: number | undefined): number {
+/** Percent = steps already sent / total steps + intra-step elapsed time. */
+export function computeProgressPercent(
+  sent: number | undefined,
+  total: number | undefined,
+  timing?: { nextSendAt?: number | null; stepDelaySeconds?: number | null; now?: number }
+): number {
   const totalSteps = Number(total) > 0 ? Number(total) : 0;
   if (!totalSteps) return 0;
-  return Math.min(100, Math.max(0, Math.round(((Number(sent) || 0) / totalSteps) * 100)));
+  const completed = Math.max(0, Math.min(Number(sent) || 0, totalSteps));
+  if (completed >= totalSteps) return 100;
+
+  let intraRatio = 0;
+  if (timing?.nextSendAt && timing?.stepDelaySeconds && timing.stepDelaySeconds > 0 && timing.now) {
+    const remaining = Math.max(0, (timing.nextSendAt - timing.now) / 1000);
+    intraRatio = Math.max(0, Math.min(1, 1 - (remaining / timing.stepDelaySeconds)));
+  }
+
+  const exactPercent = ((completed + intraRatio) / totalSteps) * 100;
+  return Math.min(99, Math.max(0, Math.round(exactPercent)));
 }
 
 interface FlowExecutionBannerProps {
@@ -70,7 +92,7 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
     setIsPaused(Boolean(flowData?.isPaused || flowData?.status === "paused"));
   }, [flowData?.isPaused, flowData?.status]);
 
-  // Real countdown: derived from the backend's nextSendAt, refreshed every 250ms.
+  // Real countdown & smooth charging: derived from nextSendAt, refreshed every 250ms.
   const hasTimer = Boolean(flowData) && !isPaused && flowData?.nextSendAt != null;
   useEffect(() => {
     if (!hasTimer) return;
@@ -83,9 +105,15 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
     return null;
   }
 
-  const progressPercent = computeProgressPercent(flowData.currentStep, flowData.totalSteps);
+  const remainingSeconds = computeRemainingSeconds(flowData.nextSendAt, now);
+  const isSending = Boolean(flowData.nextSendAt != null && now >= flowData.nextSendAt && !isPaused && flowData.status !== "completed");
+  const progressPercent = computeProgressPercent(flowData.currentStep, flowData.totalSteps, {
+    nextSendAt: flowData.nextSendAt,
+    stepDelaySeconds: flowData.stepDelaySeconds,
+    now,
+  });
   const stepLabel = `Etapa ${Math.min(Math.max(0, flowData.currentStep || 0), flowData.totalSteps || 0)} de ${flowData.totalSteps || 0}`;
-  const timerText = isPaused ? "—" : formatCountdown(computeRemainingSeconds(flowData.nextSendAt, now));
+  const timerText = isPaused ? "—" : formatCountdown(remainingSeconds);
 
   const handleTogglePause = async () => {
     if (!flowData.chatId || !flowData.conversationId) return;

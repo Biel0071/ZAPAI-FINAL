@@ -121,7 +121,9 @@ async function executeQuickReplyFlow(req, res) {
       if (!Number.isFinite(stepDelay) || stepDelay < 0 || stepDelay > 60000) throw Object.assign(new Error('Intervalo da etapa ' + (index + 1) + ' inválido.'), { status: 400 });
       cumulativeDelay += stepDelay;
 
-      const stepTypingMs = Number(step.typingMs ?? (step.typingSeconds !== undefined ? step.typingSeconds * 1000 : 3000));
+      const stepTypingMs = step.typingMs !== undefined
+        ? Math.min(Math.max(0, Number(step.typingMs)), 30000)
+        : (step.typingSeconds !== undefined ? Math.min(Math.max(0, Number(step.typingSeconds) * 1000), 30000) : 0);
       const stepCaption = step.caption ? formatTags(step.caption) : (step.text ? formatTags(step.text) : '');
 
       return {
@@ -149,7 +151,7 @@ async function executeQuickReplyFlow(req, res) {
           isQuickReply: true,
           conversationId: context.conversationId,
           contactId: context.contactId,
-          typingMs: Math.min(stepTypingMs, 30000),
+          typingMs: stepTypingMs,
           viewOnce: Boolean(step.viewOnce),
         },
         actions: step.actions,

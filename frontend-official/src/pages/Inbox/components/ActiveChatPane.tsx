@@ -363,10 +363,10 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     const phone = selectedConversation?.phone;
     setActiveFlowData(null);
     if (!phone || !selectedConversation?.id) return () => { active = false; };
-    const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId };
+    const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId, phone: selectedConversation.phone };
     const matches = (data: Partial<FlowExecutionData> | null | undefined) => matchesConversationFlow(data, context);
     apiService.getActiveQuickReplyFlow(phone, context).then((res) => {
-      if (active) setActiveFlowData(matches(res?.flow) ? res.flow : null);
+      if (active && matches(res?.flow)) setActiveFlowData(res.flow);
     }).catch((error) => console.warn("[FLOW_TIMELINE] active flow load failed", error));
     const socket = getSharedSocket();
     if (!socket) return () => { active = false; };
@@ -392,20 +392,28 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     };
   }, [selectedConversation?.id, selectedConversation?.phone, selectedConversation?.sessionId]);
 
-  // While a quick-reply flow is running, resync the real timer/steps every 5s (socket events can be missed).
+  // While a quick-reply flow is running, resync the real timer/steps every 3s (socket events can be missed).
   const hasActiveFlow = Boolean(activeFlowData);
   useEffect(() => {
     const phone = selectedConversation?.phone;
     if (!hasActiveFlow || !phone || !selectedConversation?.id) return;
-    const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId };
+    const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId, phone: selectedConversation.phone };
     let active = true;
     const interval = setInterval(() => {
       apiService.getActiveQuickReplyFlow(phone, context).then((res) => {
         if (!active) return;
-        if (matchesConversationFlow(res?.flow, context)) setActiveFlowData((prev) => ({ ...(prev || {}), ...res.flow }));
-        else if (res && !res.flow) setActiveFlowData(null);
+        if (matchesConversationFlow(res?.flow, context)) {
+          setActiveFlowData((prev) => ({ ...(prev || {}), ...res.flow }));
+        } else if (res && !res.flow) {
+          // Grace period: do not immediately clear if flow started less than 8s ago
+          setActiveFlowData((prev) => {
+            if (!prev) return null;
+            if (Date.now() - (prev.startedAt || 0) < 8000) return prev;
+            return null;
+          });
+        }
       }).catch(() => undefined);
-    }, 5000);
+    }, 3000);
     return () => { active = false; clearInterval(interval); };
   }, [hasActiveFlow, selectedConversation?.id, selectedConversation?.phone, selectedConversation?.sessionId]);
 
@@ -421,7 +429,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     try {
       await sendQuickReply(item, customDelayMs);
       // Do not rely only on the socket event: fetch the running flow so the banner always appears.
-      const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId };
+      const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId, phone: selectedConversation.phone };
       void apiService.getActiveQuickReplyFlow(selectedConversation.phone, context).then((res) => {
         if (matchesConversationFlow(res?.flow, context)) setActiveFlowData((prev) => ({ ...(prev || {}), ...res.flow }));
       }).catch(() => undefined);
@@ -1158,7 +1166,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
 
 
-          {activeFlowData && selectedConversation && matchesConversationFlow(activeFlowData, { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId }) && (
+          {activeFlowData && selectedConversation && matchesConversationFlow(activeFlowData, { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId, phone: selectedConversation.phone }) && (
             <FlowExecutionBanner key={selectedConversation.id} flowData={activeFlowData} onCancelFlow={() => setActiveFlowData(null)} />
           )}
           <ScrollArea className="min-h-0 flex-1 chat-area-bg">

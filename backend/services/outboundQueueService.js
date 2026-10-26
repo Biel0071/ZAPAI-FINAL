@@ -29,11 +29,12 @@ const DEFAULT_CONFIG = {
   jitterMs: Number(process.env.OUTBOUND_QUEUE_JITTER_MS) || 250,
   maxAttempts: Number(process.env.OUTBOUND_QUEUE_MAX_ATTEMPTS) || 3,
   maxDelayMs: Number(process.env.OUTBOUND_QUEUE_MAX_DELAY_MS) || 60000,
-  pollMs: Number(process.env.OUTBOUND_QUEUE_POLL_MS) || 5000,
+  pollMs: Number(process.env.OUTBOUND_QUEUE_POLL_MS) || 1000,
 };
 
 let storeRef = null;
 let workerTimer = null;
+let workerWakeupTimer = null;
 let processingTick = false;
 let persistLock = Promise.resolve();
 let enqueueLock = Promise.resolve();
@@ -42,6 +43,26 @@ let queueState = {
   items: [],
   version: 1,
 };
+
+function scheduleNextWorkerTick() {
+  const now = Date.now();
+  let earliestDue = Infinity;
+  for (const item of queueState.items) {
+    if (item.state !== STATES.QUEUED && item.state !== STATES.FAILED) continue;
+    if (uncommittedItems.has(item.id) || item.isPaused) continue;
+    const dueAt = new Date(item.nextAttemptAt || item.createdAt).getTime();
+    if (Number.isFinite(dueAt) && dueAt < earliestDue) {
+      earliestDue = dueAt;
+    }
+  }
+  if (earliestDue < Infinity) {
+    const delay = Math.max(50, Math.min(earliestDue - now, DEFAULT_CONFIG.pollMs));
+    if (workerWakeupTimer) clearTimeout(workerWakeupTimer);
+    workerWakeupTimer = setTimeout(() => {
+      processOneItem().catch(err => console.error('[OUTBOUND_QUEUE] Wakeup tick failed:', err?.message || err));
+    }, delay);
+  }
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -700,7 +721,10 @@ async function enqueueBatch(payloads, options = {}) {
   } finally {
     for (const item of added) uncommittedItems.delete(item.id);
   }
-  if (added.length) queueMicrotask(() => processOneItem().catch(error => console.error('[OUTBOUND_QUEUE] Immediate worker cycle failed:', error.message)));
+  if (added.length) {
+    scheduleNextWorkerTick();
+    queueMicrotask(() => processOneItem().catch(error => console.error('[OUTBOUND_QUEUE] Immediate worker cycle failed:', error.message)));
+  }
   return accepted.map(cloneItem);
 }
 
@@ -717,11 +741,19 @@ async function enqueueReviewedBatch(payloads = []) {
 }
 
 async function cancelFlowItems({ companyId, sessionId, conversationId, phone }) {
-  if (!companyId || !sessionId) throw new Error('Company and session are required to cancel a flow.');
+  if (!companyId) throw new Error('Company is required to cancel a flow.');
   let cancelled = 0;
+  const targetPhone = phone ? normalizePhone(phone) : null;
   for (const item of queueState.items) {
-    if (item.companyId !== companyId || item.sessionId !== sessionId || !item.metadata?.isFlowStep) continue;
-    if (conversationId ? String(item.metadata?.conversationId) !== String(conversationId) : normalizePhone(item.phone) !== normalizePhone(phone)) continue;
+    if (String(item.companyId) !== String(companyId) || !item.metadata?.isFlowStep) continue;
+    if (sessionId && item.sessionId && sessionId !== 'default' && item.sessionId !== 'default' && item.sessionId !== sessionId) continue;
+    if (conversationId && String(item.metadata?.conversationId) === String(conversationId)) {
+      // match
+    } else if (targetPhone && normalizePhone(item.phone) === targetPhone) {
+      // match
+    } else {
+      continue;
+    }
     if (![STATES.QUEUED, STATES.FAILED, STATES.PROCESSING].includes(item.state)) continue;
     item.cancelRequested = true;
     if (item.state !== STATES.PROCESSING) item.state = STATES.CANCELLED;
@@ -734,11 +766,19 @@ async function cancelFlowItems({ companyId, sessionId, conversationId, phone }) 
 }
 
 async function pauseFlowItems({ companyId, sessionId, conversationId, phone }) {
-  if (!companyId || !sessionId) throw new Error('Company and session are required to pause a flow.');
+  if (!companyId) throw new Error('Company is required to pause a flow.');
   let paused = 0;
+  const targetPhone = phone ? normalizePhone(phone) : null;
   for (const item of queueState.items) {
-    if (item.companyId !== companyId || item.sessionId !== sessionId || !item.metadata?.isFlowStep) continue;
-    if (conversationId ? String(item.metadata?.conversationId) !== String(conversationId) : normalizePhone(item.phone) !== normalizePhone(phone)) continue;
+    if (String(item.companyId) !== String(companyId) || !item.metadata?.isFlowStep) continue;
+    if (sessionId && item.sessionId && sessionId !== 'default' && item.sessionId !== 'default' && item.sessionId !== sessionId) continue;
+    if (conversationId && String(item.metadata?.conversationId) === String(conversationId)) {
+      // match
+    } else if (targetPhone && normalizePhone(item.phone) === targetPhone) {
+      // match
+    } else {
+      continue;
+    }
     if ([STATES.QUEUED, STATES.FAILED].includes(item.state)) {
       item.isPaused = true;
       item.updatedAt = nowIso();
@@ -750,11 +790,19 @@ async function pauseFlowItems({ companyId, sessionId, conversationId, phone }) {
 }
 
 async function resumeFlowItems({ companyId, sessionId, conversationId, phone }) {
-  if (!companyId || !sessionId) throw new Error('Company and session are required to resume a flow.');
+  if (!companyId) throw new Error('Company is required to resume a flow.');
   let resumed = 0;
+  const targetPhone = phone ? normalizePhone(phone) : null;
   for (const item of queueState.items) {
-    if (item.companyId !== companyId || item.sessionId !== sessionId || !item.metadata?.isFlowStep) continue;
-    if (conversationId ? String(item.metadata?.conversationId) !== String(conversationId) : normalizePhone(item.phone) !== normalizePhone(phone)) continue;
+    if (String(item.companyId) !== String(companyId) || !item.metadata?.isFlowStep) continue;
+    if (sessionId && item.sessionId && sessionId !== 'default' && item.sessionId !== 'default' && item.sessionId !== sessionId) continue;
+    if (conversationId && String(item.metadata?.conversationId) === String(conversationId)) {
+      // match
+    } else if (targetPhone && normalizePhone(item.phone) === targetPhone) {
+      // match
+    } else {
+      continue;
+    }
     if (item.isPaused && !item.sessionPaused) {
       item.isPaused = false;
       item.nextAttemptAt = nowIso();
@@ -783,14 +831,21 @@ function getFlowTiming(pendingItems) {
 }
 
 function getActiveFlow({ companyId, sessionId, conversationId, phone }) {
-  const pending = queueState.items.filter(item => item.companyId === companyId && item.sessionId === sessionId && item.metadata?.isFlowStep
-    && (conversationId ? String(item.metadata.conversationId) === String(conversationId) : normalizePhone(item.phone) === normalizePhone(phone))
-    && [STATES.QUEUED, STATES.PROCESSING, STATES.FAILED].includes(item.state) && !item.cancelRequested);
+  const targetPhone = phone ? normalizePhone(phone) : null;
+  const pending = queueState.items.filter(item => {
+    if (String(item.companyId) !== String(companyId)) return false;
+    if (sessionId && item.sessionId && sessionId !== 'default' && item.sessionId !== 'default' && item.sessionId !== sessionId) return false;
+    if (!item.metadata?.isFlowStep) return false;
+    if (![STATES.QUEUED, STATES.PROCESSING, STATES.FAILED].includes(item.state) || item.cancelRequested) return false;
+    if (conversationId && String(item.metadata?.conversationId) === String(conversationId)) return true;
+    if (targetPhone && normalizePhone(item.phone) === targetPhone) return true;
+    return false;
+  });
   const newest = pending.slice().sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0];
   if (!newest) return null;
   const timing = getFlowTiming(pending.filter(item => item.metadata.flowRunId === newest.metadata.flowRunId));
   const item = timing.next;
-  return { chatId: item.phone, companyId, sessionId, conversationId: item.metadata.conversationId, flowName: item.metadata.flowName || 'Resposta rápida', flowRunId: item.metadata.flowRunId, currentStep: timing.sent, totalSteps: item.metadata.totalSteps, startedAt: new Date(item.createdAt).getTime(), status: item.state, isPaused: Boolean(item.isPaused), nextSendAt: timing.nextSendAt, stepDelaySeconds: timing.stepDelaySeconds };
+  return { chatId: item.phone, companyId, sessionId: item.sessionId, conversationId: item.metadata.conversationId, flowName: item.metadata.flowName || 'Resposta rápida', flowRunId: item.metadata.flowRunId, currentStep: timing.sent, totalSteps: item.metadata.totalSteps, startedAt: new Date(item.createdAt).getTime(), status: item.state, isPaused: Boolean(item.isPaused), nextSendAt: timing.nextSendAt, stepDelaySeconds: timing.stepDelaySeconds };
 }
 
 async function reprocessDeadLetterItem(id, options = {}) {
@@ -929,8 +984,23 @@ async function processOneItem() {
       if (item.metadata?.currentStep && item.metadata?.totalSteps) {
         try {
           const flowTrackerService = require('./flowTrackerService');
+
+          // Dynamically reschedule the next pending step of this flow relative to now
+          const pendingFlowSteps = queueState.items
+            .filter(other => other !== item && other.companyId === item.companyId
+              && other.metadata?.isFlowStep && other.metadata?.flowRunId === item.metadata?.flowRunId
+              && [STATES.QUEUED, STATES.FAILED].includes(other.state) && !other.cancelRequested)
+            .sort((a, b) => Number(a.metadata?.currentStep || 0) - Number(b.metadata?.currentStep || 0));
+
+          const nextPending = pendingFlowSteps[0];
+          if (nextPending) {
+            const nextDelayMs = Math.max(500, Number(nextPending.metadata?.stepDelayMs ?? 2000));
+            nextPending.nextAttemptAt = new Date(Date.now() + nextDelayMs).toISOString();
+            nextPending.updatedAt = nowIso();
+          }
+
           const upcoming = getFlowTiming(queueState.items.filter(other => other !== item && other.companyId === item.companyId
-            && other.sessionId === item.sessionId && other.metadata?.isFlowStep && other.metadata.flowRunId === item.metadata.flowRunId
+            && other.metadata?.isFlowStep && other.metadata.flowRunId === item.metadata.flowRunId
             && [STATES.QUEUED, STATES.PROCESSING, STATES.FAILED].includes(other.state) && !other.cancelRequested));
           flowTrackerService.updateFlowStep({
             chatId: item.phone,
@@ -1048,6 +1118,8 @@ async function processOneItem() {
           console.error('[OUTBOUND_QUEUE] Queue drain failed:', error?.message || error);
         });
       });
+    } else {
+      scheduleNextWorkerTick();
     }
   }
 }
@@ -1068,6 +1140,10 @@ function stopWorker() {
   if (workerTimer) {
     clearInterval(workerTimer);
     workerTimer = null;
+  }
+  if (workerWakeupTimer) {
+    clearTimeout(workerWakeupTimer);
+    workerWakeupTimer = null;
   }
 }
 

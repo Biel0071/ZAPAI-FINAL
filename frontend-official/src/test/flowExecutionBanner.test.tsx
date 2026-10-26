@@ -59,6 +59,15 @@ describe("helpers do banner de fluxo", () => {
     expect(matchesConversationFlow(flow(), { conversationId: "c2" })).toBe(false);
     expect(matchesConversationFlow(flow(), { conversationId: "c1" })).toBe(true);
   });
+  it("correspondência resiliente aceita mesmo telefone mesmo com id de conversa ausente ou diferente", () => {
+    expect(matchesConversationFlow({ chatId: "5511999999999" }, { conversationId: "c2", phone: "5511999999999" })).toBe(true);
+    expect(matchesConversationFlow({ chatId: "5511999999999", sessionId: "default" }, { conversationId: "c2", phone: "+55 (11) 99999-9999", sessionId: "main" })).toBe(true);
+    expect(matchesConversationFlow({ chatId: "5511888888888" }, { conversationId: "c2", phone: "5511999999999" })).toBe(false);
+  });
+  it("percentual suave com tempo intra-etapa", () => {
+    // 1 de 2 enviadas = 50%, faltando metade do delay de 4s (2s restantes de 4s) = +25% => 75%
+    expect(computeProgressPercent(1, 2, { nextSendAt: NOW + 2000, stepDelaySeconds: 4, now: NOW })).toBe(75);
+  });
 });
 
 describe("FlowExecutionBanner", () => {

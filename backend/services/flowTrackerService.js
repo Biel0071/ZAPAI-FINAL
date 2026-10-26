@@ -1,18 +1,51 @@
 const runningFlows = new Map();
 const { emitToTenant } = require('./realtime/tenantRooms');
 
-function scopeKey(chatId, { companyId = 'default', sessionId = 'main', conversationId } = {}) {
-  return JSON.stringify([companyId, sessionId, conversationId || chatId]);
+function normalizeDigits(val) {
+  return String(val || '').replace(/\D/g, '');
+}
+
+function scopeKey(chatId, { companyId = 'default', sessionId = 'default', conversationId } = {}) {
+  return JSON.stringify([companyId, sessionId || 'default', conversationId || chatId]);
 }
 
 function snapshot(flowData) {
   return flowData ? { ...flowData } : flowData;
 }
 
+function findRunningEntry(chatId, scope = {}) {
+  const primaryKey = scopeKey(chatId, scope);
+  if (runningFlows.has(primaryKey)) {
+    return { key: primaryKey, flowData: runningFlows.get(primaryKey) };
+  }
+
+  const phoneClean = normalizeDigits(chatId);
+  const targetConvId = scope.conversationId ? String(scope.conversationId) : null;
+  const targetFlowRunId = scope.flowRunId ? String(scope.flowRunId) : null;
+  const targetCompany = scope.companyId || null;
+
+  for (const [key, data] of runningFlows.entries()) {
+    if (targetCompany && data.companyId && data.companyId !== targetCompany) continue;
+    if (targetFlowRunId && data.flowRunId && data.flowRunId === targetFlowRunId) {
+      return { key, flowData: data };
+    }
+    if (targetConvId && data.conversationId && String(data.conversationId) === targetConvId) {
+      return { key, flowData: data };
+    }
+    if (phoneClean && data.chatId) {
+      const dataPhoneClean = normalizeDigits(data.chatId);
+      if (dataPhoneClean && (dataPhoneClean === phoneClean || dataPhoneClean.endsWith(phoneClean) || phoneClean.endsWith(dataPhoneClean))) {
+        return { key, flowData: data };
+      }
+    }
+  }
+  return null;
+}
+
 /**
  * Starts tracking a flow execution for a chat
  */
-function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default', sessionId = 'main', conversationId = null, flowRunId = null, nextSendAt = null, stepDelaySeconds = null }) {
+function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default', sessionId = 'default', conversationId = null, flowRunId = null, nextSendAt = null, stepDelaySeconds = null }) {
   if (!chatId) return null;
 
   const flowData = {
@@ -25,7 +58,7 @@ function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default', se
     stepDescription: 'Iniciando envio...',
     startedAt: Date.now(),
     companyId,
-    sessionId,
+    sessionId: sessionId || 'default',
     conversationId,
     flowRunId,
     status: 'preparing',
@@ -45,9 +78,10 @@ function startFlow({ chatId, flowName, totalSteps = 1, companyId = 'default', se
  * Updates the current step of a running flow
  */
 function updateFlowStep({ chatId, currentStep, stepDescription, status, nextSendAt, stepDelaySeconds, ...scope }) {
-  if (!chatId) return null;
-  const flowData = runningFlows.get(scopeKey(chatId, scope));
-  if (!flowData) return null;
+  if (!chatId && !scope.conversationId && !scope.flowRunId) return null;
+  const found = findRunningEntry(chatId, scope);
+  if (!found) return null;
+  const flowData = found.flowData;
   if (scope.flowRunId && flowData.flowRunId !== scope.flowRunId) return null;
 
   flowData.currentStep = currentStep || flowData.currentStep;
@@ -69,10 +103,10 @@ function updateFlowStep({ chatId, currentStep, stepDescription, status, nextSend
  * Cancels a running flow for a chat
  */
 function cancelFlow(chatId, scope = {}) {
-  if (!chatId) return false;
-  const key = scopeKey(chatId, scope);
-  const flowData = runningFlows.get(key);
-  if (flowData) {
+  if (!chatId && !scope.conversationId && !scope.flowRunId) return false;
+  const found = findRunningEntry(chatId, scope);
+  if (found) {
+    const { key, flowData } = found;
     flowData.status = 'cancelled';
     runningFlows.delete(key);
 
@@ -89,11 +123,11 @@ function cancelFlow(chatId, scope = {}) {
  * Marks a flow as completed
  */
 function finishFlow(chatId, scope = {}) {
-  if (!chatId) return false;
-  const key = scopeKey(chatId, scope);
-  const flowData = runningFlows.get(key);
-  if (scope.flowRunId && flowData?.flowRunId !== scope.flowRunId) return false;
-  if (flowData) {
+  if (!chatId && !scope.conversationId && !scope.flowRunId) return false;
+  const found = findRunningEntry(chatId, scope);
+  if (found) {
+    const { key, flowData } = found;
+    if (scope.flowRunId && flowData.flowRunId !== scope.flowRunId) return false;
     flowData.status = 'completed';
     runningFlows.delete(key);
 
@@ -110,10 +144,10 @@ function finishFlow(chatId, scope = {}) {
  * Pauses a running flow for a chat
  */
 function pauseFlow(chatId, scope = {}) {
-  if (!chatId) return false;
-  const key = scopeKey(chatId, scope);
-  const flowData = runningFlows.get(key);
-  if (flowData) {
+  if (!chatId && !scope.conversationId && !scope.flowRunId) return false;
+  const found = findRunningEntry(chatId, scope);
+  if (found) {
+    const { flowData } = found;
     flowData.isPaused = true;
     flowData.status = 'paused';
     flowData.updatedAt = Date.now();
@@ -131,10 +165,10 @@ function pauseFlow(chatId, scope = {}) {
  * Resumes a paused flow for a chat
  */
 function resumeFlow(chatId, scope = {}) {
-  if (!chatId) return false;
-  const key = scopeKey(chatId, scope);
-  const flowData = runningFlows.get(key);
-  if (flowData) {
+  if (!chatId && !scope.conversationId && !scope.flowRunId) return false;
+  const found = findRunningEntry(chatId, scope);
+  if (found) {
+    const { flowData } = found;
     flowData.isPaused = false;
     flowData.status = 'running';
     flowData.updatedAt = Date.now();
@@ -152,8 +186,9 @@ function resumeFlow(chatId, scope = {}) {
  * Gets the current running flow for a chat
  */
 function getRunningFlow(chatId, scope = {}) {
-  if (!chatId) return null;
-  return snapshot(runningFlows.get(scopeKey(chatId, scope))) || null;
+  if (!chatId && !scope.conversationId && !scope.flowRunId) return null;
+  const found = findRunningEntry(chatId, scope);
+  return found ? snapshot(found.flowData) : null;
 }
 
 module.exports = {
