@@ -161,11 +161,19 @@ async function matchQuickReplyFastPath(messageText, { companyId = 'default', bes
   }
 
   if (!responseText) {
-    responseText = (
-      match.requestedMediaType === 'audio' || match.selectedMediaItem?.type === 'audio' ? 'Segue o áudio oficial com a explicação detalhada:' :
-      match.requestedMediaType === 'image' || match.selectedMediaItem?.type === 'image' ? 'Aqui está a foto solicitada do nosso catálogo:' :
-      'Segue a informação oficial solicitada da nossa loja:'
-    );
+    const isAudio = match.requestedMediaType === 'audio' || match.selectedMediaItem?.type === 'audio';
+    const isImage = match.requestedMediaType === 'image' || match.selectedMediaItem?.type === 'image';
+    const isPix = norm.includes('pix') || match.title?.toLowerCase().includes('pix');
+
+    if (isPix && isAudio) {
+      responseText = 'Segue o áudio oficial da loja com as informações para pagamento via PIX:';
+    } else if (isAudio) {
+      responseText = 'Segue o áudio oficial com a explicação detalhada:';
+    } else if (isImage) {
+      responseText = 'Aqui está a foto solicitada do nosso catálogo:';
+    } else {
+      responseText = 'Segue a informação oficial solicitada da nossa loja:';
+    }
   }
   const analysis = {
     trigger_quick_reply: match.id,

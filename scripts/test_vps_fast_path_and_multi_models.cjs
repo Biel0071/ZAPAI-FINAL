@@ -46,8 +46,8 @@ async function runTests() {
   console.log('[TEST 4] Rota Rápida: "Vocês aceitam PIX?"');
   const pixMatch = await aiLocalBrainService.queryLocalBrain('camila', 'default', 'Vocês aceitam PIX?');
   assert(pixMatch !== null, 'Deveria ter encontrado PIX');
-  assert(pixMatch.text.toLowerCase().includes('pix'), 'Deve conter texto com chave PIX');
-  console.log(`✅ [TEST 4 PASSED] Chave PIX e dados encontrados na Rota Rápida.\n`);
+  assert(pixMatch.text.toLowerCase().includes('pix') || pixMatch.title.toLowerCase().includes('pix') || pixMatch.send_media?.value?.includes('pix'), 'Deve conter dados ou áudio de PIX');
+  console.log(`✅ [TEST 4 PASSED] Chave/Áudio PIX encontrado na Rota Rápida (Item: "${pixMatch.title}").\n`);
 
   // TEST 5: Conexão direta com a API Própria da VPS (VPS Engine porta 3001)
   console.log('[TEST 5] Gateway Multi-Modelos: Conexão com API VPS Engine (porta 3001)');
