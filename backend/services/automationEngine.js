@@ -726,6 +726,102 @@ function splitLongMessage(text) {
     });
   }
 
+  // 9. Dispatch Multimodal Media from Coupled Memory (Single Media or Triggered Quick Reply)
+  const mediaToDispatch = [];
+  const rawSendMedia = ai.sendMedia || ai.analysis?.send_media;
+  if (rawSendMedia) {
+    const list = Array.isArray(rawSendMedia) ? rawSendMedia : [rawSendMedia];
+    for (const sm of list) {
+      if (sm && sm.value) {
+        const type = sm.type || (sm.value.endsWith('.mp3') || sm.value.endsWith('.ogg') ? 'audio' : 'image');
+        mediaToDispatch.push({
+          type,
+          value: sm.value,
+          caption: sm.caption || '',
+          delayMs: 2000,
+        });
+      }
+    }
+  }
+
+  const triggeredQRId = ai.quickReplyTriggered || ai.analysis?.trigger_quick_reply;
+  if (triggeredQRId) {
+    try {
+      const quickReplyService = require('./quickReplyService');
+      const allQRs = await quickReplyService.listQuickReplies({ companyId });
+      const targetQR = allQRs.find(q => q.id === triggeredQRId || String(q.title).toLowerCase() === String(triggeredQRId).toLowerCase());
+      if (targetQR) {
+        console.log(`[AutomationEngine] Triggering coupled quick reply "${targetQR.title}" (ID: ${targetQR.id}) for ${phone}`);
+        const items = Array.isArray(targetQR.items) && targetQR.items.length > 0 ? targetQR.items : (targetQR.steps || []);
+        let cumulativeDelay = 2500;
+        for (const item of items) {
+          const itemType = item.type || 'text';
+          const stepDelay = Number(item.delay || item.delayMs || 2000);
+          cumulativeDelay += stepDelay;
+
+          if (itemType === 'text') {
+            const val = String(item.value || '').trim();
+            // Evitar enviar texto duplicado se a IA já respondeu com algo muito similar
+            if (val && !replyText.includes(val.substring(0, Math.min(val.length, 30)))) {
+              await outboundQueueService.enqueue({
+                companyId,
+                phone,
+                sessionId,
+                text: val,
+                metadata: {
+                  ai_response: true,
+                  source: 'ai',
+                  agentName: matchedAgent?.name || 'Camila',
+                  quickReplyId: targetQR.id,
+                  responseDelayMs: cumulativeDelay,
+                }
+              });
+            }
+          } else if (itemType === 'image' || itemType === 'audio' || itemType === 'video' || itemType === 'document') {
+            await outboundQueueService.enqueue({
+              companyId,
+              phone,
+              sessionId,
+              text: item.caption || '',
+              mediaType: itemType,
+              mediaPath: item.value,
+              metadata: {
+                ai_response: true,
+                source: 'ai',
+                agentName: matchedAgent?.name || 'Camila',
+                quickReplyId: targetQR.id,
+                ptt: itemType === 'audio',
+                responseDelayMs: cumulativeDelay,
+                typingDelayMs: itemType === 'audio' ? 2500 : 1200,
+              }
+            });
+          }
+        }
+      }
+    } catch (qrErr) {
+      console.error('[AutomationEngine] Failed to dispatch triggered quick reply:', qrErr.message);
+    }
+  } else if (mediaToDispatch.length > 0) {
+    for (const m of mediaToDispatch) {
+      await outboundQueueService.enqueue({
+        companyId,
+        phone,
+        sessionId,
+        text: m.caption,
+        mediaType: m.type,
+        mediaPath: m.value,
+        metadata: {
+          ai_response: true,
+          source: 'ai',
+          agentName: matchedAgent?.name || 'Camila',
+          ptt: m.type === 'audio',
+          responseDelayMs: m.delayMs || 2000,
+          typingDelayMs: m.type === 'audio' ? 2500 : 1200,
+        }
+      });
+    }
+  }
+
   try {
     const { syncEngine } = require('./sync');
     syncEngine.dispatch('automation.executed', {

@@ -461,29 +461,13 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Nunca afirme que enviou um arquivo antes de confirmar o envio. Se não houver mídia disponível, peça ajuda ao atendente.\n`;
   compiled += `- Quando o cliente solicitar mídia, use somente o recurso cadastrado identificado no contexto; não invente recursos ou links.\n`;
   
-  if (contact?.matchedCapability) {
-    compiled += `- RECURSO MULTIMODAL COMBINADO DETECTADO: Para a demanda atual do cliente, o recurso "${contact.matchedCapability.title}" (ID: "${contact.matchedCapability.id}") é a melhor opção. Se o cliente pediu foto/imagem/áudio ou informações desse produto, declare no trigger_quick_reply o ID "${contact.matchedCapability.id}"!\n`;
-  }
-
-  compiled += `- Respostas Rápidas e Mídias Mapeadas da Loja:\n`;
-  const quickRepliesList = contact?.verifiedQuickReplies || [];
-  if (Array.isArray(quickRepliesList) && quickRepliesList.length > 0) {
-    for (const qr of quickRepliesList) {
-      const label = typeof qr === 'string' ? qr : (qr.title || qr.label || qr.cmd || qr.text);
-      let text = typeof qr === 'string' ? qr : (qr.content || qr.text || '');
-      if (!text && qr.items && Array.isArray(qr.items)) {
-        text = qr.items.filter(i => i.type === 'text').map(i => i.value).join(' | ');
-      }
-      const qrId = typeof qr === 'string' ? label : qr.id;
-      const hasMedia = (qr.items && qr.items.some(i => i.type !== 'text')) || qr.mediaUrl || qr.fileUrl || (qr.steps && qr.steps.some(s => s.type !== 'text'));
-      const media = hasMedia ? `[Contém Mídia/Arquivos]` : '';
-      const memoryStr = qr.aiMemory ? ` | Memória Visual: "${qr.aiMemory.replace(/\n/g, ' ')}"` : '';
-      compiled += `  * Resposta Rápida/Mídia (ID: "${qrId}") -> Título: "${label}" | Resumo: "${text.substring(0,150).replace(/\n/g, ' ')}..." ${media}${memoryStr}\n`;
-    }
-  } else {
-    compiled += `Nenhuma mídia autorizada foi informada neste contexto.\n`;
-  }
-  compiled += `\n`;
+  const quickReplyCapability = require('./quickReplyCapability');
+  const quickRepliesList = contact?.verifiedQuickReplies || store?.verifiedQuickReplies || [];
+  compiled += quickReplyCapability.buildCoupledQuickReplyMemory(quickRepliesList, {
+    agent,
+    matchedCapability: contact?.matchedCapability,
+    companyId: contact?.companyId || 'default',
+  }) + '\n\n';
 
   // 11. DIRETRIZES GLOBAIS DE ATENDIMENTO
   compiled += `[DIRETRIZES GLOBAIS DE ATENDIMENTO]\n`;
@@ -594,10 +578,14 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `  "tags_to_add": ["tag1", "tag2"],\n`;
   compiled += `  "address": "endereço completo de entrega caso tenha sido fornecido ou confirmado no fechamento",\n`;
   compiled += `  "phone": "telefone de contato caso tenha sido fornecido",\n`;
-  compiled += `  "trigger_quick_reply": "ID EXATO da resposta rápida a ser disparada junto com sua mensagem, se o cliente pedir a foto/mídia correspondente ou se for o caso perfeito. Deixe null caso não haja nada a disparar"\n`;
+  compiled += `  "trigger_quick_reply": "ID EXATO da resposta rápida a ser disparada junto com sua mensagem, se for o caso de enviar todas as mídias/etapas. Deixe null caso não haja nada a disparar",\n`;
+  compiled += `  "send_media": { "type": "image" | "audio" | "video" | "document", "value": "/uploads/quick_replies/...", "caption": "legenda opcional" } ou null\n`;
   compiled += `}\n`;
   compiled += `:::\n`;
-  compiled += `Regras de análise:\n`;
+  compiled += `Regras de análise e uso da memória acoplada:\n`;
+  compiled += `- Se o cliente pedir fotos/vídeos ou se você estiver na etapa de fotos (Step 2), declare "send_media" com a foto correspondente da sua memória acoplada OU informe o ID da resposta rápida em "trigger_quick_reply".\n`;
+  compiled += `- Se o cliente pedir áudio ou preferir explicação por voz, declare "send_media" com o áudio oficial correspondente da memória acoplada.\n`;
+  compiled += `- Você tem total autonomia para citar trechos ou usar partes dos textos das respostas rápidas diretamente na sua resposta natural.\n`;
   compiled += `- Escolha o estágio do funil condizente com a evolução do diálogo. Se o cliente pediu preços/orçamento, mude para "price_sent". Se demonstrou interesse real de compra, mude para "ready_to_buy". Se confirmou o fechamento da compra (por exemplo, escolhendo pagar no local ou agendando a entrega), mude para "closed". Se o cliente deserdar ou desistir, use "lost".\n`;
   compiled += `- Adicione marcadores relevantes em tags_to_add (com minúsculas, ex: "cimento", "areia", "vip", "reclamacao", "urgente").\n`;
   compiled += `- Se o cliente forneceu ou confirmou os dados de entrega (endereço, bairro, rua, número, etc.), você DEVE extrair e colocar no campo "address". Se houver telefone de contato ou celular, coloque no campo "phone".\n`;
@@ -794,7 +782,30 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
 
   if (sessionId) await require('./aiMemoryEngine').assertSession(resolvedCompanyId, sessionId);
   const knowledge = sessionId ? await aiAgentService.sessionKnowledge(resolvedCompanyId, sessionId) : '';
-  const fullPrompt = compileSystemPrompt(finalAgent, { aiConfig: { memorySettings: { enabled: false } } }) + knowledge + '\n' + require('../src/ai/evolutionary/historyLearning').GUARDRAILS;
+
+  // Carregar respostas rápidas e matching para a memória acoplada no teste
+  let allQuickReplies = [];
+  let bestQuickReplyMatch = null;
+  try {
+    const quickReplyService = require('./quickReplyService');
+    const quickReplyCapability = require('./quickReplyCapability');
+    allQuickReplies = await quickReplyService.listQuickReplies({ companyId: resolvedCompanyId });
+    if (message) {
+      bestQuickReplyMatch = await quickReplyCapability.findBestMatchForContext({
+        message,
+        companyId: resolvedCompanyId,
+      });
+    }
+  } catch (_) {}
+
+  const contactForCompile = {
+    verifiedQuickReplies: allQuickReplies,
+    matchedCapability: bestQuickReplyMatch,
+    companyId: resolvedCompanyId,
+    sessionId,
+  };
+
+  const fullPrompt = compileSystemPrompt(finalAgent, { aiConfig: { memorySettings: { enabled: false } } }, contactForCompile) + knowledge + '\n' + require('../src/ai/evolutionary/historyLearning').GUARDRAILS;
   const memoriesUsed = matchedAgent?.memory || 'Nenhuma memória consultada neste teste';
   const rulesTriggered = matchedAgent?.rules || 'Regras oficiais da loja';
 
@@ -850,6 +861,31 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     } catch (_) {}
     result.response = enforceResponseWordLimit(replyClean, finalAgent);
     result.analysis = analysisResult;
+
+    // Auto-preenchimento e formatação de mídia/resposta rápida para visualização no sandbox
+    const normMsg = String(message || '').toLowerCase();
+    const wantsMedia = normMsg.includes('foto') || normMsg.includes('imagem') || normMsg.includes('áudio') || normMsg.includes('audio') || normMsg.includes('video') || normMsg.includes('vídeo');
+    if (wantsMedia && bestQuickReplyMatch && (!analysisResult || (!analysisResult.trigger_quick_reply && !analysisResult.send_media))) {
+      if (!analysisResult) analysisResult = {};
+      if (bestQuickReplyMatch.requestedMediaType === 'audio' && bestQuickReplyMatch.selectedMediaItem) {
+        analysisResult.send_media = { type: 'audio', value: bestQuickReplyMatch.selectedMediaItem.value };
+      } else {
+        analysisResult.trigger_quick_reply = bestQuickReplyMatch.id;
+      }
+    }
+
+    if (analysisResult?.trigger_quick_reply) {
+      const triggeredQR = (allQuickReplies || []).find(q => q.id === analysisResult.trigger_quick_reply || q.title === analysisResult.trigger_quick_reply);
+      const mediaCount = triggeredQR?.items?.filter(i => i.type !== 'text')?.length || 0;
+      result.response += `\n\n[⚡ Resposta Rápida Acionada: "${triggeredQR?.title || analysisResult.trigger_quick_reply}" (${mediaCount} mídias anexadas)]`;
+      result.quickReplyTriggered = triggeredQR?.id || analysisResult.trigger_quick_reply;
+    }
+    if (analysisResult?.send_media) {
+      const sm = analysisResult.send_media;
+      const mediaIcon = sm.type === 'audio' ? '🎵 Áudio' : sm.type === 'video' ? '🎬 Vídeo' : '📷 Imagem';
+      result.response += `\n\n[${mediaIcon} Anexado(a) da Memória: ${sm.value}${sm.caption ? ` | "${sm.caption}"` : ''}]`;
+      result.sendMedia = sm;
+    }
   }
 
   result.fullPrompt = fullPrompt;
@@ -999,6 +1035,23 @@ async function processAI({ contact, history, message, store, agentName, companyI
 
   let convMemory = null;
   let bestQuickReplyMatch = null;
+  let verifiedQuickReplies = [];
+  try {
+    const quickReplyService = require('./quickReplyService');
+    verifiedQuickReplies = await quickReplyService.listQuickReplies({ companyId: resolvedCompanyId });
+    if (message) {
+      bestQuickReplyMatch = await quickReplyCapability.findBestMatchForContext({
+        message,
+        intent: contact?.leadAnalysis?.intent,
+        companyId: resolvedCompanyId,
+      });
+    }
+  } catch (qrErr) {
+    console.warn('[AI SERVICE] QuickReply load failed:', qrErr.message);
+  }
+  contact.verifiedQuickReplies = verifiedQuickReplies;
+  contact.matchedCapability = bestQuickReplyMatch;
+
   try {
     convMemory = await conversationMemoryEngine.getConversationMemory({
       contactId: contact?.id || contact?.phone,
@@ -1010,7 +1063,6 @@ async function processAI({ contact, history, message, store, agentName, companyI
       conversationMemoryEngine.extractFactsFromContext(message, {}, convMemory);
       contact.conversationMemoryPrompt = conversationMemoryEngine.buildContextualPrompt(convMemory);
       contact.conversationMemory = convMemory;
-      // Company-wide quick replies have no store provenance; do not add them to connection memory.
       contact.matchedCapability = bestQuickReplyMatch;
     }
   } catch (memErr) {
@@ -1260,9 +1312,13 @@ async function processAI({ contact, history, message, store, agentName, companyI
     // Auto-preenchimento de trigger_quick_reply se o cliente solicitou foto/mídia
     const normMsg = String(message || '').toLowerCase();
     const wantsMedia = normMsg.includes('foto') || normMsg.includes('imagem') || normMsg.includes('áudio') || normMsg.includes('audio') || normMsg.includes('video') || normMsg.includes('vídeo') || normMsg.includes('ver o produto') || normMsg.includes('mandar foto') || normMsg.includes('manda foto');
-    if (wantsMedia && bestQuickReplyMatch && (!analysisResult || !analysisResult.trigger_quick_reply)) {
+    if (wantsMedia && bestQuickReplyMatch && (!analysisResult || (!analysisResult.trigger_quick_reply && !analysisResult.send_media))) {
       if (!analysisResult) analysisResult = {};
-      analysisResult.trigger_quick_reply = bestQuickReplyMatch.id;
+      if (bestQuickReplyMatch.requestedMediaType === 'audio' && bestQuickReplyMatch.selectedMediaItem) {
+        analysisResult.send_media = { type: 'audio', value: bestQuickReplyMatch.selectedMediaItem.value };
+      } else {
+        analysisResult.trigger_quick_reply = bestQuickReplyMatch.id;
+      }
     }
 
     // Customer facts are projected from persisted inbound messages, never generated replies.
@@ -1376,6 +1432,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
       tagsToAdd,
       analysis: analysisResult,
       quickReplyTriggered: analysisResult?.trigger_quick_reply || null,
+      sendMedia: analysisResult?.send_media || null,
       matchedCapability: bestQuickReplyMatch,
       suggestion: null,
       provider: providerId,
