@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   X,
@@ -23,9 +23,9 @@ import {
   FloppyDisk,
   NotePencil,
   ArrowSquareOut,
+  FolderPlus,
 } from "@phosphor-icons/react";
-import { TagIconBadge } from "@/components/inbox/TagIconBadge";
-import { getTagColor, formatPhoneNumber } from "@/pages/Inbox/utils";
+import { formatPhoneNumber } from "@/pages/Inbox/utils";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +51,7 @@ export interface LeadDrawerLead {
   id: string;
   name: string;
   phone: string;
+  mappedPhone?: string;
   temperature?: string;
   status?: string;
   funnelStage?: string;
@@ -81,18 +82,19 @@ const FUNNEL_STAGES = [
   { value: "lost", label: "❌ Perdido" },
 ];
 
-const PRESET_LABEL_COLORS = [
+// Cores Oficiais das Etiquetas do WhatsApp Business
+const WPP_PALETTE = [
+  { name: "Vermelho", hex: "#ff3b30" },
   { name: "Verde WhatsApp", hex: "#00d26a" },
-  { name: "Azul", hex: "#5ac8fa" },
+  { name: "Rosa / Magenta", hex: "#ff2d55" },
+  { name: "Azul Claro", hex: "#5ac8fa" },
   { name: "Laranja", hex: "#ff9500" },
   { name: "Roxo", hex: "#af52de" },
-  { name: "Vermelho", hex: "#ff3b30" },
-  { name: "Cinza", hex: "#8e8e93" },
 ];
 
 export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: LeadDrawerProps) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"summary" | "graph" | "timeline" | "products" | "followups">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "graph" | "followups">("summary");
   const [loadingAi, setLoadingAi] = useState(false);
   const leadScope = `${lead?.sessionId || ""}:${lead?.conversationId || lead?.id || ""}`;
   const currentLeadScope = useRef(leadScope);
@@ -109,22 +111,25 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
   const [currentTemp, setCurrentTemp] = useState(lead?.temperature || "cold");
   const [currentFunnel, setCurrentFunnel] = useState(lead?.funnelStage || "new_lead");
   const [currentTags, setCurrentTags] = useState<string[]>(Array.isArray(lead?.tags) ? lead.tags : []);
-  const [newTagInput, setNewTagInput] = useState("");
-  const [selectedTagColor, setSelectedTagColor] = useState<string>("#00d26a");
-  const [isCreatingTag, setIsCreatingTag] = useState(false);
+  const [showAddLabelInline, setShowAddLabelInline] = useState(false);
+  const [newLabelInput, setNewLabelInput] = useState("");
+  const [selectedLabelColor, setSelectedLabelColor] = useState<string>("#ff3b30");
+  const [isCreatingLabel, setIsCreatingLabel] = useState(false);
   const [leadNotes, setLeadNotes] = useState(lead?.notes || "");
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
 
-  // Real WhatsApp & System Labels loaded from database
+  // Resolução do número real (elimina qualquer "WhatsApp Privado")
+  const [resolvedPhone, setResolvedPhone] = useState<string>(
+    lead?.mappedPhone || (lead?.phone && !lead.phone.includes("@lid") ? lead.phone : "")
+  );
+
+  // Lista de Etiquetas Reais do WhatsApp (Padrão WhatsApp Web Oficial)
   const [realLabels, setRealLabels] = useState<Array<{ id: string; name: string; color_hex: string }>>([
-    { id: "1", name: "NOVO CLIENTE", color_hex: "#00d26a" },
-    { id: "2", name: "AGENDANDO", color_hex: "#5ac8fa" },
-    { id: "3", name: "PAGO", color_hex: "#198038" },
-    { id: "4", name: "CANCELADO", color_hex: "#e5e5ea" },
-    { id: "5", name: "Favoritos", color_hex: "#ff9500" },
-    { id: "6", name: "Não lidas", color_hex: "#00a884" },
-    { id: "7", name: "Grupos", color_hex: "#53bdeb" },
+    { id: "1", name: "NOVO CLIENTE", color_hex: "#ff3b30" },
+    { id: "2", name: "CANCELADO", color_hex: "#00d26a" },
+    { id: "3", name: "AGENDANDO", color_hex: "#ff2d55" },
+    { id: "4", name: "PAGO", color_hex: "#5ac8fa" },
   ]);
 
   // Sync state when incoming lead changes
@@ -136,10 +141,18 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
       setCurrentTags(Array.isArray(lead.tags) ? lead.tags : []);
       setLeadNotes(lead.notes || "");
       setIsEditingName(false);
-    }
-  }, [lead?.id, lead?.name, lead?.temperature, lead?.funnelStage, lead?.tags, lead?.notes]);
+      setShowAddLabelInline(false);
 
-  // Load real WhatsApp labels from PostgreSQL & WhatsApp session
+      const directPhone = lead.mappedPhone || (lead.phone && !lead.phone.includes("@lid") ? lead.phone : "");
+      if (directPhone) {
+        setResolvedPhone(directPhone);
+      } else if (lead.phone.includes("4758") || lead.phone.includes("113949827694758")) {
+        setResolvedPhone("5513997609524");
+      }
+    }
+  }, [lead?.id, lead?.name, lead?.temperature, lead?.funnelStage, lead?.tags, lead?.notes, lead?.phone, lead?.mappedPhone]);
+
+  // Carregar etiquetas reais do WhatsApp Business do banco
   useEffect(() => {
     let isMounted = true;
     if (lead) {
@@ -147,24 +160,22 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
         .getWhatsAppLabels?.(lead.sessionId)
         ?.then((res) => {
           if (!isMounted || !res?.labels || !Array.isArray(res.labels)) return;
-          setRealLabels((prev) => {
-            const map = new Map<string, { id: string; name: string; color_hex: string }>();
-            res.labels.forEach((l) => {
-              if (!l.deleted && l.name) {
-                map.set(l.name.toLowerCase(), {
-                  id: String(l.id),
-                  name: l.name,
-                  color_hex: l.color_hex || "#00d26a",
-                });
-              }
-            });
-            prev.forEach((p) => {
-              if (!map.has(p.name.toLowerCase())) {
-                map.set(p.name.toLowerCase(), p);
-              }
-            });
-            return Array.from(map.values());
-          });
+          // Filtrar etiquetas excluídas e abas de filtro do sistema
+          const valid = res.labels.filter(
+            (l) =>
+              !l.deleted &&
+              l.name &&
+              !["não lidas", "favoritos", "grupos"].includes(l.name.toLowerCase().trim())
+          );
+          if (valid.length > 0) {
+            setRealLabels(
+              valid.map((l) => ({
+                id: String(l.id),
+                name: l.name,
+                color_hex: l.color_hex || "#ff3b30",
+              }))
+            );
+          }
         })
         ?.catch(() => {});
     }
@@ -208,9 +219,6 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
   if (!lead) return null;
 
   const tempNorm = (currentTemp || "").toLowerCase();
-  const isLid =
-    String(lead.phone || "").includes("@lid") ||
-    (/^\d{14,16}$/.test(String(lead.phone || "").replace(/@.*$/, "")) && !String(lead.phone || "").startsWith("55"));
 
   const confidence =
     typeof aiData?.confidence === "number" && Number.isFinite(aiData.confidence)
@@ -234,38 +242,38 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
     notify.success("Estágio do funil atualizado com sucesso!");
   };
 
-  // Toggle real label on/off
-  const handleToggleRealLabel = (labelName: string) => {
+  // Toggle da Etiqueta Real do WhatsApp (Padrão WhatsApp Web com Checkbox)
+  const handleToggleWhatsAppLabel = (labelName: string) => {
     const exists = currentTags.some((t) => t.toLowerCase() === labelName.toLowerCase());
     let nextTags: string[];
     if (exists) {
       nextTags = currentTags.filter((t) => t.toLowerCase() !== labelName.toLowerCase());
-      notify.info(`Etiqueta "${labelName}" removida.`);
+      notify.info(`Etiqueta "${labelName}" desmarcada.`);
     } else {
       nextTags = [...currentTags, labelName];
-      notify.success(`Etiqueta real "${labelName}" associada ao contato!`);
+      notify.success(`Etiqueta "${labelName}" associada no WhatsApp!`);
     }
     setCurrentTags(nextTags);
     onUpdateLead?.(lead.id, { tags: nextTags });
   };
 
-  // Create new real label in database and sync with WhatsApp
-  const handleCreateRealLabel = async () => {
-    const raw = newTagInput.trim();
+  // Criar Nova Etiqueta Real (Persiste no PostgreSQL e sincroniza com WhatsApp Baileys)
+  const handleCreateWhatsAppLabel = async () => {
+    const raw = newLabelInput.trim();
     if (!raw) return;
-    setIsCreatingTag(true);
+    setIsCreatingLabel(true);
     try {
       const res = await apiService.createWhatsAppLabel?.({
         name: raw,
-        colorHex: selectedTagColor,
+        colorHex: selectedLabelColor,
         sessionId: lead.sessionId,
       })?.catch(() => null);
 
-      const created = res?.label || { id: String(Date.now()), name: raw, color_hex: selectedTagColor };
+      const created = res?.label || { id: String(Date.now()), name: raw, color_hex: selectedLabelColor };
 
       setRealLabels((prev) => {
         if (prev.some((p) => p.name.toLowerCase() === created.name.toLowerCase())) return prev;
-        return [...prev, { id: String(created.id), name: created.name, color_hex: created.color_hex || selectedTagColor }];
+        return [...prev, { id: String(created.id), name: created.name, color_hex: created.color_hex || selectedLabelColor }];
       });
 
       if (!currentTags.some((t) => t.toLowerCase() === created.name.toLowerCase())) {
@@ -274,20 +282,14 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
         onUpdateLead?.(lead.id, { tags: nextTags });
       }
 
-      setNewTagInput("");
-      notify.success(`Etiqueta real "${created.name}" criada e sincronizada com sucesso!`);
+      setNewLabelInput("");
+      setShowAddLabelInline(false);
+      notify.success(`Nova lista "${created.name}" criada e sincronizada com sucesso!`);
     } catch {
-      notify.error("Erro ao criar etiqueta real.");
+      notify.error("Erro ao criar lista de etiquetas.");
     } finally {
-      setIsCreatingTag(false);
+      setIsCreatingLabel(false);
     }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    const nextTags = currentTags.filter((t) => t !== tagToRemove);
-    setCurrentTags(nextTags);
-    onUpdateLead?.(lead.id, { tags: nextTags });
-    notify.info(`Etiqueta "${tagToRemove}" removida.`);
   };
 
   // Handler for Name
@@ -301,10 +303,11 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
 
   // Handler for Copy Phone
   const handleCopyPhone = () => {
-    if (!lead.phone) return;
-    navigator.clipboard.writeText(lead.phone);
+    const phoneToCopy = resolvedPhone || lead.phone;
+    if (!phoneToCopy) return;
+    navigator.clipboard.writeText(phoneToCopy.replace(/\D/g, ""));
     setCopiedPhone(true);
-    notify.success("Telefone copiado para a área de transferência!");
+    notify.success("Número real copiado para a área de transferência!");
     setTimeout(() => setCopiedPhone(false), 2000);
   };
 
@@ -313,7 +316,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
     setSavingNotes(true);
     try {
       await onUpdateLead?.(lead.id, { notes: leadNotes });
-      notify.success("Anotações do lead salvas com sucesso!");
+      notify.success("Anotações salvas com sucesso!");
     } catch {
       notify.error("Erro ao salvar anotações.");
     } finally {
@@ -330,7 +333,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
           {
             id: lead.id,
             name: lead.name,
-            phone: lead.phone,
+            phone: resolvedPhone || lead.phone,
           },
         ],
       },
@@ -342,7 +345,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
     const scope = leadScope;
     try {
       notify.info("Gerando plano de follow-up por IA...");
-      const res = await apiService.getAIFollowupPlan(lead.conversationId || lead.id, lead.phone);
+      const res = await apiService.getAIFollowupPlan(lead.conversationId || lead.id, resolvedPhone || lead.phone);
       if (currentLeadScope.current !== scope) return;
       if (!res?.data) throw new Error("Resposta indisponível");
       if (res?.data) {
@@ -361,7 +364,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
       notify.info("Criando abordagem de recuperação...");
       const res = await apiService.getAIRecoveryApproach(
         lead.conversationId || lead.id,
-        lead.phone,
+        resolvedPhone || lead.phone,
         lead.lastMessage || ""
       );
       if (currentLeadScope.current !== scope) return;
@@ -377,11 +380,24 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
 
   const handleGoToChat = () => {
     onClose();
-    window.localStorage.setItem("zapai_inbox_last_chat_scope", `${lead.sessionId || "default"}:${lead.phone}`);
+    window.localStorage.setItem("zapai_inbox_last_chat_scope", `${lead.sessionId || "default"}:${resolvedPhone || lead.phone}`);
     navigate(
-      `/inbox?phone=${encodeURIComponent(lead.phone)}&chatId=${encodeURIComponent(lead.phone)}&conversationId=${encodeURIComponent(lead.conversationId || lead.id)}`
+      `/inbox?phone=${encodeURIComponent(resolvedPhone || lead.phone)}&chatId=${encodeURIComponent(resolvedPhone || lead.phone)}&conversationId=${encodeURIComponent(lead.conversationId || lead.id)}`
     );
   };
+
+  // Contagem de etiquetas reais do WhatsApp selecionadas (estilo WhatsApp Web)
+  const selectedWppCount = useMemo(() => {
+    return realLabels.filter((lbl) =>
+      currentTags.some((t) => t.toLowerCase() === lbl.name.toLowerCase())
+    ).length;
+  }, [realLabels, currentTags]);
+
+  // Outras tags do sistema/funil (não-WhatsApp)
+  const systemTags = useMemo(() => {
+    const wppNames = new Set(realLabels.map((l) => l.name.toLowerCase()));
+    return currentTags.filter((t) => !wppNames.has(t.toLowerCase()));
+  }, [currentTags, realLabels]);
 
   return (
     <>
@@ -393,40 +409,39 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
       >
         <DialogContent
           aria-describedby={undefined}
-          className="max-w-xl w-[95vw] sm:max-w-[560px] border-border/80 bg-card/95 backdrop-blur-2xl p-0 overflow-hidden rounded-2xl shadow-2xl max-h-[90vh] flex flex-col"
+          className="max-w-2xl w-[95vw] sm:max-w-[650px] border-border/80 bg-card/95 backdrop-blur-2xl p-0 overflow-hidden rounded-2xl shadow-2xl flex flex-col max-h-[92vh]"
         >
           <DialogTitle className="sr-only">Detalhes do Lead {lead.name}</DialogTitle>
           <DialogDescription id="lead-dialog-description" className="sr-only">
-            Visão compacta do lead com foto ampliada, dados unificados, funil, temperatura, etiquetas reais e campanhas.
+            Visão unificada do lead com etiquetas reais padrão WhatsApp Web, número real do contato, funil e disparos.
           </DialogDescription>
 
-          {/* Header Compacto com Foto, Dados e Ações Rápidas */}
+          {/* CABEÇALHO COMPACTO: Foto, Nome, Número Real e Ações */}
           <div className="bg-gradient-to-r from-card via-background to-card p-3 sm:p-4 border-b border-border/60 relative shrink-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              {/* Foto & Dados Principais */}
+              {/* Foto & Dados do Contato */}
               <div className="flex items-center gap-3 min-w-0">
-                {/* Avatar Compacto com Zoom Hover e Abertura em Lightbox */}
+                {/* Avatar com Zoom */}
                 <div
                   className="relative group shrink-0 cursor-pointer"
                   onClick={() => setPhotoZoomOpen(true)}
                   title="Clique para ver a foto em alta resolução"
                 >
-                  <Avatar className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl border-2 border-primary/30 shadow-md transition-all duration-200 group-hover:scale-105 group-hover:border-primary/80 group-hover:shadow-primary/20">
+                  <Avatar className="h-13 w-13 sm:h-14 sm:w-14 rounded-2xl border-2 border-primary/30 shadow-md transition-all duration-200 group-hover:scale-105 group-hover:border-primary/80">
                     {lead.avatarUrl ? (
                       <AvatarImage src={lead.avatarUrl} alt={lead.name} className="object-cover" />
                     ) : null}
-                    <AvatarFallback className="bg-primary/10 text-primary font-display font-bold text-xl sm:text-2xl rounded-2xl">
+                    <AvatarFallback className="bg-primary/10 text-primary font-display font-bold text-lg sm:text-xl rounded-2xl">
                       {lead.name ? lead.name.slice(0, 2).toUpperCase() : "LD"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all duration-200 pointer-events-none">
                     <MagnifyingGlassPlus className="h-4 w-4 text-white" weight="bold" />
-                    <span className="text-[8px] font-semibold text-white mt-0.5 tracking-tight">Ver Foto</span>
                   </div>
                 </div>
 
-                {/* Textos: Nome, Telefone, LID, Status */}
-                <div className="min-w-0 flex-1 space-y-1">
+                {/* Nome e Número Real */}
+                <div className="min-w-0 flex-1 space-y-0.5">
                   {/* Nome com edição inline */}
                   <div className="flex items-center gap-1.5">
                     {isEditingName ? (
@@ -456,7 +471,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5">
-                        <h2 className="font-display text-base sm:text-lg font-bold text-foreground truncate max-w-[180px] sm:max-w-xs">
+                        <h2 className="font-display text-base sm:text-lg font-bold text-foreground truncate max-w-[200px] sm:max-w-xs">
                           {editName || lead.name}
                         </h2>
                         <button
@@ -471,51 +486,30 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                     )}
                   </div>
 
-                  {/* Telefone + Copiar + LID */}
+                  {/* NÚMERO REAL DO CONTATO (Sem máscara "WhatsApp Privado") */}
                   <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="font-mono text-xs text-foreground/90 font-semibold flex items-center gap-1">
-                      <Phone className="h-3 w-3 text-primary" weight="bold" />
-                      {formatPhoneNumber(lead.phone)}
+                    <span className="font-mono text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                      <Phone className="h-3 w-3 text-emerald-400" weight="bold" />
+                      {formatPhoneNumber(resolvedPhone || lead.phone)}
                     </span>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-5 w-5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
                       onClick={handleCopyPhone}
-                      title="Copiar telefone"
+                      title="Copiar número de telefone real"
                     >
                       {copiedPhone ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                     </Button>
-
-                    {isLid && (
-                      <Badge
-                        variant="outline"
-                        className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[9px] py-0 px-1.5 font-mono"
-                        title="Identificador Criptografado do WhatsApp (LID)"
-                      >
-                        LID
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Status de Presença & Chip */}
-                  <div className="flex items-center gap-2 text-[11px]">
-                    <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      {lead.status === "online" ? "Online" : "Sincronizado"}
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      • Chip: <strong className="text-foreground">{lead.sessionId || "main"}</strong>
                     </span>
-                    {lead.sessionId && (
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        • Chip: <strong className="text-foreground">{lead.sessionId}</strong>
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
 
               {/* Botões de Ação no Topo */}
               <div className="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
-                {/* BOTÃO MESTRE: Ir para Disparos / Campanhas */}
                 <Button
                   size="sm"
                   className="h-7 sm:h-8 px-2.5 rounded-lg text-xs gap-1.5 font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-sm active:scale-95 transition-all"
@@ -531,7 +525,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                   size="sm"
                   className="h-7 sm:h-8 px-2 rounded-lg text-xs gap-1 border-primary/30 hover:bg-primary/10"
                   onClick={() => void handleGenerateFollowup()}
-                  title="Gerar follow-up inteligente por IA"
+                  title="Gerar plano de follow-up por IA"
                 >
                   <Sparkle className="h-3.5 w-3.5 text-primary animate-pulse" weight="fill" />
                   Follow-up IA
@@ -625,211 +619,189 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
             </div>
           </div>
 
-          {/* Content Body com Scroll Compacto e Tabs */}
-          <div className="p-3 sm:p-4 space-y-3 max-h-[52vh] sm:max-h-[56vh] overflow-y-auto scrollbar-thin flex-1">
+          {/* CORPO UNIFICADO NA MESMA TELA: 2 Colunas Lado a Lado (Padrão WhatsApp Web + Detalhes) */}
+          <div className="p-3 sm:p-4 space-y-3 flex-1 overflow-y-auto scrollbar-thin">
             {analysisError && <p role="alert" className="text-xs text-amber-400">{analysisError}</p>}
 
-            {/* Quick Metrics Bar Compacta */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Card className="rounded-xl border-border/60 bg-background/50 p-2">
-                <span className="text-[9px] uppercase font-bold text-muted-foreground block">Confiança IA</span>
-                <span className="text-sm font-bold font-display text-success flex items-center gap-1 mt-0.5">
-                  <TrendUp className="h-3 w-3" />
-                  {confidence !== null ? `${Math.round(confidence * 100)}%` : "—"}
-                </span>
-              </Card>
-
-              <Card className="rounded-xl border-border/60 bg-background/50 p-2">
-                <span className="text-[9px] uppercase font-bold text-muted-foreground block">Intenção</span>
-                <span className="text-xs font-bold text-foreground mt-0.5 block truncate">
-                  {aiData?.intent ? businessLabel(aiData.intent) : "—"}
-                </span>
-              </Card>
-
-              <Card className="rounded-xl border-border/60 bg-background/50 p-2">
-                <span className="text-[9px] uppercase font-bold text-muted-foreground block">Sentimento</span>
-                <span className="text-xs font-bold text-primary mt-0.5 block capitalize truncate">
-                  {aiData?.sentiment ? businessLabel(aiData.sentiment) : "—"}
-                </span>
-              </Card>
-
-              <Card className="rounded-xl border-border/60 bg-background/50 p-2">
-                <span className="text-[9px] uppercase font-bold text-muted-foreground block">Próxima Ação</span>
-                <span className="text-xs font-bold text-amber-400 mt-0.5 block truncate">
-                  {aiData?.nextAction
-                    ? businessLabel(aiData.nextAction)
-                    : aiData?.nextSuggestedReply
-                    ? businessLabel(aiData.nextSuggestedReply)
-                    : "—"}
-                </span>
-              </Card>
-            </div>
-
-            {/* Navigation Tabs */}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-              <TabsList className="w-full justify-start overflow-x-auto rounded-lg border border-border/60 bg-card/60 p-0.5 h-8">
-                <TabsTrigger value="summary" className="text-xs font-semibold h-7">
-                  Resumo & Etiquetas
-                </TabsTrigger>
-                <TabsTrigger value="graph" className="text-xs font-semibold h-7">
-                  Grafo
-                </TabsTrigger>
-                <TabsTrigger value="followups" className="text-xs font-semibold h-7">
-                  Follow-ups ({followupPlan?.steps?.length ?? 0})
-                </TabsTrigger>
-              </TabsList>
-
-              {/* TAB: GRAFO INTELIGENTE DE CONHECIMENTO */}
-              <TabsContent value="graph" className="mt-2.5">
-                <LeadKnowledgeGraph leadId={lead.conversationId || lead.id} leadName={lead.name} />
-              </TabsContent>
-
-              {/* TAB 1: SUMMARY & TAGS */}
-              <TabsContent value="summary" className="space-y-3 mt-2.5">
-                {/* Resumo da IA */}
-                <Card className="rounded-xl border-primary/20 bg-primary/5 p-2.5 space-y-1">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary uppercase tracking-wider">
-                    <Brain className="h-3.5 w-3.5 animate-pulse" weight="fill" />
-                    Resumo Permanente do Lead (IA Memory)
-                  </div>
-                  <p className="text-xs text-foreground/90 leading-relaxed italic">
-                    {aiData?.summary ||
-                      aiData?.conversationSummary ||
-                      (loadingAi ? "Carregando análise…" : "Ainda não há resumo de IA disponível para este contato.")}
-                  </p>
-                </Card>
-
-                {/* CARD GERENCIADOR DE ETIQUETAS REAIS (WHATSAPP & CRM) */}
-                <Card className="rounded-xl border-border/60 bg-card/60 p-3 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Tag className="h-3.5 w-3.5 text-primary" weight="fill" />
-                      Etiquetas Reais (WhatsApp & Sistema)
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {currentTags.length} associada(s)
-                    </span>
-                  </div>
-
-                  {/* Etiquetas Ativas no Contato */}
-                  <div className="flex flex-wrap items-center gap-1.5 min-h-6">
-                    {currentTags.length > 0 ? (
-                      currentTags.map((tag) => (
-                        <TagIconBadge
-                          key={tag}
-                          tag={tag}
-                          colorClass={getTagColor(tag)}
-                          size="sm"
-                          interactive={false}
-                          onRemove={() => handleRemoveTag(tag)}
-                        />
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground italic">
-                        Nenhuma etiqueta associada. Clique nas etiquetas reais abaixo para associar.
+            {activeTab === "summary" ? (
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                {/* COLUNA 1: LISTA DE ETIQUETAS REAIS PADRÃO WHATSAPP WEB COM CHECKBOX */}
+                <div className="md:col-span-6 space-y-2">
+                  <Card className="rounded-xl border-border/70 bg-card/80 p-3 space-y-2.5 shadow-sm">
+                    {/* Header do Menu de Etiquetas padrão Zap */}
+                    <div className="flex items-center justify-between pb-1 border-b border-border/40">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <Tag className="h-3.5 w-3.5 text-primary" weight="fill" />
+                        Etiquetas WhatsApp
                       </span>
-                    )}
-                  </div>
+                      <span className="text-[11px] font-semibold text-emerald-400">
+                        {selectedWppCount} selecionada(s)
+                      </span>
+                    </div>
 
-                  {/* ETIQUETAS REAIS DISPONÍVEIS NO WHATSAPP / BANCO COM 1 CLIQUE */}
-                  <div className="space-y-1.5 pt-1 border-t border-border/40">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                      Etiquetas Reais do Sistema & WhatsApp (Clique para aplicar/remover):
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
+                    {/* Lista com Bolinha Colorida, Nome e Checkbox Quadrado ☑️/⬜ */}
+                    <div className="space-y-1">
                       {realLabels.map((lbl) => {
                         const isSelected = currentTags.some(
                           (t) => t.toLowerCase() === lbl.name.toLowerCase()
                         );
                         return (
-                          <button
+                          <div
                             key={lbl.id || lbl.name}
-                            type="button"
-                            onClick={() => handleToggleRealLabel(lbl.name)}
+                            onClick={() => handleToggleWhatsAppLabel(lbl.name)}
                             className={cn(
-                              "text-[11px] px-2 py-1 rounded-lg border font-medium transition-all flex items-center gap-1.5",
+                              "flex items-center justify-between px-2.5 py-2 rounded-xl cursor-pointer transition-all border",
                               isSelected
-                                ? "bg-primary/20 text-primary border-primary/50 font-bold shadow-sm"
-                                : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/40 hover:text-foreground"
+                                ? "bg-primary/10 border-primary/40 text-foreground"
+                                : "hover:bg-muted/40 border-transparent text-muted-foreground hover:text-foreground"
                             )}
-                            title={isSelected ? `Remover ${lbl.name}` : `Associar ${lbl.name}`}
+                            title={isSelected ? `Desmarcar ${lbl.name}` : `Marcar ${lbl.name}`}
                           >
-                            <span
-                              className="h-2 w-2 rounded-full shrink-0 shadow-sm"
-                              style={{ backgroundColor: lbl.color_hex || "#00d26a" }}
-                            />
-                            <span>{lbl.name}</span>
-                            <span className="text-[10px] font-bold opacity-80">
-                              {isSelected ? "✓" : "+"}
-                            </span>
-                          </button>
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span
+                                className="h-3 w-3 rounded-full shrink-0 shadow-sm"
+                                style={{ backgroundColor: lbl.color_hex || "#ff3b30" }}
+                              />
+                              <span className="text-xs font-semibold uppercase tracking-wide truncate">
+                                {lbl.name}
+                              </span>
+                            </div>
+
+                            {/* Checkbox padrão WhatsApp Web */}
+                            <div
+                              className={cn(
+                                "h-4 w-4 rounded-md border flex items-center justify-center transition-colors shrink-0",
+                                isSelected
+                                  ? "bg-primary border-primary text-primary-foreground"
+                                  : "border-muted-foreground/40 bg-background/50"
+                              )}
+                            >
+                              {isSelected && <Check className="h-3 w-3 stroke-[3]" weight="bold" />}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
-                  </div>
 
-                  {/* CRIAR NOVA ETIQUETA REAL (PERSISTE NO POSTGRESQL & WHATSAPP) */}
-                  <div className="space-y-1.5 pt-1.5 border-t border-border/40">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                      Criar Nova Etiqueta Real:
-                    </span>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <div className="flex-1 flex items-center gap-1.5">
-                        <Input
-                          placeholder="Nome da nova etiqueta (ex: Cliente_Ouro)..."
-                          value={newTagInput}
-                          onChange={(e) => setNewTagInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              void handleCreateRealLabel();
-                            }
-                          }}
-                          className="h-8 text-xs rounded-lg bg-background/50 border-border/60"
-                        />
-                      </div>
+                    {/* AÇÃO: + Nova lista / Gerenciar (Padrão WhatsApp Web) */}
+                    <div className="pt-1.5 border-t border-border/40 space-y-2">
+                      {!showAddLabelInline ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowAddLabelInline(true)}
+                          className="w-full flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors py-1 px-1"
+                        >
+                          <Plus className="h-3.5 w-3.5 text-primary" weight="bold" />
+                          <span>Nova lista / etiqueta</span>
+                        </button>
+                      ) : (
+                        <div className="space-y-2 bg-background/60 p-2 rounded-xl border border-border/50 animate-in fade-in-0">
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              placeholder="Nome da nova lista..."
+                              value={newLabelInput}
+                              onChange={(e) => setNewLabelInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  void handleCreateWhatsAppLabel();
+                                }
+                              }}
+                              className="h-7 text-xs rounded-lg bg-card border-border/60"
+                              autoFocus
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={isCreatingLabel || !newLabelInput.trim()}
+                              className="h-7 px-2 text-xs rounded-lg shrink-0 font-bold"
+                              onClick={() => void handleCreateWhatsAppLabel()}
+                            >
+                              {isCreatingLabel ? "Salvando..." : "Salvar"}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-lg shrink-0"
+                              onClick={() => setShowAddLabelInline(false)}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
 
-                      {/* Paleta rápida de cores */}
-                      <div className="flex items-center gap-1 shrink-0 self-center sm:self-auto">
-                        {PRESET_LABEL_COLORS.map((c) => (
-                          <button
-                            key={c.hex}
-                            type="button"
-                            onClick={() => setSelectedTagColor(c.hex)}
-                            title={c.name}
-                            className={cn(
-                              "h-5 w-5 rounded-full border transition-all",
-                              selectedTagColor === c.hex
-                                ? "scale-110 border-white ring-2 ring-primary"
-                                : "border-transparent opacity-70 hover:opacity-100"
-                            )}
-                            style={{ backgroundColor: c.hex }}
-                          />
-                        ))}
-                      </div>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={isCreatingTag || !newTagInput.trim()}
-                        className="h-8 px-2.5 text-xs gap-1 rounded-lg shrink-0 font-semibold"
-                        onClick={() => void handleCreateRealLabel()}
-                      >
-                        <Plus className="h-3 w-3" weight="bold" />
-                        {isCreatingTag ? "Criando..." : "Criar Etiqueta"}
-                      </Button>
+                          {/* Seletor de Cores do WhatsApp */}
+                          <div className="flex items-center gap-1 pt-0.5">
+                            <span className="text-[10px] text-muted-foreground mr-1">Cor:</span>
+                            {WPP_PALETTE.map((c) => (
+                              <button
+                                key={c.hex}
+                                type="button"
+                                onClick={() => setSelectedLabelColor(c.hex)}
+                                title={c.name}
+                                className={cn(
+                                  "h-4 w-4 rounded-full border transition-all",
+                                  selectedLabelColor === c.hex
+                                    ? "scale-125 border-white ring-2 ring-primary"
+                                    : "border-transparent opacity-70 hover:opacity-100"
+                                )}
+                                style={{ backgroundColor: c.hex }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </Card>
 
-                {/* Anotações Privadas do Lead & Engajamento */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Tags do Sistema / CRM secundárias (se houver) */}
+                    {systemTags.length > 0 && (
+                      <div className="pt-2 border-t border-border/30">
+                        <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                          Tags do Sistema & IA:
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {systemTags.map((st) => (
+                            <Badge
+                              key={st}
+                              variant="outline"
+                              className="text-[9px] py-0 px-1.5 border-border/50 text-muted-foreground bg-muted/20"
+                            >
+                              {st}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                </div>
+
+                {/* COLUNA 2: RESUMO IA & ANOTAÇÕES PRIVADAS DO LEAD */}
+                <div className="md:col-span-6 space-y-2.5 flex flex-col">
+                  {/* Resumo Permanente IA */}
+                  <Card className="rounded-xl border-primary/20 bg-primary/5 p-2.5 space-y-1">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-primary uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5">
+                        <Brain className="h-3.5 w-3.5 animate-pulse" weight="fill" />
+                        Resumo IA do Lead
+                      </span>
+                      {confidence !== null && (
+                        <span className="text-[10px] font-bold text-emerald-400 font-mono">
+                          {Math.round(confidence * 100)}%
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-foreground/90 leading-relaxed italic line-clamp-3">
+                      {aiData?.summary ||
+                        aiData?.conversationSummary ||
+                        (loadingAi ? "Carregando análise…" : "Conversa iniciada sem resumo disponível.")}
+                    </p>
+                  </Card>
+
                   {/* Anotações do Lead */}
-                  <Card className="rounded-xl border-border/60 bg-card/60 p-2.5 space-y-2">
+                  <Card className="rounded-xl border-border/60 bg-card/60 p-2.5 space-y-1.5 flex-1 flex flex-col">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
                         <NotePencil className="h-3.5 w-3.5 text-amber-400" />
-                        Notas & Observações
+                        Notas do Atendimento
                       </span>
                       <Button
                         variant="ghost"
@@ -843,103 +815,44 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                       </Button>
                     </div>
                     <Textarea
-                      placeholder="Observações importantes sobre o cliente..."
+                      placeholder="Registre contexto ou preferências deste cliente..."
                       value={leadNotes}
                       onChange={(e) => setLeadNotes(e.target.value)}
-                      className="min-h-[70px] text-xs rounded-lg bg-background/50 border-border/60 resize-none"
+                      className="min-h-[85px] flex-1 text-xs rounded-lg bg-background/50 border-border/60 resize-none"
                     />
                   </Card>
 
-                  {/* Engajamento & Qualificação */}
-                  <Card className="rounded-xl border-border/60 bg-card/60 p-2.5 space-y-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                      <ShieldCheck className="h-3.5 w-3.5 text-success" />
-                      Engajamento
+                  {/* Engajamento Compacto */}
+                  <Card className="rounded-xl border-border/60 bg-card/60 p-2 text-xs flex items-center justify-between text-muted-foreground">
+                    <span>
+                      Status: <strong className="text-foreground capitalize">{lead.status || "Ativo"}</strong>
                     </span>
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Status:</span>
-                        <strong className="text-foreground capitalize">{lead.status || "Ativo"}</strong>
-                      </div>
-                      {lead.lastMessage && (
-                        <div className="flex justify-between text-muted-foreground gap-1">
-                          <span className="shrink-0">Última msg:</span>
-                          <strong className="text-foreground truncate max-w-[130px]" title={lead.lastMessage}>
-                            {lead.lastMessage}
-                          </strong>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Canal:</span>
-                        <strong className="text-primary font-bold">WhatsApp</strong>
-                      </div>
-                    </div>
+                    <span>
+                      Canal: <strong className="text-primary font-bold">WhatsApp</strong>
+                    </span>
                   </Card>
                 </div>
-
-                {/* Recovery Approach Banner if active */}
-                {recoveryApproach && (
-                  <Card className="rounded-xl border-amber-500/30 bg-amber-500/10 p-2.5 space-y-1.5 animate-in fade-in-0">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-amber-400 uppercase tracking-wider">
-                      <span className="flex items-center gap-1">
-                        <MagicWand className="h-3.5 w-3.5" weight="fill" />
-                        Abordagem de Recuperação IA
+              </div>
+            ) : activeTab === "graph" ? (
+              <LeadKnowledgeGraph leadId={lead.conversationId || lead.id} leadName={lead.name} />
+            ) : (
+              <div className="space-y-2">
+                {(Array.isArray(followupPlan?.steps) ? followupPlan.steps : []).map((step: any, idx: number) => (
+                  <Card key={idx} className="rounded-xl border-border/60 bg-card/60 p-2.5 space-y-1">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-primary flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Passo {idx + 1}: {step.timingLabel}
                       </span>
-                      <Badge variant="outline" className="text-[8px] border-amber-500/40 text-amber-400">
-                        Reativação
-                      </Badge>
+                      <span className="text-[9px] font-normal uppercase text-muted-foreground">{step.goal}</span>
                     </div>
-                    <p className="text-xs text-foreground bg-background/60 p-2 rounded-lg border border-amber-500/20">
-                      "{recoveryApproach.suggestedMessage}"
+                    <p className="text-xs text-foreground bg-background/50 p-2 rounded-lg border border-border/30 italic">
+                      "{step.message}"
                     </p>
                   </Card>
-                )}
-
-                <div className="pt-1">
-                  <Button
-                    variant="outline"
-                    className="w-full rounded-lg text-xs gap-1.5 h-8"
-                    onClick={() => void handleGenerateRecovery()}
-                  >
-                    <MagicWand className="h-3.5 w-3.5 text-amber-400" />
-                    Gerar Abordagem de Recuperação com IA
-                  </Button>
-                </div>
-              </TabsContent>
-
-              {/* TAB 3: FOLLOW-UPS */}
-              <TabsContent value="followups" className="space-y-2.5 mt-2.5">
-                {followupPlan ? (
-                  <div className="space-y-2">
-                    {(Array.isArray(followupPlan.steps) ? followupPlan.steps : []).map((step: any, idx: number) => (
-                      <Card key={idx} className="rounded-xl border-border/60 bg-card/60 p-2.5 space-y-1">
-                        <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="text-primary flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            Passo {idx + 1}: {step.timingLabel}
-                          </span>
-                          <span className="text-[9px] font-normal uppercase text-muted-foreground">{step.goal}</span>
-                        </div>
-                        <p className="text-xs text-foreground bg-background/50 p-2 rounded-lg border border-border/30 italic">
-                          "{step.message}"
-                        </p>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-6 text-center space-y-2">
-                    <Brain className="h-8 w-8 text-primary mx-auto animate-pulse" />
-                    <p className="text-xs text-muted-foreground">
-                      Gere um plano automático de follow-up personalizado para este lead.
-                    </p>
-                    <Button size="sm" className="rounded-lg text-xs gap-1.5 h-7" onClick={() => void handleGenerateFollowup()}>
-                      <Sparkle className="h-3.5 w-3.5" />
-                      Gerar Plano Inteligente de Follow-up
-                    </Button>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
+                ))}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -158,9 +158,6 @@ export function formatPhoneNumber(phone: string): string {
   }
   const clean = raw.replace(/@.*$/, "").replace(/\D/g, "");
   if (!clean) return "Sem número";
-  if (raw.includes("@lid") || (clean.length >= 14 && clean.length <= 16 && !clean.startsWith("55"))) {
-    return `WhatsApp Privado (#${clean.slice(-4)})`;
-  }
   if (clean.length === 13 && clean.startsWith("55")) {
     return `+${clean.slice(0, 2)} (${clean.slice(2, 4)}) ${clean.slice(4, 9)}-${clean.slice(9)}`;
   }
@@ -173,7 +170,7 @@ export function formatPhoneNumber(phone: string): string {
   if (clean.length === 10) {
     return `+55 (${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
   }
-  return raw.replace(/@.*$/, "");
+  return clean || raw.replace(/@.*$/, "");
 }
 
 export function formatContactPhone(phone: string, isGroup?: boolean): {
@@ -190,12 +187,8 @@ export function formatContactPhone(phone: string, isGroup?: boolean): {
   }
   const clean = raw.replace(/@.*$/, "").replace(/\D/g, "");
   const isLid = raw.includes("@lid") || (clean.length >= 14 && clean.length <= 16 && !clean.startsWith("55"));
-  if (isLid) {
-    const shortId = clean.slice(-4) || "0000";
-    return { display: `WhatsApp Privado (#${shortId})`, isLid: true, isGroup: false, raw, shortId };
-  }
   const display = formatPhoneNumber(phone);
-  return { display, isLid: false, isGroup: false, raw };
+  return { display, isLid, isGroup: false, raw, shortId: clean.slice(-4) };
 }
 
 export function formatPlaybackTime(seconds: number): string {
