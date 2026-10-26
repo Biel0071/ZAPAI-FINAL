@@ -141,6 +141,15 @@ function createCampaignState(campaign) {
     processing: false,
     nextPauseThreshold: initialPauseThreshold,
     sessionId: settings.sessionId || null,
+    tags: Array.isArray(campaign.tags)
+      ? campaign.tags
+      : (Array.isArray(settings.tags)
+        ? settings.tags
+        : (typeof settings.tags === 'string'
+          ? settings.tags.split(',').map((t) => t.trim()).filter(Boolean)
+          : (typeof campaign.tags === 'string'
+            ? campaign.tags.split(',').map((t) => t.trim()).filter(Boolean)
+            : []))),
     messages: Array.isArray(campaign.messages) ? campaign.messages : [],
     flowId: settings.flowId || null,
     settings: {
@@ -626,11 +635,33 @@ async function dispatchSingleMessage(state, contact, io) {
         }
 
         const currentTags = Array.isArray(conversation.tags) ? [...conversation.tags] : [];
+
+        // Auto-etiquetamento inteligente derivado do disparo / campanha
+        const campaignTags = Array.isArray(state.tags) && state.tags.length > 0 ? [...state.tags] : [];
+        if (campaignTags.length === 0 && state.name) {
+          const cleanName = state.name
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+          if (cleanName) {
+            campaignTags.push(cleanName);
+          }
+        }
+
         if (!currentTags.includes('robo_ativo')) currentTags.push('robo_ativo');
         if (!currentTags.includes('recuperacao')) currentTags.push('recuperacao');
         if (!currentTags.includes('followup_ia_ativo')) currentTags.push('followup_ia_ativo');
         if (contact?.algorithmCode && !currentTags.includes(String(contact.algorithmCode).toLowerCase())) {
           currentTags.push(String(contact.algorithmCode).toLowerCase());
+        }
+
+        for (const t of campaignTags) {
+          const norm = String(t).trim().toLowerCase();
+          if (norm && !currentTags.some((c) => String(c).trim().toLowerCase() === norm)) {
+            currentTags.push(norm);
+          }
         }
 
         const nowIso = new Date().toISOString();
@@ -645,6 +676,31 @@ async function dispatchSingleMessage(state, contact, io) {
           lead_temperature: 'hot',
           tags: currentTags,
         });
+
+        // Sincroniza etiquetas reais com WhatsApp Labels (Baileys) se conectado
+        try {
+          const preferredSession = sessionManager.getSession(state.sessionId || 'main');
+          const sock = preferredSession?.sock;
+          if (sock) {
+            const { query } = require('../src/infrastructure/config/database');
+            const labelsRes = await query(
+              "SELECT id, name FROM whatsapp_labels WHERE (session_id = $1 OR session_id = 'main') AND deleted = false",
+              [state.sessionId || 'main']
+            );
+            const existingLabels = labelsRes.rows || [];
+            for (const lbl of existingLabels) {
+              if (currentTags.some((t) => String(t).toLowerCase() === String(lbl.name).toLowerCase())) {
+                if (typeof sock.addChatLabel === 'function') {
+                  await sock.addChatLabel(jid, String(lbl.id)).catch(() => {});
+                } else if (typeof sock.chatModify === 'function') {
+                  await sock.chatModify({ addChatLabel: { labelId: String(lbl.id) } }, jid).catch(() => {});
+                }
+              }
+            }
+          }
+        } catch (labelErr) {
+          console.warn('[CampaignEngine] WhatsApp label sync error:', labelErr.message);
+        }
 
         const ioInstance = state.io || io || global.io;
         if (ioInstance) {

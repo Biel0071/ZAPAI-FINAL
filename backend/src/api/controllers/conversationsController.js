@@ -1161,7 +1161,20 @@ async function updateConversationMeta(req, res) {
       if (conv) {
         if (conv.lead_id) {
           await query('UPDATE leads SET name = $1 WHERE id = $2', [req.body.name, conv.lead_id]);
+        } else if (conv.phone) {
+          const cleanP = String(conv.phone).replace(/\D/g, '');
+          const existingLead = await query('SELECT id FROM leads WHERE phone = $1 OR phone = $2 LIMIT 1', [conv.phone, cleanP]);
+          if (existingLead.rows[0]?.id) {
+            await query('UPDATE leads SET name = $1 WHERE id = $2', [req.body.name, existingLead.rows[0].id]);
+            await query('UPDATE conversations SET lead_id = $1 WHERE id = $2', [existingLead.rows[0].id, conversationId]);
+          } else {
+            const ins = await query('INSERT INTO leads (phone, name, company_id) VALUES ($1, $2, $3) RETURNING id', [conv.phone, req.body.name, conv.company_id || 'default']);
+            if (ins.rows[0]?.id) {
+              await query('UPDATE conversations SET lead_id = $1 WHERE id = $2', [ins.rows[0].id, conversationId]);
+            }
+          }
         }
+        await query('UPDATE contacts SET name = $1 WHERE phone = $2 OR phone = $3', [req.body.name, conv.phone, String(conv.phone).replace(/\D/g, '')]).catch(() => {});
       }
     }
 
@@ -1241,7 +1254,7 @@ async function updateConversationMeta(req, res) {
         const activeSession = preferredSession?.sock ? preferredSession : (fallbackSession?.sock ? fallbackSession : connectedSession);
         const sock = activeSession?.sock;
 
-        if (sock && typeof sock.addChatLabel === 'function') {
+        if (sock) {
           const { query } = require('../../infrastructure/config/database');
           const jid = updated.phone.includes('@') ? updated.phone : `${updated.phone}@s.whatsapp.net`;
           const companyId = getCompanyId(req);
@@ -1251,8 +1264,19 @@ async function updateConversationMeta(req, res) {
           );
           const existingLabels = labelsRes.rows || [];
           for (const lbl of existingLabels) {
-            if (fields.tags.includes(lbl.name)) {
-              await sock.addChatLabel(jid, String(lbl.id)).catch(() => {});
+            const hasTag = fields.tags.some((t) => String(t).toLowerCase() === String(lbl.name).toLowerCase());
+            if (hasTag) {
+              if (typeof sock.addChatLabel === 'function') {
+                await sock.addChatLabel(jid, String(lbl.id)).catch(() => {});
+              } else if (typeof sock.chatModify === 'function') {
+                await sock.chatModify({ addChatLabel: { labelId: String(lbl.id) } }, jid).catch(() => {});
+              }
+            } else {
+              if (typeof sock.removeChatLabel === 'function') {
+                await sock.removeChatLabel(jid, String(lbl.id)).catch(() => {});
+              } else if (typeof sock.chatModify === 'function') {
+                await sock.chatModify({ removeChatLabel: { labelId: String(lbl.id) } }, jid).catch(() => {});
+              }
             }
           }
         }

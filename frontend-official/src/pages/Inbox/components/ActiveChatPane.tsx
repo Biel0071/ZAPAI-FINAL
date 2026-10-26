@@ -50,6 +50,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { ChatHeaderBar } from "@/components/inbox/ChatHeaderBar";
+import { LeadDrawer } from "@/components/contacts/LeadDrawer";
 import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
@@ -351,6 +352,34 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const { avatar: activeChatAvatar } = useResolvedAvatar(
     selectedConversation?.id,
     selectedConversation?.avatar || (selectedConversation as any)?.profilePictureUrl,
+  );
+
+  const [leadDrawerOpen, setLeadDrawerOpen] = useState(false);
+
+  const handleUpdateLeadInChat = useCallback(
+    async (id: string, updates: any) => {
+      if (!selectedConversation) return;
+      const conversationId = String(selectedConversation.id || id);
+
+      // Optimistic update in Zustand appStore
+      useAppStore.getState().updateConversationRealtime({
+        id: conversationId,
+        ...(updates.name ? { contactName: updates.name, name: updates.name } : {}),
+        ...(updates.phone ? { phone: updates.phone } : {}),
+        ...(updates.lead_temperature ? { lead_temperature: updates.lead_temperature } : {}),
+        ...(updates.funnel_stage ? { funnel_stage: updates.funnel_stage } : {}),
+        ...(updates.tags ? { tags: updates.tags } : {}),
+        ...(updates.notes ? { notes: updates.notes } : {}),
+      });
+
+      try {
+        await apiService.patchConversation(conversationId, updates);
+      } catch (err: any) {
+        console.error("Falha ao salvar atualizações do contato:", err);
+        toast({ title: "Erro ao salvar alterações do contato", variant: "destructive" });
+      }
+    },
+    [selectedConversation, toast]
   );
 
   useEffect(() => {
@@ -731,12 +760,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
             isMobile={isMobile}
             onBack={onBack ?? (() => setShowLeadPanel(false))}
             onContactClick={() => {
-              if (isTabletLayout || isMobile) {
-                setShowLeadPanel(true);
-              } else {
-                setRightPanelTab("lead");
-                setRightPanelCollapsed(false);
-              }
+              setLeadDrawerOpen(true);
             }}
             phoneLabel={(() => {
               const rawPhone = (selectedConversation.phone || "").trim();
@@ -944,7 +968,32 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                 )}
               </div>
             }
+          />
 
+          {/* Pop-up Modal Unificado do Lead ao clicar no avatar ou nome */}
+          <LeadDrawer
+            lead={
+              leadDrawerOpen && selectedConversation
+                ? {
+                    id: String(selectedConversation.id),
+                    conversationId: String(selectedConversation.id),
+                    name: selectedConversation.contactName || selectedConversation.name || "Contato",
+                    phone: selectedConversation.phone || (selectedConversation as any).contactPhone || "",
+                    avatarUrl: activeChatAvatar || selectedConversation.avatar || (selectedConversation as any).profilePictureUrl,
+                    temperature: (selectedConversation as any).lead_temperature || (selectedConversation as any).temperature || "cold",
+                    funnelStage: selectedConversation.funnel_stage || (selectedConversation as any).funnelStage || "new_lead",
+                    tags: Array.isArray(selectedConversation.tags) ? selectedConversation.tags : [],
+                    status: selectedConversation.status,
+                    lastMessage: selectedConversation.lastMessage,
+                    updatedAt: selectedConversation.updatedAt,
+                    sessionId: selectedConversation.sessionId,
+                    notes: (selectedConversation as any).notes || "",
+                  }
+                : null
+            }
+            onClose={() => setLeadDrawerOpen(false)}
+            onUpdateLead={handleUpdateLeadInChat}
+            fromInbox
           />
 
           {isInterventionNeeded && (
