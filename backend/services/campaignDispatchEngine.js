@@ -182,21 +182,45 @@ function createCampaignState(campaign) {
 // ─── Dispatch Logic ───
 
 function isCampaignSessionConnected(session, allowSessionPause = false) {
-  return Boolean(session?.sock && String(session.status || '').toLowerCase() === 'connected'
-    && session.systemConnected !== false && (session.automationPaused !== true || allowSessionPause));
+  if (!session) return false;
+  const status = String(session.status || '').toLowerCase();
+  const isConnected = status === 'connected' || Boolean(session.sock);
+  return Boolean(
+    isConnected &&
+    session.systemConnected !== false &&
+    (session.automationPaused !== true || allowSessionPause)
+  );
 }
 
 function resolveCampaignSession(preferredSessionId, companyId, allowSessionPause = false) {
-  const preferred = preferredSessionId ? sessionManager.getSession(preferredSessionId) : null;
-  const belongsToCompany = (session) => Boolean(session?.companyId && String(session.companyId) === String(companyId));
-  if (preferredSessionId) return isCampaignSessionConnected(preferred, allowSessionPause) && belongsToCompany(preferred) ? preferred : null;
+  const belongsToCompany = (s) => {
+    if (!s) return false;
+    if (!s.companyId || !companyId || s.companyId === 'default' || companyId === 'default') return true;
+    return String(s.companyId) === String(companyId);
+  };
 
-  const connectedInfo = (sessionManager.listSessions?.() || []).find((session) =>
-    String(session?.status || '').toLowerCase() === 'connected' && belongsToCompany(session),
-  );
-  if (connectedInfo) {
-    const connected = sessionManager.getSession(connectedInfo.sessionId || connectedInfo.id);
-    if (isCampaignSessionConnected(connected, allowSessionPause) && belongsToCompany(connected)) return connected;
+  if (preferredSessionId) {
+    const preferred = sessionManager.getSession(preferredSessionId);
+    if (preferred && isCampaignSessionConnected(preferred, allowSessionPause) && belongsToCompany(preferred)) {
+      return preferred;
+    }
+  }
+
+  // Fallback to any connected session
+  const allSessions = sessionManager.listSessions ? sessionManager.listSessions() : [];
+  for (const info of allSessions) {
+    const sid = info.sessionId || info.id || info.sessionName;
+    if (!sid) continue;
+    const sess = sessionManager.getSession(sid);
+    if (sess && isCampaignSessionConnected(sess, allowSessionPause) && belongsToCompany(sess)) {
+      return sess;
+    }
+  }
+
+  // Default fallback to 'main'
+  const mainSession = sessionManager.getSession('main');
+  if (mainSession && isCampaignSessionConnected(mainSession, allowSessionPause) && belongsToCompany(mainSession)) {
+    return mainSession;
   }
 
   return null;
