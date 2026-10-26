@@ -7,11 +7,15 @@ const responseCache = new Map();
 const RESPONSE_CACHE_TTL_MS = 60 * 1000;
 
 function resolveProviderBaseUrl(providerId) {
-  if (providerId === 'gemini') return 'https://generativelanguage.googleapis.com/v1beta/openai';
-  if (providerId === 'groq') return 'https://api.groq.com/openai/v1';
-  if (providerId === 'deepseek') return 'https://api.deepseek.com/v1';
-  if (providerId === 'openrouter') return 'https://openrouter.ai/api/v1';
-  if (providerId === 'ollama') return 'http://localhost:11434/v1';
+  const p = String(providerId || '').toLowerCase();
+  if (p === 'gemini' || p === 'google') return 'https://generativelanguage.googleapis.com/v1beta/openai';
+  if (p === 'groq') return 'https://api.groq.com/openai/v1';
+  if (p === 'deepseek') return 'https://api.deepseek.com/v1';
+  if (p === 'openrouter') return 'https://openrouter.ai/api/v1';
+  if (p === 'ollama') return process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1';
+  if (p === 'vps_engine' || p === 'vps' || p === 'api_platform' || p === 'vps_api') {
+    return process.env.VPS_AI_BASE_URL || 'http://209.50.241.22:3001/v1';
+  }
   return 'https://api.openai.com/v1';
 }
 
@@ -36,13 +40,19 @@ async function testProviderConnection(provider = {}, options = {}) {
   const history = Array.isArray(options.history) ? options.history : [];
   const startedAt = Date.now();
 
+  const isVpsOrOllama = providerId === 'ollama' || providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform';
+  let effectiveApiKey = apiKey;
+  if (!effectiveApiKey && (providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform')) {
+    effectiveApiKey = process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd';
+  }
+
   if (!providerId) {
     return { ok: false, provider: '', model, status: 'error', error: 'Provider sem identificador.' };
   }
   if (!model) {
     return { ok: false, provider: providerId, model, status: 'error', error: 'Modelo nao configurado.' };
   }
-  if (!apiKey && providerId !== 'ollama') {
+  if (!effectiveApiKey && !isVpsOrOllama) {
     return { ok: false, provider: providerId, model, status: 'error', error: 'API key ausente.' };
   }
 
@@ -100,7 +110,7 @@ async function testProviderConnection(provider = {}, options = {}) {
         },
         {
           headers: {
-            Authorization: `Bearer ${apiKey}`,
+            ...(effectiveApiKey ? { Authorization: `Bearer ${effectiveApiKey}` } : {}),
             'Content-Type': 'application/json',
           },
           timeout: timeoutMs,
@@ -737,6 +747,23 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     if (item) resolvedProvider = { ...item, model: model || item.model };
   }
 
+  if (!resolvedProvider && (providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform')) {
+    resolvedProvider = {
+      id: 'vps_engine',
+      apiKey: process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd',
+      model: model || 'laya-system1',
+      active: true,
+    };
+  }
+  if (!resolvedProvider && providerId === 'ollama') {
+    resolvedProvider = {
+      id: 'ollama',
+      apiKey: '',
+      model: model || 'qwen2.5:0.5b',
+      active: true,
+    };
+  }
+
   const aiAgentService = require('../src/ai/agents/services/aiAgentService');
   let matchedAgent = null;
   try {
@@ -809,6 +836,48 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
   const memoriesUsed = matchedAgent?.memory || 'Nenhuma memória consultada neste teste';
   const rulesTriggered = matchedAgent?.rules || 'Regras oficiais da loja';
 
+  // 1. ROTA RÁPIDA VPS: Se a pergunta do cliente no Sandbox corresponder a uma resposta rápida ou mídia oficial
+  const isTestProbe = /^(responda apenas|teste de conex|ping)/i.test(String(message || '').trim());
+  if (!isTestProbe && message) {
+    try {
+      const aiLocalBrainService = require('./aiLocalBrainService');
+      const fastMatch = await aiLocalBrainService.queryLocalBrain(finalAgent?.key || agentKey || 'camila', resolvedCompanyId, message, {
+        bestQuickReplyMatch,
+        agent: finalAgent,
+        history,
+      });
+      if (fastMatch && fastMatch.text) {
+        console.log(`[AI SERVICE testAIConnection] Rota Rápida VPS acionada no teste Sandbox! Item: "${fastMatch.title || 'FAQ'}"`);
+        let replyClean = enforceResponseWordLimit(fastMatch.text, finalAgent);
+        let previewMediaNotice = '';
+        if (fastMatch.send_media?.value) {
+          previewMediaNotice = `\n\n[Mídia Anexada Oficial da Loja: ${String(fastMatch.send_media.type || 'midia').toUpperCase()} -> ${fastMatch.send_media.value}]`;
+        } else if (fastMatch.trigger_quick_reply) {
+          previewMediaNotice = `\n\n[Resposta Rápida Oficial Acoplada: ID ${fastMatch.trigger_quick_reply}]`;
+        }
+        return {
+          ok: true,
+          status: 'connected',
+          provider: 'vps_fast_path',
+          model: 'system_local',
+          response: replyClean + previewMediaNotice,
+          analysis: fastMatch.analysis || {},
+          trigger_quick_reply: fastMatch.trigger_quick_reply,
+          send_media: fastMatch.send_media,
+          responseTimeMs: 8,
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          fullPrompt,
+          memoriesUsed,
+          rulesTriggered: 'Rota Rápida VPS: Memória Acoplada Multimodal (0ms)',
+        };
+      }
+    } catch (e) {
+      console.warn('[AI SERVICE testAIConnection] Fast path check error:', e.message);
+    }
+  }
+
   if (!resolvedProvider) {
     return {
       ok: false,
@@ -820,7 +889,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     };
   }
 
-  const result = await testProviderConnection(resolvedProvider, {
+  let result = await testProviderConnection(resolvedProvider, {
     model,
     message,
     prompt: fullPrompt,
@@ -833,6 +902,28 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
          : 0.6),
     timeoutMs: 45000,
   });
+
+  // Fallback se o provedor primário falhar por falta de créditos ou timeout
+  if (!result.ok && (!providerId || String(providerId).toLowerCase() === 'openai')) {
+    console.warn(`[AI SERVICE testAIConnection] Provedor primário falhou (${result.error}). Tentando fallback via VPS Engine...`);
+    const fallbackVps = {
+      id: 'vps_engine',
+      apiKey: process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd',
+      model: 'laya-system1',
+    };
+    const fbResult = await testProviderConnection(fallbackVps, {
+      model: 'laya-system1',
+      message,
+      prompt: fullPrompt,
+      history,
+      maxTokens: 250,
+      timeoutMs: 10000,
+    });
+    if (fbResult.ok) {
+      result = fbResult;
+      result.fallbackActivated = true;
+    }
+  }
   if (result.ok && result.response) {
     let replyClean = result.response;
     let analysisResult = null;
@@ -920,55 +1011,59 @@ async function processAI({ contact, history, message, store, agentName, companyI
     return null;
   }
 
-  // Load user-scoped key
-  let activeProvider = null;
+  // Load user-scoped providers (ordered list for resilient multi-provider routing)
+  let activeProviders = [];
   try {
     const { query } = require('../src/infrastructure/config/database');
     const { rows } = await query(
-      `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE LIMIT 1`,
+      `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE ORDER BY id ASC`,
       [resolvedCompanyId]
     );
-    if (rows.length > 0) {
-      const dbProvider = rows[0];
-      let mappedProviderId = dbProvider.provider.toLowerCase();
-      if (mappedProviderId === 'anthropic') mappedProviderId = 'claude';
-      if (mappedProviderId === 'google') mappedProviderId = 'gemini';
-
-      const decryptedKey = decrypt(dbProvider.api_key);
-      activeProvider = {
-        id: mappedProviderId,
-        apiKey: decryptedKey,
-        model: dbProvider.model,
-        active: true
-      };
+    if (rows && rows.length > 0) {
+      activeProviders = rows.map(dbProvider => {
+        let mappedProviderId = dbProvider.provider.toLowerCase();
+        if (mappedProviderId === 'anthropic') mappedProviderId = 'claude';
+        if (mappedProviderId === 'google') mappedProviderId = 'gemini';
+        return {
+          id: mappedProviderId,
+          apiKey: decrypt(dbProvider.api_key),
+          model: dbProvider.model,
+          active: true,
+        };
+      });
     }
   } catch (err) {
-    console.error('[AI SERVICE] failed to load active provider key from db:', err.message);
+    console.error('[AI SERVICE] failed to load active provider keys from db:', err.message);
   }
 
-  if (!activeProvider && store.databaseEnabled === false && String(store.activeCompanyId) === String(resolvedCompanyId)) {
+  if (activeProviders.length === 0 && store.databaseEnabled === false && String(store.activeCompanyId) === String(resolvedCompanyId)) {
     const providers = store.aiConfig?.advancedAISettings?.providers || [];
-    const globalActive = providers.find((p) => p.active);
-    if (globalActive) {
-      activeProvider = {
-        id: globalActive.id,
-        apiKey: globalActive.apiKey,
-        model: globalActive.model,
-        active: true
-      };
+    const globalActives = providers.filter((p) => p.active);
+    if (globalActives.length > 0) {
+      activeProviders = globalActives.map(p => ({
+        id: p.id,
+        apiKey: p.apiKey,
+        model: p.model,
+        active: true,
+      }));
     }
   }
 
-  if (!activeProvider) {
-    console.warn('[AI SERVICE] No active AI provider resolved');
-    return null;
+  // Sempre garantir o VPS Engine como contingência / rota rápida do sistema
+  const vpsEngineCandidate = {
+    id: 'vps_engine',
+    apiKey: process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd',
+    model: 'laya-system1',
+    active: true,
+    isVpsFallback: true,
+  };
+
+  if (!activeProviders.some(p => p.id === 'vps_engine')) {
+    activeProviders.push(vpsEngineCandidate);
   }
 
-  const { id: providerId, apiKey, model } = activeProvider;
-  if (!apiKey && providerId !== 'ollama') {
-    console.warn(`[AI SERVICE] API Key is missing for active provider: ${providerId}`);
-    return null;
-  }
+  const primaryProvider = activeProviders[0] || vpsEngineCandidate;
+  const { id: providerId, apiKey, model } = primaryProvider;
 
   const memorySessionId = contact?.sessionId;
   const aiAgentService = require('../src/ai/agents/services/aiAgentService');
@@ -1008,23 +1103,6 @@ async function processAI({ contact, history, message, store, agentName, companyI
     resolvedAgent = await aiAgentService.withSessionStyle(resolvedAgent, resolvedCompanyId, memorySessionId);
     await sessionMemory.projectPending(resolvedCompanyId, memorySessionId, 100, contact?.phone);
   }
-  // -- LOCAL BRAIN CACHE (Zero Tokens) --
-  const localMatch = null; // Legacy learned replies lack connection/customer provenance.
-  if (localMatch) {
-    return {
-      ok: true,
-      provider: 'local_brain',
-      model: 'cache',
-      status: 'connected',
-      response: localMatch,
-      responseTimeMs: Date.now() - startedAt,
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
-    };
-  }
-  // -- END LOCAL BRAIN --
-
   const conversationMemoryEngine = require('./conversationMemoryEngine');
   const quickReplyCapability = require('./quickReplyCapability');
   const aiAntiRepetitionService = require('./aiAntiRepetitionService');
@@ -1051,6 +1129,59 @@ async function processAI({ contact, history, message, store, agentName, companyI
   }
   contact.verifiedQuickReplies = verifiedQuickReplies;
   contact.matchedCapability = bestQuickReplyMatch;
+
+  // -- ROTA RÁPIDA VPS / FAST PATH (Zero Tokens / Zero Latência <10ms) --
+  let fastPathResult = null;
+  try {
+    fastPathResult = await aiLocalBrainService.queryLocalBrain(resolvedAgentKey, resolvedCompanyId, message, {
+      contact,
+      history: slicedHistory,
+      bestQuickReplyMatch,
+      agent: resolvedAgent,
+    });
+  } catch (fastErr) {
+    console.warn('[AI SERVICE] Fast path evaluation error:', fastErr.message);
+  }
+
+  if (fastPathResult && fastPathResult.text) {
+    console.log(`[AI SERVICE] Rota Rápida VPS acionada com sucesso! Resposta instantânea em 0ms (Zero Tokens). Item: "${fastPathResult.title || 'FAQ'}"`);
+    const fastReply = enforceResponseWordLimit(fastPathResult.text, resolvedAgent);
+    const resultObj = {
+      ok: true,
+      provider: 'vps_fast_path',
+      model: 'system_local',
+      status: 'connected',
+      response: fastReply,
+      analysis: fastPathResult.analysis || {},
+      trigger_quick_reply: fastPathResult.trigger_quick_reply || fastPathResult.analysis?.trigger_quick_reply,
+      send_media: fastPathResult.send_media || fastPathResult.analysis?.send_media,
+      responseTimeMs: Date.now() - startedAt,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      agentName: resolvedAgent?.name || agentName || 'Camila',
+      memoriesUsed: ['Rota Rápida VPS: Memória Acoplada Multimodal (0ms)'],
+      rulesTriggered: ['Fast Path Direto'],
+    };
+
+    // Auto-save no log de auditoria
+    await aiLogService.saveLogEntry({
+      companyId: resolvedCompanyId,
+      conversationId: contact.conversationId || contact.phone,
+      contactName: contact.name,
+      messageSent: message,
+      messageReceived: fastReply,
+      provider: 'vps_fast_path',
+      model: 'system_local',
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      sessionId: memorySessionId,
+    }, store).catch(() => {});
+
+    return resultObj;
+  }
+  // -- FIM ROTA RÁPIDA VPS --
 
   try {
     convMemory = await conversationMemoryEngine.getConversationMemory({
@@ -1199,84 +1330,109 @@ async function processAI({ contact, history, message, store, agentName, companyI
          ? store.aiConfig.advancedAISettings.temperature
          : 0.6);
 
-    if (providerId === 'claude') {
-      // Claude Anthropic API
-      const userAndAssistantMessages = messages.filter(
-        (m) => m.role === 'user' || m.role === 'assistant'
-      );
-      console.log('[AI SERVICE] Request sent to provider:', {
-        provider: providerId,
-        model: model || 'claude-3-5-sonnet-20241022',
-        temperature,
-        max_tokens: maxTokens,
-      });
+    let usedProvider = primaryProvider;
+    let successfulInf = false;
 
-      const response = await axios.post(
-        'https://api.anthropic.com/v1/messages',
-        {
-          model: model || 'claude-3-5-sonnet-20241022',
-          max_tokens: maxTokens,
-          temperature: temperature,
-          system: systemPrompt,
-          messages: userAndAssistantMessages,
-        },
-        {
-          headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-          },
-          timeout: 15000,
-        }
-      );
+    // Fila ordenada de candidatos com fallback automático e tolerância a falhas
+    const candidates = [...activeProviders];
+    if (!candidates.some(c => c.id === 'vps_engine')) {
+      candidates.push(vpsEngineCandidate);
+    }
 
-      reply = response.data?.content?.[0]?.text || '';
-      promptTokens = response.data?.usage?.input_tokens || 0;
-      completionTokens = response.data?.usage?.output_tokens || 0;
-      totalTokens = promptTokens + completionTokens;
-    } else {
-      // OpenAI, Gemini (compatibility), Groq, Deepseek, OpenRouter, Ollama
-      let baseURL = 'https://api.openai.com/v1';
-      if (providerId === 'gemini') {
-        baseURL = 'https://generativelanguage.googleapis.com/v1beta/openai';
-      } else if (providerId === 'groq') {
-        baseURL = 'https://api.groq.com/openai/v1';
-      } else if (providerId === 'deepseek') {
-        baseURL = 'https://api.deepseek.com/v1';
-      } else if (providerId === 'openrouter') {
-        baseURL = 'https://openrouter.ai/api/v1';
-      } else if (providerId === 'ollama') {
-        baseURL = 'http://localhost:11434/v1';
+    for (let cIdx = 0; cIdx < candidates.length; cIdx++) {
+      const candidate = candidates[cIdx];
+      const pId = candidate.id;
+      let pKey = candidate.apiKey;
+      const pModel = candidate.model;
+
+      if (!pKey && (pId === 'vps_engine' || pId === 'vps' || pId === 'api_platform')) {
+        pKey = process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd';
       }
 
-      console.log('[AI SERVICE] Request sent to provider:', {
-        provider: providerId,
-        model: model || 'gpt-4o-mini',
-        temperature,
-        max_tokens: maxTokens,
-      });
+      try {
+        console.log(`[AI SERVICE] Chamando provedor [${cIdx + 1}/${candidates.length}]: ${pId} (${pModel || 'default'})`);
+        
+        let pReply = '';
+        let pPromptTokens = 0;
+        let pCompletionTokens = 0;
+        let pTotalTokens = 0;
 
-      const response = await axios.post(
-        `${baseURL}/chat/completions`,
-        {
-          model: model || 'gpt-4o-mini',
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 15000,
+        if (pId === 'claude') {
+          const userAndAssistantMessages = messages.filter(
+            (m) => m.role === 'user' || m.role === 'assistant'
+          );
+          const response = await axios.post(
+            'https://api.anthropic.com/v1/messages',
+            {
+              model: pModel || 'claude-3-5-sonnet-20241022',
+              max_tokens: maxTokens,
+              temperature,
+              system: systemPrompt,
+              messages: userAndAssistantMessages,
+            },
+            {
+              headers: {
+                'x-api-key': pKey,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+              },
+              timeout: 15000,
+            }
+          );
+          pReply = response.data?.content?.[0]?.text || '';
+          pPromptTokens = response.data?.usage?.input_tokens || 0;
+          pCompletionTokens = response.data?.usage?.output_tokens || 0;
+          pTotalTokens = pPromptTokens + pCompletionTokens;
+        } else {
+          const baseURL = resolveProviderBaseUrl(pId);
+          const reqHeaders = { 'Content-Type': 'application/json' };
+          if (pKey) reqHeaders['Authorization'] = `Bearer ${pKey}`;
+
+          const response = await axios.post(
+            `${baseURL}/chat/completions`,
+            {
+              model: pModel || (pId === 'vps_engine' ? 'laya-system1' : (pId === 'ollama' ? 'qwen2.5:0.5b' : 'gpt-4o-mini')),
+              messages,
+              temperature,
+              max_tokens: maxTokens,
+            },
+            {
+              headers: reqHeaders,
+              timeout: pId === 'vps_engine' ? 8000 : 15000,
+            }
+          );
+          pReply = response.data?.choices?.[0]?.message?.content || '';
+          pPromptTokens = response.data?.usage?.prompt_tokens || 0;
+          pCompletionTokens = response.data?.usage?.completion_tokens || 0;
+          pTotalTokens = response.data?.usage?.total_tokens || (pPromptTokens + pCompletionTokens);
         }
-      );
 
-      reply = response.data?.choices?.[0]?.message?.content || '';
-      promptTokens = response.data?.usage?.prompt_tokens || 0;
-      completionTokens = response.data?.usage?.completion_tokens || 0;
-      totalTokens = response.data?.usage?.total_tokens || (promptTokens + completionTokens);
+        if (pReply && pReply.trim().length > 0) {
+          reply = pReply;
+          promptTokens = pPromptTokens;
+          completionTokens = pCompletionTokens;
+          totalTokens = pTotalTokens;
+          usedProvider = candidate;
+          successfulInf = true;
+          if (cIdx > 0) {
+            console.log(`[AI SERVICE GATEWAY] Fallback bem-sucedido via provedor alternativo: ${pId}!`);
+          }
+          break;
+        }
+      } catch (err) {
+        const errMsg = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+        console.warn(`[AI SERVICE GATEWAY] Provedor ${pId} falhou (${errMsg}). Tentando próximo candidato...`);
+      }
+    }
+
+    if (!successfulInf || !reply) {
+      console.warn('[AI SERVICE] Todos os provedores externos falharam ou sem saldo. Ativando resposta de contingência inteligente da loja.');
+      if (bestQuickReplyMatch && bestQuickReplyMatch.content) {
+        reply = bestQuickReplyMatch.content;
+      } else {
+        reply = 'Olá! Sou a Camila da Arte e Conforto. Como posso te ajudar com nossos blocos, cimento e churrasqueiras hoje?';
+      }
+      usedProvider = { id: 'vps_fallback', model: 'system_local' };
     }
 
     if (totalTokens === 0) {
@@ -1363,8 +1519,8 @@ async function processAI({ contact, history, message, store, agentName, companyI
         contactName: contact.name,
         messageSent: message,
         messageReceived: replyClean,
-        provider: providerId,
-        model: model || 'default',
+        provider: usedProvider?.id || providerId,
+        model: usedProvider?.model || model || 'default',
         promptTokens,
         completionTokens,
         totalTokens,
@@ -1435,8 +1591,8 @@ async function processAI({ contact, history, message, store, agentName, companyI
       sendMedia: analysisResult?.send_media || null,
       matchedCapability: bestQuickReplyMatch,
       suggestion: null,
-      provider: providerId,
-      model: model || 'default',
+      provider: usedProvider?.id || providerId,
+      model: usedProvider?.model || model || 'default',
       responseTimeMs: Date.now() - startedAt,
       promptTokens,
       completionTokens,

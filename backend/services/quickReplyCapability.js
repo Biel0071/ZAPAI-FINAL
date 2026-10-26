@@ -217,14 +217,20 @@ async function findBestMatchForContext({ message = '', intent = '', product = ''
 
   if (results.length === 0) return null;
 
-  const best = results[0];
-  // Require solid confidence score to prevent accidental triggers
-  if (best.score < 35) return null;
-
-  // Never return an audio-only quick reply unless customer explicitly requested audio or asked about it
-  if (!hasExplicitAudioRequest && (best.availableTypes?.includes('audio') && best.availableTypes?.length === 1 && !normMessage.includes('audio') && !normMessage.includes('voz'))) {
-    return null;
+  // Encontrar o melhor resultado elegível
+  let best = null;
+  for (const res of results) {
+    if (res.score < 35) continue;
+    // Se for áudio exclusivo sem texto e cliente não pediu áudio nem voz, pular para o próximo elegível
+    const isAudioOnly = res.availableTypes?.includes('audio') && res.availableTypes?.length === 1 && !res.quickReply?.content?.trim();
+    if (isAudioOnly && !hasExplicitAudioRequest && !normMessage.includes('audio') && !normMessage.includes('voz')) {
+      continue;
+    }
+    best = res;
+    break;
   }
+
+  if (!best) return null;
 
   const qr = best.quickReply;
   const items = Array.isArray(qr.items) && qr.items.length > 0 ? qr.items : (qr.steps || []);

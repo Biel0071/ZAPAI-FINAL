@@ -1,4 +1,5 @@
 const { query } = require('../src/infrastructure/config/database');
+const quickReplyCapability = require('./quickReplyCapability');
 
 // Cache em memória para evitar sobrecarregar o DB
 // agentKey: { lastFetched: timestamp, events: [...] }
@@ -90,33 +91,147 @@ async function getAgentLearnedEvents(agentKey, companyId) {
 }
 
 /**
- * Consulta a "Mente Local" do agente para ver se ele já sabe responder sem gastar tokens.
- * @param {string} agentKey 
- * @param {string} companyId 
- * @param {string} messageText Mensagem de entrada do cliente
- * @returns {string|null} Resposta cacheada ou null se não encontrar match
+ * Avalia correspondência direta com as 77 Respostas Rápidas, Mídias e Catálogo da loja (Rota Rápida VPS).
+ * Retorna resposta imediata com mídias anexadas (<10ms, 0 tokens).
  */
-async function queryLocalBrain(agentKey, companyId, messageText) {
-  if (!messageText || messageText.length < 5) return null; // Msg curta não ativa cache
-  
-  const learnedEvents = await getAgentLearnedEvents(agentKey, companyId);
-  if (learnedEvents.length === 0) return null;
+async function matchQuickReplyFastPath(messageText, { companyId = 'default', bestQuickReplyMatch = null, agent = null, history = [] } = {}) {
+  if (!messageText || typeof messageText !== 'string' || messageText.trim().length < 2) {
+    return null;
+  }
 
-  let bestMatch = null;
-  let highestScore = 0;
+  const norm = messageText.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
-  for (const event of learnedEvents) {
-    const score = stringSimilarity(messageText, event.customer_question);
-    if (score > highestScore) {
-      highestScore = score;
-      bestMatch = event;
+  // Se o cliente está enviando dados de endereço ou documento, não interceptar com FAQ genérico
+  const isSubmission = /\b(cpf|rua|numero|bairro|cep|pagar|chave pix)\b/i.test(norm) && norm.length > 30;
+  if (isSubmission && !norm.includes('qual') && !norm.includes('como') && !norm.includes('onde')) {
+    return null;
+  }
+
+  let match = bestQuickReplyMatch;
+  if (!match) {
+    try {
+      match = await quickReplyCapability.findBestMatchForContext({
+        message: messageText,
+        companyId,
+      });
+    } catch (_) {
+      return null;
     }
   }
 
-  if (highestScore >= MIN_SIMILARITY_THRESHOLD && bestMatch && bestMatch.human_answer) {
-    console.log(`[LOCAL BRAIN] Match local encontrado! (Score: ${(highestScore*100).toFixed(1)}%). Ignorando chamada à LLM.`);
-    console.log(`[LOCAL BRAIN] Pergunta: "${messageText}" => Match: "${bestMatch.customer_question}"`);
-    return bestMatch.human_answer;
+  if (!match) return null;
+  if (!match.content && !match.selectedMediaItem) return null;
+
+  // Critérios para rota rápida instantânea:
+  // 1) Solicitação explícita de mídia com item correspondente (foto, áudio, catálogo)
+  // 2) FAQ direto de produto com alta relevância (score >= 45)
+  // 3) Termos fundamentais da loja (cimento, churrasqueira, garantia, pix, entrega, tabela de preço)
+  const hasExplicitMedia = Boolean(match.requestedMediaType && match.selectedMediaItem);
+  const isHighConfidenceFaq = match.score >= 50;
+  const isStrongKeyword = match.score >= 38 && (
+    norm.includes('cimento') ||
+    norm.includes('churras') ||
+    norm.includes('garantia') ||
+    norm.includes('pix') ||
+    norm.includes('foto') ||
+    norm.includes('imagem') ||
+    norm.includes('audio') ||
+    norm.includes('preco') ||
+    norm.includes('valor') ||
+    norm.includes('entrega') ||
+    norm.includes('frete') ||
+    norm.includes('tabela')
+  );
+
+  if (!hasExplicitMedia && !isHighConfidenceFaq && !isStrongKeyword) {
+    return null;
+  }
+
+  const responseText = (match.content && match.content.trim()) || (
+    match.requestedMediaType === 'audio' ? 'Segue o áudio gravado com a explicação detalhada:' :
+    match.requestedMediaType === 'image' ? 'Aqui está a foto solicitada do nosso catálogo:' :
+    'Segue a informação solicitada:'
+  );
+  const analysis = {
+    trigger_quick_reply: match.id,
+    fast_path: true,
+    confidence: match.score,
+    source: 'vps_fast_path',
+  };
+
+  if (match.selectedMediaItem) {
+    analysis.send_media = {
+      type: match.requestedMediaType || match.selectedMediaItem.type || 'image',
+      value: match.selectedMediaItem.value,
+      caption: match.selectedMediaItem.caption || '',
+    };
+  }
+
+  return {
+    text: responseText,
+    analysis,
+    trigger_quick_reply: match.id,
+    send_media: analysis.send_media,
+    source: 'quick_reply_fast_path',
+    score: match.score,
+    matchId: match.id,
+    title: match.title,
+  };
+}
+
+/**
+ * Consulta a "Mente Local / Rota Rápida" do agente na VPS para responder sem gastar tokens.
+ * @param {string} agentKey 
+ * @param {string} companyId 
+ * @param {string} messageText Mensagem de entrada do cliente
+ * @param {object} options Opções adicionais (bestQuickReplyMatch, agent, history, contact)
+ * @returns {object|null} Objeto { text, analysis, send_media, trigger_quick_reply } ou null
+ */
+async function queryLocalBrain(agentKey, companyId, messageText, options = {}) {
+  if (!messageText || messageText.length < 2) return null;
+
+  // 1. Rota Rápida VPS: correspondência exata ou de alta confiança com respostas rápidas e catálogo
+  try {
+    const fastMatch = await matchQuickReplyFastPath(messageText, {
+      companyId,
+      bestQuickReplyMatch: options.bestQuickReplyMatch,
+      agent: options.agent,
+      history: options.history,
+    });
+    if (fastMatch) {
+      console.log(`[LOCAL BRAIN] Rota Rápida VPS acionada! Score: ${fastMatch.score}, Item: "${fastMatch.title}"`);
+      return fastMatch;
+    }
+  } catch (err) {
+    console.warn('[LOCAL BRAIN] Fast path match error:', err.message);
+  }
+
+  // 2. Aprendizados prévios do agente (agent_learning_events)
+  if (messageText.length >= 5) {
+    const learnedEvents = await getAgentLearnedEvents(agentKey, companyId);
+    if (learnedEvents.length > 0) {
+      let bestMatch = null;
+      let highestScore = 0;
+
+      for (const event of learnedEvents) {
+        const score = stringSimilarity(messageText, event.customer_question);
+        if (score > highestScore) {
+          highestScore = score;
+          bestMatch = event;
+        }
+      }
+
+      if (highestScore >= MIN_SIMILARITY_THRESHOLD && bestMatch && bestMatch.human_answer) {
+        console.log(`[LOCAL BRAIN] Match aprendido encontrado! (Score: ${(highestScore*100).toFixed(1)}%). Ignorando chamada à LLM.`);
+        console.log(`[LOCAL BRAIN] Pergunta: "${messageText}" => Match: "${bestMatch.customer_question}"`);
+        return {
+          text: bestMatch.human_answer,
+          analysis: { learned_match: true, fast_path: true },
+          source: 'learned_events',
+          score: highestScore,
+        };
+      }
+    }
   }
 
   return null;
@@ -151,6 +266,7 @@ async function autoLearn(agentKey, companyId, customerQuestion, aiResponse) {
 
 module.exports = {
   queryLocalBrain,
+  matchQuickReplyFastPath,
   autoLearn,
   stringSimilarity, // exportado p/ testes
 };

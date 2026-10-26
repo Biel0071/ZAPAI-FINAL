@@ -120,12 +120,13 @@ export const TONE_OPTIONS = [
 ];
 
 export const PROVIDER_OPTIONS = [
+  { id: "vps_engine", name: "API VPS (Rota Rápida / Modelo do Sistema)", defaultModel: "laya-system1", models: ["laya-system1", "qwen2.5:0.5b", "qwen3.5:0.8b", "deepseek-r1:1.5b", "auto"] },
   { id: "openai", name: "OpenAI", defaultModel: "gpt-4o-mini", models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"] },
   { id: "groq", name: "Groq (Ultra Rápido)", defaultModel: "llama-3.3-70b-versatile", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"] },
   { id: "deepseek", name: "DeepSeek", defaultModel: "deepseek-chat", models: ["deepseek-chat", "deepseek-reasoner"] },
   { id: "claude", name: "Claude (Anthropic)", defaultModel: "claude-3-5-sonnet-latest", models: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"] },
   { id: "gemini", name: "Google Gemini", defaultModel: "gemini-2.0-flash", models: ["gemini-2.0-flash", "gemini-1.5-pro"] },
-  { id: "ollama", name: "Ollama (Servidor Local)", defaultModel: "llama3.1", models: ["llama3.1", "mistral", "qwen2.5"] },
+  { id: "ollama", name: "Ollama (Servidor Local)", defaultModel: "qwen2.5:0.5b", models: ["qwen2.5:0.5b", "qwen3.5:0.8b", "deepseek-r1:1.5b", "qwen2.5:3b"] },
 ];
 
 export const QUICK_TEST_PROMPTS = [
