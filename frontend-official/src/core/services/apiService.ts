@@ -2601,6 +2601,17 @@ export const apiService = {
       method: "GET",
     });
   },
+  async createWhatsAppLabel(payload: { name: string; colorHex?: string; color?: number; sessionId?: string }) {
+    return request<{
+      success: boolean;
+      label: { id: string; name: string; color: number; color_hex: string; deleted?: boolean };
+      alreadyExists?: boolean;
+    }>({
+      endpoint: "/api/whatsapp/labels",
+      method: "POST",
+      body: payload,
+    });
+  },
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {

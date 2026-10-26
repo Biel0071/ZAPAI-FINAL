@@ -1509,9 +1509,97 @@ async function getWhatsappLabels(req, res) {
   }
 }
 
+const WPP_LABEL_COLORS = [
+  '#00d26a', '#5ac8fa', '#5856d6', '#ff2d55', '#ff9500',
+  '#ffcc00', '#af52de', '#ff3b30', '#007aff', '#34c759',
+  '#a2845e', '#8e8e93', '#d1d1d6', '#e5e5ea', '#1c1c1e',
+  '#2c2c2e', '#3a3a3c', '#48484a', '#636366'
+];
+
+async function createWhatsappLabel(req, res) {
+  try {
+    const { query } = require('../../infrastructure/config/database');
+    const companyId = getCompanyId(req);
+    const { name, color, colorHex, sessionId: rawSessionId } = req.body || {};
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'O nome da etiqueta é obrigatório.' });
+    }
+
+    const trimmedName = name.trim();
+    const sessionId = sessionManager.normalizeSessionName(rawSessionId || req.query?.sessionId || sessionManager.DEFAULT_SESSION);
+
+    const existing = await query(
+      `SELECT id, name, color, color_hex, deleted
+       FROM whatsapp_labels
+       WHERE company_id = $1 AND (session_id = $2 OR session_id = 'main') AND LOWER(name) = LOWER($3)
+       LIMIT 1`,
+      [companyId, sessionId, trimmedName]
+    );
+
+    if (existing.rows && existing.rows.length > 0) {
+      const found = existing.rows[0];
+      if (found.deleted) {
+        const unDeleted = await query(
+          `UPDATE whatsapp_labels SET deleted = false, updated_at = NOW()
+           WHERE company_id = $1 AND (session_id = $2 OR session_id = 'main') AND id = $3
+           RETURNING id, name, color, color_hex, deleted`,
+          [companyId, sessionId, found.id]
+        );
+        return res.status(200).json({ success: true, label: unDeleted.rows[0], restored: true });
+      }
+      return res.status(200).json({ success: true, label: found, alreadyExists: true });
+    }
+
+    const assignedColorHex = colorHex || (typeof color === 'number' && WPP_LABEL_COLORS[color]) || WPP_LABEL_COLORS[Math.floor(Math.random() * WPP_LABEL_COLORS.length)];
+    const assignedColorIndex = typeof color === 'number' ? color : (WPP_LABEL_COLORS.indexOf(assignedColorHex) >= 0 ? WPP_LABEL_COLORS.indexOf(assignedColorHex) : 0);
+
+    const countRes = await query(
+      `SELECT MAX(CAST(CASE WHEN id ~ '^\\d+$' THEN id ELSE '0' END AS INTEGER)) as max_id FROM whatsapp_labels WHERE company_id = $1`,
+      [companyId]
+    ).catch(() => ({ rows: [] }));
+    const maxId = (Number(countRes.rows?.[0]?.max_id) || 0) + 1;
+    const labelId = String(maxId);
+
+    const inserted = await query(
+      `INSERT INTO whatsapp_labels (id, company_id, session_id, name, color, color_hex, deleted, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, false, NOW(), NOW())
+       RETURNING id, name, color, color_hex, deleted`,
+      [labelId, companyId, sessionId, trimmedName, assignedColorIndex, assignedColorHex]
+    );
+
+    const newLabel = inserted.rows[0];
+
+    try {
+      const preferredSession = sessionManager.getSession(sessionId);
+      const fallbackSession = await sessionManager.getDefaultSession().catch(() => null);
+      const activeSession = preferredSession?.sock ? preferredSession : (fallbackSession?.sock ? fallbackSession : sessionManager.getConnectedSessionOrNull());
+      const sock = activeSession?.sock;
+      if (sock && typeof sock.labelEdit === 'function') {
+        await sock.labelEdit({ id: labelId, name: trimmedName, color: assignedColorIndex }).catch(() => {});
+      }
+    } catch (sockErr) {
+      console.warn('[WHATSAPP_LABEL_CREATE] Failed to sync label edit to socket:', sockErr.message);
+    }
+
+    try {
+      const io = req.app?.get('io') || global.io;
+      if (io) {
+        io.emit('whatsapp:labels_updated', { companyId, sessionId, label: newLabel });
+      }
+    } catch {}
+
+    return res.status(201).json({ success: true, label: newLabel });
+  } catch (error) {
+    console.error('[WHATSAPP_LABEL_CREATE_ERR]', error);
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao criar etiqueta do WhatsApp.' });
+  }
+}
+
 module.exports = {
   clearConversationDraft,
   createConversation,
+  createWhatsappLabel,
   deleteConversation,
   generateBilling,
   generateProfileCard,

@@ -1,21 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   X,
   Brain,
-  ChatCircleText,
   Tag,
   TrendUp,
   Clock,
-  ShoppingBag,
-  FileText,
   Sparkle,
-  ArrowRight,
   ShieldCheck,
-  CheckCircle,
-  Paperclip,
-  Calendar,
-  User,
   Phone,
   Flame,
   Snowflake,
@@ -29,16 +21,15 @@ import {
   Check,
   Plus,
   FloppyDisk,
-  ArrowsOut,
   NotePencil,
   ArrowSquareOut,
 } from "@phosphor-icons/react";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
 import { getTagColor, formatPhoneNumber } from "@/pages/Inbox/utils";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -84,22 +75,19 @@ const FUNNEL_STAGES = [
   { value: "first_contact", label: "💬 Primeiro Contato" },
   { value: "price_sent", label: "🏷️ Preço Enviado" },
   { value: "interested", label: "💡 Interessado" },
-  { value: "negotiation", label: "🤝 Em Negociação / Fechamento" },
-  { value: "ready_to_buy", label: "⚡ Pronto para Comprar" },
-  { value: "closed", label: "🏆 Venda Fechada / Ganho" },
-  { value: "lost", label: "❌ Perdido / Desistência" },
+  { value: "negotiation", label: "🤝 Em Negociação" },
+  { value: "ready_to_buy", label: "⚡ Pronto p/ Comprar" },
+  { value: "closed", label: "🏆 Venda Fechada" },
+  { value: "lost", label: "❌ Perdido" },
 ];
 
-const QUICK_TAG_SUGGESTIONS = [
-  "cliente_vip",
-  "churrasqueira",
-  "orcamento",
-  "prioridade",
-  "duvida",
-  "retorno_pendente",
-  "aguardando_pagamento",
-  "promocao",
-  "anuncio_ativo",
+const PRESET_LABEL_COLORS = [
+  { name: "Verde WhatsApp", hex: "#00d26a" },
+  { name: "Azul", hex: "#5ac8fa" },
+  { name: "Laranja", hex: "#ff9500" },
+  { name: "Roxo", hex: "#af52de" },
+  { name: "Vermelho", hex: "#ff3b30" },
+  { name: "Cinza", hex: "#8e8e93" },
 ];
 
 export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: LeadDrawerProps) {
@@ -122,9 +110,22 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
   const [currentFunnel, setCurrentFunnel] = useState(lead?.funnelStage || "new_lead");
   const [currentTags, setCurrentTags] = useState<string[]>(Array.isArray(lead?.tags) ? lead.tags : []);
   const [newTagInput, setNewTagInput] = useState("");
+  const [selectedTagColor, setSelectedTagColor] = useState<string>("#00d26a");
+  const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [leadNotes, setLeadNotes] = useState(lead?.notes || "");
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
+
+  // Real WhatsApp & System Labels loaded from database
+  const [realLabels, setRealLabels] = useState<Array<{ id: string; name: string; color_hex: string }>>([
+    { id: "1", name: "NOVO CLIENTE", color_hex: "#00d26a" },
+    { id: "2", name: "AGENDANDO", color_hex: "#5ac8fa" },
+    { id: "3", name: "PAGO", color_hex: "#198038" },
+    { id: "4", name: "CANCELADO", color_hex: "#e5e5ea" },
+    { id: "5", name: "Favoritos", color_hex: "#ff9500" },
+    { id: "6", name: "Não lidas", color_hex: "#00a884" },
+    { id: "7", name: "Grupos", color_hex: "#53bdeb" },
+  ]);
 
   // Sync state when incoming lead changes
   useEffect(() => {
@@ -137,6 +138,40 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
       setIsEditingName(false);
     }
   }, [lead?.id, lead?.name, lead?.temperature, lead?.funnelStage, lead?.tags, lead?.notes]);
+
+  // Load real WhatsApp labels from PostgreSQL & WhatsApp session
+  useEffect(() => {
+    let isMounted = true;
+    if (lead) {
+      apiService
+        .getWhatsAppLabels?.(lead.sessionId)
+        ?.then((res) => {
+          if (!isMounted || !res?.labels || !Array.isArray(res.labels)) return;
+          setRealLabels((prev) => {
+            const map = new Map<string, { id: string; name: string; color_hex: string }>();
+            res.labels.forEach((l) => {
+              if (!l.deleted && l.name) {
+                map.set(l.name.toLowerCase(), {
+                  id: String(l.id),
+                  name: l.name,
+                  color_hex: l.color_hex || "#00d26a",
+                });
+              }
+            });
+            prev.forEach((p) => {
+              if (!map.has(p.name.toLowerCase())) {
+                map.set(p.name.toLowerCase(), p);
+              }
+            });
+            return Array.from(map.values());
+          });
+        })
+        ?.catch(() => {});
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [lead?.sessionId, lead?.id]);
 
   useEffect(() => {
     let active = true;
@@ -152,17 +187,17 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
     }
     setLoadingAi(true);
     apiService
-      .getConversationInsights(targetId)
-      .then((res) => {
+      .getConversationInsights?.(targetId)
+      ?.then((res) => {
         if (active) {
           const data = (res as any)?.data && typeof (res as any).data === "object" ? (res as any).data : res;
           setAiData(data || null);
         }
       })
-      .catch(() => {
+      ?.catch(() => {
         if (active) setAnalysisError("Não foi possível carregar a análise deste contato.");
       })
-      .finally(() => {
+      ?.finally(() => {
         if (active) setLoadingAi(false);
       });
     return () => {
@@ -173,7 +208,9 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
   if (!lead) return null;
 
   const tempNorm = (currentTemp || "").toLowerCase();
-  const isLid = String(lead.phone || "").includes("@lid") || (/^\d{14,16}$/.test(String(lead.phone || "").replace(/@.*$/, "")) && !String(lead.phone || "").startsWith("55"));
+  const isLid =
+    String(lead.phone || "").includes("@lid") ||
+    (/^\d{14,16}$/.test(String(lead.phone || "").replace(/@.*$/, "")) && !String(lead.phone || "").startsWith("55"));
 
   const confidence =
     typeof aiData?.confidence === "number" && Number.isFinite(aiData.confidence)
@@ -197,21 +234,53 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
     notify.success("Estágio do funil atualizado com sucesso!");
   };
 
-  // Handlers for Tags
-  const handleAddTag = (tagToAdd?: string) => {
-    const raw = tagToAdd || newTagInput;
-    const trimmed = raw.trim().toLowerCase().replace(/\s+/g, "_");
-    if (!trimmed) return;
-    if (currentTags.some((t) => t.toLowerCase() === trimmed)) {
-      notify.info("Esta etiqueta já está associada ao contato.");
-      setNewTagInput("");
-      return;
+  // Toggle real label on/off
+  const handleToggleRealLabel = (labelName: string) => {
+    const exists = currentTags.some((t) => t.toLowerCase() === labelName.toLowerCase());
+    let nextTags: string[];
+    if (exists) {
+      nextTags = currentTags.filter((t) => t.toLowerCase() !== labelName.toLowerCase());
+      notify.info(`Etiqueta "${labelName}" removida.`);
+    } else {
+      nextTags = [...currentTags, labelName];
+      notify.success(`Etiqueta real "${labelName}" associada ao contato!`);
     }
-    const nextTags = [...currentTags, trimmed];
     setCurrentTags(nextTags);
-    setNewTagInput("");
     onUpdateLead?.(lead.id, { tags: nextTags });
-    notify.success(`Etiqueta "${trimmed}" adicionada!`);
+  };
+
+  // Create new real label in database and sync with WhatsApp
+  const handleCreateRealLabel = async () => {
+    const raw = newTagInput.trim();
+    if (!raw) return;
+    setIsCreatingTag(true);
+    try {
+      const res = await apiService.createWhatsAppLabel?.({
+        name: raw,
+        colorHex: selectedTagColor,
+        sessionId: lead.sessionId,
+      })?.catch(() => null);
+
+      const created = res?.label || { id: String(Date.now()), name: raw, color_hex: selectedTagColor };
+
+      setRealLabels((prev) => {
+        if (prev.some((p) => p.name.toLowerCase() === created.name.toLowerCase())) return prev;
+        return [...prev, { id: String(created.id), name: created.name, color_hex: created.color_hex || selectedTagColor }];
+      });
+
+      if (!currentTags.some((t) => t.toLowerCase() === created.name.toLowerCase())) {
+        const nextTags = [...currentTags, created.name];
+        setCurrentTags(nextTags);
+        onUpdateLead?.(lead.id, { tags: nextTags });
+      }
+
+      setNewTagInput("");
+      notify.success(`Etiqueta real "${created.name}" criada e sincronizada com sucesso!`);
+    } catch {
+      notify.error("Erro ao criar etiqueta real.");
+    } finally {
+      setIsCreatingTag(false);
+    }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
@@ -290,7 +359,11 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
     const scope = leadScope;
     try {
       notify.info("Criando abordagem de recuperação...");
-      const res = await apiService.getAIRecoveryApproach(lead.conversationId || lead.id, lead.phone, lead.lastMessage || "");
+      const res = await apiService.getAIRecoveryApproach(
+        lead.conversationId || lead.id,
+        lead.phone,
+        lead.lastMessage || ""
+      );
       if (currentLeadScope.current !== scope) return;
       if (!res?.data) throw new Error("Resposta indisponível");
       if (res?.data) {
@@ -312,122 +385,127 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
 
   return (
     <>
-      <Dialog open={Boolean(lead)} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog
+        open={Boolean(lead)}
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
+      >
         <DialogContent
           aria-describedby={undefined}
-          className="max-w-4xl border-border/80 bg-card/95 backdrop-blur-2xl p-0 overflow-hidden rounded-3xl shadow-2xl"
+          className="max-w-xl w-[95vw] sm:max-w-[560px] border-border/80 bg-card/95 backdrop-blur-2xl p-0 overflow-hidden rounded-2xl shadow-2xl max-h-[90vh] flex flex-col"
         >
           <DialogTitle className="sr-only">Detalhes do Lead {lead.name}</DialogTitle>
           <DialogDescription id="lead-dialog-description" className="sr-only">
-            Visão 360 do lead com foto ampliada, dados unificados, funil, temperatura, etiquetas e ações de campanha.
+            Visão compacta do lead com foto ampliada, dados unificados, funil, temperatura, etiquetas reais e campanhas.
           </DialogDescription>
 
-          {/* Header Principal com Foto Grande, Dados e Ações Rápidas */}
-          <div className="bg-gradient-to-r from-card via-background to-card p-5 sm:p-7 border-b border-border/60 relative">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-              {/* Foto Maior & Dados Principais */}
-              <div className="flex items-start sm:items-center gap-4 sm:gap-5 min-w-0">
-                {/* Avatar Maior e Interativo com Efeito de Zoom */}
+          {/* Header Compacto com Foto, Dados e Ações Rápidas */}
+          <div className="bg-gradient-to-r from-card via-background to-card p-3 sm:p-4 border-b border-border/60 relative shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Foto & Dados Principais */}
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Avatar Compacto com Zoom Hover e Abertura em Lightbox */}
                 <div
                   className="relative group shrink-0 cursor-pointer"
                   onClick={() => setPhotoZoomOpen(true)}
-                  title="Clique para ver a foto ampliada"
+                  title="Clique para ver a foto em alta resolução"
                 >
-                  <Avatar className="h-20 w-20 sm:h-24 sm:w-24 rounded-3xl border-2 border-primary/30 shadow-xl transition-all duration-300 group-hover:scale-105 group-hover:border-primary/80 group-hover:shadow-primary/20">
+                  <Avatar className="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl border-2 border-primary/30 shadow-md transition-all duration-200 group-hover:scale-105 group-hover:border-primary/80 group-hover:shadow-primary/20">
                     {lead.avatarUrl ? (
                       <AvatarImage src={lead.avatarUrl} alt={lead.name} className="object-cover" />
                     ) : null}
-                    <AvatarFallback className="bg-primary/10 text-primary font-display font-bold text-2xl sm:text-3xl rounded-3xl">
+                    <AvatarFallback className="bg-primary/10 text-primary font-display font-bold text-xl sm:text-2xl rounded-2xl">
                       {lead.name ? lead.name.slice(0, 2).toUpperCase() : "LD"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="absolute inset-0 rounded-3xl bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all duration-200 pointer-events-none">
-                    <MagnifyingGlassPlus className="h-6 w-6 text-white" weight="bold" />
-                    <span className="text-[10px] font-semibold text-white mt-0.5 tracking-tight">Ver Foto</span>
+                  <div className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all duration-200 pointer-events-none">
+                    <MagnifyingGlassPlus className="h-4 w-4 text-white" weight="bold" />
+                    <span className="text-[8px] font-semibold text-white mt-0.5 tracking-tight">Ver Foto</span>
                   </div>
                 </div>
 
                 {/* Textos: Nome, Telefone, LID, Status */}
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  {/* Nome do Contato com edição inline */}
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1 space-y-1">
+                  {/* Nome com edição inline */}
+                  <div className="flex items-center gap-1.5">
                     {isEditingName ? (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <Input
                           size={1}
-                          className="h-8 px-2.5 text-base font-bold rounded-lg border-primary/50"
+                          className="h-7 px-2 text-sm font-bold rounded-lg border-primary/50"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
                           autoFocus
                         />
-                        <Button size="icon" className="h-8 w-8 rounded-lg" onClick={handleSaveName}>
-                          <Check className="h-4 w-4" weight="bold" />
+                        <Button size="icon" className="h-7 w-7 rounded-lg shrink-0" onClick={handleSaveName}>
+                          <Check className="h-3.5 w-3.5" weight="bold" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-lg"
+                          className="h-7 w-7 rounded-lg shrink-0"
                           onClick={() => {
                             setEditName(lead.name);
                             setIsEditingName(false);
                           }}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground truncate max-w-xs sm:max-w-md">
+                      <div className="flex items-center gap-1.5">
+                        <h2 className="font-display text-base sm:text-lg font-bold text-foreground truncate max-w-[180px] sm:max-w-xs">
                           {editName || lead.name}
                         </h2>
                         <button
                           type="button"
-                          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                           onClick={() => setIsEditingName(true)}
-                          title="Editar nome do contato"
+                          title="Editar nome"
                         >
-                          <PencilSimple className="h-4 w-4" />
+                          <PencilSimple className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     )}
                   </div>
 
-                  {/* Telefone formatado com botão Copiar */}
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-mono text-sm text-foreground/90 font-semibold flex items-center gap-1">
-                      <Phone className="h-3.5 w-3.5 text-primary" weight="bold" />
+                  {/* Telefone + Copiar + LID */}
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="font-mono text-xs text-foreground/90 font-semibold flex items-center gap-1">
+                      <Phone className="h-3 w-3 text-primary" weight="bold" />
                       {formatPhoneNumber(lead.phone)}
                     </span>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+                      className="h-5 w-5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
                       onClick={handleCopyPhone}
-                      title="Copiar número de telefone"
+                      title="Copiar telefone"
                     >
-                      {copiedPhone ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copiedPhone ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                     </Button>
 
                     {isLid && (
                       <Badge
                         variant="outline"
-                        className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[10px] py-0 px-2 font-mono"
+                        className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[9px] py-0 px-1.5 font-mono"
                         title="Identificador Criptografado do WhatsApp (LID)"
                       >
-                        WhatsApp LID
+                        LID
                       </Badge>
                     )}
                   </div>
 
-                  {/* Status de Presença */}
-                  <div className="flex items-center gap-2 text-xs">
+                  {/* Status de Presença & Chip */}
+                  <div className="flex items-center gap-2 text-[11px]">
                     <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                      {lead.status === "online" ? "Online agora" : "Sincronizado no WhatsApp"}
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      {lead.status === "online" ? "Online" : "Sincronizado"}
                     </span>
                     {lead.sessionId && (
-                      <span className="text-[11px] text-muted-foreground font-mono">
+                      <span className="text-[10px] text-muted-foreground font-mono">
                         • Chip: <strong className="text-foreground">{lead.sessionId}</strong>
                       </span>
                     )}
@@ -435,98 +513,105 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                 </div>
               </div>
 
-              {/* Botões de Ação de Destaque no Topo */}
-              <div className="flex flex-wrap items-center gap-2 pt-2 lg:pt-0">
+              {/* Botões de Ação no Topo */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1 sm:pt-0">
                 {/* BOTÃO MESTRE: Ir para Disparos / Campanhas */}
                 <Button
                   size="sm"
-                  className="rounded-xl text-xs gap-2 font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                  className="h-7 sm:h-8 px-2.5 rounded-lg text-xs gap-1.5 font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-sm active:scale-95 transition-all"
                   onClick={handleGoToCampaigns}
                   title="Abrir página de campanhas com este lead pré-selecionado para disparo"
                 >
-                  <Megaphone className="h-4 w-4" weight="fill" />
-                  Ir para Disparos / Campanhas
+                  <Megaphone className="h-3.5 w-3.5" weight="fill" />
+                  Ir para Disparos
                 </Button>
 
                 <Button
                   variant="outline"
                   size="sm"
-                  className="rounded-xl text-xs gap-1.5 border-primary/30 hover:bg-primary/10"
+                  className="h-7 sm:h-8 px-2 rounded-lg text-xs gap-1 border-primary/30 hover:bg-primary/10"
                   onClick={() => void handleGenerateFollowup()}
+                  title="Gerar follow-up inteligente por IA"
                 >
-                  <Sparkle className="h-4 w-4 text-primary animate-pulse" weight="fill" />
+                  <Sparkle className="h-3.5 w-3.5 text-primary animate-pulse" weight="fill" />
                   Follow-up IA
                 </Button>
 
                 {!fromInbox && (
-                  <Button size="sm" variant="secondary" className="rounded-xl text-xs gap-1.5" onClick={handleGoToChat}>
-                    <Chat className="h-4 w-4" />
-                    Abrir no Inbox
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 sm:h-8 px-2 rounded-lg text-xs gap-1"
+                    onClick={handleGoToChat}
+                    title="Abrir no Inbox de Conversas"
+                  >
+                    <Chat className="h-3.5 w-3.5" />
+                    Inbox
                   </Button>
                 )}
               </div>
             </div>
 
-            {/* SELETORES RÁPIDOS: Temperatura & Funil de Vendas */}
-            <div className="mt-5 pt-4 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-              {/* 1. Temperatura do Lead */}
-              <div className="flex items-center justify-between sm:justify-start gap-3 bg-background/50 p-2.5 rounded-2xl border border-border/40">
-                <span className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1.5 shrink-0">
-                  <Flame className="h-4 w-4 text-amber-500" weight="fill" />
-                  Temperatura:
+            {/* SELETORES RÁPIDOS: Temperatura & Funil em linha compacta */}
+            <div className="mt-2.5 pt-2 border-t border-border/50 flex flex-wrap items-center justify-between gap-2">
+              {/* Temperatura */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1 shrink-0">
+                  <Flame className="h-3 w-3 text-amber-500" weight="fill" />
+                  Temp:
                 </span>
-                <div className="inline-flex rounded-xl p-0.5 bg-muted/50 border border-border/40 gap-1">
+                <div className="inline-flex rounded-lg p-0.5 bg-muted/50 border border-border/40 gap-0.5">
                   <button
                     type="button"
                     onClick={() => handleSetTemperature("cold")}
                     className={cn(
-                      "px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1",
+                      "px-2 py-0.5 rounded-md text-[11px] font-bold transition-all flex items-center gap-1",
                       tempNorm === "cold" || tempNorm === "frio"
                         ? "bg-blue-500 text-white shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <Snowflake className="h-3 w-3" weight="fill" />
+                    <Snowflake className="h-2.5 w-2.5" weight="fill" />
                     Frio
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSetTemperature("warm")}
                     className={cn(
-                      "px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1",
+                      "px-2 py-0.5 rounded-md text-[11px] font-bold transition-all flex items-center gap-1",
                       tempNorm === "warm" || tempNorm === "morno"
                         ? "bg-amber-500 text-white shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <Sun className="h-3 w-3" weight="fill" />
+                    <Sun className="h-2.5 w-2.5" weight="fill" />
                     Morno
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSetTemperature("hot")}
                     className={cn(
-                      "px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1",
+                      "px-2 py-0.5 rounded-md text-[11px] font-bold transition-all flex items-center gap-1",
                       tempNorm === "hot" || tempNorm === "quente"
                         ? "bg-red-500 text-white shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <Flame className="h-3 w-3" weight="fill" />
+                    <Flame className="h-2.5 w-2.5" weight="fill" />
                     Quente
                   </button>
                 </div>
               </div>
 
-              {/* 2. Estágio do Funil */}
-              <div className="flex items-center justify-between sm:justify-start gap-3 bg-background/50 p-2.5 rounded-2xl border border-border/40">
-                <span className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1.5 shrink-0">
-                  <TrendUp className="h-4 w-4 text-primary" weight="bold" />
+              {/* Estágio do Funil */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1 shrink-0">
+                  <TrendUp className="h-3 w-3 text-primary" weight="bold" />
                   Funil:
                 </span>
                 <Select value={currentFunnel} onValueChange={handleSetFunnel}>
-                  <SelectTrigger className="h-8 text-xs font-semibold rounded-xl bg-card border-border/60 w-full max-w-[240px]">
-                    <SelectValue placeholder="Selecione o estágio" />
+                  <SelectTrigger className="h-7 text-xs font-semibold rounded-lg bg-card border-border/60 w-auto min-w-[150px] max-w-[200px]">
+                    <SelectValue placeholder="Estágio" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-border bg-card">
                     {FUNNEL_STAGES.map((s) => (
@@ -540,62 +625,72 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
             </div>
           </div>
 
-          {/* Content Body com Tabs e Gerenciador de Etiquetas */}
-          <div className="p-5 sm:p-7 space-y-6 max-h-[65vh] overflow-y-auto scrollbar-thin">
-            {analysisError && <p role="alert" className="text-sm text-amber-400">{analysisError}</p>}
+          {/* Content Body com Scroll Compacto e Tabs */}
+          <div className="p-3 sm:p-4 space-y-3 max-h-[52vh] sm:max-h-[56vh] overflow-y-auto scrollbar-thin flex-1">
+            {analysisError && <p role="alert" className="text-xs text-amber-400">{analysisError}</p>}
 
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Card className="rounded-2xl border-border/60 bg-background/50 p-3">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Confiança da análise IA</span>
-                <span className="text-lg font-bold font-display text-success flex items-center gap-1 mt-0.5">
-                  <TrendUp className="h-4 w-4" />
+            {/* Quick Metrics Bar Compacta */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <Card className="rounded-xl border-border/60 bg-background/50 p-2">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground block">Confiança IA</span>
+                <span className="text-sm font-bold font-display text-success flex items-center gap-1 mt-0.5">
+                  <TrendUp className="h-3 w-3" />
                   {confidence !== null ? `${Math.round(confidence * 100)}%` : "—"}
                 </span>
               </Card>
 
-              <Card className="rounded-2xl border-border/60 bg-background/50 p-3">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Intenção Identificada</span>
-                <span className="text-xs font-bold text-foreground mt-1 block truncate">
+              <Card className="rounded-xl border-border/60 bg-background/50 p-2">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground block">Intenção</span>
+                <span className="text-xs font-bold text-foreground mt-0.5 block truncate">
                   {aiData?.intent ? businessLabel(aiData.intent) : "—"}
                 </span>
               </Card>
 
-              <Card className="rounded-2xl border-border/60 bg-background/50 p-3">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Sentimento</span>
-                <span className="text-xs font-bold text-primary mt-1 block capitalize">
+              <Card className="rounded-xl border-border/60 bg-background/50 p-2">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground block">Sentimento</span>
+                <span className="text-xs font-bold text-primary mt-0.5 block capitalize truncate">
                   {aiData?.sentiment ? businessLabel(aiData.sentiment) : "—"}
                 </span>
               </Card>
 
-              <Card className="rounded-2xl border-border/60 bg-background/50 p-3">
-                <span className="text-[10px] uppercase font-bold text-muted-foreground block">Próxima Ação IA</span>
-                <span className="text-xs font-bold text-amber-400 mt-1 block truncate">
-                  {aiData?.nextAction ? businessLabel(aiData.nextAction) : aiData?.nextSuggestedReply ? businessLabel(aiData.nextSuggestedReply) : "—"}
+              <Card className="rounded-xl border-border/60 bg-background/50 p-2">
+                <span className="text-[9px] uppercase font-bold text-muted-foreground block">Próxima Ação</span>
+                <span className="text-xs font-bold text-amber-400 mt-0.5 block truncate">
+                  {aiData?.nextAction
+                    ? businessLabel(aiData.nextAction)
+                    : aiData?.nextSuggestedReply
+                    ? businessLabel(aiData.nextSuggestedReply)
+                    : "—"}
                 </span>
               </Card>
             </div>
 
             {/* Navigation Tabs */}
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-              <TabsList className="w-full justify-start overflow-x-auto rounded-xl border border-border/60 bg-card/60 p-1">
-                <TabsTrigger value="summary" className="text-xs font-semibold">Resumo IA & Visão 360°</TabsTrigger>
-                <TabsTrigger value="graph" className="text-xs font-semibold">Grafo Inteligente</TabsTrigger>
-                <TabsTrigger value="followups" className="text-xs font-semibold">Plano de Follow-up ({followupPlan?.steps?.length ?? 0})</TabsTrigger>
+              <TabsList className="w-full justify-start overflow-x-auto rounded-lg border border-border/60 bg-card/60 p-0.5 h-8">
+                <TabsTrigger value="summary" className="text-xs font-semibold h-7">
+                  Resumo & Etiquetas
+                </TabsTrigger>
+                <TabsTrigger value="graph" className="text-xs font-semibold h-7">
+                  Grafo
+                </TabsTrigger>
+                <TabsTrigger value="followups" className="text-xs font-semibold h-7">
+                  Follow-ups ({followupPlan?.steps?.length ?? 0})
+                </TabsTrigger>
               </TabsList>
 
               {/* TAB: GRAFO INTELIGENTE DE CONHECIMENTO */}
-              <TabsContent value="graph" className="mt-4">
+              <TabsContent value="graph" className="mt-2.5">
                 <LeadKnowledgeGraph leadId={lead.conversationId || lead.id} leadName={lead.name} />
               </TabsContent>
 
               {/* TAB 1: SUMMARY & TAGS */}
-              <TabsContent value="summary" className="space-y-5 mt-4">
+              <TabsContent value="summary" className="space-y-3 mt-2.5">
                 {/* Resumo da IA */}
-                <Card className="rounded-2xl border-primary/20 bg-primary/5 p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-primary uppercase tracking-wider">
-                    <Brain className="h-4 w-4 animate-pulse" weight="fill" />
-                    Resumo Permanente do Lead (IA Continuus Memory)
+                <Card className="rounded-xl border-primary/20 bg-primary/5 p-2.5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary uppercase tracking-wider">
+                    <Brain className="h-3.5 w-3.5 animate-pulse" weight="fill" />
+                    Resumo Permanente do Lead (IA Memory)
                   </div>
                   <p className="text-xs text-foreground/90 leading-relaxed italic">
                     {aiData?.summary ||
@@ -604,20 +699,20 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                   </p>
                 </Card>
 
-                {/* CARD GERENCIADOR DE ETIQUETAS (TAGS) COMPLETO */}
-                <Card className="rounded-2xl border-border/60 bg-card/60 p-5 space-y-4">
+                {/* CARD GERENCIADOR DE ETIQUETAS REAIS (WHATSAPP & CRM) */}
+                <Card className="rounded-xl border-border/60 bg-card/60 p-3 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Tag className="h-4 w-4 text-primary" weight="fill" />
-                      Etiquetas & Tags do Contato
+                      <Tag className="h-3.5 w-3.5 text-primary" weight="fill" />
+                      Etiquetas Reais (WhatsApp & Sistema)
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {currentTags.length} etiqueta(s) associada(s)
+                    <span className="text-[10px] text-muted-foreground">
+                      {currentTags.length} associada(s)
                     </span>
                   </div>
 
-                  {/* Lista de Tags Ativas com Botão de Remoção X */}
-                  <div className="flex flex-wrap items-center gap-2 min-h-8">
+                  {/* Etiquetas Ativas no Contato */}
+                  <div className="flex flex-wrap items-center gap-1.5 min-h-6">
                     {currentTags.length > 0 ? (
                       currentTags.map((tag) => (
                         <TagIconBadge
@@ -631,120 +726,151 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                       ))
                     ) : (
                       <span className="text-xs text-muted-foreground italic">
-                        Nenhuma etiqueta associada ainda. Adicione uma nova ou use as sugestões rápidas abaixo.
+                        Nenhuma etiqueta associada. Clique nas etiquetas reais abaixo para associar.
                       </span>
                     )}
                   </div>
 
-                  {/* Linha de Inserção de Nova Tag */}
-                  <div className="flex items-center gap-2 pt-1">
-                    <Input
-                      placeholder="Adicionar nova etiqueta personalizada..."
-                      value={newTagInput}
-                      onChange={(e) => setNewTagInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddTag();
-                        }
-                      }}
-                      className="h-9 text-xs rounded-xl bg-background/50 border-border/60"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-9 px-3 text-xs gap-1.5 rounded-xl shrink-0"
-                      onClick={() => handleAddTag()}
-                    >
-                      <Plus className="h-3.5 w-3.5" weight="bold" />
-                      Adicionar
-                    </Button>
-                  </div>
-
-                  {/* Tags Rápidas Sugeridas com 1 Clique */}
-                  <div className="space-y-1.5 pt-1">
+                  {/* ETIQUETAS REAIS DISPONÍVEIS NO WHATSAPP / BANCO COM 1 CLIQUE */}
+                  <div className="space-y-1.5 pt-1 border-t border-border/40">
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                      Sugestões Rápidas:
+                      Etiquetas Reais do Sistema & WhatsApp (Clique para aplicar/remover):
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {QUICK_TAG_SUGGESTIONS.map((sug) => {
-                        const isSelected = currentTags.includes(sug);
+                      {realLabels.map((lbl) => {
+                        const isSelected = currentTags.some(
+                          (t) => t.toLowerCase() === lbl.name.toLowerCase()
+                        );
                         return (
                           <button
-                            key={sug}
+                            key={lbl.id || lbl.name}
                             type="button"
-                            onClick={() => (isSelected ? handleRemoveTag(sug) : handleAddTag(sug))}
+                            onClick={() => handleToggleRealLabel(lbl.name)}
                             className={cn(
-                              "text-[10px] px-2.5 py-1 rounded-lg border font-medium transition-all flex items-center gap-1",
+                              "text-[11px] px-2 py-1 rounded-lg border font-medium transition-all flex items-center gap-1.5",
                               isSelected
-                                ? "bg-primary/20 text-primary border-primary/40 font-bold"
+                                ? "bg-primary/20 text-primary border-primary/50 font-bold shadow-sm"
                                 : "bg-muted/40 hover:bg-muted text-muted-foreground border-border/40 hover:text-foreground"
                             )}
+                            title={isSelected ? `Remover ${lbl.name}` : `Associar ${lbl.name}`}
                           >
-                            <span>{isSelected ? "✓" : "+"}</span>
-                            <span>{sug}</span>
+                            <span
+                              className="h-2 w-2 rounded-full shrink-0 shadow-sm"
+                              style={{ backgroundColor: lbl.color_hex || "#00d26a" }}
+                            />
+                            <span>{lbl.name}</span>
+                            <span className="text-[10px] font-bold opacity-80">
+                              {isSelected ? "✓" : "+"}
+                            </span>
                           </button>
                         );
                       })}
                     </div>
                   </div>
+
+                  {/* CRIAR NOVA ETIQUETA REAL (PERSISTE NO POSTGRESQL & WHATSAPP) */}
+                  <div className="space-y-1.5 pt-1.5 border-t border-border/40">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                      Criar Nova Etiqueta Real:
+                    </span>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <div className="flex-1 flex items-center gap-1.5">
+                        <Input
+                          placeholder="Nome da nova etiqueta (ex: Cliente_Ouro)..."
+                          value={newTagInput}
+                          onChange={(e) => setNewTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              void handleCreateRealLabel();
+                            }
+                          }}
+                          className="h-8 text-xs rounded-lg bg-background/50 border-border/60"
+                        />
+                      </div>
+
+                      {/* Paleta rápida de cores */}
+                      <div className="flex items-center gap-1 shrink-0 self-center sm:self-auto">
+                        {PRESET_LABEL_COLORS.map((c) => (
+                          <button
+                            key={c.hex}
+                            type="button"
+                            onClick={() => setSelectedTagColor(c.hex)}
+                            title={c.name}
+                            className={cn(
+                              "h-5 w-5 rounded-full border transition-all",
+                              selectedTagColor === c.hex
+                                ? "scale-110 border-white ring-2 ring-primary"
+                                : "border-transparent opacity-70 hover:opacity-100"
+                            )}
+                            style={{ backgroundColor: c.hex }}
+                          />
+                        ))}
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isCreatingTag || !newTagInput.trim()}
+                        className="h-8 px-2.5 text-xs gap-1 rounded-lg shrink-0 font-semibold"
+                        onClick={() => void handleCreateRealLabel()}
+                      >
+                        <Plus className="h-3 w-3" weight="bold" />
+                        {isCreatingTag ? "Criando..." : "Criar Etiqueta"}
+                      </Button>
+                    </div>
+                  </div>
                 </Card>
 
-                {/* Anotações Privadas do Lead & Dados de Engajamento */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Anotações Privadas do Lead & Engajamento */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {/* Anotações do Lead */}
-                  <Card className="rounded-2xl border-border/60 bg-card/60 p-4 space-y-3">
+                  <Card className="rounded-xl border-border/60 bg-card/60 p-2.5 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                        <NotePencil className="h-4 w-4 text-amber-400" />
-                        Notas & Observações Internas
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                        <NotePencil className="h-3.5 w-3.5 text-amber-400" />
+                        Notas & Observações
                       </span>
                       <Button
                         variant="ghost"
                         size="sm"
                         disabled={savingNotes}
-                        className="h-7 px-2 text-[11px] text-primary hover:bg-primary/10 gap-1 rounded-lg"
+                        className="h-6 px-1.5 text-[10px] text-primary hover:bg-primary/10 gap-1 rounded"
                         onClick={handleSaveNotes}
                       >
-                        <FloppyDisk className="h-3.5 w-3.5" />
+                        <FloppyDisk className="h-3 w-3" />
                         {savingNotes ? "Salvando..." : "Salvar"}
                       </Button>
                     </div>
                     <Textarea
-                      placeholder="Adicione observações importantes sobre este cliente (preferências, acordos, prazos)..."
+                      placeholder="Observações importantes sobre o cliente..."
                       value={leadNotes}
                       onChange={(e) => setLeadNotes(e.target.value)}
-                      className="min-h-[90px] text-xs rounded-xl bg-background/50 border-border/60 resize-none"
+                      className="min-h-[70px] text-xs rounded-lg bg-background/50 border-border/60 resize-none"
                     />
                   </Card>
 
                   {/* Engajamento & Qualificação */}
-                  <Card className="rounded-2xl border-border/60 bg-card/60 p-4 space-y-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <ShieldCheck className="h-4 w-4 text-success" />
-                      Engajamento & Qualificação
+                  <Card className="rounded-xl border-border/60 bg-card/60 p-2.5 space-y-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                      <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                      Engajamento
                     </span>
-                    <div className="space-y-1.5 text-xs">
+                    <div className="space-y-1 text-xs">
                       <div className="flex justify-between text-muted-foreground">
-                        <span>Status do Contato:</span>
+                        <span>Status:</span>
                         <strong className="text-foreground capitalize">{lead.status || "Ativo"}</strong>
                       </div>
                       {lead.lastMessage && (
-                        <div className="flex justify-between text-muted-foreground gap-2">
-                          <span className="shrink-0">Última mensagem:</span>
-                          <strong className="text-foreground truncate max-w-[180px]" title={lead.lastMessage}>
+                        <div className="flex justify-between text-muted-foreground gap-1">
+                          <span className="shrink-0">Última msg:</span>
+                          <strong className="text-foreground truncate max-w-[130px]" title={lead.lastMessage}>
                             {lead.lastMessage}
                           </strong>
                         </div>
                       )}
                       <div className="flex justify-between text-muted-foreground">
-                        <span>Última interação:</span>
-                        <strong className="text-foreground">
-                          {lead.updatedAt ? new Date(lead.updatedAt).toLocaleString("pt-BR") : "—"}
-                        </strong>
-                      </div>
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Canal de Origem:</span>
+                        <span>Canal:</span>
                         <strong className="text-primary font-bold">WhatsApp</strong>
                       </div>
                     </div>
@@ -753,61 +879,61 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
 
                 {/* Recovery Approach Banner if active */}
                 {recoveryApproach && (
-                  <Card className="rounded-2xl border-amber-500/30 bg-amber-500/10 p-4 space-y-2 animate-in fade-in-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-amber-400 uppercase tracking-wider">
-                      <span className="flex items-center gap-1.5">
-                        <MagicWand className="h-4 w-4" weight="fill" />
-                        Abordagem de Recuperação Sugerida por IA
+                  <Card className="rounded-xl border-amber-500/30 bg-amber-500/10 p-2.5 space-y-1.5 animate-in fade-in-0">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                      <span className="flex items-center gap-1">
+                        <MagicWand className="h-3.5 w-3.5" weight="fill" />
+                        Abordagem de Recuperação IA
                       </span>
-                      <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-400">
+                      <Badge variant="outline" className="text-[8px] border-amber-500/40 text-amber-400">
                         Reativação
                       </Badge>
                     </div>
-                    <p className="text-xs text-foreground bg-background/60 p-2.5 rounded-xl border border-amber-500/20">
+                    <p className="text-xs text-foreground bg-background/60 p-2 rounded-lg border border-amber-500/20">
                       "{recoveryApproach.suggestedMessage}"
                     </p>
                   </Card>
                 )}
 
-                <div className="flex gap-3 pt-2">
+                <div className="pt-1">
                   <Button
                     variant="outline"
-                    className="w-full rounded-xl text-xs gap-2"
+                    className="w-full rounded-lg text-xs gap-1.5 h-8"
                     onClick={() => void handleGenerateRecovery()}
                   >
-                    <MagicWand className="h-4 w-4 text-amber-400" />
+                    <MagicWand className="h-3.5 w-3.5 text-amber-400" />
                     Gerar Abordagem de Recuperação com IA
                   </Button>
                 </div>
               </TabsContent>
 
               {/* TAB 3: FOLLOW-UPS */}
-              <TabsContent value="followups" className="space-y-3 mt-4">
+              <TabsContent value="followups" className="space-y-2.5 mt-2.5">
                 {followupPlan ? (
                   <div className="space-y-2">
                     {(Array.isArray(followupPlan.steps) ? followupPlan.steps : []).map((step: any, idx: number) => (
-                      <Card key={idx} className="rounded-2xl border-border/60 bg-card/60 p-3 space-y-1.5">
+                      <Card key={idx} className="rounded-xl border-border/60 bg-card/60 p-2.5 space-y-1">
                         <div className="flex items-center justify-between text-xs font-bold">
-                          <span className="text-primary flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5" />
+                          <span className="text-primary flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
                             Passo {idx + 1}: {step.timingLabel}
                           </span>
                           <span className="text-[9px] font-normal uppercase text-muted-foreground">{step.goal}</span>
                         </div>
-                        <p className="text-xs text-foreground bg-background/50 p-2.5 rounded-xl border border-border/30 italic">
+                        <p className="text-xs text-foreground bg-background/50 p-2 rounded-lg border border-border/30 italic">
                           "{step.message}"
                         </p>
                       </Card>
                     ))}
                   </div>
                 ) : (
-                  <div className="py-8 text-center space-y-3">
-                    <Brain className="h-10 w-10 text-primary mx-auto animate-pulse" />
+                  <div className="py-6 text-center space-y-2">
+                    <Brain className="h-8 w-8 text-primary mx-auto animate-pulse" />
                     <p className="text-xs text-muted-foreground">
                       Gere um plano automático de follow-up personalizado para este lead.
                     </p>
-                    <Button size="sm" className="rounded-xl text-xs gap-2" onClick={() => void handleGenerateFollowup()}>
-                      <Sparkle className="h-4 w-4" />
+                    <Button size="sm" className="rounded-lg text-xs gap-1.5 h-7" onClick={() => void handleGenerateFollowup()}>
+                      <Sparkle className="h-3.5 w-3.5" />
                       Gerar Plano Inteligente de Follow-up
                     </Button>
                   </div>
@@ -822,45 +948,45 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
       <Dialog open={photoZoomOpen} onOpenChange={setPhotoZoomOpen}>
         <DialogContent
           aria-describedby={undefined}
-          className="max-w-md sm:max-w-lg border-border/80 bg-background/95 backdrop-blur-3xl p-5 rounded-3xl shadow-2xl flex flex-col items-center justify-center text-center"
+          className="max-w-md sm:max-w-lg border-border/80 bg-background/95 backdrop-blur-3xl p-4 sm:p-5 rounded-2xl shadow-2xl flex flex-col items-center justify-center text-center"
         >
-          <DialogTitle className="text-base font-bold font-display text-foreground flex items-center gap-2">
+          <DialogTitle className="text-sm sm:text-base font-bold font-display text-foreground flex items-center gap-2">
             <span>Foto de Perfil: {lead.name}</span>
           </DialogTitle>
           <DialogDescription id="zoom-dialog-description" className="text-xs text-muted-foreground">
             Visualização em alta resolução da imagem de perfil de {lead.name}.
           </DialogDescription>
 
-          <div className="mt-4 relative rounded-2xl overflow-hidden border border-border/60 bg-card p-2 shadow-2xl flex items-center justify-center">
+          <div className="mt-3 relative rounded-xl overflow-hidden border border-border/60 bg-card p-2 shadow-xl flex items-center justify-center">
             {lead.avatarUrl ? (
               <img
                 src={lead.avatarUrl}
                 alt={lead.name}
-                className="max-h-[60vh] max-w-full rounded-xl object-contain shadow-md"
+                className="max-h-[55vh] max-w-full rounded-lg object-contain shadow-md"
               />
             ) : (
-              <div className="h-48 w-48 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-5xl">
+              <div className="h-40 w-40 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-display font-bold text-4xl">
                 {lead.name ? lead.name.slice(0, 2).toUpperCase() : "LD"}
               </div>
             )}
           </div>
 
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-3 flex items-center gap-2">
             {lead.avatarUrl && (
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-xl text-xs gap-1.5"
+                className="rounded-lg text-xs gap-1.5 h-8"
                 onClick={() => window.open(lead.avatarUrl, "_blank")}
               >
                 <ArrowSquareOut className="h-3.5 w-3.5" />
-                Abrir Imagem Original
+                Abrir Original
               </Button>
             )}
             <Button
               variant="secondary"
               size="sm"
-              className="rounded-xl text-xs gap-1.5"
+              className="rounded-lg text-xs gap-1.5 h-8"
               onClick={() => setPhotoZoomOpen(false)}
             >
               Fechar

@@ -64,7 +64,8 @@ describe("WhatsApp Labels and Pinned/Archived Realtime Sync", () => {
     expect(sorted[2].id).toBe("conv-1");
   });
 
-  it("exposes getWhatsAppLabels on apiService", () => {
+  it("exposes getWhatsAppLabels and createWhatsAppLabel on apiService", () => {
     expect(typeof apiService.getWhatsAppLabels).toBe("function");
+    expect(typeof apiService.createWhatsAppLabel).toBe("function");
   });
 });

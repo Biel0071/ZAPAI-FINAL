@@ -34,8 +34,9 @@ router.get('/sessions/:id/check-number/:phone', sessionsController.checkNumber);
 // GET /api/whatsapp/sessions/:id/qr — get QR code
 router.get('/sessions/:id/qr', sessionsController.getQr);
 
-// GET /api/whatsapp/labels — list WhatsApp business labels
+// GET & POST /api/whatsapp/labels — list & create WhatsApp business labels
 const conversationsController = require('../controllers/conversationsController');
 router.get('/labels', conversationsController.getWhatsappLabels);
+router.post('/labels', conversationsController.createWhatsappLabel);
 
 module.exports = router;
