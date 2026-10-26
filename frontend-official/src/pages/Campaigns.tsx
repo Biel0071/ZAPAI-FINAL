@@ -77,12 +77,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatGridSkeleton } from "@/components/ui/loading-skeleton";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import { useAppStore } from "@/state/stores/appStore";
 import { Label } from "@/components/ui/label";
 import {
   apiService,
@@ -173,7 +168,8 @@ function fileToDataUrl(file: File) {
 
 function getCampaignSessionId() {
   try {
-    const selectedSession = window.localStorage.getItem("selectedSessionId")
+    const selectedSession = window.localStorage.getItem("zapai_inbox_active_session")
+      || window.localStorage.getItem("selectedSessionId")
       || window.localStorage.getItem("currentSessionId")
       || window.localStorage.getItem("activeSessionId")
       || window.localStorage.getItem("whatsappSessionId");
@@ -326,8 +322,21 @@ function extractCampaignProduct(prompt: string) {
 }
 
 type CampaignDispatchStatus = {
+  id?: string;
+  name?: string;
   status?: string;
+  sessionId?: string;
   pending?: number;
+  currentContact?: {
+    id?: string;
+    name?: string;
+    phone?: string;
+  } | null;
+  nextSendAt?: string | null;
+  inBreak?: boolean;
+  estimatedRemainingMs?: number;
+  estimatedFinishAt?: string | null;
+  progressPercent?: number;
   metrics?: {
     total?: number;
     sent?: number;
@@ -335,7 +344,11 @@ type CampaignDispatchStatus = {
     processed?: number;
     startedAt?: string | null;
     avgDeliveryMs?: number;
+    progressPercent?: number;
+    estimatedRemainingMs?: number;
+    estimatedFinishAt?: string | null;
   };
+  settings?: Record<string, any>;
 };
 
 type AICampaignDraft = {
@@ -379,6 +392,8 @@ export default function Campaigns() {
   const location = useLocation();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
+  const sessions = useAppStore((state) => state.sessions);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [tagInputVal, setTagInputVal] = useState("");
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
@@ -494,8 +509,9 @@ export default function Campaigns() {
   const loadPageData = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) setLoading(true);
     try {
+      const targetSessionId = activeSessionId || undefined;
       const [campaignList, quickRepliesData, agentsData] = await Promise.all([
-        apiService.getCampaigns(),
+        apiService.getCampaigns(targetSessionId),
         apiService.getQuickReplies().catch(() => []),
         apiService.getAIAgents().catch(() => ({ success: false, agents: [] })),
       ]);
@@ -515,19 +531,21 @@ export default function Campaigns() {
       if (!options?.silent) setLoading(false);
 
       const [contactList, conversationsData] = await Promise.all([
-        apiService.getContacts(false).catch(() => []),
-        apiService.getConversations(false, { limit: 250 }).catch(() => []),
+        apiService.getContacts(false, targetSessionId).catch(() => []),
+        apiService.getConversations(false, { limit: 250, sessionId: targetSessionId }).catch(() => []),
       ]);
 
       setMaturationLoading(true);
-      apiService.getCampaignMaturationStats()
+      apiService.getCampaignMaturationStats(targetSessionId)
         .then((res: any) => {
           const stats = res?.data || res;
           if (stats && (stats.sessionId || stats.stage)) {
             setMaturationStats(stats as CampaignMaturationData);
+          } else {
+            setMaturationStats(null);
           }
         })
-        .catch(() => {})
+        .catch(() => setMaturationStats(null))
         .finally(() => setMaturationLoading(false));
 
       const conversationsByPhone = new Map<string, Conversation>();
@@ -592,7 +610,7 @@ export default function Campaigns() {
     } finally {
       if (!options?.silent) setLoading(false);
     }
-  }, []);
+  }, [activeSessionId]);
 
   const refreshCampaignDispatchStatus = useCallback(async (campaignId: string) => {
     try {
@@ -611,7 +629,7 @@ export default function Campaigns() {
 
   useEffect(() => {
     void loadPageData();
-  }, [loadPageData]);
+  }, [loadPageData, activeSessionId]);
 
   const resetComposer = useCallback(() => {
     setCampaignsTab("compose");
@@ -770,6 +788,17 @@ export default function Campaigns() {
     const sent = campaigns.reduce((total, campaign) => total + Number(campaign.queue?.sent ?? 0), 0);
     return { active, drafts, failed, totalQueue, sent };
   }, [campaigns]);
+
+  const runningCampaigns = useMemo(() => {
+    return campaigns.filter((campaign) => {
+      const status = normalizeCampaignStatus(campaign);
+      const live = dispatchStatuses[campaign.id];
+      return (
+        ["running", "active", "processing"].includes(status) ||
+        (live && ["running", "active", "processing"].includes(String(live.status || "").toLowerCase()))
+      );
+    });
+  }, [campaigns, dispatchStatuses]);
 
   // Histórico: filtro por status + busca, depois paginação
   const filteredHistoryCampaigns = useMemo(() => {
@@ -992,7 +1021,7 @@ export default function Campaigns() {
             })),
         settings: {
           flowId: selectedFlowId || undefined,
-          sessionId: getCampaignSessionId(),
+          sessionId: activeSessionId || getCampaignSessionId() || 'main',
           intervalSeconds: intervalSeconds[0],
           randomDelayMin: intervalSeconds[0] * 1000,
           randomDelayMax: intervalSeconds[0] * 1000,
@@ -1019,7 +1048,7 @@ export default function Campaigns() {
           .filter(Boolean),
       };
     },
-    [campaignName, cleanMessages, editingCampaign, editingCampaignId, intervalSeconds, pauseEvery, pauseSeconds, selectedContacts, selectedFlowId, shuffleEnabled, startAt, tagsInput, typingDelay, warmupMessages, warmupDelayMultiplier, dailyLimit, hourlyLimit],
+    [activeSessionId, campaignName, cleanMessages, editingCampaign, editingCampaignId, intervalSeconds, pauseEvery, pauseSeconds, selectedContacts, selectedFlowId, shuffleEnabled, startAt, tagsInput, typingDelay, warmupMessages, warmupDelayMultiplier, dailyLimit, hourlyLimit],
   );
 
   const handleDeleteQuickReply = useCallback(async (id: string, e: React.MouseEvent) => {
@@ -3025,6 +3054,194 @@ listSection={
                   />
                 </div>
 
+                {/* ─── Painel de Campanha em Andamento (Live Dispatch Monitor) ─── */}
+                {runningCampaigns.length > 0 && (
+                  <div className="mb-6 space-y-4">
+                    {runningCampaigns.map((activeCmp) => {
+                      const live = dispatchStatuses[activeCmp.id];
+                      const liveMetrics = live?.metrics ?? {};
+                      const total = Number(liveMetrics.total ?? activeCmp.queue?.total ?? activeCmp.selectedContacts?.length ?? 0);
+                      const sent = Number(liveMetrics.sent ?? activeCmp.queue?.sent ?? 0);
+                      const failed = Number(liveMetrics.failed ?? activeCmp.queue?.failed ?? 0);
+                      const processed = Number(liveMetrics.processed ?? sent + failed);
+                      const pending = Number(live?.pending ?? Math.max(0, total - processed));
+                      const progressPercent = Number(
+                        live?.progressPercent ??
+                        liveMetrics.progressPercent ??
+                        (total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0)
+                      );
+                      const remainingMs = live?.estimatedRemainingMs ?? liveMetrics.estimatedRemainingMs ?? null;
+                      const finishAt = live?.estimatedFinishAt ?? liveMetrics.estimatedFinishAt ?? null;
+                      const currentContact = live?.currentContact ?? null;
+                      const inBreak = Boolean(live?.inBreak);
+                      const busy = actionCampaignId === activeCmp.id;
+
+                      return (
+                        <div
+                          key={`live-monitor-${activeCmp.id}`}
+                          className="relative overflow-hidden rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-card/95 to-background p-5 shadow-xl backdrop-blur-md transition-all duration-300"
+                        >
+                          {/* Linha de pulso luminoso no topo */}
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-emerald-400 to-primary animate-pulse" />
+
+                          {/* Cabeçalho do Monitor */}
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <div className="flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-400 shadow-xs">
+                                <span className="relative flex h-2.5 w-2.5">
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                                </span>
+                                DISPARO AO VIVO EM ANDAMENTO
+                              </div>
+                              <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-xs flex items-center gap-1.5">
+                                <ShieldCheck weight="fill" className="h-3.5 w-3.5 text-emerald-400" />
+                                Cadência Humana Segura Anti-Ban
+                              </Badge>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 rounded-xl border-amber-500/40 text-amber-500 dark:text-amber-400 hover:bg-amber-500/10 text-xs font-medium"
+                                onClick={() => void runCampaignAction(activeCmp.id, "pause")}
+                                disabled={busy}
+                              >
+                                {busy && actionType === "pause" ? (
+                                  <Clock className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Pause className="mr-1.5 h-3.5 w-3.5" />
+                                )}
+                                Pausar Envio
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 rounded-xl text-xs font-medium"
+                                onClick={() => setSelectedCampaignPreview(activeCmp)}
+                              >
+                                <ArrowsOutSimple className="mr-1.5 h-3.5 w-3.5" />
+                                Ver Detalhes
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Título e dados da campanha */}
+                          <div className="mt-3">
+                            <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                              {activeCmp.name}
+                              {activeCmp.settings?.flowId && (
+                                <Badge variant="secondary" className="text-[10px] uppercase tracking-wider font-semibold">
+                                  Fluxo Automático
+                                </Badge>
+                              )}
+                            </h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {(activeCmp.messages ?? []).map((m) => m.content).filter(Boolean).join(" • ").slice(0, 110) || "Mensagens ativas com cadência anti-ban e digitação humana"}
+                            </p>
+                          </div>
+
+                          {/* Barra de Progresso com Porcentagem Real */}
+                          <div className="mt-4 space-y-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-foreground">Progresso Geral</span>
+                                <span className="text-muted-foreground">•</span>
+                                <span className="font-mono text-muted-foreground">{processed} de {total} leads ({pending} restantes)</span>
+                              </div>
+                              <span className="font-display font-extrabold text-xl text-primary">{progressPercent}%</span>
+                            </div>
+                            <div className="h-3 w-full overflow-hidden rounded-full bg-background/80 border border-border/60">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-primary via-emerald-500 to-primary transition-all duration-700 ease-out"
+                                style={{ width: `${Math.max(2, progressPercent)}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Grid com Indicadores Chave de Telemetria */}
+                          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+                              <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                <PaperPlaneTilt weight="fill" className="h-3.5 w-3.5 text-emerald-400" />
+                                Enviados com Sucesso
+                              </p>
+                              <p className="mt-1 font-display text-xl font-bold text-emerald-400">
+                                {sent} <span className="text-xs font-normal text-muted-foreground">/ {total}</span>
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{failed > 0 ? `${failed} falha(s)` : "100% entregues sem erro"}</p>
+                            </div>
+
+                            <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+                              <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                <Users className="h-3.5 w-3.5 text-amber-400" />
+                                Fila de Espera
+                              </p>
+                              <p className="mt-1 font-display text-xl font-bold text-amber-400">
+                                {pending} <span className="text-xs font-normal text-muted-foreground">leads</span>
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">aguardando intervalo seguro</p>
+                            </div>
+
+                            <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+                              <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                <Timer className="h-3.5 w-3.5 text-cyan-400" />
+                                Tempo até Acabar
+                              </p>
+                              <p className="mt-1 font-display text-xl font-bold text-cyan-400 font-mono">
+                                {remainingMs ? formatDurationMs(remainingMs) : "Calculando..."}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">baseado no ritmo humanizado</p>
+                            </div>
+
+                            <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+                              <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                <CalendarBlank className="h-3.5 w-3.5 text-indigo-400" />
+                                Previsão de Término
+                              </p>
+                              <p className="mt-1 font-display text-sm font-bold text-indigo-300">
+                                {finishAt ? formatDateTime(finishAt) : "Calculando..."}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">projeção anti-ban calculada</p>
+                            </div>
+                          </div>
+
+                          {/* Linha de Atividade ao Vivo: Contato Atual ou Descanso */}
+                          <div className="mt-3.5 pt-3 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+                            {inBreak ? (
+                              <div className="flex items-center gap-2 text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl w-full">
+                                <Hourglass className="h-4 w-4 animate-spin text-amber-400 shrink-0" />
+                                <span>
+                                  <strong>Pausa de Segurança Ativa:</strong> Chip em descanso preventivo de 3 minutos para simular pausa humana e proteger contra banimento.
+                                </span>
+                              </div>
+                            ) : currentContact ? (
+                              <div className="flex items-center gap-2 text-foreground/90 truncate">
+                                <span className="flex h-2 w-2 rounded-full bg-primary animate-ping" />
+                                <span className="text-muted-foreground">Disparando agora para:</span>
+                                <strong className="text-foreground truncate">{currentContact.name || currentContact.phone}</strong>
+                                <span className="font-mono text-muted-foreground text-[11px]">({currentContact.phone})</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <CheckCircle className="h-4 w-4 text-emerald-400" />
+                                <span>Disparo em andamento com intervalos dinâmicos e digitação humanizada.</span>
+                              </div>
+                            )}
+
+                            <div className="text-[11px] text-muted-foreground/80 shrink-0 flex items-center gap-1 self-end sm:self-auto">
+                              <Sparkle weight="fill" className="h-3 w-3 text-primary" />
+                              Atualizado a cada 5s
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {/* ─── Fim Painel de Campanha em Andamento ─── */}
+
                 {/* ─── Painel de Agendamentos ─── */}
                 {campaigns.some((c) => c.status === "scheduled") && (
                   <div className="mb-4 rounded-2xl border border-info/30 bg-info/5 p-4">
@@ -3264,10 +3481,17 @@ listSection={
                           <div className="mt-2 flex flex-wrap justify-between gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
                             <span>{processed} de {recipients} processados</span>
                             <span>{pending} pendentes</span>
-                            <span className="flex items-center">
-                              <Clock className="mr-1 h-3 w-3 opacity-70" />
-                              {elapsed}
-                            </span>
+                            {liveStatus?.estimatedRemainingMs ? (
+                              <span className="flex items-center text-cyan-400 font-mono font-medium">
+                                <Timer className="mr-1 h-3 w-3 opacity-80" />
+                                {formatDurationMs(liveStatus.estimatedRemainingMs)} restantes
+                              </span>
+                            ) : (
+                              <span className="flex items-center">
+                                <Clock className="mr-1 h-3 w-3 opacity-70" />
+                                {elapsed}
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -3406,26 +3630,48 @@ listSection={
           </DialogHeader>
           {selectedCampaignPreview && (
             <div className="space-y-5 py-2">
-              <div className="grid gap-3 md:grid-cols-5">
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
                 <div className="rounded-lg border border-border/70 bg-background/35 p-2">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
-                  <div className="mt-2"><OperationalStatusBadge label={statusMeta(selectedCampaignPreview).label} tone={statusMeta(selectedCampaignPreview).tone} /></div>
+                  <div className="mt-2"><OperationalStatusBadge label={statusMeta(selectedCampaignPreview).label} tone={statusMeta(selectedCampaignPreview).tone} pulse={statusMeta(selectedCampaignPreview).tone === "syncing"} /></div>
+                </div>
+                <div className="rounded-lg border border-primary/30 bg-primary/10 p-2">
+                  <p className="text-xs uppercase tracking-wide text-primary">Progresso</p>
+                  <p className="mt-1 font-display text-lg font-bold text-primary">
+                    {dispatchStatuses[selectedCampaignPreview.id]?.progressPercent ?? (
+                      (Number(selectedCampaignPreview.queue?.total ?? selectedCampaignPreview.selectedContacts?.length ?? 0) > 0)
+                        ? Math.min(100, Math.round(((Number(selectedCampaignPreview.queue?.sent ?? 0) + Number(selectedCampaignPreview.queue?.failed ?? 0)) / Number(selectedCampaignPreview.queue?.total ?? selectedCampaignPreview.selectedContacts?.length ?? 1)) * 100))
+                        : 0
+                    )}%
+                  </p>
                 </div>
                 <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Contatos</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Leads</p>
                   <p className="mt-1 font-display text-lg font-bold">{selectedCampaignPreview.queue?.total ?? selectedCampaignPreview.selectedContacts?.length ?? 0}</p>
                 </div>
                 <div className="rounded-lg border border-warning/30 bg-warning/10 p-2">
                   <p className="text-xs uppercase tracking-wide text-warning/80">Fila (Espera)</p>
                   <p className="mt-1 font-display text-lg font-bold text-warning">{dispatchStatuses[selectedCampaignPreview.id]?.pending ?? Math.max(0, (selectedCampaignPreview.queue?.total ?? selectedCampaignPreview.selectedContacts?.length ?? 0) - ((selectedCampaignPreview.queue?.sent ?? 0) + (selectedCampaignPreview.queue?.failed ?? 0)))}</p>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Enviadas</p>
-                  <p className="mt-1 font-display text-lg font-bold">{selectedCampaignPreview.queue?.sent ?? 0}</p>
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2">
+                  <p className="text-xs uppercase tracking-wide text-emerald-400">Enviadas</p>
+                  <p className="mt-1 font-display text-lg font-bold text-emerald-400">{dispatchStatuses[selectedCampaignPreview.id]?.metrics?.sent ?? selectedCampaignPreview.queue?.sent ?? 0}</p>
                 </div>
-                <div className="rounded-lg border border-border/70 bg-background/35 p-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Falhas</p>
-                  <p className="mt-1 font-display text-lg font-bold">{selectedCampaignPreview.queue?.failed ?? 0}</p>
+                <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-2">
+                  <p className="text-xs uppercase tracking-wide text-cyan-400">Tempo Restante</p>
+                  <p className="mt-1 font-display text-sm font-bold text-cyan-400 font-mono">
+                    {dispatchStatuses[selectedCampaignPreview.id]?.estimatedRemainingMs
+                      ? formatDurationMs(dispatchStatuses[selectedCampaignPreview.id].estimatedRemainingMs)
+                      : "—"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-2">
+                  <p className="text-xs uppercase tracking-wide text-indigo-400">Previsão Fim</p>
+                  <p className="mt-1 font-display text-xs font-bold text-indigo-300">
+                    {dispatchStatuses[selectedCampaignPreview.id]?.estimatedFinishAt
+                      ? formatDateTime(dispatchStatuses[selectedCampaignPreview.id].estimatedFinishAt)
+                      : "—"}
+                  </p>
                 </div>
               </div>
 

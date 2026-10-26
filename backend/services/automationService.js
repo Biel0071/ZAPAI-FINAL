@@ -99,8 +99,8 @@ function normalizeFlow(payload = {}) {
   };
 }
 
-async function listCampaigns(store) {
-  return campaignRepository.listCampaigns(getCompanyId(store));
+async function listCampaigns(store, sessionId = null) {
+  return campaignRepository.listCampaigns(getCompanyId(store), sessionId);
 }
 
 async function createCampaign(store, payload = {}) {

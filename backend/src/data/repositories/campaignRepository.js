@@ -53,15 +53,22 @@ function mapCampaign(row) {
   };
 }
 
-async function listCampaigns(companyId) {
+async function listCampaigns(companyId, sessionId = null) {
+  const params = [getCompanyId(companyId)];
+  let sessionClause = '';
+  if (sessionId && sessionId !== 'all') {
+    params.push(sessionId);
+    sessionClause = `AND (settings->>'sessionId' = $2 OR ($2 = 'main' AND (settings->>'sessionId' IS NULL OR settings->>'sessionId' = '')))`;
+  }
+
   const result = await query(
     `
       SELECT *
       FROM campaigns
-      WHERE company_id = $1
+      WHERE company_id = $1 ${sessionClause}
       ORDER BY created_at DESC
     `,
-    [getCompanyId(companyId)]
+    params
   );
 
   return result.rows.map(mapCampaign);

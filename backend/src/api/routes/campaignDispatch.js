@@ -146,7 +146,8 @@ router.get('/campaigns/maturation', async (req, res) => {
   try {
     const campaignMaturationService = require('../../../services/campaignMaturationService');
     const companyId = req.authTenantId;
-    const stats = await campaignMaturationService.getChipMaturationStats(companyId);
+    const sessionId = req.query.sessionId || req.query.session || null;
+    const stats = await campaignMaturationService.getChipMaturationStats(companyId, sessionId);
     return safeJson(res, { success: true, data: stats });
   } catch (error) {
     return safeJson(res, { success: false, error: error?.message || 'Failed to fetch maturation stats' }, 500);

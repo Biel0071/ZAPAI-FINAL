@@ -31,25 +31,40 @@ async function listContacts(req, res) {
     if (hasDatabaseEnabled(req)) {
       try {
         const companyId = req.query?.companyId || req.auth?.tenantId || process.env.DEFAULT_COMPANY_ID || 'default';
+        const requestedSessionId = req.query?.sessionId ? String(req.query.sessionId).trim() : null;
         const requestedLimit = Number(req.query?.limit) || 2000;
         const limit = Math.min(Math.max(requestedLimit, 1), 10000);
         const forceRefresh = req.query?.refresh === 'true' || req.query?.force === 'true';
         const conversations = await conversationRepository.listConversations(companyId, limit, {
           requireMessages: false,
           useCache: !forceRefresh,
+          sessionId: requestedSessionId || undefined,
         });
         contacts = contactsService.listContactsFromConversations(conversations);
 
         // Fetch saved contacts directly from leads table in PostgreSQL
         try {
-          const leadsRes = await query(
-            `SELECT id, company_id, phone, name, created_at, is_blocked 
-             FROM leads 
-             WHERE company_id = $1 
-             ORDER BY created_at DESC 
-             LIMIT $2`,
-            [companyId, limit]
-          );
+          let leadsRes;
+          if (requestedSessionId) {
+            leadsRes = await query(
+              `SELECT DISTINCT l.id, l.company_id, l.phone, l.name, l.created_at, l.is_blocked 
+               FROM leads l
+               INNER JOIN conversations c ON c.lead_id = l.id
+               WHERE l.company_id = $1 AND c.session_id = $2
+               ORDER BY l.created_at DESC 
+               LIMIT $3`,
+              [companyId, requestedSessionId, limit]
+            );
+          } else {
+            leadsRes = await query(
+              `SELECT id, company_id, phone, name, created_at, is_blocked 
+               FROM leads 
+               WHERE company_id = $1 
+               ORDER BY created_at DESC 
+               LIMIT $2`,
+              [companyId, limit]
+            );
+          }
 
           const existingPhoneMap = new Map();
           contacts.forEach((c) => {
@@ -97,7 +112,7 @@ async function listContacts(req, res) {
         // Merge cached contacts from WhatsApp sync if available
         try {
           const contactsEngine = require('../../../services/contactsEngine');
-          const cachedContacts = contactsEngine.listCachedContacts({ companyId });
+          const cachedContacts = contactsEngine.listCachedContacts({ companyId, sessionId: requestedSessionId || undefined });
           const existingPhoneMap = new Map();
           contacts.forEach((c) => {
             const clean = String(c.phone || '').replace(/\D/g, '');

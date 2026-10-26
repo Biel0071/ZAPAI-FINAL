@@ -359,12 +359,15 @@ async function dispatchSingleMessage(state, contact, io) {
         throw new Error(`Flow ${state.flowId} has no steps or items to dispatch`);
       }
 
+      const destination = await resolveContactDestination(contact, state);
+      const targetPhone = destination || phone;
+
       for (const step of steps) {
         cumulativeDelayMs += Number(step.delayMs || step.delay || 0);
         const scheduledTime = new Date(now + cumulativeDelayMs).toISOString();
 
         const itemPayload = {
-          phone,
+          phone: targetPhone,
           sessionId: state.sessionId || 'main',
           companyId: state.companyId || 'default',
           text: step.type === 'text' ? (step.value || step.content || step.text || '') : (step.caption || ''),
@@ -665,24 +668,50 @@ async function dispatchSingleMessage(state, contact, io) {
   }
 }
 
+function calculateEstimatedRemainingMs(state) {
+  if (!state || !state.pendingQueue) return 0;
+  const pendingCount = state.pendingQueue.length;
+  if (pendingCount <= 0) return 0;
+
+  const intervalMs = state.settings?.intervalMs || 115000;
+  const typingMs = state.settings?.typingDelayMs || 8000;
+  const avgContactTime = intervalMs + typingMs;
+  const pauseEvery = state.settings?.pauseEvery || 7;
+  const pauseMs = state.settings?.pauseMs || 180000;
+  const remainingPauses = Math.floor(pendingCount / pauseEvery);
+
+  return (pendingCount * avgContactTime) + (remainingPauses * pauseMs);
+}
+
 function emitProgress(state, io) {
   if (!io) return;
+
+  const total = state.metrics.total || (state.pendingQueue.length + state.metrics.sent + state.metrics.failed);
+  const processed = state.metrics.sent + state.metrics.failed;
+  const progressPercent = total > 0
+    ? Math.min(100, Math.round((processed / total) * 100))
+    : 0;
+  const estimatedRemainingMs = calculateEstimatedRemainingMs(state);
 
   const progress = {
     campaignId: state.id,
     name: state.name,
     status: state.status,
-    total: state.metrics.total,
+    sessionId: state.sessionId || 'main',
+    total,
     sent: state.metrics.sent,
     failed: state.metrics.failed,
     pending: state.pendingQueue.length,
-    processed: state.metrics.sent + state.metrics.failed,
-    progress: state.metrics.total > 0
-      ? Math.round(((state.metrics.sent + state.metrics.failed) / state.metrics.total) * 100)
-      : 0,
+    processed,
+    progress: progressPercent,
+    progressPercent,
     avgDeliveryMs: state.metrics.avgDeliveryMs,
     startedAt: state.metrics.startedAt,
     inBreak: Boolean(state.inBreak),
+    currentContact: state.currentContact || null,
+    nextSendAt: state.nextSendAt || null,
+    estimatedRemainingMs,
+    estimatedFinishAt: new Date(Date.now() + estimatedRemainingMs).toISOString(),
   };
 
   io.emit('campaign:progress', progress);
@@ -694,11 +723,16 @@ async function persistProgress(state) {
     const sentContactIds = Array.isArray(state.sentQueue)
       ? state.sentQueue.map(c => campaignContactKey(c.contact || c))
       : [];
+    const estimatedRemainingMs = calculateEstimatedRemainingMs(state);
+    const total = state.metrics.total || (state.pendingQueue.length + state.metrics.sent + state.metrics.failed);
+    const processed = state.metrics.sent + state.metrics.failed;
+    const progressPercent = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+
     await campaignRepository.updateCampaign(state.id, {
       status: state.status,
       queue: {
-        total: state.metrics.total,
-        processed: state.metrics.sent + state.metrics.failed,
+        total,
+        processed,
         sent: state.metrics.sent,
         failed: state.metrics.failed,
         paused: state.status === 'paused',
@@ -706,6 +740,10 @@ async function persistProgress(state) {
         sentContactIds,
         cancelledContactIds: state.cancelledContactIds || [],
         sessionResumedContactIds: state.sessionResumedContactIds || [],
+        currentContact: state.currentContact || null,
+        estimatedRemainingMs,
+        estimatedFinishAt: new Date(Date.now() + estimatedRemainingMs).toISOString(),
+        progressPercent,
       },
       startedAt: state.metrics.startedAt,
       completedAt: state.metrics.completedAt,
@@ -725,6 +763,13 @@ async function runDispatchLoop(state, io) {
     while (state.pendingQueue.length > 0 && state.status === 'running') {
       const contact = state.pendingQueue.shift();
       state.currentIndex += 1;
+      state.currentContact = {
+        id: campaignContactKey(contact),
+        name: contact?.name || contact?.contactName || 'Lead do Anúncio',
+        phone: contact?.phone || contact?.number || '',
+      };
+      state.estimatedRemainingMs = calculateEstimatedRemainingMs(state);
+      state.estimatedFinishAt = new Date(Date.now() + state.estimatedRemainingMs).toISOString();
 
       const result = await dispatchSingleMessage(state, contact, io);
 
@@ -746,6 +791,7 @@ async function runDispatchLoop(state, io) {
         const pauseDelay = Math.floor(Math.random() * (pauseMax - pauseMin + 1)) + pauseMin;
         console.log(`[CampaignEngine] Human break pause for ${state.id}: ${Math.round(pauseDelay / 1000)}s (simulating attendant break after ${state.metrics.sent} messages)`);
         state.inBreak = true;
+        state.nextSendAt = Date.now() + pauseDelay;
         emitProgress(state, io);
         await interruptibleSleep(pauseDelay, state);
         state.inBreak = false;
@@ -757,6 +803,10 @@ async function runDispatchLoop(state, io) {
       // Random delay between messages (if more contacts remain and campaign is running)
       if (state.pendingQueue.length > 0 && state.status === 'running') {
         const delay = getRandomDelay(state);
+        state.nextSendAt = Date.now() + delay;
+        state.estimatedRemainingMs = calculateEstimatedRemainingMs(state);
+        state.estimatedFinishAt = new Date(Date.now() + state.estimatedRemainingMs).toISOString();
+        emitProgress(state, io);
         await interruptibleSleep(delay, state);
       }
     }
@@ -1032,12 +1082,31 @@ function getStatus(campaignId, companyId) {
   const state = activeCampaigns.get(campaignId);
   if (!state || (companyId && state.companyId !== companyId)) return null;
 
+  const estimatedRemainingMs = calculateEstimatedRemainingMs(state);
+  const total = state.metrics.total || (state.pendingQueue.length + state.metrics.sent + state.metrics.failed);
+  const processed = state.metrics.sent + state.metrics.failed;
+  const progressPercent = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+
   return {
     id: state.id,
     name: state.name,
     status: state.status,
-    metrics: { ...state.metrics, processed: state.metrics.sent + state.metrics.failed },
+    sessionId: state.sessionId || 'main',
+    metrics: {
+      ...state.metrics,
+      total,
+      processed,
+      progressPercent,
+      estimatedRemainingMs,
+      estimatedFinishAt: new Date(Date.now() + estimatedRemainingMs).toISOString(),
+    },
     pending: state.pendingQueue.length,
+    currentContact: state.currentContact || null,
+    nextSendAt: state.nextSendAt || null,
+    inBreak: Boolean(state.inBreak),
+    estimatedRemainingMs,
+    estimatedFinishAt: new Date(Date.now() + estimatedRemainingMs).toISOString(),
+    progressPercent,
     settings: { ...state.settings },
   };
 }

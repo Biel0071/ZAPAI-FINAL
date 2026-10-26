@@ -80,6 +80,26 @@ async function analyzeCampaign(campaignId, companyId = 'default') {
   const failed = Number(queue.failed ?? 0);
   const total = Number(queue.total ?? phones.length);
 
+  // If campaign has not started or sent 0 messages, return clean unstarted analytics (never mix pre-campaign history)
+  if (sent === 0 || !startedAt) {
+    return {
+      campaignId: campaign.id,
+      campaignName: campaign.name,
+      status: campaign.status,
+      metrics: {
+        total,
+        contacted: 0,
+        replied: 0,
+        responseRate: 0,
+        qualityScore: null,
+        avgResponseMs: null,
+        elapsedMs: 0,
+        sentiment: { positive: 0, neutral: 0, negative: 0 },
+      },
+      leads: [],
+    };
+  }
+
   const leads = [];
   let repliedCount = 0;
   let totalResponseMs = 0;

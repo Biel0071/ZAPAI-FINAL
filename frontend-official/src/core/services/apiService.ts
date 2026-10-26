@@ -1571,15 +1571,17 @@ export const apiService = {
     throw lastError;
   },
 
-  async getContacts(forceRefresh = false) {
+  async getContacts(forceRefresh = false, sessionId?: string | null) {
     const authScope = getRequestAuthScope();
-    const cacheKey = "contacts";
+    const cleanSession = sessionId ? String(sessionId).trim() : null;
+    const cacheKey = cleanSession ? `contacts:${cleanSession}` : "contacts";
     if (!forceRefresh) {
       const cached = getCache<Contact[]>(cacheKey, authScope);
       if (cached) return cached;
     }
 
-    const data = await request<Contact[]>({ endpoint: "/api/contacts", method: "GET" });
+    const queryParam = cleanSession ? `?sessionId=${encodeURIComponent(cleanSession)}` : "";
+    const data = await request<Contact[]>({ endpoint: `/api/contacts${queryParam}`, method: "GET" });
     setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
@@ -2340,8 +2342,9 @@ export const apiService = {
     });
   },
 
-  getCampaigns: async () => {
-    const data = await request<unknown>({ endpoint: "/api/campaigns", method: "GET" });
+  getCampaigns: async (sessionId?: string) => {
+    const qs = sessionId && sessionId !== "all" ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+    const data = await request<unknown>({ endpoint: `/api/campaigns${qs}`, method: "GET" });
     const entries = Array.isArray(data)
       ? data
       : data && typeof data === "object" && Array.isArray((data as { data?: unknown[] }).data)
@@ -2363,8 +2366,10 @@ export const apiService = {
     request<{ success?: boolean }>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}`, method: "DELETE" }),
   startCampaignDispatch: (campaignId: string, options?: { mode?: 'safe' | 'balanced' | 'fast' }) =>
     request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/start`, method: "POST", body: options || {} }),
-  getCampaignMaturationStats: () =>
-    request<{ success?: boolean; data?: any }>({ endpoint: "/api/campaigns/maturation", method: "GET" }),
+  getCampaignMaturationStats: (sessionId?: string) => {
+    const qs = sessionId && sessionId !== "all" ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+    return request<{ success?: boolean; data?: any }>({ endpoint: `/api/campaigns/maturation${qs}`, method: "GET" });
+  },
   pauseCampaignDispatch: (campaignId: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/campaigns/${encodeURIComponent(campaignId)}/pause`, method: "POST" }),
   resumeCampaignDispatch: (campaignId: string) =>

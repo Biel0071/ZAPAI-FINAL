@@ -7,7 +7,8 @@ function getStore(req) {
 
 async function getCampaigns(req, res) {
   try {
-    const campaigns = await automationService.listCampaigns(getStore(req));
+    const sessionId = req.query.sessionId || req.query.session || null;
+    const campaigns = await automationService.listCampaigns(getStore(req), sessionId);
     return res.status(200).json(campaigns);
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to fetch campaigns.' });

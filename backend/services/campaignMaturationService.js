@@ -10,42 +10,56 @@ const sessionManager = require('./sessionManager');
  * - Stage 4 (Week 2): 250 msgs/day - Balanced Mode
  * - Stage 5 (15+ days): 500 msgs/day - Commercial Scale
  */
-async function getChipMaturationStats(companyId = 'default') {
-  // Resolve session
-  const sessions = sessionManager.listSessions ? sessionManager.listSessions() : [];
-  const mainSession = sessions.find(s => s.status === 'connected') || sessions[0] || { sessionId: 'main' };
-  const sessionId = mainSession.sessionId || mainSession.id || 'main';
+async function getChipMaturationStats(companyId = 'default', targetSessionId = null) {
+  // Resolve session: use targetSessionId if provided, otherwise find connected session or fallback to 'main'
+  let sessionId = targetSessionId && targetSessionId !== 'all' ? targetSessionId : null;
+  if (!sessionId) {
+    const sessions = sessionManager.listSessions ? sessionManager.listSessions() : [];
+    const connectedSession = sessions.find(s => s.status === 'connected') || sessions[0];
+    sessionId = connectedSession?.sessionId || connectedSession?.id || 'main';
+  }
 
-  // 1. Calculate age of operation for this tenant/session
+  // 1. Calculate age of operation for this specific session
   const ageRes = await query(
     `SELECT MIN(created_at) as first_message_at, COUNT(*) as total_lifetime_messages
      FROM messages
-     WHERE company_id = $1`,
-    [companyId]
+     WHERE company_id = $1
+       AND (session_id = $2 OR ($2 = 'main' AND (session_id IS NULL OR session_id = '')))` ,
+    [companyId, sessionId]
   );
 
-  const firstMsgDate = ageRes.rows[0]?.first_message_at ? new Date(ageRes.rows[0].first_message_at) : new Date();
+  const rawFirstMsg = ageRes.rows[0]?.first_message_at;
   const totalLifetimeMessages = Number(ageRes.rows[0]?.total_lifetime_messages || 0);
-  const msActive = Math.max(0, Date.now() - firstMsgDate.getTime());
-  const daysActive = Math.max(1, Math.floor(msActive / (1000 * 60 * 60 * 24)) + 1);
 
-  // 2. Count messages sent today
+  let daysActive = 1;
+  let firstMsgDate = new Date();
+  if (rawFirstMsg && totalLifetimeMessages > 0) {
+    firstMsgDate = new Date(rawFirstMsg);
+    const msActive = Math.max(0, Date.now() - firstMsgDate.getTime());
+    daysActive = Math.max(1, Math.floor(msActive / (1000 * 60 * 60 * 24)) + 1);
+  }
+
+  // 2. Count messages sent today for this specific session
   const todayRes = await query(
     `SELECT COUNT(*) as sent_today
      FROM messages
-     WHERE company_id = $1 AND from_me = TRUE AND created_at >= CURRENT_DATE`,
-    [companyId]
+     WHERE company_id = $1 AND from_me = TRUE
+       AND (session_id = $2 OR ($2 = 'main' AND (session_id IS NULL OR session_id = '')))
+       AND created_at >= CURRENT_DATE`,
+    [companyId, sessionId]
   );
   const sentToday = Number(todayRes.rows[0]?.sent_today || 0);
 
-  // 3. Count campaign messages sent today
+  // 3. Count campaign messages sent today for this specific session
   let campaignSentToday = 0;
   try {
     const campTodayRes = await query(
       `SELECT COALESCE(SUM((queue->>'sent')::int), 0) as campaign_sent_today
        FROM campaigns
-       WHERE company_id = $1 AND updated_at >= CURRENT_DATE`,
-      [companyId]
+       WHERE company_id = $1
+         AND (settings->>'sessionId' = $2 OR ($2 = 'main' AND (settings->>'sessionId' IS NULL OR settings->>'sessionId' = '')))
+         AND updated_at >= CURRENT_DATE`,
+      [companyId, sessionId]
     );
     campaignSentToday = Number(campTodayRes.rows[0]?.campaign_sent_today || 0);
   } catch {
