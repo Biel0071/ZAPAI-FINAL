@@ -6,6 +6,7 @@ import {
   computeProgressPercent,
   computeRemainingSeconds,
   formatCountdown,
+  getFlowDisplayName,
   matchesConversationFlow,
   type FlowExecutionData,
 } from "@/pages/Inbox/components/FlowExecutionBanner";
@@ -68,11 +69,19 @@ describe("helpers do banner de fluxo", () => {
     // 1 de 2 enviadas = 50%, faltando metade do delay de 4s (2s restantes de 4s) = +25% => 75%
     expect(computeProgressPercent(1, 2, { nextSendAt: NOW + 2000, stepDelaySeconds: 4, now: NOW })).toBe(75);
   });
+  it("extrai primeiro nome do disparo para economizar espaço e evitar sobreposição", () => {
+    expect(getFlowDisplayName("Churrasqueira Trio Pré-Moldada")).toBe("Churrasqueira");
+    expect(getFlowDisplayName("🔥 Promoção Relâmpago")).toBe("🔥 Promoção");
+    expect(getFlowDisplayName("Boas-vindas")).toBe("Boas-vindas");
+    expect(getFlowDisplayName("")).toBe("");
+    expect(getFlowDisplayName(null)).toBe("");
+  });
 });
 
 describe("FlowExecutionBanner", () => {
-  it("mostra 'Etapa X de Y', % e raio preenchido pela %", async () => {
-    await render(flow({ nextSendAt: NOW + 9000 }));
+  it("mostra primeiro nome, 'Etapa X de Y', % e raio preenchido pela %", async () => {
+    await render(flow({ flowName: "Churrasqueira Trio Pré-Moldada", nextSendAt: NOW + 9000 }));
+    expect(text("flow-name")).toBe("Churrasqueira");
     expect(text("flow-step-label")).toBe("Etapa 5 de 12");
     expect(text("flow-percent")).toBe("42%");
     const fill = container.querySelector<SVGElement>('[data-testid="flow-bolt-fill"]')!;

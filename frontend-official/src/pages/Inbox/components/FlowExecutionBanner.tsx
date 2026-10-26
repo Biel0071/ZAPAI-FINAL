@@ -75,6 +75,21 @@ export function computeProgressPercent(
   return Math.min(99, Math.max(0, Math.round(exactPercent)));
 }
 
+/** Extracts the first name / word of the quick reply to optimize space and avoid overlap. */
+export function getFlowDisplayName(name: string | null | undefined): string {
+  if (!name) return "";
+  const trimmed = String(name).trim();
+  if (!trimmed) return "";
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return trimmed;
+  // If first token is emoji/punctuation and there's a subsequent word, keep both (e.g. "⚡ Churrasco")
+  const emojiRegex = /^[\p{Emoji}\p{Punctuation}]+$/u;
+  if (emojiRegex.test(words[0]) && words.length > 1) {
+    return `${words[0]} ${words[1]}`;
+  }
+  return words[0];
+}
+
 interface FlowExecutionBannerProps {
   flowData: FlowExecutionData | null;
   onCancelFlow?: () => void;
@@ -112,6 +127,7 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
     stepDelaySeconds: flowData.stepDelaySeconds,
     now,
   });
+  const displayName = getFlowDisplayName(flowData.flowName);
   const stepLabel = `Etapa ${Math.min(Math.max(0, flowData.currentStep || 0), flowData.totalSteps || 0)} de ${flowData.totalSteps || 0}`;
   const timerText = isPaused ? "—" : formatCountdown(remainingSeconds);
 
@@ -182,10 +198,10 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
       <div
         key={flowData.flowRunId || flowData.conversationId}
         data-testid="flow-banner"
-        className="w-full h-16 bg-card/95 backdrop-blur-md border-b-2 border-emerald-500/40 px-3 sm:px-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-xs shadow-md select-none z-20 overflow-hidden animate-conversation-swap"
+        className="w-full h-16 bg-card/95 backdrop-blur-md border-b-2 border-emerald-500/40 px-3 sm:px-4 flex items-center justify-between gap-2 sm:gap-4 text-xs shadow-md select-none z-20 overflow-hidden animate-conversation-swap"
       >
-        {/* Left: charging bolt + flow name + step label */}
-        <div className="flex items-center gap-2.5 min-w-0 justify-self-start">
+        {/* Left: charging bolt + flow first name + step label */}
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 shrink-0 max-w-[130px] sm:max-w-[190px]">
           <div
             className={cn(
               "relative h-9 w-9 rounded-xl shrink-0 flex items-center justify-center border transition-colors duration-300",
@@ -204,23 +220,31 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
             />
           </div>
           <div className="flex flex-col min-w-0 justify-center leading-tight">
-            <span className="font-bold text-foreground text-sm truncate max-w-[110px] sm:max-w-[200px]">{flowData.flowName}</span>
+            <span
+              data-testid="flow-name"
+              title={flowData.flowName}
+              className="font-bold text-foreground text-sm truncate"
+            >
+              {displayName}
+            </span>
             <span data-testid="flow-step-label" className="text-[11px] text-muted-foreground whitespace-nowrap">{stepLabel}</span>
           </div>
         </div>
 
-        {/* Center: timer + percentage + bar */}
-        <div className="flex items-center justify-center gap-3 sm:gap-4 justify-self-center">
+        {/* Center: timer + percentage + responsive bar */}
+        <div className="flex items-center justify-center gap-2 sm:gap-3 flex-1 min-w-0 px-1">
           <div
-            className="flex items-center gap-1.5 text-base font-mono text-foreground whitespace-nowrap"
+            className="flex items-center gap-1.5 text-sm sm:text-base font-mono text-foreground whitespace-nowrap shrink-0"
             title="Tempo restante para o envio da próxima mensagem"
           >
-            <Clock className="h-4 w-4 text-emerald-400 shrink-0" />
+            <Clock className={cn("h-4 w-4 shrink-0", isPaused ? "text-amber-400" : "text-emerald-400")} />
             <span data-testid="flow-timer" className="font-semibold tabular-nums">{timerText}</span>
           </div>
-          <div className="flex items-center gap-2" title={`Progresso do fluxo: ${progressPercent}%`}>
-            <span data-testid="flow-percent" className={cn("text-lg font-mono font-bold tabular-nums", isPaused ? "text-amber-400" : "text-emerald-400")}>{progressPercent}%</span>
-            <div className="w-16 sm:w-32 h-2.5 rounded-full bg-muted/80 overflow-hidden border border-border/50 hidden xs:block">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink" title={`Progresso do fluxo: ${progressPercent}%`}>
+            <span data-testid="flow-percent" className={cn("text-base sm:text-lg font-mono font-bold tabular-nums shrink-0", isPaused ? "text-amber-400" : "text-emerald-400")}>
+              {progressPercent}%
+            </span>
+            <div className="w-12 sm:w-24 md:w-32 h-2.5 rounded-full bg-muted/80 overflow-hidden border border-border/50 hidden xs:block shrink">
               <div
                 className={cn("h-full rounded-full transition-all duration-500 ease-out", isPaused ? "bg-amber-400" : "bg-emerald-500")}
                 style={{ width: `${progressPercent}%` }}
@@ -230,7 +254,7 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
         </div>
 
         {/* Right: actions */}
-        <div className="flex items-center gap-1.5 justify-self-end shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 justify-end">
           <Button
             type="button"
             variant="outline"
