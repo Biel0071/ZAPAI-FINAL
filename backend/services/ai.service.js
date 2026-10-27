@@ -317,20 +317,10 @@ function compileSystemPrompt(agent, store, contact = null) {
     compiled += `${buildHumanStylePrompt()}\n\n`;
   } catch (_) {}
 
-  // 0.1 ATENDENTE GERAL & INTELIGÊNCIA CONSULTIVA UNIVERSAL
-  compiled += `[ATENDENTE GERAL & INTELIGÊNCIA CONSULTIVA UNIVERSAL (PRODUTOS & SERVIÇOS)]\n`;
-  compiled += `- PAPEL UNIVERSAL DE ATENDIMENTO: Você é um(a) atendente comercial e consultor(a) especialista universal. Você domina qualquer segmento comercial (materiais de construção, áreas gourmet, serviços, saúde, varejo, etc.) que conste nas informações da loja ou que tenha sido ensinado via prompt/conhecimento absorvido.\n`;
-  compiled += `- COMPREENSÃO COMPLETA DE VALORES, UNIDADES E PROMOÇÕES:\n`;
-  compiled += `  Sempre que o cliente perguntar preço, valor, cotação ou sobre produtos, responda com a formulação comercial completa:\n`;
-  compiled += `  1) VALOR BASE/UNITÁRIO: Informe o valor unitário individual à vista por unidade/saco/peça/lata/sessão.\n`;
-  compiled += `  2) PROMOÇÃO POR UNIDADES/VOLUME: Se houver qualquer promoção por quantidade, volume ou pacote cadastrado ou ensinado, apresente-a OBRIGATORIAMENTE com o desconto e a quantidade necessária de unidades (ex: "acima de 20 sacos tem 30% de desconto").\n`;
-  compiled += `  3) CÁLCULO PRECISO DOS VALORES: Calcule e informe o valor unitário promocional com desconto E o valor total calculado para o pacote de unidades (ex: "sai por apenas R$ 18,20 cada, totalizando R$ 364,00 o lote com 20 sacos"). Destaque a economia vantajosa.\n`;
-  compiled += `  4) PRAZO DE ENTREGA OU BENEFÍCIO: Informe o prazo de entrega na obra/endereço (ex: "entregamos em até 2 horas com frete grátis na região").\n`;
-  compiled += `  5) PERGUNTA CONSULTIVA DE FECHAMENTO: Conclua SEMPRE com uma pergunta ativa para fechar o pedido ou avançar (ex: "quantos sacos você vai precisar para a sua obra hoje? Posso já reservar para você?").\n`;
-  compiled += `- NUNCA DIGA QUE NÃO HÁ PROMOÇÃO: Quando houver qualquer promoção, desconto ou condição especial ensinada ou cadastrada, anuncie-a OBRIGATORIAMENTE com entusiasmo e com os valores calculados.\n`;
-  compiled += `- GERAÇÃO DE IDEIAS & CONVERSA SENSATA (NUNCA RESPOSTAS VAZIAS OU EVASIVAS):\n`;
-  compiled += `  - Tenha iniciativa e ideias! Se o cliente pedir sugestões, ideias ou estiver em dúvida ("o que recomenda?", "tem alguma ideia para minha obra?", "quais as opções?", "como funciona?"), aja como consultor especialista: dê ideias práticas e inteligentes, sugira materiais complementares (ex: se falar de cimento, lembre de areia/brita; se for área gourmet, sugira bancada/grelha; se for serviço, oriente as etapas) e conduza com simpatia.\n`;
-  compiled += `  - Proibido dar respostas vazias como apenas "temos promoção" ou "em que posso te ajudar?". Dê sempre a resposta completa e resolutiva.\n\n`;
+  // 0.1 INTELIGÊNCIA CONSULTIVA DE PRODUTOS & IDEIAS
+  compiled += `[INTELIGÊNCIA CONSULTIVA DE PRODUTOS & IDEIAS]\n`;
+  compiled += `- Dê ideias inteligentes e práticas para a obra, projeto ou espaço gourmet do cliente, sugerindo materiais complementares quando couber.\n`;
+  compiled += `- Em perguntas de preço ou cotação, formule a condição completa (unitário, promoção de volume calculada, 5% PIX ou 10x sem juros) e conclua com uma pergunta ativa de fechamento.\n\n`;
 
   // 0.2 PRIORIDADE ABSOLUTA DE CONHECIMENTO ENSINADO & ABSORVIDO
   compiled += `[CONHECIMENTO ATUALIZADO & MEMÓRIA ABSORVIDA (MÁXIMA PRIORIDADE)]\n`;
@@ -695,10 +685,10 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
 
   const normPid = String(providerId || '').toLowerCase();
   let effectiveModel = (!model || model === 'auto')
-    ? (normPid === 'vps_engine' || normPid === 'zai' ? 'qwen2.5:3b' : 'gpt-4o-mini')
+    ? (normPid === 'vps_engine' || normPid === 'zai' ? 'qwen2.5:0.5b' : 'gpt-4o-mini')
     : model;
   if ((normPid === 'vps_engine' || normPid === 'zai') && (effectiveModel === 'laya-system1' || effectiveModel === 'auto' || !effectiveModel)) {
-    effectiveModel = 'qwen2.5:3b';
+    effectiveModel = 'qwen2.5:0.5b';
   }
 
   if (!resolvedProvider && (normPid === 'vps_engine' || normPid === 'vps' || normPid === 'api_platform' || normPid === 'zai' || !providerId)) {
@@ -713,7 +703,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     resolvedProvider = {
       id: 'ollama',
       apiKey: '',
-      model: (!model || model === 'auto') ? 'qwen2.5:3b' : model,
+      model: (!model || model === 'auto') ? 'qwen2.5:0.5b' : model,
       active: true,
     };
   }
@@ -870,7 +860,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
 
   const isVpsOrLocal = String(resolvedProvider.id || '').toLowerCase() === 'vps_engine' || String(resolvedProvider.id || '').toLowerCase() === 'zai' || String(resolvedProvider.id || '').toLowerCase() === 'ollama';
   const effectiveMaxTokens = isVpsOrLocal
-    ? Math.min(Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 120, 150)
+    ? Math.min(Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 160, 200)
     : Math.min(Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 240, 260);
 
   let result = await testProviderConnection(resolvedProvider, {
