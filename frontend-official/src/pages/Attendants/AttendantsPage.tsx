@@ -448,6 +448,42 @@ export default function AttendantsPage() {
   const [isRechargingZai, setIsRechargingZai] = useState(false);
   const [rechargeModalOpen, setRechargeModalOpen] = useState(false);
 
+  // Treinamento interativo & absorção contínua de conhecimento (Studio Meia Tela)
+  const [newInstruction, setNewInstruction] = useState("");
+  const [isAbsorbing, setIsAbsorbing] = useState(false);
+  const [absorbedHistory, setAbsorbedHistory] = useState<string[]>([]);
+
+  const handleAbsorbInstruction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newInstruction.trim() || isAbsorbing || !previewAgent) return;
+
+    const instructionText = newInstruction.trim();
+    setIsAbsorbing(true);
+    try {
+      const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const dateStr = new Date().toLocaleDateString("pt-BR");
+      const additionBlock = `\n\n[CONHECIMENTO ABSORVIDO EM ${dateStr} ${timestamp}]:\n- ${instructionText}`;
+      const updatedPrompt = (agentPrompt || "").trim() + additionBlock;
+
+      setAgentPrompt(updatedPrompt);
+      setAbsorbedHistory((prev) => [instructionText, ...prev.slice(0, 9)]);
+      setNewInstruction("");
+
+      if (!previewAgent.isExample) {
+        await apiService.updateAIAgent(previewAgent.key, {
+          personality: updatedPrompt,
+          prompt: updatedPrompt,
+        });
+      }
+
+      notify.success(`✨ ${previewAgent.name} absorveu a informação! Pergunte no chat ao lado para testar.`);
+    } catch (err: any) {
+      notify.error(err?.message || "Não foi possível salvar o conhecimento absorvido.");
+    } finally {
+      setIsAbsorbing(false);
+    }
+  };
+
   const fetchZaiUsage = useCallback(async () => {
     try {
       const res = await apiService.getZaiUsage();
@@ -882,9 +918,9 @@ export default function AttendantsPage() {
   const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>({
     avatarStudio: false,
     objectiveTone: true,
-    prompt: true,
-    providers: true,
-    chatSandbox: true,
+    prompt: false,
+    providers: false,
+    chatSandbox: false,
   });
 
   const toggleCard = (cardKey: string) => {
@@ -993,8 +1029,10 @@ export default function AttendantsPage() {
     setConnectionTestResult(null);
     try {
       const response = await apiService.testAIMessage({
-        message: "Teste de conexão e integridade da API ZAI.",
-        prompt: "Responda apenas: CONEXÃO BEM-SUCEDIDA.",
+        message: "Olá! Confirme de forma curta e simpática que você está operando normalmente para o atendimento dos clientes.",
+        prompt: agentPrompt || `Você é ${previewAgent?.name || "a atendente virtual"} da nossa loja. Confirme de forma simpática que está pronta para o atendimento em até 2 frases curtas.`,
+        agentKey: previewAgent?.key,
+        agentName: previewAgent?.name,
         model: selectedModel,
         providerId: selectedProvider,
       });
@@ -1002,7 +1040,7 @@ export default function AttendantsPage() {
       if (!res) throw new Error(response.error || "O teste não retornou dados.");
       setConnectionTestResult(res);
       if (res.ok) {
-        notify.success(`Provedor ${selectedProvider} validado! Latência: ${res.responseTimeMs || 0}ms.`);
+        notify.success(`${currentProviderDef.name} validado com sucesso! Latência: ${res.responseTimeMs || 0}ms.`);
       } else {
         notify.error(res.error || "Falha na conexão com o provedor.");
       }
@@ -2082,15 +2120,15 @@ export default function AttendantsPage() {
 
   const renderPromptSection = () => {
     return (
-      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5">
+      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5 flex flex-col h-full">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="space-y-0.5">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
               <Sparkle weight="fill" className="h-4 w-4 text-emerald-400" />
-              <span>Prompt & Instruções do Agente</span>
+              <span>Prompt & Treinamento Contínuo ({previewAgent?.name})</span>
             </h4>
             <p className="text-xs text-muted-foreground">
-              Instruções mestras que orientam o raciocínio da IA durante o atendimento no WhatsApp.
+              Envie novas informações para a atendente absorver e evoluir o contexto de atendimento.
             </p>
           </div>
           <span className="text-[11px] font-mono text-muted-foreground bg-muted/30 px-2 py-0.5 rounded-md border border-border/50 shrink-0">
@@ -2098,9 +2136,87 @@ export default function AttendantsPage() {
           </span>
         </div>
 
+        {/* Console de Absorção de Informações / Treinamento Contínuo */}
+        <div className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-950/20 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+              <Sparkle weight="fill" className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Ensinar / Absorver Nova Informação</span>
+            </div>
+            <Badge variant="outline" className="text-[9px] border-emerald-500/40 text-emerald-300 bg-emerald-500/10 uppercase font-semibold">
+              Aprendizado Ativo
+            </Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            Envie comandos, regras ou preços. <strong>{previewAgent?.name}</strong> absorve imediatamente e responde no chat ao lado.
+          </p>
+          <form onSubmit={handleAbsorbInstruction} className="flex gap-2">
+            <Input
+              placeholder={`Diga algo para ${previewAgent?.name} aprender (ex: Cimento CP II agora custa R$ 26,00 à vista)...`}
+              value={newInstruction}
+              onChange={(e) => setNewInstruction(e.target.value)}
+              className="h-9 text-xs rounded-xl bg-background/80 border-border/80 flex-1"
+              disabled={isAbsorbing}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!newInstruction.trim() || isAbsorbing}
+              className="h-9 px-3.5 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 cursor-pointer shadow-xs shrink-0"
+            >
+              <Plus className={cn("h-3.5 w-3.5", isAbsorbing && "animate-spin")} />
+              <span>{isAbsorbing ? "Absorvendo..." : "Absorver"}</span>
+            </Button>
+          </form>
+
+          {/* Últimos conhecimentos absorvidos */}
+          {absorbedHistory.length > 0 && (
+            <div className="pt-1.5 border-t border-border/40 space-y-1">
+              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+                Informações Absorvidas Recentemente:
+              </span>
+              <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto scrollbar-zai">
+                {absorbedHistory.map((item, idx) => (
+                  <Badge key={idx} variant="outline" className="text-[10px] border-emerald-500/30 bg-emerald-500/10 text-emerald-300 py-0.5 px-2">
+                    ✨ {item}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Textarea */}
+        <div className="space-y-1.5 flex-1 flex flex-col">
+          <div className="flex items-center justify-between">
+            <label htmlFor="agent-prompt-textarea" className="text-xs font-semibold text-foreground">
+              Diretrizes & Instruções Completas do Atendente
+            </label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleSaveAgentConfig}
+              disabled={isSavingAgent}
+              className="h-6 text-[10px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 px-2 cursor-pointer"
+            >
+              <FloppyDisk className="h-3 w-3 mr-1" />
+              Salvar Diretrizes
+            </Button>
+          </div>
+          <Textarea
+            id="agent-prompt-textarea"
+            value={agentPrompt}
+            onChange={(e) => setAgentPrompt(e.target.value)}
+            rows={8}
+            placeholder="Defina aqui como o atendente deve agir, políticas de preço, frete, formas de pagamento e comportamento..."
+            className="rounded-xl text-xs font-mono bg-background/70 border-border/70 focus:border-emerald-500/60 leading-relaxed resize-y flex-1 min-h-[140px] scrollbar-zai"
+          />
+        </div>
+
         {/* Quick Prompt Templates */}
-        <div className="space-y-1.5">
-          <span className="text-xs font-semibold text-muted-foreground">Modelos Prontos de Prompt:</span>
+        <div className="space-y-1.5 pt-1">
+          <span className="text-[11px] font-semibold text-muted-foreground">Modelos Base de Atendimento:</span>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {PROMPT_TEMPLATES.map((tmpl, idx) => (
               <button
@@ -2110,35 +2226,20 @@ export default function AttendantsPage() {
                   setAgentPrompt(tmpl.prompt);
                   notify.info(`Modelo "${tmpl.title}" aplicado ao prompt.`);
                 }}
-                className="p-2.5 rounded-xl border border-border/60 bg-background/60 hover:bg-card hover:border-emerald-500/40 text-left transition-all cursor-pointer group"
+                className="p-2 rounded-xl border border-border/60 bg-background/60 hover:bg-card hover:border-emerald-500/40 text-left transition-all cursor-pointer group"
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-bold text-foreground group-hover:text-emerald-400 transition-colors">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[11px] font-bold text-foreground group-hover:text-emerald-400 transition-colors">
                     {tmpl.title}
                   </span>
                   <Wand2 className="h-3 w-3 text-muted-foreground group-hover:text-emerald-400" />
                 </div>
-                <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">
+                <p className="text-[10px] text-muted-foreground line-clamp-1 leading-relaxed">
                   {tmpl.desc}
                 </p>
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Textarea */}
-        <div className="space-y-1.5">
-          <label htmlFor="agent-prompt-textarea" className="text-xs font-semibold text-foreground">
-            Instruções Completas do Atendente
-          </label>
-          <Textarea
-            id="agent-prompt-textarea"
-            value={agentPrompt}
-            onChange={(e) => setAgentPrompt(e.target.value)}
-            rows={7}
-            placeholder="Defina aqui como o atendente deve agir, políticas de preço, frete, formas de pagamento e comportamento..."
-            className="rounded-xl text-xs font-mono bg-background/70 border-border/70 focus:border-emerald-500/60 leading-relaxed resize-y"
-          />
         </div>
       </div>
     );
@@ -2234,7 +2335,10 @@ export default function AttendantsPage() {
               }}
             >
               <SelectTrigger className="h-10 rounded-xl bg-background/70 border-border/70 text-xs">
-                <SelectValue placeholder="Selecione o provedor" />
+                <div className="flex items-center gap-2 truncate">
+                  <ProviderLogo providerId={selectedProvider} className="h-4 w-4 shrink-0" />
+                  <span className="font-medium">{currentProviderDef.name}</span>
+                </div>
               </SelectTrigger>
               <SelectContent>
                 {PROVIDER_OPTIONS.map((p) => (
@@ -3428,49 +3532,6 @@ export default function AttendantsPage() {
                       )}
                     </Card>
 
-                    {/* Card 3: Prompt & Instruções */}
-                    <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
-                      <CardHeader
-                        onClick={() => toggleCard("prompt")}
-                        onKeyDown={(event) => handleCardHeaderKeyDown(event, "prompt")}
-                        role="button"
-                        tabIndex={0}
-                        aria-expanded={!collapsedCards.prompt}
-                        aria-controls="agent-prompt-content"
-                        className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                            <Sparkle weight="fill" className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                              <span>3. Prompt & Instruções do Agente</span>
-                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
-                                Personalidade
-                              </Badge>
-                            </CardTitle>
-                            <CardDescription className="text-[11px] text-muted-foreground truncate">
-                              Instruções mestras, modelos prontos e diretrizes comerciais da loja.
-                            </CardDescription>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
-                            {agentPrompt.length} chars
-                          </span>
-                          <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
-                            {collapsedCards.prompt ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                          </span>
-                        </div>
-                      </CardHeader>
-                      {!collapsedCards.prompt && (
-                        <CardContent id="agent-prompt-content" className="p-4 sm:p-5">
-                          {renderPromptSection()}
-                        </CardContent>
-                      )}
-                    </Card>
-
                     {/* Card 4: Provedores & Modelos */}
                     <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
                       <CardHeader
@@ -3515,48 +3576,94 @@ export default function AttendantsPage() {
                       )}
                     </Card>
 
-                    {/* Card 5: Sandbox de Atendimento & Chat ao Vivo */}
-                    <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
-                      <CardHeader
-                        onClick={() => toggleCard("chatSandbox")}
-                        onKeyDown={(event) => handleCardHeaderKeyDown(event, "chatSandbox")}
-                        role="button"
-                        tabIndex={0}
-                        aria-expanded={!collapsedCards.chatSandbox}
-                        aria-controls="chat-sandbox-content"
-                        className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                            <ChatCircleText weight="bold" className="h-4 w-4" />
+                    {/* Studio Meia Tela: 3. Treinamento & Instruções (Esquerda) + 5. Sandbox & Chat ao Vivo (Direita) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+                      {/* Card 3: Treinamento & Instruções do Agente */}
+                      <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden flex flex-col">
+                        <CardHeader
+                          onClick={() => toggleCard("prompt")}
+                          onKeyDown={(event) => handleCardHeaderKeyDown(event, "prompt")}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={!collapsedCards.prompt}
+                          aria-controls="agent-prompt-content"
+                          className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                              <Sparkle weight="fill" className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
+                                <span>3. Prompt & Treinamento</span>
+                                <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
+                                  Instrução
+                                </Badge>
+                              </CardTitle>
+                              <CardDescription className="text-[11px] text-muted-foreground truncate">
+                                Envie comandos e instruções que a atendente absorve.
+                              </CardDescription>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                              <span>5. Sandbox de Atendimento & Chat ao Vivo</span>
-                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
-                                Simulação
-                              </Badge>
-                            </CardTitle>
-                            <CardDescription className="text-[11px] text-muted-foreground truncate">
-                              Converse e teste respostas com inteligência real sem enviar no WhatsApp.
-                            </CardDescription>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
+                              {agentPrompt.length} chars
+                            </span>
+                            <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
+                              {collapsedCards.prompt ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                            </span>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/10 font-bold uppercase">
-                            AO VIVO
-                          </Badge>
-                          <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
-                            {collapsedCards.chatSandbox ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                          </span>
-                        </div>
-                      </CardHeader>
-                      {!collapsedCards.chatSandbox && (
-                        <CardContent id="chat-sandbox-content" className="p-4 sm:p-5">
-                          {renderSandboxSection()}
-                        </CardContent>
-                      )}
-                    </Card>
+                        </CardHeader>
+                        {!collapsedCards.prompt && (
+                          <CardContent id="agent-prompt-content" className="p-4 sm:p-5 flex-1 flex flex-col">
+                            {renderPromptSection()}
+                          </CardContent>
+                        )}
+                      </Card>
+
+                      {/* Card 5: Sandbox de Atendimento & Chat ao Vivo */}
+                      <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden flex flex-col">
+                        <CardHeader
+                          onClick={() => toggleCard("chatSandbox")}
+                          onKeyDown={(event) => handleCardHeaderKeyDown(event, "chatSandbox")}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={!collapsedCards.chatSandbox}
+                          aria-controls="chat-sandbox-content"
+                          className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                              <ChatCircleText weight="bold" className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
+                                <span>5. Sandbox & Chat ao Vivo</span>
+                                <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
+                                  Simulação
+                                </Badge>
+                              </CardTitle>
+                              <CardDescription className="text-[11px] text-muted-foreground truncate">
+                                Converse e teste respostas com inteligência real.
+                              </CardDescription>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/10 font-bold uppercase">
+                              AO VIVO
+                            </Badge>
+                            <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
+                              {collapsedCards.chatSandbox ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                            </span>
+                          </div>
+                        </CardHeader>
+                        {!collapsedCards.chatSandbox && (
+                          <CardContent id="chat-sandbox-content" className="p-4 sm:p-5 flex-1 flex flex-col">
+                            {renderSandboxSection()}
+                          </CardContent>
+                        )}
+                      </Card>
+                    </div>
                   </div>
                 )}
               </div>
