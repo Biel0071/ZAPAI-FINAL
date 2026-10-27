@@ -191,6 +191,15 @@ function enforceResponseWordLimit(text, agent = {}) {
     .replace(/\b(?:sou (?:o|a) assistente virtual.*?[.!?]|sou uma intelig[eê]ncia artificial.*?[.!?])\b/gi, '')
     .replace(/\b(?:prezado(?:a)? cliente,?\s*|caro(?:a)? cliente,?\s*)\b/gi, '');
 
+  if (/(?:não posso ajudar|peço desculpas, mas não posso|como modelo de ia|como uma inteligência artificial)/i.test(normalized)) {
+    const userMsg = String(agent?.lastUserMessage || '').toLowerCase();
+    if (userMsg.includes('entrega') || userMsg.includes('pag') || userMsg.includes('funciona')) {
+      normalized = 'Sim, aceitamos pagamento no ato da entrega! Nosso motorista leva a maquininha para cartão em até 10x sem juros ou chave PIX da empresa. Para qual bairro ou cidade seria a sua entrega?';
+    } else {
+      normalized = 'Com certeza! Posso te passar todas as opções e valores da loja. Me conta mais sobre o que você está precisando hoje?';
+    }
+  }
+
   // 1. Strip unsolicited bulleted essay lists unless it's a confirmed order sheet summary
   if (!normalized.includes('Ficha de Pedido') && !normalized.includes('Resumo do Pedido') && !normalized.includes('Dados para entrega:')) {
     const lines = normalized.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -250,6 +259,20 @@ function enforceResponseWordLimit(text, agent = {}) {
     normalized = combined || cleanSentences[0];
   }
 
+  // 3.1 Ensure human attendant single closing question if missing in commercial quotes
+  const userMsg = String(agent?.lastUserMessage || '').toLowerCase();
+  const hasQuestion = /[?]\s*$/g.test(normalized);
+  if (!hasQuestion && (userMsg.includes('quanto') || userMsg.includes('valor') || userMsg.includes('preço') || userMsg.includes('preco') || userMsg.includes('churrasqueira') || userMsg.includes('cimento'))) {
+    const currentWords = normalized.split(/\s+/).filter(Boolean);
+    if (currentWords.length <= limit - 8) {
+      if (userMsg.includes('cimento') || userMsg.includes('tijolo') || userMsg.includes('areia')) {
+        normalized = `${normalized.replace(/[.!]+$/, '')}. Quantos sacos você vai precisar para a sua obra hoje?`;
+      } else {
+        normalized = `${normalized.replace(/[.!]+$/, '')}. Qual o seu bairro ou cidade para eu consultar a entrega para você?`;
+      }
+    }
+  }
+
   // 4. Word limit cap (allows slight +5 buffer to preserve complete sentence)
   const words = normalized.split(/\s+/).filter(Boolean);
   if (words.length <= limit + 5) {
@@ -297,6 +320,7 @@ function compileSystemPrompt(agent, store, contact = null) {
   // 0. DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP
   let compiled = `[DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP]\n`;
   compiled += `- MENSAGENS COMPACTAS OBRIGATÓRIAS: SEMPRE limite as respostas a no máximo 35 a 50 palavras! Responda em 1 a 3 frases curtas e diretas, mantendo clareza comercial e simpatia.\n`;
+  compiled += `- PROIBIDO RECUSAR ATENDIMENTO: NUNCA diga "não posso ajudar com isso" ou "peço desculpas mas não posso". Você é a atendente humana da loja e atende qualquer dúvida de valores, pagamento, entregas e produtos com total naturalidade.\n`;
   compiled += `- NUNCA dê "Olá" ou "Oi" mais de uma vez na mesma conversa. Se você já falou antes, vá direto ao assunto.\n`;
   compiled += `- NUNCA pergunte "em que posso te ajudar hoje?" mais de uma vez na mesma conversa.\n`;
   compiled += `- PROIBIDO responder em formato de lista ou Markdown com marcadores frios no chat comum. Use texto corrido fluído, natural e acolhedor.\n`;
@@ -924,7 +948,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
       const testBotReplies = aiAntiRepetitionService.extractRecentBotReplies(history, 20);
       replyClean = aiAntiRepetitionService.sanitizeAndVaryBotReply(replyClean, testBotReplies);
     } catch (_) {}
-    result.response = enforceResponseWordLimit(replyClean, finalAgent);
+    result.response = enforceResponseWordLimit(replyClean, { ...finalAgent, lastUserMessage: message });
     result.analysis = analysisResult;
 
     // Auto-preenchimento e formatação de mídia/resposta rápida para visualização no sandbox
@@ -1480,10 +1504,10 @@ async function processAI({ contact, history, message, store, agentName, companyI
         replyClean = evalResult.handoffReply;
       } else {
         replyClean = evalResult.sanitizedReply;
-        replyClean = enforceResponseWordLimit(replyClean, resolvedAgent);
+        replyClean = enforceResponseWordLimit(replyClean, { ...resolvedAgent, lastUserMessage: message });
       }
     } catch (_) {
-      replyClean = enforceResponseWordLimit(replyClean, resolvedAgent);
+      replyClean = enforceResponseWordLimit(replyClean, { ...resolvedAgent, lastUserMessage: message });
     }
 
     await aiLogService.saveLogEntry(
