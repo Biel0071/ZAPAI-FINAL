@@ -1544,6 +1544,11 @@ async function createStableSession({
     if (connection === 'close') {
       session.status = 'disconnected';
       await require('../../sessionManager').pauseSessionAutomations(session);
+      try {
+        const companyId = session.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+        const conversationRepository = require('../../../src/data/repositories/conversationRepository');
+        conversationRepository.invalidateConversationCache(companyId);
+      } catch (_) {}
       if (session.bufferFlushInterval) {
         clearInterval(session.bufferFlushInterval);
         session.bufferFlushInterval = null;

@@ -162,19 +162,22 @@ export function HeaderShell({
             </Button>
           ) : null}
           {sessions && sessions.length > 0 && (
-            <div className="flex-1 sm:flex-initial flex justify-center sm:justify-start">
+            <div className="flex-1 sm:flex-initial flex items-center gap-1.5 justify-center sm:justify-start">
               <select
                 aria-label="Filtrar por conexão"
                 value={activeSessionId || "all"}
                 onChange={(e) => setActiveSessionId(e.target.value === "all" ? null : e.target.value)}
-                className="h-7 sm:h-8 max-w-[115px] sm:max-w-[150px] md:max-w-[180px] lg:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 py-0 text-[11px] sm:text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
+                className="h-7 sm:h-8 max-w-[125px] sm:max-w-[160px] md:max-w-[200px] lg:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 py-0 text-[11px] sm:text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
               >
-                <option value="all" className="bg-background text-foreground">Todas as Conexões</option>
-                {sessions.map((session) => (
-                  <option key={session.id} value={session.id} className="bg-background text-foreground">
-                    {session.name || session.id} ({session.status === "connected" ? "Online" : "Offline"})
-                  </option>
-                ))}
+                <option value="all" className="bg-background text-foreground">🌐 Todas as Conexões</option>
+                {sessions.map((session) => {
+                  const isOnline = session.status === "connected";
+                  return (
+                    <option key={session.id} value={session.id} className="bg-background text-foreground">
+                      {isOnline ? "🟢" : "🔴"} {session.name || session.id} {session.phone ? `(${session.phone})` : isOnline ? "(Online)" : "(Offline)"}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           )}

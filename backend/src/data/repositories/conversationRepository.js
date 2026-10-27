@@ -666,7 +666,11 @@ async function listConversations(companyId, limit = 50, options = {}) {
 
   if (requestedSessionId) {
     values.push(requestedSessionId);
-    whereClause += ` AND conv.session_id = $${values.length}`;
+    if (requestedSessionId === 'main' || requestedSessionId === 'default') {
+      whereClause += ` AND (conv.session_id = $${values.length} OR conv.session_id IS NULL OR conv.session_id = '')`;
+    } else {
+      whereClause += ` AND conv.session_id = $${values.length}`;
+    }
   }
 
   if (requireMessages) {

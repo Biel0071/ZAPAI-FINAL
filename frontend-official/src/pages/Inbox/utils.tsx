@@ -673,19 +673,31 @@ export function filterConversationsForSession(conversations: Conversation[], ses
 
   return conversations.filter((conversation) => {
     const rawSession = conversation.sessionId ?? (conversation as any).session_id;
-    if (!rawSession) return true;
+    if (!rawSession) {
+      return normalizedSessionId === "main" || normalizedSessionId === "default";
+    }
     return String(rawSession).trim().toLowerCase() === normalizedSessionId;
   });
 }
 
-export function loadPersistedConversations(): Conversation[] {
-  const parsed = parseJsonStorage<Conversation[]>("zapai_inbox_conversations", []);
-  if (!Array.isArray(parsed)) return [];
-  return parsed;
+export function getConversationsStorageKey(sessionId?: string | null): string {
+  const norm = String(sessionId ?? "all").trim().toLowerCase();
+  return `zapai_inbox_conversations_${norm || "all"}`;
 }
 
-export function persistConversations(conversations: Conversation[]) {
-  safeLocalStorageSetItem("zapai_inbox_conversations", JSON.stringify(conversations));
+export function loadPersistedConversations(sessionId?: string | null): Conversation[] {
+  const key = getConversationsStorageKey(sessionId);
+  let parsed = parseJsonStorage<Conversation[]>(key, []);
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    parsed = parseJsonStorage<Conversation[]>("zapai_inbox_conversations", []);
+  }
+  if (!Array.isArray(parsed)) return [];
+  return filterConversationsForSession(parsed, sessionId);
+}
+
+export function persistConversations(conversations: Conversation[], sessionId?: string | null) {
+  const key = getConversationsStorageKey(sessionId);
+  safeLocalStorageSetItem(key, JSON.stringify(conversations));
 }
 
 export function loadPersistedConversationMessages(params: { conversationId: string; sessionId?: string; phone?: string }): ChatMessage[] {

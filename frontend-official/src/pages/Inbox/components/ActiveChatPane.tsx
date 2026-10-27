@@ -1834,7 +1834,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           </div>
           <h3 className="text-xl font-bold text-foreground">Sessão WhatsApp Desconectada</h3>
           <p className="mt-2 text-xs sm:text-sm text-muted-foreground max-w-md leading-relaxed">
-            Esta conexão de WhatsApp está offline. Você pode consultar conversas e histórico de clientes na lista ao lado. Para enviar novas mensagens, reconecte o WhatsApp.
+            Esta conexão de WhatsApp está desconectada ou desativada. Os dados serão exibidos assim que ela for reconectada ou ao selecionar outra conexão ativa no topo.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button

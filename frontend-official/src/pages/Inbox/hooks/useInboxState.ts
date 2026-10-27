@@ -755,23 +755,26 @@ export function useInboxState() {
       const match = sessions.find(
         (s) => s && (String(s.id).trim().toLowerCase() === targetId || String(s.name).trim().toLowerCase() === targetId)
       );
-      if (match && isSessionActive(match)) return match;
+      if (match) return match;
     }
     if (selectedConversation?.sessionId) {
       const convSessionId = String(selectedConversation.sessionId).trim().toLowerCase();
       const match = sessions.find(
         (s) => s && (String(s.id).trim().toLowerCase() === convSessionId || String(s.name).trim().toLowerCase() === convSessionId)
       );
-      if (match && isSessionActive(match)) return match;
+      if (match) return match;
     }
-    return pickActiveSession(sessions, preferredSessionId) ?? sessions.find((s) => s && isSessionActive(s)) ?? sessions[0] ?? null;
+    return pickActiveSession(sessions, preferredSessionId) ?? sessions[0] ?? null;
   }, [sessions, storeActiveSessionId, preferredSessionId, selectedConversation?.sessionId]);
 
   const isWhatsappConnected = useMemo(() => {
+    if (storeActiveSessionId && storeActiveSessionId !== "all") {
+      return Boolean(activeSession && isSessionActive(activeSession));
+    }
     if (activeSession && isSessionActive(activeSession)) return true;
     if (Array.isArray(sessions) && sessions.some(isSessionActive)) return true;
     return false;
-  }, [activeSession, sessions]);
+  }, [activeSession, sessions, storeActiveSessionId]);
 
   const conversationSearch = useConversationSearch(
     searchQuery,
@@ -1310,7 +1313,16 @@ export function useInboxState() {
     const targetSession = storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : undefined;
 
     let cancelled = false;
+    // Reset open chat and messages immediately to avoid cross-session bleed
+    setSelectedConversationId(null);
     setLoadingConversations(true);
+
+    const targetSessionObj = targetSession ? sessions.find(s => s && (s.id === targetSession || s.name === targetSession)) : null;
+    if (targetSessionObj && !isSessionActive(targetSessionObj)) {
+      setConversations([]);
+      setLoadingConversations(false);
+      return;
+    }
 
     apiService
       .getConversations(true, {
@@ -1325,7 +1337,9 @@ export function useInboxState() {
         const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, visibleIncoming);
         contactDirectoryRef.current = mergedDirectory;
         persistContactDirectory(mergedDirectory);
-        setConversations(dedupeConversationsByScope(visibleIncoming, mergedDirectory));
+        const deduped = dedupeConversationsByScope(visibleIncoming, mergedDirectory);
+        setConversations(deduped);
+        persistConversations(deduped, targetSession);
         void refreshConversationCounts(targetSession);
       })
       .catch((err) => {
@@ -1339,7 +1353,7 @@ export function useInboxState() {
     return () => {
       cancelled = true;
     };
-  }, [storeActiveSessionId, isOwnSessionConversation, markBackendOnline, setConversations, refreshConversationCounts]);
+  }, [storeActiveSessionId, sessions, isOwnSessionConversation, markBackendOnline, setConversations, setSelectedConversationId, refreshConversationCounts]);
 
   // Carrega todas as conversas arquivadas completas sob demanda quando a aba "Arquivadas" é ativada
   useEffect(() => {

@@ -447,6 +447,7 @@ type AppState = {
   setActiveConversationId: (id: string | null) => void;
   setIsMobileChatOpen: (isOpen: boolean) => void;
   setActiveSessionId: (id: string | null) => void;
+  clearSessionData: (sessionId?: string | null) => void;
   setIsNewChatDialogOpen: (open: boolean) => void;
   setMessages: (conversationId: string, messages: ChatMessage[]) => void;
   addMessage: (conversationId: string, message: ChatMessage) => void;
@@ -487,7 +488,7 @@ export const useAppStore = create<AppState>((set) => ({
   isNewChatDialogOpen: false,
 
   setActiveSessionId: (id) =>
-    set(() => {
+    set((state) => {
       try {
         if (id) {
           localStorage.setItem("zapai_inbox_active_session", id);
@@ -497,7 +498,31 @@ export const useAppStore = create<AppState>((set) => ({
       } catch {
         // ignore
       }
+      if (state.activeSessionId !== id) {
+        return {
+          activeSessionId: id,
+          activeConversationId: null,
+          conversations: [],
+          messagesByConversationId: {},
+          typingUsers: {},
+          aiProgressByConversationId: {},
+        };
+      }
       return { activeSessionId: id };
+    }),
+
+  clearSessionData: (sessionId) =>
+    set((state) => {
+      if (!sessionId || state.activeSessionId === sessionId) {
+        return {
+          activeConversationId: null,
+          conversations: [],
+          messagesByConversationId: {},
+          typingUsers: {},
+          aiProgressByConversationId: {},
+        };
+      }
+      return {};
     }),
 
   setIsNewChatDialogOpen: (open) => set({ isNewChatDialogOpen: open }),

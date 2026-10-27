@@ -457,7 +457,11 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       onSessionDisconnected: (payload) => {
         const session = normalizeSession({ ...payload, status: "disconnected" });
         runtimeWarn(`[Runtime] session:disconnected id=${session.id}`);
-        useAppStore.getState().upsertSession(session);
+        const store = useAppStore.getState();
+        store.upsertSession(session);
+        if (store.activeSessionId === session.id) {
+          store.clearSessionData(session.id);
+        }
         window.dispatchEvent(new CustomEvent("whatsapp:session-disconnected", { detail: session }));
       },
 
@@ -475,6 +479,9 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
           window.dispatchEvent(new CustomEvent("whatsapp:session-connected", { detail: session }));
           void loadFromApi({ forceConversations: true });
         } else if (session.status === "disconnected") {
+          if (store.activeSessionId === session.id) {
+            store.clearSessionData(session.id);
+          }
           window.dispatchEvent(new CustomEvent("whatsapp:session-disconnected", { detail: session }));
         }
       },
@@ -483,7 +490,14 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         const sessionId = getSessionId(payload);
         if (!sessionId) return;
         runtimeWarn(`[Runtime] session:deleted id=${sessionId}`);
-        useAppStore.getState().removeSession(sessionId);
+        const store = useAppStore.getState();
+        store.removeSession(sessionId);
+        if (store.activeSessionId === sessionId) {
+          store.clearSessionData(sessionId);
+          const remainingSessions = store.sessions.filter((s) => s.id !== sessionId);
+          const nextSession = remainingSessions.find((s) => s.status === "connected") || remainingSessions[0];
+          store.setActiveSessionId(nextSession ? nextSession.id : null);
+        }
       },
 
       // ─── Conversation events → Zustand store ────────────
@@ -938,15 +952,22 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    const fetchMetrics = async () => {
+    const fetchSessionData = async () => {
       try {
-        const metrics = await apiService.getMetrics(activeSessionId);
+        const targetSession = activeSessionId && activeSessionId !== "all" ? activeSessionId : undefined;
+        const [metrics, conversations] = await Promise.all([
+          apiService.getMetrics(activeSessionId),
+          apiService.getConversations(true, { limit: 100, sessionId: targetSession }),
+        ]);
         useAppStore.getState().setMetrics(metrics);
+        if (Array.isArray(conversations)) {
+          useAppStore.getState().setConversations(conversations);
+        }
       } catch (err) {
-        console.error("[Runtime] Failed to fetch metrics for session:", activeSessionId, err);
+        console.error("[Runtime] Failed to fetch session data for:", activeSessionId, err);
       }
     };
-    fetchMetrics();
+    fetchSessionData();
   }, [activeSessionId, hydrated]);
 
   if (!mounted) {

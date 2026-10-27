@@ -277,7 +277,11 @@ async function getConversationCounts(req, res) {
     let sessionFilter = '';
     if (sessionId) {
       params.push(sessionId);
-      sessionFilter = ` AND conv.session_id = $${params.length}`;
+      if (sessionId === 'main' || sessionId === 'default') {
+        sessionFilter = ` AND (conv.session_id = $${params.length} OR conv.session_id IS NULL OR conv.session_id = '')`;
+      } else {
+        sessionFilter = ` AND conv.session_id = $${params.length}`;
+      }
     }
 
     const result = await query(
