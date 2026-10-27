@@ -470,6 +470,13 @@ export default function AttendantsPage() {
   const selectedAgentKey = useRef(previewAgent?.key);
   const testVersion = useRef(0);
   selectedAgentKey.current = previewAgent?.key;
+  const sandboxScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (sandboxScrollRef.current) {
+      sandboxScrollRef.current.scrollTop = sandboxScrollRef.current.scrollHeight;
+    }
+  }, [sandboxMessages, isTestingAgent]);
 
   const fetchData = useCallback(async () => {
     const version = ++requestVersion.current;
@@ -2373,7 +2380,7 @@ export default function AttendantsPage() {
         </div>
 
         {/* Chat message box */}
-        <div className="h-[280px] rounded-xl border border-border/60 bg-background/50 p-3 overflow-y-auto space-y-3 text-xs scrollbar-zai">
+        <div ref={sandboxScrollRef} className="h-[340px] rounded-xl border border-border/60 bg-background/50 p-3 overflow-y-auto space-y-3 text-xs scrollbar-zai">
           {sandboxMessages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground space-y-1.5">
               <Headset className="h-7 w-7 text-muted-foreground/60" />
