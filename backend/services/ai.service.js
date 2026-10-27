@@ -166,10 +166,10 @@ function adjustPromptIdentity(basePrompt, agent) {
 }
 
 const RESPONSE_STYLE_DEFAULT_WORDS = Object.freeze({
-  one_sentence: 25,
-  ultra_short: 65,
-  short_natural: 95, // WhatsApp natural concise length: allows unit prices, promotions, delivery and closing question (50-95 words)
-  elaborate: 160,    // Consultative, ideas, promotions, calculations, detailed explanation
+  one_sentence: 30,
+  ultra_short: 75,
+  short_natural: 110, // WhatsApp natural concise length: allows unit prices, promotions, delivery and closing question (50-110 words)
+  elaborate: 180,    // Consultative, ideas, promotions, calculations, detailed explanation
 });
 
 function resolveResponseWordLimit(agent = {}) {
@@ -177,7 +177,7 @@ function resolveResponseWordLimit(agent = {}) {
   const customLimit = Number(agent.maxWords);
   const defaultLimit = RESPONSE_STYLE_DEFAULT_WORDS[style] || RESPONSE_STYLE_DEFAULT_WORDS.short_natural;
   const limit = customLimit > 0 ? customLimit : defaultLimit;
-  return Math.min(Math.max(Math.round(limit), 10), 180);
+  return Math.min(Math.max(Math.round(limit), 10), 190);
 }
 
 function enforceResponseWordLimit(text, agent = {}) {
@@ -223,21 +223,24 @@ function enforceResponseWordLimit(text, agent = {}) {
   // 2. Eliminate multi-paragraph walls of text: collapse multiple spaces/newlines
   normalized = normalized.replace(/\s+/g, ' ').trim();
 
-  // 3. Sentence cap: strict limit 1 to 3 short sentences
+  // 3. Sentence cap: strict limit 1 to 4 short sentences (preserving closing question)
   const sentenceRegex = /[^.!?]+[.!?]+(?:[\s"'\u{1F300}-\u{1F9FF}]|$)/gu;
   const rawSentences = normalized.match(sentenceRegex) || [normalized];
   const cleanSentences = rawSentences.map(s => s.trim()).filter(Boolean);
 
   const limit = resolveResponseWordLimit(agent);
   const style = String(agent?.responseStyle || 'short_natural');
-  const maxSentences = style === 'one_sentence' ? 1 : (style === 'ultra_short' ? 3 : 5);
+  const maxSentences = style === 'one_sentence' ? 1 : (style === 'ultra_short' ? 4 : 5);
 
   if (cleanSentences.length > maxSentences) {
     let combined = '';
-    for (let i = 0; i < Math.min(cleanSentences.length, maxSentences); i++) {
+    const hasQuestionAtEnd = cleanSentences.some((s, idx) => idx >= maxSentences - 1 && s.trim().endsWith('?'));
+    const targetSentences = hasQuestionAtEnd && cleanSentences.length > maxSentences ? maxSentences + 1 : maxSentences;
+
+    for (let i = 0; i < Math.min(cleanSentences.length, targetSentences); i++) {
       const candidate = combined ? `${combined} ${cleanSentences[i]}` : cleanSentences[i];
       const wordCount = candidate.split(/\s+/).filter(Boolean).length;
-      if (wordCount <= limit + 5) {
+      if (wordCount <= limit + 10) {
         combined = candidate;
       } else {
         if (!combined) combined = cleanSentences[0];
@@ -273,8 +276,8 @@ function enforceResponseWordLimit(text, agent = {}) {
 
 function compileSystemPrompt(agent, store, contact = null) {
   const agentName = agent?.name || 'Camila';
-  const sector = agent?.sector || 'Vendas & Atendimento';
-  const objective = agent?.objective || 'Atendimento comercial';
+  const sector = agent?.sector || 'Vendas & Atendimento Consultivo';
+  const objective = agent?.objective || 'Atendimento comercial de alta performance';
   const personality = agent?.personality || agent?.prompt || '';
   const responseStyle = agent?.responseStyle || 'short_natural';
   const maxWords = resolveResponseWordLimit(agent);
@@ -284,11 +287,11 @@ function compileSystemPrompt(agent, store, contact = null) {
     const limit = maxWords;
     styleInstruction = `- Diretriz de Tamanho: Seja ultracurto. Responda com no máximo 1 frase curta (máximo de ${limit} palavras). Vá direto ao ponto sem saudações repetidas.\n`;
   } else if (responseStyle === 'ultra_short') {
-    const limit = Math.max(maxWords, 65);
-    styleInstruction = `- Diretriz de Tamanho (WHATSAPP ÁGIL & COMPLETO): Responda em 1 a 3 frases naturais (até ${limit} palavras). Se for perguntado preço ou cotação, inclua na mesma resposta o valor unitário, promoção por unidades/volume e pergunta de fechamento, sem respostas vazias.\n`;
+    const limit = Math.max(maxWords, 75);
+    styleInstruction = `- Diretriz de Tamanho (WHATSAPP ÁGIL & COMPLETO): Responda em 1 a 4 frases naturais (até ${limit} palavras). Se for perguntado preço ou cotação, formule a resposta completa: valor unitário, promoção por unidades/volume, total calculado e pergunta de fechamento, sem respostas vazias.\n`;
   } else {
-    const limit = Math.max(maxWords, 95);
-    styleInstruction = `- Diretriz de Tamanho (PADRÃO WHATSAPP HUMANO CONCISO & CONSULTIVO): Responda em 1 a 4 frases claras e completas (geralmente entre 40 a ${limit} palavras). Escreva de forma ágil, simpática e consultiva, sem deixar respostas vazias.\n`;
+    const limit = Math.max(maxWords, 110);
+    styleInstruction = `- Diretriz de Tamanho (PADRÃO WHATSAPP HUMANO CONCISO & CONSULTIVO): Responda em 1 a 5 frases claras e completas (geralmente entre 40 a ${limit} palavras). Escreva de forma ágil, simpática, consultiva e cheia de boas ideias, sem deixar respostas vazias.\n`;
   }
 
   // 0. DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP
@@ -303,19 +306,20 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Use no máximo 1 a 2 emojis pertinentes por resposta.\n`;
   compiled += `- Se o cliente fechou o pedido ou solicitou atendimento humano, confirme brevemente e encaminhe com cordialidade.\n\n`;
 
-  // 0.1 INTELIGÊNCIA COMERCIAL & CONSULTIVA UNIVERSAL (PRODUTOS & SERVIÇOS)
-  compiled += `[INTELIGÊNCIA COMERCIAL & CONSULTIVA UNIVERSAL (PRODUTOS & SERVIÇOS)]\n`;
-  compiled += `- REGRA DE OFERTA COMPLETA (VALOR + PROMOÇÃO + UNIDADES + PRAZO + FECHAMENTO):\n`;
-  compiled += `  Sempre que o cliente perguntar preço, valor, orçamento ou cotação de qualquer produto ou serviço, informe OBRIGATORIAMENTE na mesma resposta:\n`;
-  compiled += `  1) VALOR BASE/UNITÁRIO: O valor unitário ou individual à vista.\n`;
-  compiled += `  2) PROMOÇÃO POR UNIDADES/VOLUME: Se houver qualquer promoção por quantidade, volume, combo ou pacote ensinado ou tabelado, apresente OBRIGATORIAMENTE na mesma resposta com o cálculo do valor unitário promocional e o total pronto (ex: "comprando a partir de 20 sacos sai por R$ 18,20 cada, total de R$ 364,00").\n`;
-  compiled += `  3) PRAZO DE ENTREGA OU BENEFÍCIO: Informe o prazo de entrega na obra/endereço ou agendamento.\n`;
-  compiled += `  4) PERGUNTA CONSULTIVA DE FECHAMENTO: Conclua sempre com uma pergunta comercial ativa para avançar o pedido (ex: "quantos sacos você vai precisar para a sua obra?").\n`;
+  // 0.1 ATENDENTE GERAL & INTELIGÊNCIA CONSULTIVA UNIVERSAL
+  compiled += `[ATENDENTE GERAL & INTELIGÊNCIA CONSULTIVA UNIVERSAL (PRODUTOS & SERVIÇOS)]\n`;
+  compiled += `- PAPEL UNIVERSAL DE ATENDIMENTO: Você é um(a) atendente comercial e consultor(a) especialista universal. Você domina qualquer segmento comercial (materiais de construção, áreas gourmet, serviços, saúde, varejo, etc.) que conste nas informações da loja ou que tenha sido ensinado via prompt/conhecimento absorvido.\n`;
+  compiled += `- COMPREENSÃO COMPLETA DE VALORES, UNIDADES E PROMOÇÕES:\n`;
+  compiled += `  Sempre que o cliente perguntar preço, valor, cotação ou sobre produtos, responda com a formulação comercial completa:\n`;
+  compiled += `  1) VALOR BASE/UNITÁRIO: Informe o valor unitário individual à vista por unidade/saco/peça/lata/sessão.\n`;
+  compiled += `  2) PROMOÇÃO POR UNIDADES/VOLUME: Se houver qualquer promoção por quantidade, volume ou pacote cadastrado ou ensinado, apresente-a OBRIGATORIAMENTE com o desconto e a quantidade necessária de unidades (ex: "acima de 20 sacos tem 30% de desconto").\n`;
+  compiled += `  3) CÁLCULO PRECISO DOS VALORES: Calcule e informe o valor unitário promocional com desconto E o valor total calculado para o pacote de unidades (ex: "sai por apenas R$ 18,20 cada, totalizando R$ 364,00 o lote com 20 sacos"). Destaque a economia vantajosa.\n`;
+  compiled += `  4) PRAZO DE ENTREGA OU BENEFÍCIO: Informe o prazo de entrega na obra/endereço (ex: "entregamos em até 2 horas com frete grátis na região").\n`;
+  compiled += `  5) PERGUNTA CONSULTIVA DE FECHAMENTO: Conclua SEMPRE com uma pergunta ativa para fechar o pedido ou avançar (ex: "quantos sacos você vai precisar para a sua obra hoje? Posso já reservar para você?").\n`;
   compiled += `- NUNCA DIGA QUE NÃO HÁ PROMOÇÃO: Quando houver qualquer promoção, desconto ou condição especial ensinada ou cadastrada, anuncie-a OBRIGATORIAMENTE com entusiasmo e com os valores calculados.\n`;
-  compiled += `- SENSO PRÁTICO & INTELIGÊNCIA CONVERSACIONAL (NUNCA RESPOSTAS VAZIAS OU EVASIVAS):\n`;
-  compiled += `  - Proibido dar respostas vazias como "em que posso te ajudar?" ou devolver a pergunta sem conteúdo. Seja sempre resolutivo e apresente soluções concretas.\n`;
-  compiled += `  - Geração de ideias e consultoria: Se o cliente pedir sugestões, ideias ou estiver em dúvida ("o que recomenda?", "tem alguma ideia?", "quais as opções?"), aja como consultor especialista: dê ideias práticas e inteligentes para a necessidade dele, sugira produtos/serviços complementares e conduza a venda com clareza e simpatia.\n`;
-  compiled += `  - Cálculo Preciso: Ao mencionar promoções com unidades, calcule sempre o total correto multiplicando a quantidade pelo preço com desconto anunciado.\n\n`;
+  compiled += `- GERAÇÃO DE IDEIAS & CONVERSA SENSATA (NUNCA RESPOSTAS VAZIAS OU EVASIVAS):\n`;
+  compiled += `  - Tenha iniciativa e ideias! Se o cliente pedir sugestões, ideias ou estiver em dúvida ("o que recomenda?", "tem alguma ideia para minha obra?", "quais as opções?", "como funciona?"), aja como consultor especialista: dê ideias práticas e inteligentes, sugira materiais complementares (ex: se falar de cimento, lembre de areia/brita; se for área gourmet, sugira bancada/grelha; se for serviço, oriente as etapas) e conduza com simpatia.\n`;
+  compiled += `  - Proibido dar respostas vazias como apenas "temos promoção" ou "em que posso te ajudar?". Dê sempre a resposta completa e resolutiva.\n\n`;
 
   // 0.2 PRIORIDADE ABSOLUTA DE CONHECIMENTO ENSINADO & ABSORVIDO
   compiled += `[CONHECIMENTO ATUALIZADO & MEMÓRIA ABSORVIDA (MÁXIMA PRIORIDADE)]\n`;

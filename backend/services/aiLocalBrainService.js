@@ -130,27 +130,13 @@ async function matchQuickReplyFastPath(messageText, { companyId = 'default', bes
   if (!match.content && !match.selectedMediaItem) return null;
 
   // Critérios para rota rápida instantânea:
-  // 1) Solicitação explícita de mídia com item correspondente (foto, áudio, catálogo)
-  // 2) FAQ direto de produto com alta relevância (score >= 45)
-  // 3) Termos fundamentais da loja (cimento, churrasqueira, garantia, pix, entrega, tabela de preço)
+  // 1) Solicitação explícita de mídia com item correspondente (foto, áudio, catálogo, comprovante)
+  // 2) Operações financeiras/cadastrais diretas (chave pix, dados de pagamento)
+  // NUNCA acionar rota estática para produtos, cotações, preços ou dúvidas consultivas.
   const hasExplicitMedia = Boolean(match.requestedMediaType && match.selectedMediaItem);
-  const isHighConfidenceFaq = match.score >= 50;
-  const isStrongKeyword = match.score >= 38 && (
-    norm.includes('cimento') ||
-    norm.includes('churras') ||
-    norm.includes('garantia') ||
-    norm.includes('pix') ||
-    norm.includes('foto') ||
-    norm.includes('imagem') ||
-    norm.includes('audio') ||
-    norm.includes('preco') ||
-    norm.includes('valor') ||
-    norm.includes('entrega') ||
-    norm.includes('frete') ||
-    norm.includes('tabela')
-  );
+  const isDirectPixOrPayment = (norm.includes('pix') || norm.includes('chave pix')) && match.score >= 50;
 
-  if (!hasExplicitMedia && !isHighConfidenceFaq && !isStrongKeyword) {
+  if (!hasExplicitMedia && !isDirectPixOrPayment) {
     return null;
   }
 

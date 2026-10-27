@@ -73,7 +73,7 @@
       "cp3"
     ],
     "aiMemory": "Áudio explicativo sobre marcas e aplicação de cimento para obra. Usar quando o cliente pedir áudio sobre cimento.",
-    "content": "Estamos com promoção 30% off em 20 unidades de cimento!",
+    "content": "O Cimento CP II custa R$ 26,00 à vista por saco. Aproveitando nossa promoção especial a partir de 20 sacos, você tem 30% de desconto e cada saco sai por apenas R$ 18,20 (totalizando R$ 364,00 o lote com 20 sacos)! Entregamos na sua obra em até 2 horas com frete grátis. Quantos sacos você vai precisar para a sua fase da obra?",
     "items": [
       {
         "type": "audio",
@@ -85,7 +85,7 @@
       },
       {
         "type": "text",
-        "value": "Estamos com promoção 30% off em 20 unidades de cimento!",
+        "value": "O Cimento CP II custa R$ 26,00 à vista por saco. Aproveitando nossa promoção especial a partir de 20 sacos, você tem 30% de desconto e cada saco sai por apenas R$ 18,20 (totalizando R$ 364,00 o lote com 20 sacos)! Entregamos na sua obra em até 2 horas com frete grátis. Quantos sacos você vai precisar para a sua fase da obra?",
         "delay": 10000,
         "delayMs": 10000
       },
@@ -93,7 +93,7 @@
         "type": "image",
         "value": "/uploads/quick_replies/script_cimento_step2_1.png",
         "filename": "script_cimento_step2_1.png",
-        "caption": "Estamos com promoção 30% off em 20 unidades de cimento!",
+        "caption": "Promoção Cimento CP II: de R$ 26,00 por apenas R$ 18,20 a partir de 20 sacos!",
         "delay": 10000,
         "delayMs": 10000
       },
@@ -677,11 +677,11 @@
       "sacos"
     ],
     "aiMemory": "Promoção especial de cimento com 30% de desconto a partir de 20 unidades. Envia imagem da promoção. Usar quando cliente cotar cimento.",
-    "content": "Estamos com promoção 30% off em 20 unidades de cimento!",
+    "content": "O Cimento CP II custa R$ 26,00 à vista por saco. Na promoção especial a partir de 20 sacos, você tem 30% de desconto e cada saco sai por apenas R$ 18,20 (totalizando R$ 364,00 o lote com 20 sacos)! Entregamos na sua obra em até 2 horas. Quantos sacos você vai precisar para a sua fase da obra?",
     "items": [
       {
         "type": "text",
-        "value": "Estamos com promoção 30% off em 20 unidades de cimento!",
+        "value": "O Cimento CP II custa R$ 26,00 à vista por saco. Na promoção especial a partir de 20 sacos, você tem 30% de desconto e cada saco sai por apenas R$ 18,20 (totalizando R$ 364,00 o lote com 20 sacos)! Entregamos na sua obra em até 2 horas. Quantos sacos você vai precisar para a sua fase da obra?",
         "delay": 2000,
         "delayMs": 2000
       },
@@ -689,7 +689,7 @@
         "type": "image",
         "value": "/uploads/quick_replies/cimento_1.png",
         "filename": "cimento_1.png",
-        "caption": "Estamos com promoção 30% off em 20 unidades de cimento!",
+        "caption": "Promoção Cimento CP II: de R$ 26,00 por apenas R$ 18,20 a partir de 20 sacos!",
         "delay": 2000,
         "delayMs": 2000
       }

@@ -2569,7 +2569,14 @@ export default function AttendantsPage() {
         {/* Quick test pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
           <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Perguntas rápidas:</span>
-          {["Qual é o catálogo?", "Formas de pagamento?", "Horário de atendimento?", "Quais são as promoções?"].map((q, idx) => (
+          {[
+            "Quanto custa o cimento?",
+            "Tem promoção por quantidade?",
+            "Tem alguma ideia para minha obra?",
+            "Qual o prazo de entrega?",
+            "Qual é o catálogo?",
+            "Formas de pagamento?"
+          ].map((q, idx) => (
             <button
               key={idx}
               type="button"
