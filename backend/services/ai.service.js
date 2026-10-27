@@ -200,6 +200,12 @@ function enforceResponseWordLimit(text, agent = {}) {
     }
   }
 
+  const userMsgForClosure = String(agent?.lastUserMessage || '').toLowerCase();
+  const isClosure = /fechar|comprar|levar|fazer pedido|dados para entrega|fechamento|pode agendar/i.test(userMsgForClosure);
+  if (isClosure && !normalized.includes('Nome completo') && !normalized.includes('dados') && !normalized.includes('endereço') && !normalized.includes('endereco')) {
+    normalized = 'Perfeito! Para agendarmos a sua entrega e emitirmos a NF, você pode me passar seus dados cadastrais (Nome completo, CPF, Telefone, Endereço com bairro/cidade e ponto de referência)?';
+  }
+
   // 1. Strip unsolicited bulleted essay lists unless it's a confirmed order sheet summary
   if (!normalized.includes('Ficha de Pedido') && !normalized.includes('Resumo do Pedido') && !normalized.includes('Dados para entrega:')) {
     const lines = normalized.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -954,12 +960,20 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     // Auto-preenchimento e formatação de mídia/resposta rápida para visualização no sandbox
     const normMsg = String(message || '').toLowerCase();
     const wantsMedia = normMsg.includes('foto') || normMsg.includes('imagem') || normMsg.includes('áudio') || normMsg.includes('audio') || normMsg.includes('video') || normMsg.includes('vídeo');
+    const isClosureIntent = /fechar|comprar|levar|fazer pedido|dados para entrega|fechamento|pode agendar/i.test(normMsg);
+
     if (wantsMedia && bestQuickReplyMatch && (!analysisResult || (!analysisResult.trigger_quick_reply && !analysisResult.send_media))) {
       if (!analysisResult) analysisResult = {};
       if (bestQuickReplyMatch.requestedMediaType === 'audio' && bestQuickReplyMatch.selectedMediaItem) {
         analysisResult.send_media = { type: 'audio', value: bestQuickReplyMatch.selectedMediaItem.value };
       } else {
         analysisResult.trigger_quick_reply = bestQuickReplyMatch.id;
+      }
+    } else if (isClosureIntent && (!analysisResult || !analysisResult.trigger_quick_reply)) {
+      if (!analysisResult) analysisResult = {};
+      const closureQR = (allQuickReplies || []).find(q => q.id === '1549cbdc-9b7b-48b4-9dc9-c825dbeceb57' || /dados entrega/i.test(q.title || ''));
+      if (closureQR) {
+        analysisResult.trigger_quick_reply = closureQR.id;
       }
     }
 
