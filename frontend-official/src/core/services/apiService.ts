@@ -1710,7 +1710,7 @@ export const apiService = {
       endpoint: "/ai/test",
       method: "POST",
       body: payload,
-      timeoutMs: 60_000,
+      timeoutMs: 90_000,
     }),
 
   refinePrompt: (payload: { currentPrompt: string; instruction: string }) =>
@@ -1779,7 +1779,7 @@ export const apiService = {
       endpoint: "/ai/agent-evolve",
       method: "POST",
       body: payload,
-      timeoutMs: 60_000,
+      timeoutMs: 90_000,
     }),
 
   getAgentLearning: (agentKey: string) =>
@@ -1976,7 +1976,7 @@ export const apiService = {
       endpoint: "/ai/transcribe",
       method: "POST",
       body: { mediaUrl, companyId },
-      timeoutMs: 60_000,
+      timeoutMs: 90_000,
     }),
 
   testAIProviders: () =>

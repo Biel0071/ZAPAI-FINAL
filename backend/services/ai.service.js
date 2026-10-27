@@ -936,13 +936,13 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     message,
     prompt: fullPrompt,
     history,
-    maxTokens: Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 500,
+    maxTokens: Math.min(Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 240, 260),
     temperature: typeof finalAgent?.temperature === 'number'
       ? finalAgent.temperature
       : (store?.aiConfig?.advancedAISettings && typeof store.aiConfig.advancedAISettings.temperature === 'number'
          ? store.aiConfig.advancedAISettings.temperature
          : 0.6),
-    timeoutMs: 45000,
+    timeoutMs: 80000,
   });
 
   // Fallback se o provedor primário falhar por falta de créditos ou timeout
