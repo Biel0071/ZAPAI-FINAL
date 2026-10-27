@@ -503,6 +503,8 @@ const TIMEOUT_EXEMPT_PREFIXES = [
   '/uploads',
   '/media',
   '/socket.io',
+  '/api/ai',
+  '/ai',
 ];
 
 app.use((req, res, next) => {
