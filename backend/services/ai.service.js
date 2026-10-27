@@ -483,26 +483,21 @@ function compileSystemPrompt(agent, store, contact = null) {
     compiled += `- Regra: Se o cliente insistir muito em falar com um humano, informe que no momento o canal é automatizado mas que a equipe analisará o caso.\n`;
   }
   // 10. CAPACIDADES DE MÍDIA, ENVIOS E RESPOSTAS RÁPIDAS DA LOJA
-  compiled += `[CAPACIDADES DE MÍDIA, ENVIOS E RESPOSTAS RÁPIDAS DA LOJA]\n`;
-  compiled += `- Sugira anexos somente quando uma mídia cadastrada e autorizada estiver disponível.\n`;
-  compiled += `- Nunca afirme que enviou um arquivo antes de confirmar o envio. Se não houver mídia disponível, peça ajuda ao atendente.\n`;
-  compiled += `- Quando o cliente solicitar mídia, use somente o recurso cadastrado identificado no contexto; não invente recursos ou links.\n`;
-  
-  const quickReplyCapability = require('./quickReplyCapability');
-  const quickRepliesList = contact?.verifiedQuickReplies || store?.verifiedQuickReplies || [];
-  compiled += quickReplyCapability.buildCoupledQuickReplyMemory(quickRepliesList, {
-    agent,
-    matchedCapability: contact?.matchedCapability,
-    companyId: contact?.companyId || 'default',
-  }) + '\n\n';
+  if (!contact?.isTest || contact?.matchedCapability) {
+    const quickReplyCapability = require('./quickReplyCapability');
+    const quickRepliesList = contact?.verifiedQuickReplies || store?.verifiedQuickReplies || [];
+    if (quickRepliesList.length > 0) {
+      compiled += `[CAPACIDADES DE MÍDIA E RESPOSTAS RÁPIDAS DA LOJA]\n`;
+      compiled += `- Sugira anexos somente quando uma mídia cadastrada e autorizada estiver disponível.\n`;
+      compiled += `- Quando o cliente solicitar mídia, use somente o recurso cadastrado identificado no contexto.\n`;
+      compiled += quickReplyCapability.buildCoupledQuickReplyMemory(quickRepliesList, {
+        agent,
+        matchedCapability: contact?.matchedCapability,
+        companyId: contact?.companyId || 'default',
+      }) + '\n\n';
+    }
+  }
 
-  // 11. DIRETRIZES DE ATENDIMENTO & FUNIL CONSULTIVO
-  compiled += `[DIRETRIZES DE ATENDIMENTO & FUNIL CONSULTIVO]\n`;
-  compiled += `- ATENDIMENTO CONTEXTUAL E HUMANO: Responda de forma empática, acolhedora, prestativa e personalizada. Nunca dê respostas vazias ou monossilábicas.\n`;
-  compiled += `- ETAPAS DA VENDA: 1) Levantamento de Necessidades (compreenda produtos, medidas e quantidades). 2) Cotação e Valores (informe preços unitários e promoções de volume). 3) Entrega e Endereço (solicite CEP/endereço para rota ou informe prazo). 4) Pagamento (Pix à vista ou parcelado). 5) Fechamento Consultivo.\n`;
-  compiled += `- ÁUDIOS TRANSCRITOS: Se a mensagem contiver '[Áudio Transcrito]: "..."', trate como texto normal e prossiga o atendimento sem pedir repetições.\n`;
-  compiled += `- SUPORTE E ENTREGA: Se o cliente relatar problema com entrega já realizada, priorize o suporte com máxima empatia sem empurrar vendas.\n`;
-  compiled += `- PROTOCOLO GROUNDING: Nunca invente preços, prazos ou condições inexistentes. Respeite sempre o conhecimento ensinado e o catálogo oficial.\n`;
   if (contact?.name) {
     try {
       const { formatHumanClientName } = require('./leadAnalyzer');
@@ -512,7 +507,7 @@ function compileSystemPrompt(agent, store, contact = null) {
   }
   compiled += `\n`;
 
-  // 12. METADADOS E ANÁLISE DO LEAD (:::analysis)
+  // 11. METADADOS E ANÁLISE DO LEAD (:::analysis) - omit in test simulator for performance
   if (!contact?.isTest) {
     compiled += `[METADADOS E ANÁLISE DO LEAD]\n`;
     compiled += `Ao final da sua resposta, anexe OBRIGATORIAMENTE o bloco JSON abaixo:\n`;
@@ -785,7 +780,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     isTest: true,
   };
 
-  const fullPrompt = compileSystemPrompt(finalAgent, { aiConfig: { memorySettings: { enabled: false } } }, contactForCompile) + knowledge + '\n' + require('../src/ai/evolutionary/historyLearning').GUARDRAILS;
+  const fullPrompt = compileSystemPrompt(finalAgent, { aiConfig: { memorySettings: { enabled: false } } }, contactForCompile) + (knowledge ? '\n' + knowledge : '');
   const memoriesUsed = matchedAgent?.memory || 'Nenhuma memória consultada neste teste';
   const rulesTriggered = matchedAgent?.rules || 'Regras oficiais da loja';
 
