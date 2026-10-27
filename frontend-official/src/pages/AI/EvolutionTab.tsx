@@ -1043,7 +1043,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
           agentName={currentAgent?.name || "Atendente"}
           agentRole={currentAgent?.role || "Atendente Virtual"}
           avatarConfig={currentAvatarConfig}
-          onRefresh={loadEvolutionData}
+          onRefresh={() => selectedAgentKey && loadAgentData(selectedAgentKey)}
         />
       )}
 
