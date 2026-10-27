@@ -424,12 +424,12 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `\n`;
 
   // 6. FAQ & DÚVIDAS FREQUENTES
-  if (agent?.faq) {
+  if (agent?.faq && !contact?.isTest) {
     compiled += `[FAQ & DÚVIDAS FREQUENTES]\n${agent.faq}\n\n`;
   }
 
   // 7. REGRAS DE NEGÓCIO CUSTOMIZADAS
-  if (agent?.rules || agent?.hours || store?.aiConfig?.businessHours) {
+  if ((agent?.rules || agent?.hours || store?.aiConfig?.businessHours) && !contact?.isTest) {
     compiled += `[REGRAS DE NEGÓCIO CUSTOMIZADAS]\n`;
     if (agent?.rules) compiled += `- Regras Customizadas: ${agent.rules}\n`;
     const businessHoursSettings = store?.aiConfig?.businessHours || {};
@@ -466,15 +466,15 @@ function compileSystemPrompt(agent, store, contact = null) {
       }
     }
   }
-  if (agent?.memory) {
+  if (agent?.memory && !contact?.isTest) {
     compiled += `- INSTRUÇÕES DE APRENDIZADO E MEMÓRIA DO ATENDENTE (PRIORIDADE ALTA):\n  ${agent.memory.replace(/\n/g, '\n  ')}\n`;
     compiled += `  (Regra: Aja como se sempre soubesse essas informações. Use-as de forma natural se o cliente perguntar sobre redes sociais, site, ou se o contexto exigir recomendações baseadas nessas dicas.)\n`;
   }
   compiled += `\n`;
 
   // 9. DIRETRIZES DE TRANSBORDO HUMANO
-  compiled += `[DIRETRIZES DE TRANSBORDO HUMANO]\n`;
-  if (agent?.escalationActive) {
+  if (agent?.escalationActive && !contact?.isTest) {
+    compiled += `[DIRETRIZES DE TRANSBORDO HUMANO]\n`;
     compiled += `- Transbordo Ativo: Sim\n`;
     compiled += `- Modo de Escalação: ${agent.escalationMode || 1}\n`;
     if (agent.escalationPhone) compiled += `- Telefone de Transbordo: ${agent.escalationPhone}\n`;
@@ -483,6 +483,7 @@ function compileSystemPrompt(agent, store, contact = null) {
       compiled += `- Gatilhos de Escalação: ${agent.escalationTriggers.join(', ')}\n`;
     }
     compiled += `- Regra: Se o cliente acionar algum gatilho de transbordo, solicitar atendimento humano ou se você não souber responder, solicite transbordo humano imediatamente.\n`;
+  }
   } else {
     compiled += `- Transbordo Ativo: Não\n`;
     compiled += `- Regra: Se o cliente insistir muito em falar com um humano, informe que no momento o canal é automatizado mas que a equipe analisará o caso.\n`;
