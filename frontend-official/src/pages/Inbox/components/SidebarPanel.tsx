@@ -797,7 +797,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 
   const chooseReply = (reply: QuickReplyItem) => {
     const entries = reply.isFlow ? reply.steps ?? [] : reply.items ?? [];
-    if (reply.isFlow || entries.some((entry) => entry.type !== "text")) {
+    if (reply.isFlow || (reply.steps && reply.steps.length > 1) || (reply.items && reply.items.length > 1) || entries.some((entry) => entry.type !== "text") || reply.mediaUrl) {
       setPreviewReply(reply);
     } else {
       setMessageInput(getQuickReplyPreviewText(reply, variableContext));
@@ -1106,8 +1106,12 @@ export const SidebarPanel = memo(function SidebarPanel({
 
               {/* Contact Avatar + Name + WhatsApp presence status */}
               <div className="flex items-center gap-2.5">
-                <div className="relative group/avatar shrink-0">
-                  <Avatar className="h-10 w-10 border border-border/60 shadow-xs">
+                <div
+                  className="relative group/avatar shrink-0 cursor-pointer"
+                  onClick={() => window.dispatchEvent(new CustomEvent("zapflow:open-lead-modal"))}
+                  title="Abrir ficha completa do contato (Pop-up)"
+                >
+                  <Avatar className="h-10 w-10 border border-border/60 shadow-xs transition-transform hover:scale-105">
                     {leadAvatar ? (
                       <AvatarImage
                         src={leadAvatar}
@@ -1146,7 +1150,11 @@ export const SidebarPanel = memo(function SidebarPanel({
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-foreground" title={cleanName}>
+                  <p
+                    className="truncate text-xs font-semibold text-foreground cursor-pointer hover:text-primary transition-colors"
+                    title="Clique para abrir ficha completa do contato"
+                    onClick={() => window.dispatchEvent(new CustomEvent("zapflow:open-lead-modal"))}
+                  >
                     {cleanName}
                   </p>
                   <div className="flex items-center gap-1.5 mt-0.5">

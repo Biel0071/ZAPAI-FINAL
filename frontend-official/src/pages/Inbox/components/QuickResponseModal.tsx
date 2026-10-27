@@ -442,9 +442,12 @@ export function QuickResponseModal({
                   className="font-bold text-base bg-transparent border-b border-transparent hover:border-border/60 focus:border-primary focus:outline-none px-1 text-foreground"
                   title="Clique para editar o título"
                 />
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded-full shrink-0">
+                  Pop-up de Disparos
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Editar e enviar resposta rápida
+                Disparar fluxo e resposta rápida
                 {recipientName ? ` para ${recipientName}` : ""}
               </p>
             </div>

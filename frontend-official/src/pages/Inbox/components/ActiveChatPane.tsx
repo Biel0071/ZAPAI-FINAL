@@ -27,6 +27,7 @@ import {
   CheckCircle,
   WhatsappLogo,
   ArrowsClockwise,
+  Megaphone,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -55,6 +56,7 @@ import { useResolvedAvatar } from "@/hooks/useResolvedAvatar";
 import { NewMessagesBanner } from "@/components/inbox/NewMessagesBanner";
 import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
+import { QuickCampaignDispatchModal } from "@/components/campaigns/QuickCampaignDispatchModal";
 import { OrderSheetModal } from "./OrderSheetModal";
 import { FlowExecutionBanner, matchesConversationFlow, type FlowExecutionData } from "./FlowExecutionBanner";
 import { buildSlashOptions, needsFlowPreview, type SlashOption } from "../quickReplySlash";
@@ -345,6 +347,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
   const [selectedQuickReplyModal, setSelectedQuickReplyModal] = useState<QuickResponseItem | null>(null);
   const [isQuickReplyModalOpen, setIsQuickReplyModalOpen] = useState(false);
+  const [isDisparoModalOpen, setIsDisparoModalOpen] = useState(false);
   const [activeFlowData, setActiveFlowData] = useState<FlowExecutionData | null>(null);
   const quickReplyDispatchRef = useRef(false);
   const { resolvedTheme } = useTheme();
@@ -355,6 +358,12 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   );
 
   const [leadDrawerOpen, setLeadDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenModal = () => setLeadDrawerOpen(true);
+    window.addEventListener("zapflow:open-lead-modal", handleOpenModal);
+    return () => window.removeEventListener("zapflow:open-lead-modal", handleOpenModal);
+  }, []);
 
   const handleUpdateLeadInChat = useCallback(
     async (id: string, updates: any) => {
@@ -858,7 +867,21 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                   </DropdownMenu>
                 ) : null}
 
-                {/* 4. Finalizar */}
+                {/* 4. Pop-up de Disparos */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15 rounded-lg gap-1.5 shrink-0 transition-all border border-emerald-500/40 shadow-xs"
+                  onClick={() => setIsDisparoModalOpen(true)}
+                  title="Abrir Pop-up de Disparos para este contato"
+                  aria-label="Abrir Pop-up de Disparos"
+                >
+                  <Megaphone className="h-3.5 w-3.5" weight="fill" />
+                  <span className="hidden sm:inline">Disparos</span>
+                </Button>
+
+                {/* 5. Finalizar */}
                 <Button
                   type="button"
                   variant="ghost"
@@ -889,6 +912,13 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem
+                      className="flex items-center gap-2 text-xs cursor-pointer text-emerald-400 hover:bg-emerald-500/10 focus:bg-emerald-500/10"
+                      onClick={() => setIsDisparoModalOpen(true)}
+                    >
+                      <Megaphone className="h-3.5 w-3.5 text-emerald-400" weight="fill" />
+                      Pop-up de Disparos
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
                       onClick={() => {
@@ -1480,7 +1510,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         type="button"
                         title={item.isFlow || item.items?.some(entry => entry.type !== "text") ? "Abrir prévia antes de enviar" : "Inserir no rascunho para revisar"}
                         onClick={() => {
-                          if (item.isFlow || item.items?.some(entry => entry.type !== "text")) {
+                          if (item.isFlow || (item.steps && item.steps.length > 1) || (item.items && item.items.length > 1) || item.items?.some(entry => entry.type !== "text") || item.mediaUrl) {
                             setSelectedQuickReplyModal(item);
                             setIsQuickReplyModalOpen(true);
                           } else {
@@ -1851,6 +1881,19 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           recipientName={selectedConversation.contactName}
           disabled={!isWhatsappConnected || sending}
           onDispatch={handleDispatchQuickReply}
+        />
+      )}
+      {selectedConversation && (
+        <QuickCampaignDispatchModal
+          open={isDisparoModalOpen}
+          onClose={() => setIsDisparoModalOpen(false)}
+          contact={{
+            id: selectedConversation.id,
+            name: selectedConversation.contactName || selectedConversation.name || "Contato",
+            phone: (selectedConversation as any).mapped_phone || selectedConversation.phone || "",
+            sessionId: selectedConversation.sessionId,
+            avatarUrl: activeChatAvatar || selectedConversation.avatar,
+          }}
         />
       )}
       {selectedConversation && isSheetModalOpen && (

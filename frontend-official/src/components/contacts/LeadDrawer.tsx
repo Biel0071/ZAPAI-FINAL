@@ -28,6 +28,7 @@ import {
   WhatsappLogo,
 } from "@phosphor-icons/react";
 import { formatPhoneNumber } from "@/pages/Inbox/utils";
+import { QuickCampaignDispatchModal } from "@/components/campaigns/QuickCampaignDispatchModal";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -162,6 +163,7 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
 
   // Modal / Editable states
   const [photoZoomOpen, setPhotoZoomOpen] = useState(false);
+  const [isDisparoModalOpen, setIsDisparoModalOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState(lead?.name || "");
   const [currentTemp, setCurrentTemp] = useState(lead?.temperature || "cold");
@@ -380,21 +382,9 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
     }
   };
 
-  // Handler to go to Campaigns
-  const handleGoToCampaigns = () => {
-    onClose();
-    navigate("/campaigns", {
-      state: {
-        reactivationContacts: [
-          {
-            id: lead.id,
-            name: lead.name,
-            phone: resolvedPhone || lead.phone,
-          },
-        ],
-      },
-    });
-    notify.success(`Contato "${lead.name}" selecionado para disparo de campanha.`);
+  // Handler to open Pop-up de Disparos
+  const handleOpenDisparos = () => {
+    setIsDisparoModalOpen(true);
   };
 
   const handleGenerateFollowup = async () => {
@@ -565,11 +555,11 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                 <Button
                   size="sm"
                   className="h-7 sm:h-8 px-2.5 rounded-lg text-xs gap-1.5 font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-sm active:scale-95 transition-all"
-                  onClick={handleGoToCampaigns}
-                  title="Abrir página de campanhas com este lead pré-selecionado para disparo"
+                  onClick={handleOpenDisparos}
+                  title="Abrir pop-up de disparos com este lead selecionado"
                 >
                   <Megaphone className="h-3.5 w-3.5" weight="fill" />
-                  Ir para Disparos
+                  Pop-up Disparos
                 </Button>
 
                 <Button
@@ -996,6 +986,19 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Pop-up de Disparos dedicado para este Lead */}
+      <QuickCampaignDispatchModal
+        open={isDisparoModalOpen}
+        onClose={() => setIsDisparoModalOpen(false)}
+        contact={{
+          id: lead.id,
+          name: lead.name,
+          phone: resolvedPhone || lead.phone,
+          sessionId: lead.sessionId,
+          avatarUrl: lead.avatarUrl,
+        }}
+      />
     </>
   );
 }

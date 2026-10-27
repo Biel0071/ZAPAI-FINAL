@@ -56,6 +56,7 @@ export function ChatHeaderBar({
           role={onContactClick ? "button" : undefined}
           tabIndex={onContactClick ? 0 : undefined}
           onClick={onContactClick}
+          data-testid="chat-header-profile"
           onKeyDown={(e) => {
             if (onContactClick && (e.key === "Enter" || e.key === " ")) {
               e.preventDefault();
@@ -64,12 +65,15 @@ export function ChatHeaderBar({
           }}
           className={cn(
             "flex items-center gap-2 sm:gap-3 min-w-0 flex-1",
-            onContactClick && "cursor-pointer rounded-lg p-1 -m-1 hover:bg-muted/50 transition-colors"
+            onContactClick && "cursor-pointer rounded-xl p-1 -m-1 hover:bg-muted/60 transition-all select-none group/profile"
           )}
-          title={onContactClick ? "Ver detalhes do contato" : undefined}
+          title={onContactClick ? "Ver ficha completa do contato (Pop-up)" : undefined}
         >
           <div className="relative shrink-0">
-            <Avatar className="h-10 w-10 sm:h-11 sm:w-11 border border-border/50 shrink-0">
+            <Avatar
+              className="h-10 w-10 sm:h-11 sm:w-11 border border-border/50 shrink-0 cursor-pointer transition-transform group-hover/profile:scale-105"
+              onClick={onContactClick}
+            >
               {avatar ? (
                 <AvatarImage
                   src={avatar}
@@ -116,8 +120,7 @@ export function ChatHeaderBar({
             <div className="mt-0.5 sm:mt-1 flex min-w-0 flex-wrap items-center gap-1 sm:gap-1.5">
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={() => {
                   setShowDetailedPresence((prev) => !prev);
                 }}
                 className={cn(
