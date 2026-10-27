@@ -305,14 +305,15 @@ function compileSystemPrompt(agent, store, contact = null) {
 
   // 0.1 INTELIGÊNCIA COMERCIAL & CONSULTIVA UNIVERSAL (PRODUTOS & SERVIÇOS)
   compiled += `[INTELIGÊNCIA COMERCIAL & CONSULTIVA UNIVERSAL (PRODUTOS & SERVIÇOS)]\n`;
-  compiled += `- OFERTA COMPLETA E CONSULTIVA NA MESMA RESPOSTA (VALOR + PROMOÇÃO/PACOTE + PRAZO + FECHAMENTO): Sempre que o cliente perguntar preço, orçamento ou cotação de QUALQUER produto ou serviço, informe na mesma resposta de forma ágil e consultiva:\n`;
-  compiled += `  1) VALOR INDIVIDUAL/UNITÁRIO: O valor base oficial do item ou serviço consultado.\n`;
-  compiled += `  2) PROMOÇÃO, PACOTE OU VOLUME: Se houver qualquer desconto por quantidade, unidades, pessoas, sessões ou combo ensinado, apresente SEMPRE com o cálculo pronto (ex: compras por volume, pacotes familiares, combos promocionais).\n`;
-  compiled += `  3) PRAZO / DISPONIBILIDADE: Prazo de entrega, horário de atendimento ou agendamento.\n`;
-  compiled += `  4) PERGUNTA CONSULTIVA DE FECHAMENTO: Conclua sempre com uma pergunta direcionada para avançar no fechamento ou entender a quantidade necessária.\n`;
-  compiled += `- PROIBIDO RESPOSTAS VAZIAS OU MONOSSILÁBICAS: Nunca responda apenas o valor seco ou respostas vazias. Apresente sempre a promoção e o benefício completo para o cliente economizar ou ter mais vantagens.\n`;
-  compiled += `- POSTURA CONSULTIVA GERAL E GERAÇÃO DE IDEIAS: Se o cliente pedir sugestões, recomendações ou estiver em dúvida ("o que recomenda?", "tem alguma ideia?"), aja como um consultor especialista: dê ideias práticas e inteligentes para o projeto ou necessidade dele, sugira produtos/serviços complementares e converse de maneira sensata, humana e empática.\n`;
-  compiled += `- CÁLCULO DE UNIDADES E VALORES: Calcule corretamente totais multiplicando unidades, sacos, peças, pessoas ou metros pelo valor com desconto anunciado.\n\n`;
+  compiled += `- REGRA DE OFERTA COMPLETA (VALOR + PROMOÇÃO + UNIDADES + PRAZO + FECHAMENTO):\n`;
+  compiled += `  Sempre que o cliente perguntar preço, valor ou cotação de qualquer produto ou serviço, informe OBRIGATORIAMENTE na mesma resposta:\n`;
+  compiled += `  1) VALOR BASE/UNITÁRIO: O valor unitário ou individual à vista.\n`;
+  compiled += `  2) PROMOÇÃO POR UNIDADES/VOLUME: Se houver qualquer promoção por quantidade, volume, combo ou pacote, apresente OBRIGATORIAMENTE na mesma resposta com o cálculo do valor unitário promocional e o total pronto.\n`;
+  compiled += `  3) PRAZO DE ENTREGA OU BENEFÍCIO: Informe o prazo de entrega na obra/local ou agendamento.\n`;
+  compiled += `  4) PERGUNTA CONSULTIVA DE FECHAMENTO: Conclua sempre com uma pergunta comercial ativa (ex: quantos sacos ou unidades vai precisar para fechar o pedido).\n`;
+  compiled += `- PROIBIDO RESPOSTAS SECAS, VAZIAS OU MONOSSILÁBICAS: Nunca omita a promoção cadastrada/ensinada nem responda apenas o valor seco. Seja ágil, prestativa e conduza a conversa com sensatez e ideias práticas.\n`;
+  compiled += `- POSTURA CONSULTIVA E GERAÇÃO DE IDEIAS: Se o cliente pedir sugestões, ideias ou estiver em dúvida ("o que recomenda?", "tem alguma ideia?"), aja como um consultor especialista: dê ideias práticas e inteligentes para o projeto ou necessidade dele, sugira produtos/serviços complementares e converse com clareza e empatia.\n`;
+  compiled += `- CÁLCULO PRECISO DE UNIDADES: Calcule corretamente totais multiplicando unidades, sacos, peças, pessoas ou metros pelo valor com desconto anunciado.\n\n`;
 
   // 0.2 PRIORIDADE ABSOLUTA DE CONHECIMENTO ENSINADO & ABSORVIDO
   compiled += `[CONHECIMENTO ATUALIZADO & MEMÓRIA ABSORVIDA (MÁXIMA PRIORIDADE)]\n`;
@@ -411,34 +412,26 @@ function compileSystemPrompt(agent, store, contact = null) {
     hasProductsOrServices = true;
   }
   if (!hasProductsOrServices) {
-    if (personality && (personality.includes('R$') || personality.includes('preço') || personality.includes('custa') || personality.includes('promoção') || personality.includes('cimento'))) {
-      compiled += `Consulte os produtos, valores e promoções detalhados diretamente nas instruções e conhecimento ensinado da atendente acima.\n`;
-    } else {
-      compiled += `Nenhum produto ou serviço específico configurado.\n`;
+    if (personality && (personality.includes('R$') || /preço|preco|custa|promo|desconto|tabela|pacote|limpeza|plano|serviço|servico/i.test(personality))) {
+      compiled += `Consulte os produtos, serviços, valores e promoções detalhados diretamente nas instruções e conhecimento ensinado do atendente acima.\n`;
     }
   }
   compiled += `\n`;
 
   // 6. FAQ & DÚVIDAS FREQUENTES
-  compiled += `[FAQ & DÚVIDAS FREQUENTES]\n`;
   if (agent?.faq) {
-    compiled += `${agent.faq}\n`;
-  } else {
-    compiled += `Nenhuma dúvida cadastrada no FAQ.\n`;
+    compiled += `[FAQ & DÚVIDAS FREQUENTES]\n${agent.faq}\n\n`;
   }
-  compiled += `\n`;
 
   // 7. REGRAS DE NEGÓCIO CUSTOMIZADAS
-  compiled += `[REGRAS DE NEGÓCIO CUSTOMIZADAS]\n`;
-  if (agent?.rules) {
-    compiled += `- Regras Customizadas: ${agent.rules}\n`;
+  if (agent?.rules || agent?.hours || store?.aiConfig?.businessHours) {
+    compiled += `[REGRAS DE NEGÓCIO CUSTOMIZADAS]\n`;
+    if (agent?.rules) compiled += `- Regras Customizadas: ${agent.rules}\n`;
+    const businessHoursSettings = store?.aiConfig?.businessHours || {};
+    if (businessHoursSettings.open && businessHoursSettings.close) compiled += `- Horário de Funcionamento: de ${businessHoursSettings.open} às ${businessHoursSettings.close}\n`;
+    if (agent?.hours) compiled += `- Instruções de Horários: ${agent.hours}\n`;
+    compiled += `\n`;
   }
-  const businessHoursSettings = store?.aiConfig?.businessHours || {};
-  if (businessHoursSettings.open && businessHoursSettings.close) compiled += `- Horário de Funcionamento: de ${businessHoursSettings.open} às ${businessHoursSettings.close}\n`;
-  if (agent?.hours) {
-    compiled += `- Instruções de Horários: ${agent.hours}\n`;
-  }
-  compiled += `\n`;
 
   // 8. MEMÓRIA
   compiled += `[MEMÓRIA DO ATENDENTE E CONTEXTO]\n`;
@@ -520,18 +513,20 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `\n`;
 
   // 12. METADADOS E ANÁLISE DO LEAD (:::analysis)
-  compiled += `[METADADOS E ANÁLISE DO LEAD]\n`;
-  compiled += `Ao final da sua resposta, anexe OBRIGATORIAMENTE o bloco JSON abaixo:\n`;
-  compiled += `:::analysis\n`;
-  compiled += `{\n`;
-  compiled += `  "funnel_stage": "new_lead" | "interested" | "price_sent" | "negotiation" | "ready_to_buy" | "closed" | "lost",\n`;
-  compiled += `  "tags_to_add": ["tag1"],\n`;
-  compiled += `  "address": "endereço completo ou null",\n`;
-  compiled += `  "phone": "telefone ou null",\n`;
-  compiled += `  "trigger_quick_reply": "ID da resposta rápida ou null",\n`;
-  compiled += `  "send_media": { "type": "image" | "audio", "value": "/uploads/...", "caption": "" } ou null\n`;
-  compiled += `}\n`;
-  compiled += `:::\n`;
+  if (!contact?.isTest) {
+    compiled += `[METADADOS E ANÁLISE DO LEAD]\n`;
+    compiled += `Ao final da sua resposta, anexe OBRIGATORIAMENTE o bloco JSON abaixo:\n`;
+    compiled += `:::analysis\n`;
+    compiled += `{\n`;
+    compiled += `  "funnel_stage": "new_lead" | "interested" | "price_sent" | "negotiation" | "ready_to_buy" | "closed" | "lost",\n`;
+    compiled += `  "tags_to_add": ["tag1"],\n`;
+    compiled += `  "address": "endereço completo ou null",\n`;
+    compiled += `  "phone": "telefone ou null",\n`;
+    compiled += `  "trigger_quick_reply": "ID da resposta rápida ou null",\n`;
+    compiled += `  "send_media": { "type": "image" | "audio", "value": "/uploads/...", "caption": "" } ou null\n`;
+    compiled += `}\n`;
+    compiled += `:::\n`;
+  }
 
   return compiled.trim();
 }
@@ -787,6 +782,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     matchedCapability: bestQuickReplyMatch,
     companyId: resolvedCompanyId,
     sessionId,
+    isTest: true,
   };
 
   const fullPrompt = compileSystemPrompt(finalAgent, { aiConfig: { memorySettings: { enabled: false } } }, contactForCompile) + knowledge + '\n' + require('../src/ai/evolutionary/historyLearning').GUARDRAILS;
