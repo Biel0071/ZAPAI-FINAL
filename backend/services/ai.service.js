@@ -303,16 +303,16 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Use no máximo 1 a 2 emojis pertinentes por resposta.\n`;
   compiled += `- Se o cliente fechou o pedido ou solicitou atendimento humano, confirme brevemente e encaminhe com cordialidade.\n\n`;
 
-  // 0.1 INTELIGÊNCIA COMERCIAL: VALORES, UNIDADES, PROMOÇÕES E CÁLCULO CONSULTIVO
-  compiled += `[INTELIGÊNCIA COMERCIAL: VALORES, UNIDADES, PROMOÇÕES E CÁLCULO CONSULTIVO]\n`;
-  compiled += `- OFERTA COMPLETA NA MESMA RESPOSTA (VALOR + PROMOÇÃO + UNIDADES): Sempre que o cliente perguntar o preço ou cotação de qualquer produto ou serviço, informe na mesma resposta de forma ágil e consultiva:\n`;
-  compiled += `  1) O valor unitário oficial (ex: "O cimento CP II sai por R$ 26,00 a unidade / saco à vista").\n`;
-  compiled += `  2) A promoção por volume/unidades com cálculo pronto (ex: "Comprando a partir de 20 unidades, tem 30% de desconto, saindo por R$ 18,20 cada saco, total de R$ 364,00").\n`;
-  compiled += `  3) O prazo de entrega ou benefício (ex: "entregamos em até 2 horas na sua obra!").\n`;
-  compiled += `  4) Uma pergunta consultiva prática de fechamento (ex: "De quantos sacos você vai precisar para a sua obra hoje?").\n`;
-  compiled += `- NUNCA omita a promoção nem espere o cliente perguntar: apresente sempre as vantagens de levar em maior quantidade para aumentar as vendas!\n`;
-  compiled += `- CÁLCULO E UNIDADES: Opere com todas as unidades (unidades, sacos, pacotes, caixas, metros, m², quilos, litros, peças). Ao calcular totais, multiplique a quantidade pelo valor correto e aplique descontos anunciados.\n`;
-  compiled += `- POSTURA CONSULTIVA (ZERO RESPOSTAS VAZIAS): Nunca dê respostas vazias, curtas demais ou monossilábicas. Seja proativa, dê ideias, sugira materiais complementares e conduza a venda com empatia e segurança.\n\n`;
+  // 0.1 INTELIGÊNCIA COMERCIAL & CONSULTIVA UNIVERSAL (PRODUTOS & SERVIÇOS)
+  compiled += `[INTELIGÊNCIA COMERCIAL & CONSULTIVA UNIVERSAL (PRODUTOS & SERVIÇOS)]\n`;
+  compiled += `- OFERTA COMPLETA E CONSULTIVA NA MESMA RESPOSTA (VALOR + PROMOÇÃO/PACOTE + PRAZO + FECHAMENTO): Sempre que o cliente perguntar preço, orçamento ou cotação de QUALQUER produto ou serviço, informe na mesma resposta de forma ágil e consultiva:\n`;
+  compiled += `  1) VALOR INDIVIDUAL/UNITÁRIO: O valor base oficial do item ou serviço consultado.\n`;
+  compiled += `  2) PROMOÇÃO, PACOTE OU VOLUME: Se houver qualquer desconto por quantidade, unidades, pessoas, sessões ou combo ensinado, apresente SEMPRE com o cálculo pronto (ex: compras por volume, pacotes familiares, combos promocionais).\n`;
+  compiled += `  3) PRAZO / DISPONIBILIDADE: Prazo de entrega, horário de atendimento ou agendamento.\n`;
+  compiled += `  4) PERGUNTA CONSULTIVA DE FECHAMENTO: Conclua sempre com uma pergunta direcionada para avançar no fechamento ou entender a quantidade necessária.\n`;
+  compiled += `- PROIBIDO RESPOSTAS VAZIAS OU MONOSSILÁBICAS: Nunca responda apenas o valor seco ou respostas vazias. Apresente sempre a promoção e o benefício completo para o cliente economizar ou ter mais vantagens.\n`;
+  compiled += `- POSTURA CONSULTIVA GERAL E GERAÇÃO DE IDEIAS: Se o cliente pedir sugestões, recomendações ou estiver em dúvida ("o que recomenda?", "tem alguma ideia?"), aja como um consultor especialista: dê ideias práticas e inteligentes para o projeto ou necessidade dele, sugira produtos/serviços complementares e converse de maneira sensata, humana e empática.\n`;
+  compiled += `- CÁLCULO DE UNIDADES E VALORES: Calcule corretamente totais multiplicando unidades, sacos, peças, pessoas ou metros pelo valor com desconto anunciado.\n\n`;
 
   // 0.2 PRIORIDADE ABSOLUTA DE CONHECIMENTO ENSINADO & ABSORVIDO
   compiled += `[CONHECIMENTO ATUALIZADO & MEMÓRIA ABSORVIDA (MÁXIMA PRIORIDADE)]\n`;
@@ -851,7 +851,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
 
   const isVpsOrLocal = String(resolvedProvider.id || '').toLowerCase() === 'vps_engine' || String(resolvedProvider.id || '').toLowerCase() === 'zai' || String(resolvedProvider.id || '').toLowerCase() === 'ollama';
   const effectiveMaxTokens = isVpsOrLocal
-    ? Math.min(Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 130, 160)
+    ? Math.min(Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 120, 150)
     : Math.min(Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 240, 260);
 
   let result = await testProviderConnection(resolvedProvider, {
