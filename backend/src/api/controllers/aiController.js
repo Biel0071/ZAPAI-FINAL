@@ -1200,6 +1200,12 @@ async function getAgentEvolution(req, res) {
       }
     }
 
+    let agentProfile = null;
+    try {
+      const convEvoService = require('../../../services/conversationEvolutionService');
+      agentProfile = await convEvoService.getAgentEvolutionProfile(key, companyId);
+    } catch (_) {}
+
     res.json({
       success: true,
       history,
@@ -1216,6 +1222,7 @@ async function getAgentEvolution(req, res) {
       },
       memoryGraph: { nodes, edges },
       humanStats: humanLearnerStats,
+      agentProfile,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

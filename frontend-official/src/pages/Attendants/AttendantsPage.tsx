@@ -138,6 +138,11 @@ export interface SandboxChatMessage {
     provider?: string;
     model?: string;
     isFastPath?: boolean;
+    xpEarned?: {
+      total: number;
+      reason: string;
+      breakdown?: Record<string, number>;
+    };
   };
 }
 
@@ -1077,6 +1082,7 @@ export default function AttendantsPage() {
               tokens: res.totalTokens || 0,
               provider: currentProviderDef.name || selectedProvider,
               model: res.model || selectedModel,
+              xpEarned: (res as any)?.xpEarned,
             },
           };
           setSandboxMessages((prev) => [...prev, agentMsg]);
@@ -1326,6 +1332,7 @@ export default function AttendantsPage() {
           provider: isFast ? "Rota Rápida VPS" : (getProviderDef(selectedProvider)?.name || selectedProvider),
           model: response.result?.model || selectedModel,
           isFastPath: isFast,
+          xpEarned: (response.result as any)?.xpEarned,
         },
       };
 
@@ -2561,9 +2568,21 @@ export default function AttendantsPage() {
               Inteligência real do atendente. Mensagens de teste não afetam clientes no WhatsApp.
             </p>
           </div>
-          <Badge variant="outline" className="text-[10px] font-bold text-emerald-400 border-emerald-500/30 bg-emerald-500/10 uppercase">
-            AO VIVO
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/ai?tab=evolution&agentKey=${previewAgent.key}`)}
+              className="h-7 px-2.5 text-[11px] gap-1.5 border-purple-500/40 text-purple-300 hover:bg-purple-500/10 cursor-pointer"
+            >
+              <Zap className="h-3.5 w-3.5 text-purple-400" />
+              <span>Ver Evolução & XP</span>
+            </Button>
+            <Badge variant="outline" className="text-[10px] font-bold text-emerald-400 border-emerald-500/30 bg-emerald-500/10 uppercase">
+              AO VIVO
+            </Badge>
+          </div>
         </div>
 
         {/* Quick test pills */}
@@ -2628,6 +2647,14 @@ export default function AttendantsPage() {
                   <span className="flex items-center gap-1 text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded-md">
                     ⚡ {msg.metrics.provider} ({msg.metrics.model})
                   </span>
+                  {msg.metrics.xpEarned && msg.metrics.xpEarned.total > 0 && (
+                    <span
+                      title={msg.metrics.xpEarned.reason}
+                      className="flex items-center gap-1 text-purple-300 font-bold bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-500/40 px-2 py-0.5 rounded-md shadow-xs animate-in fade-in"
+                    >
+                      ✨ +{msg.metrics.xpEarned.total} XP • {msg.metrics.xpEarned.reason}
+                    </span>
+                  )}
                   {msg.quickReplyTitle && (
                     <span className="text-emerald-300 font-semibold bg-emerald-500/15 px-1.5 py-0.5 rounded-md truncate max-w-[200px]">
                       🎵 Resposta Rápida: {msg.quickReplyTitle}

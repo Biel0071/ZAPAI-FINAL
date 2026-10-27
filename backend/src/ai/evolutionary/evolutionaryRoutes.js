@@ -380,6 +380,19 @@ router.get('/agent-level', async (req, res) => {
   }
 });
 
+// 14b. GET /api/ai/evolution/agent-profile (Comprehensive Gamified Profile with Badges & XP)
+router.get('/agent-profile', async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    const agentKey = req.query.agentKey || 'camila';
+    const convEvoService = require('../../../services/conversationEvolutionService');
+    const profile = await convEvoService.getAgentEvolutionProfile(agentKey, companyId);
+    res.json({ success: true, data: profile });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 15. GET /api/ai/evolution/learned-patterns (Cross-conversation golden patterns)
 router.get('/learned-patterns', async (req, res) => {
   try {

@@ -45,6 +45,7 @@ import { apiService, requestApiEndpoint } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
 import { cn } from "@/core/lib/utils";
 import { ActiveBrainGraph } from "@/components/evolution/ActiveBrainGraph";
+import { AttendantEvolutionHub } from "@/components/evolution/AttendantEvolutionHub";
 import { MemoryDetailDrawer, type MemoryNodeData } from "@/components/evolution/MemoryDetailDrawer";
 import { ConversationScoresSection } from "@/components/evolution/ConversationScoresSection";
 import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
@@ -197,7 +198,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
   const [customDateEnd, setCustomDateEnd] = useState<string>("");
 
   // View sub-tabs & Active Brain Graph state
-  const [evolutionSubTab, setEvolutionSubTab] = useState<"graph" | "list" | "timeline" | "cognitive" | "conversations">("graph");
+  const [evolutionSubTab, setEvolutionSubTab] = useState<"hub" | "graph" | "list" | "timeline" | "cognitive" | "conversations">("hub");
   const [selectedMemoryNode, setSelectedMemoryNode] = useState<MemoryNodeData | null>(null);
   const [graphCategoryFilter, setGraphCategoryFilter] = useState<string>("todos");
 
@@ -901,6 +902,20 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
         <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/80 border border-border/70 w-fit flex-wrap">
           <button
             type="button"
+            onClick={() => setEvolutionSubTab("hub")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
+              evolutionSubTab === "hub"
+                ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+            )}
+          >
+            <Zap className="h-4 w-4 text-purple-400" />
+            <span>Painel de Evolução & XP</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setEvolutionSubTab("graph")}
             className={cn(
               "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
@@ -1020,6 +1035,17 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
           )}
         </div>
       </div>
+
+      {/* MODE 0: PAINEL DE EVOLUÇÃO & XP (HUB GAMIFICADO DE MATURIDADE) */}
+      {evolutionSubTab === "hub" && (
+        <AttendantEvolutionHub
+          agentKey={selectedAgentKey}
+          agentName={currentAgent?.name || "Atendente"}
+          agentRole={currentAgent?.role || "Atendente Virtual"}
+          avatarConfig={avatarConfig}
+          onRefresh={loadEvolutionData}
+        />
+      )}
 
       {/* MODE 1: CÉREBRO ATIVO (GRAFO) */}
       {evolutionSubTab === "graph" && (

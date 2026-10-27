@@ -461,6 +461,11 @@ async function scoreConversationAndPersist(conversationId, companyId = 'default'
       } catch (_) {}
     }
 
+    // 6.1 Extração automática de aprendizado prático e consolidação em memória cognitiva
+    try {
+      await extractAndPersistConversationLearning(conv, messages, evaluation, cleanCompany, agentKey);
+    } catch (_) {}
+
     // 6b. Persist or update in ai_experience_events (Layer 4 Experience Tracker)
     try {
       const lastClientMsg = messages.slice().reverse().find(m => m && !m.from_me && !m.fromMe);
@@ -754,6 +759,245 @@ async function getConversationScores({
   };
 }
 
+/**
+ * Extrai aprendizados práticos de uma conversa real e persiste na memória cognitiva e logs
+ */
+async function extractAndPersistConversationLearning(conv, messages, evaluation, companyId = 'default', agentKey = 'camila') {
+  try {
+    const cleanCompany = String(companyId || 'default').trim();
+    const safeMessages = Array.isArray(messages) ? messages : [];
+    const allTexts = safeMessages.map(m => String(m.text || m.content || '')).join(' ');
+    const lowerTexts = allTexts.toLowerCase();
+    const numId = conv.id;
+    const clientName = evaluation?.contactName || 'Cliente';
+
+    const insights = [];
+
+    // 1. Objeção de pagamento na entrega
+    if (/paga na entrega|no ato da entrega|pagar quando entregar/i.test(allTexts)) {
+      insights.push({
+        category: 'objection_overcome',
+        title: 'Pagamento no ato da entrega aceito',
+        content: `Cliente confirmou preferência por pagar na entrega: motorista leva maquininha de cartão em até 10x sem juros ou chave PIX da empresa.`,
+        xp: 25,
+      });
+    }
+
+    // 2. Condição de pagamento / desconto
+    if (/5%|10x sem juros|a vista|à vista/i.test(allTexts)) {
+      insights.push({
+        category: 'commercial_condition',
+        title: 'Condição comercial padrão reforçada',
+        content: `Apresentação de 5% de desconto à vista no PIX ou em até 10x sem juros no cartão acelera decisão do cliente.`,
+        xp: 20,
+      });
+    }
+
+    // 3. Localidade / Frete identificado
+    const bairroMatch = lowerTexts.match(/(?:bairro|no bairro|moro no|sou do|entrega no|rua|av\.|avenida)\s+([a-zA-ZÀ-ÿ0-9\s]{3,30})/i);
+    if (bairroMatch && bairroMatch[1]) {
+      const bairro = bairroMatch[1].replace(/[?.,!].*$/, '').trim();
+      if (bairro.length > 2 && !bairro.includes('quanto') && !bairro.includes('qual')) {
+        insights.push({
+          category: 'regional_logistics',
+          title: `Logística para ${bairro}`,
+          content: `Região de entrega identificada (${bairro}): cotação de frete e rota de entrega consultada com sucesso.`,
+          xp: 15,
+        });
+      }
+    }
+
+    // 4. Especificação de produto
+    if (evaluation?.breakdown?.productXp > 0) {
+      let prodName = 'Material de Construção';
+      if (lowerTexts.includes('churrasqueira') || lowerTexts.includes('trio')) prodName = 'Churrasqueira Trio 3 em 1';
+      else if (lowerTexts.includes('cimento')) prodName = 'Cimento CP II 50kg';
+      else if (lowerTexts.includes('tijolo')) prodName = 'Tijolo Cerâmico';
+      else if (lowerTexts.includes('caixa')) prodName = "Caixa d'água";
+
+      insights.push({
+        category: 'product_interest',
+        title: `Interesse em ${prodName}`,
+        content: `Demanda de catálogo identificada para ${prodName} com especificação técnica detalhada.`,
+        xp: 20,
+      });
+    }
+
+    // 5. Intenção de compra / fechamento
+    if (evaluation?.breakdown?.conversionXp > 0 || evaluation?.hasOrderSheet) {
+      insights.push({
+        category: 'sales_closing',
+        title: 'Fechamento de venda com ficha cadastral',
+        content: `Avanço comercial bem-sucedido: solicitação de dados cadastrais para Nota Fiscal e agendamento da entrega.`,
+        xp: 40,
+      });
+    }
+
+    for (const item of insights) {
+      // Registrar no log de evolução
+      await query(
+        `INSERT INTO agent_evolution_log (
+          agent_key, company_id, change_type, source_description, fields_changed, applied_by, created_at
+        ) VALUES ($1, $2, 'learned_insight', $3, $4::jsonb, 'evolution_engine', NOW())`,
+        [
+          agentKey,
+          cleanCompany,
+          `Aprendizado em Atendimento #${numId} (${clientName}): ${item.title} (+${item.xp} XP)`,
+          JSON.stringify({
+            conversationId: numId,
+            contactName: clientName,
+            category: item.category,
+            title: item.title,
+            content: item.content,
+            xpGained: item.xp,
+          }),
+        ]
+      ).catch(() => {});
+
+      // Upsert no agent_memory_nodes
+      const crypto = require('crypto');
+      const nodeKey = `insight:${crypto.createHash('md5').update(item.title).digest('hex').slice(0, 16)}`;
+      await query(
+        `INSERT INTO agent_memory_nodes (
+          company_id, agent_key, node_key, node_type, label, content, searchable_text, properties, weight, created_at, last_seen_at
+        ) VALUES ($1, $2, $3, 'evolution_insight', $4, $5, $6, $7::jsonb, 1, NOW(), NOW())
+        ON CONFLICT (company_id, agent_key, node_key) DO UPDATE SET
+          weight = agent_memory_nodes.weight + 1,
+          last_seen_at = NOW(),
+          content = EXCLUDED.content,
+          properties = agent_memory_nodes.properties || EXCLUDED.properties`,
+        [
+          cleanCompany,
+          agentKey,
+          nodeKey,
+          item.title,
+          item.content,
+          `${item.title} ${item.content} ${item.category}`,
+          JSON.stringify({
+            category: item.category,
+            lastConversationId: numId,
+            lastClientName: clientName,
+            xp: item.xp,
+          }),
+        ]
+      ).catch(() => {});
+    }
+  } catch (err) {
+    console.warn('[ConversationEvolution] extractAndPersistConversationLearning warning:', err.message);
+  }
+}
+
+/**
+ * Retorna o perfil completo e gamificado de evolução do atendente
+ */
+async function getAgentEvolutionProfile(agentKey = 'camila', companyId = 'default') {
+  await ensureTables();
+  const cleanCompany = String(companyId || 'default').trim();
+
+  // 1. Métricas do human attendance learner
+  const humanAttendanceLearner = require('../src/ai/evolutionary/humanAttendanceLearner');
+  const levelData = await humanAttendanceLearner.calculateAgentLevel({ companyId: cleanCompany, agentKey }).catch(() => null);
+
+  // 2. Logs de evolução recentes
+  const logsRes = await query(
+    `SELECT id, agent_key as "agentKey", change_type as "changeType",
+            source_description as "sourceDescription", fields_changed as "fieldsChanged",
+            applied_by as "appliedBy", created_at as "createdAt"
+     FROM agent_evolution_log
+     WHERE (company_id = $1 OR ($1 = 'default' AND company_id IS NULL))
+       AND (agent_key = $2 OR agent_key IS NULL)
+     ORDER BY created_at DESC
+     LIMIT 25`,
+    [cleanCompany, agentKey]
+  );
+
+  // 3. Memórias cognitivas ativas
+  const memoriesRes = await query(
+    `SELECT id, node_key as "nodeKey", node_type as "nodeType", label, content,
+            weight, properties, created_at as "createdAt", last_seen_at as "lastSeenAt"
+     FROM agent_memory_nodes
+     WHERE (company_id = $1 OR ($1 = 'default' AND company_id IS NULL))
+       AND agent_key = $2
+     ORDER BY weight DESC, last_seen_at DESC
+     LIMIT 30`,
+    [cleanCompany, agentKey]
+  );
+
+  // 4. Badges de Maestria conquistadas
+  const totalXp = Number(levelData?.totalXp || 0);
+  const scoredCount = Number(levelData?.scoredConversationsCount || 0);
+  const conversions = Number(levelData?.conversionsCount || 0);
+  const objections = Number(levelData?.objectionsLearned || 0);
+  const naturalness = Number(levelData?.naturalnessScore || 85);
+
+  const badges = [
+    {
+      id: 'objection_master',
+      title: 'Mestre em Objeções de Entrega',
+      description: 'Supera com segurança dúvidas sobre pagamento na entrega com motorista',
+      icon: 'ShieldCheck',
+      category: 'objections',
+      unlocked: objections >= 1 || totalXp >= 1500,
+      progress: Math.min(100, Math.round(((objections || (totalXp / 1500)) / 5) * 100)),
+    },
+    {
+      id: 'pix_card_closer',
+      title: 'Fechamento Rápido PIX & Cartão',
+      description: 'Apresenta com precisão desconto de 5% no PIX ou em até 10x sem juros',
+      icon: 'Zap',
+      category: 'closing',
+      unlocked: conversions >= 1 || totalXp >= 3000,
+      progress: Math.min(100, Math.round(((conversions || (totalXp / 3000)) / 5) * 100)),
+    },
+    {
+      id: 'whatsapp_natural',
+      title: 'WhatsApp Natural Anti-Robô',
+      description: 'Comunicação fluida em 1 a 3 frases sem listas mecânicas ou introduções frias',
+      icon: 'MessageCircle',
+      category: 'naturalness',
+      unlocked: naturalness >= 80,
+      progress: naturalness,
+    },
+    {
+      id: 'logistics_router',
+      title: 'Roteamento Logístico & Frete',
+      description: 'Capta bairro e cidade para entrega ágil no mesmo dia ou em até 2 horas',
+      icon: 'MapPin',
+      category: 'logistics',
+      unlocked: scoredCount >= 3 || totalXp >= 2000,
+      progress: Math.min(100, Math.round((scoredCount / 10) * 100)),
+    },
+    {
+      id: 'catalog_expert',
+      title: 'Especialista em Catálogo de Construção',
+      description: 'Domina medidas de churrasqueiras pré-moldadas e volume de cimento por lote',
+      icon: 'Layers',
+      category: 'catalog',
+      unlocked: totalXp >= 4000,
+      progress: Math.min(100, Math.round((totalXp / 4000) * 100)),
+    },
+  ];
+
+  return {
+    agentKey,
+    level: levelData?.level || 1,
+    levelTitle: levelData?.levelTitle || 'Aprendiz Inicial',
+    totalXp: totalXp,
+    currentLevelMinXp: levelData?.currentLevelMinXp || 0,
+    nextLevelXp: levelData?.nextLevelXp || 500,
+    progressPct: levelData?.progressPct || 0,
+    evolutionScore: levelData?.evolutionScore || 0,
+    naturalnessScore: naturalness,
+    conversionsCount: conversions,
+    objectionsLearned: objections,
+    totalAnalyzed: levelData?.totalAnalyzed || scoredCount,
+    scoredConversationsCount: scoredCount,
+    badges,
+    recentLogs: logsRes.rows,
+    activeMemories: memoriesRes.rows,
+  };
+}
+
 module.exports = {
   XP_MILESTONES,
   evaluateConversationMilestones,
@@ -761,5 +1005,7 @@ module.exports = {
   getConversationScores,
   sweepRecentConversations,
   updateAggregatedMetrics,
+  extractAndPersistConversationLearning,
+  getAgentEvolutionProfile,
   ensureTables,
 };

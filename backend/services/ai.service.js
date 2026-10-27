@@ -510,6 +510,16 @@ function compileSystemPrompt(agent, store, contact = null) {
     compiled += `- INSTRUÇÕES DE APRENDIZADO E MEMÓRIA DO ATENDENTE (PRIORIDADE ALTA):\n  ${agent.memory.replace(/\n/g, '\n  ')}\n`;
     compiled += `  (Regra: Aja como se sempre soubesse essas informações. Use-as de forma natural se o cliente perguntar sobre redes sociais, site, ou se o contexto exigir recomendações baseadas nessas dicas.)\n`;
   }
+
+  // 8.1 APRENDIZADOS PRÁTICOS DOS ATENDIMENTOS DA LOJA (MEMÓRIA EVOLUTIVA ATIVA)
+  if (Array.isArray(contact?.evolutionaryLearnings) && contact.evolutionaryLearnings.length > 0) {
+    compiled += `[APRENDIZADOS RECENTES DOS ATENDIMENTOS DA LOJA (MEMÓRIA EVOLUTIVA ATIVA)]\n`;
+    compiled += `- Você aprende continuamente com cada atendimento realizado e com a experiência dos atendentes seniores.\n`;
+    compiled += `- Aplique estes aprendizados práticos de forma natural e espontânea:\n`;
+    for (const l of contact.evolutionaryLearnings.slice(0, 5)) {
+      compiled += `  • ${l}\n`;
+    }
+  }
   compiled += `\n`;
 
   // 9. DIRETRIZES DE TRANSBORDO HUMANO
@@ -824,12 +834,27 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     }
   } catch (_) {}
 
+  let evolutionaryLearnings = [];
+  try {
+    const { query: dbQuery } = require('../src/infrastructure/config/database');
+    const learnRes = await dbQuery(
+      `SELECT content FROM agent_memory_nodes
+       WHERE (company_id = $1 OR ($1 = 'default' AND company_id IS NULL))
+         AND (agent_key = $2 OR agent_key IS NULL)
+         AND node_type IN ('evolution_insight', 'learned_pattern', 'topic')
+       ORDER BY weight DESC, last_seen_at DESC LIMIT 5`,
+      [resolvedCompanyId, finalAgent?.key || agentKey || 'camila']
+    );
+    evolutionaryLearnings = learnRes.rows.map(r => r.content).filter(Boolean);
+  } catch (_) {}
+
   const contactForCompile = {
     verifiedQuickReplies: allQuickReplies,
     matchedCapability: bestQuickReplyMatch,
     companyId: resolvedCompanyId,
     sessionId,
     message,
+    evolutionaryLearnings,
     isTest: true,
   };
 
@@ -999,6 +1024,22 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
   result.fullPrompt = fullPrompt;
   result.memoriesUsed = memoriesUsed;
   result.rulesTriggered = rulesTriggered;
+
+  // Calcular XP ganho nesta interação do simulador para feedback visual imediato
+  let xpEarned = { total: 15, reason: 'Atendimento & Resposta WhatsApp' };
+  const normUserMsg = String(message || '').toLowerCase();
+  const hasPrice = normUserMsg.includes('quanto') || normUserMsg.includes('preço') || normUserMsg.includes('preco') || normUserMsg.includes('valor') || normUserMsg.includes('custa');
+  const hasObjection = normUserMsg.includes('entrega') || normUserMsg.includes('pagar') || normUserMsg.includes('frete') || normUserMsg.includes('cartão') || normUserMsg.includes('cartao') || normUserMsg.includes('pix');
+  const hasClosure = normUserMsg.includes('fechar') || normUserMsg.includes('comprar') || normUserMsg.includes('levar') || normUserMsg.includes('pedido');
+
+  if (hasClosure) {
+    xpEarned = { total: 40, reason: 'Avanço para Fechamento & Ficha Cadastral' };
+  } else if (hasObjection) {
+    xpEarned = { total: 25, reason: 'Superação de Objeção Comercial' };
+  } else if (hasPrice) {
+    xpEarned = { total: 20, reason: 'Cotação & Condições Comerciais' };
+  }
+  result.xpEarned = xpEarned;
 
   try {
     const { syncEngine } = require('./sync');
@@ -1257,6 +1298,23 @@ async function processAI({ contact, history, message, store, agentName, companyI
       const { buildLeadAlgorithm } = require('./leadAnalyzer');
       contact.leadAlgorithm = buildLeadAlgorithm(message, history, contact);
     } catch (_algoErr) {}
+  }
+
+  let evolutionaryLearnings = [];
+  try {
+    const { query: dbQuery } = require('../src/infrastructure/config/database');
+    const learnRes = await dbQuery(
+      `SELECT content FROM agent_memory_nodes
+       WHERE (company_id = $1 OR ($1 = 'default' AND company_id IS NULL))
+         AND (agent_key = $2 OR agent_key IS NULL)
+         AND node_type IN ('evolution_insight', 'learned_pattern', 'topic')
+       ORDER BY weight DESC, last_seen_at DESC LIMIT 5`,
+      [resolvedCompanyId, resolvedAgentKey]
+    );
+    evolutionaryLearnings = learnRes.rows.map(r => r.content).filter(Boolean);
+  } catch (_) {}
+  if (contact) {
+    contact.evolutionaryLearnings = evolutionaryLearnings;
   }
 
   const graphPromptToAdd = (evoPrompt.includes('MEMÓRIA EVOLUTIVA EM GRAFO') || evoPrompt.includes('PERFIL DO CLIENTE EM GRAFO')) ? '' : graphMemory.prompt;

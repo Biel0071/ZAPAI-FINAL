@@ -371,9 +371,11 @@ function formatCapabilitiesForPrompt(quickReplies = []) {
     const title = qr.title || qr.label || qr.cmd || 'Recurso';
     const items = Array.isArray(qr.items) && qr.items.length > 0 ? qr.items : (qr.steps || []);
     const stepsCount = items.length || 1;
+    const types = [...new Set(items.map(i => i.type).filter(Boolean))];
+    const mediaBadge = types.length > 0 ? ` [${stepsCount} etapas] [Mídias: ${types.join(', ')}]` : ` [${stepsCount} etapas]`;
     const firstText = items.find(i => i.type === 'text' && i.value)?.value || qr.content || qr.text || '';
     const textPreview = firstText ? ` - "${String(firstText).slice(0, 120)}"` : '';
-    lines.push(`* "${title}" (ID: ${id}) [${stepsCount} etapas]${textPreview}`);
+    lines.push(`* "${title}" (ID: ${id})${mediaBadge}${textPreview}`);
   }
   return lines.join('\n');
 }

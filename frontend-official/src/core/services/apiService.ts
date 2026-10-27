@@ -1838,8 +1838,18 @@ export const apiService = {
         successRate: number;
         totalAnalyzed: number;
       };
+      agentProfile?: any;
     }>({
       endpoint: `/ai/agent-evolution/${encodeURIComponent(agentKey)}`,
+      method: "GET",
+    }),
+
+  getAgentEvolutionProfile: (agentKey: string = "camila") =>
+    request<{
+      success: boolean;
+      data: any;
+    }>({
+      endpoint: `/ai/evolution/agent-profile?agentKey=${encodeURIComponent(agentKey)}`,
       method: "GET",
     }),
 
