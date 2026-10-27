@@ -1825,10 +1825,7 @@ export default function AttendantsPage() {
               }}
             >
               <SelectTrigger className="h-10 rounded-xl bg-background/70 border-border/70 text-xs">
-                <div className="flex items-center gap-2 truncate">
-                  <ProviderLogo providerId={selectedProvider} className="h-4 w-4 shrink-0" />
-                  <SelectValue placeholder="Selecione o provedor" />
-                </div>
+                <SelectValue placeholder="Selecione o provedor" />
               </SelectTrigger>
               <SelectContent>
                 {PROVIDER_OPTIONS.map((p) => (

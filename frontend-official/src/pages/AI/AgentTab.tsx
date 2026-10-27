@@ -1094,10 +1094,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
               <label className="text-xs font-semibold text-foreground">Provedor de Inteligência</label>
               <Select value={selectedProvider} onValueChange={handleProviderChange}>
                 <SelectTrigger className="h-9 text-xs">
-                  <div className="flex items-center gap-2 truncate">
-                    <ProviderLogo providerId={selectedProvider} className="h-4 w-4 shrink-0" />
-                    <SelectValue placeholder="Selecione o provedor" />
-                  </div>
+                  <SelectValue placeholder="Selecione o provedor" />
                 </SelectTrigger>
                 <SelectContent>
                   {PROVIDER_OPTIONS.map((p) => (
