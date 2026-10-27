@@ -39,7 +39,7 @@ import {
   Eyeglasses,
   FloppyDisk,
 } from "@phosphor-icons/react";
-import { apiService, type AIMetricsResponse, type AIStatusResponse } from "@/core/services/apiService";
+import { apiService, API_ORIGIN, type AIMetricsResponse, type AIStatusResponse } from "@/core/services/apiService";
 import { useAppStore } from "@/state/stores/appStore";
 import { notify } from "@/core/services/notifyService";
 import { cn } from "@/core/lib/utils";
@@ -83,6 +83,11 @@ import {
   ArrowLeft,
   Smile,
   RefreshCw,
+  Crown,
+  Coins,
+  Timer,
+  FileText,
+  Volume2,
 } from "lucide-react";
 import {
   OBJECTIVES,
@@ -114,6 +119,241 @@ const CommercialPanel = React.lazy(() => import("@/components/evolution/HistoryB
 const AgentTab = React.lazy(() => import("@/pages/AI/AgentTab").then(module => ({ default: module.AgentTab })));
 const EvolutionTab = React.lazy(() => import("@/pages/AI/EvolutionTab").then(module => ({ default: module.EvolutionTab })));
 const MemoryView = React.lazy(() => import("@/pages/Memory").then(module => ({ default: module.default })));
+
+export interface SandboxChatMessage {
+  id: string;
+  sender: "user" | "agent";
+  text: string;
+  cleanText: string;
+  timestamp: string;
+  media?: {
+    type: string;
+    url: string;
+    caption?: string;
+  } | null;
+  quickReplyTitle?: string | null;
+  metrics?: {
+    responseTimeMs: number;
+    tokens?: number;
+    provider?: string;
+    model?: string;
+    isFastPath?: boolean;
+  };
+}
+
+function SandboxAudioPlayer({ src, caption }: { src: string; caption?: string }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const fullUrl = useMemo(() => {
+    if (!src) return "";
+    if (/^https?:\/\//i.test(src)) return src;
+    const clean = src.startsWith("/") ? src : `/${src}`;
+    return `${API_ORIGIN}${clean}`;
+  }, [src]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  return (
+    <div className="mt-2 rounded-xl border border-emerald-500/30 bg-emerald-950/25 p-2.5 flex flex-col gap-1.5 shadow-xs">
+      <audio
+        ref={audioRef}
+        src={fullUrl}
+        onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
+        onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration || 0)}
+        onEnded={() => {
+          setIsPlaying(false);
+          setCurrentTime(0);
+        }}
+        preload="metadata"
+      />
+      <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={togglePlay}
+          className="h-8 w-8 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center transition-transform active:scale-95 shadow-xs cursor-pointer shrink-0"
+          title={isPlaying ? "Pausar áudio" : "Ouvir áudio oficial"}
+        >
+          {isPlaying ? <Pause weight="fill" className="h-4 w-4" /> : <Play weight="fill" className="h-4 w-4 ml-0.5" />}
+        </button>
+
+        <div className="flex-1 space-y-1">
+          <div className="flex items-center justify-between text-[10px] text-emerald-300 font-mono">
+            <span className="flex items-center gap-1 font-medium">
+              <span className={cn("w-1.5 h-1.5 rounded-full bg-emerald-400", isPlaying ? "animate-pulse" : "")} />
+              <span>{isPlaying ? "Reproduzindo áudio gravado" : "Áudio Oficial da Resposta Rápida"}</span>
+            </span>
+            <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+          </div>
+
+          <div
+            className="w-full bg-emerald-950/70 rounded-full h-1.5 cursor-pointer relative overflow-hidden"
+            onClick={(e) => {
+              if (!audioRef.current || !duration) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const clickPos = (e.clientX - rect.left) / rect.width;
+              audioRef.current.currentTime = clickPos * duration;
+              setCurrentTime(clickPos * duration);
+            }}
+          >
+            <div
+              className="bg-emerald-400 h-full rounded-full transition-all"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+      </div>
+      {caption && (
+        <p className="text-[10px] text-muted-foreground italic px-1">{caption}</p>
+      )}
+    </div>
+  );
+}
+
+function SandboxMediaPreview({ media }: { media: { type: string; url: string; caption?: string } }) {
+  const fullUrl = useMemo(() => {
+    if (!media.url) return "";
+    if (/^https?:\/\//i.test(media.url)) return media.url;
+    const clean = media.url.startsWith("/") ? media.url : `/${media.url}`;
+    return `${API_ORIGIN}${clean}`;
+  }, [media.url]);
+
+  const type = String(media.type || "").toLowerCase();
+
+  if (type === "audio") {
+    return <SandboxAudioPlayer src={media.url} caption={media.caption} />;
+  }
+
+  if (type === "image") {
+    return (
+      <div className="mt-2 rounded-xl overflow-hidden border border-emerald-500/30 bg-black/40 shadow-xs max-w-xs">
+        <a href={fullUrl} target="_blank" rel="noopener noreferrer" className="block group relative">
+          <img
+            src={fullUrl}
+            alt={media.caption || "Imagem da Loja"}
+            className="w-full max-h-48 object-cover rounded-t-xl group-hover:opacity-90 transition-opacity"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = "none";
+            }}
+          />
+          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[11px] font-medium transition-opacity">
+            Clique para ampliar
+          </div>
+        </a>
+        {media.caption && (
+          <p className="p-2 text-[10px] text-muted-foreground italic border-t border-border/40 bg-card/60">
+            {media.caption}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (type === "video") {
+    return (
+      <div className="mt-2 rounded-xl overflow-hidden border border-emerald-500/30 bg-black/40 shadow-xs max-w-xs">
+        <video controls src={fullUrl} className="w-full max-h-48 rounded-xl" />
+        {media.caption && (
+          <p className="p-2 text-[10px] text-muted-foreground italic border-t border-border/40 bg-card/60">
+            {media.caption}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={fullUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-2 flex items-center gap-2 p-2 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted/50 text-xs transition-colors"
+    >
+      <FileText className="h-4 w-4 text-emerald-400 shrink-0" />
+      <span className="truncate flex-1 font-medium">{media.url.split("/").pop() || "Documento anexado"}</span>
+      <span className="text-[10px] text-emerald-400 font-semibold shrink-0">Baixar</span>
+    </a>
+  );
+}
+
+function parseMediaFromResponse(replyText: string, resultObj?: any): {
+  cleanText: string;
+  media: { type: string; url: string; caption?: string } | null;
+  quickReplyTitle?: string | null;
+} {
+  let cleanText = replyText || "";
+  let media: { type: string; url: string; caption?: string } | null = null;
+  let quickReplyTitle: string | null = null;
+
+  // 1. Extração direta de send_media ou sendMedia do resultado
+  const rawSm = resultObj?.send_media || resultObj?.sendMedia;
+  if (rawSm?.value) {
+    media = {
+      type: String(rawSm.type || "audio").toLowerCase(),
+      url: String(rawSm.value),
+      caption: rawSm.caption,
+    };
+  }
+
+  // 2. Extração de tags no texto: [Mídia Anexada Oficial da Loja: AUDIO -> /uploads/...]
+  const mediaNoticeRegex = /\[Mídia Anexada Oficial da Loja:\s*([A-Za-z]+)\s*->\s*([^\]]+)\]/i;
+  const matchNotice = cleanText.match(mediaNoticeRegex);
+  if (matchNotice) {
+    if (!media) {
+      media = {
+        type: matchNotice[1].toLowerCase(),
+        url: matchNotice[2].trim(),
+      };
+    }
+    cleanText = cleanText.replace(mediaNoticeRegex, "").trim();
+  }
+
+  // 3. Extração de tags de memória acoplada: [🎵 Áudio Anexado(a) da Memória: /uploads/... | "legenda"]
+  const memoryMediaRegex = /\[(?:🎵 Áudio|📷 Imagem|🎬 Vídeo)\s+Anexado\(a\)\s+da\s+Memória:\s*([^\]|]+)(?:\s*\|\s*"([^"]*)")?\]/i;
+  const matchMemory = cleanText.match(memoryMediaRegex);
+  if (matchMemory) {
+    if (!media) {
+      const type = cleanText.includes("🎵 Áudio") ? "audio" : cleanText.includes("🎬 Vídeo") ? "video" : "image";
+      media = {
+        type,
+        url: matchMemory[1].trim(),
+        caption: matchMemory[2]?.trim(),
+      };
+    }
+    cleanText = cleanText.replace(memoryMediaRegex, "").trim();
+  }
+
+  // 4. Extração de resposta rápida acoplada: [⚡ Resposta Rápida Acionada: "SCRIPT CIMENTO" (...)]
+  const qrRegex = /\[⚡ Resposta Rápida Acionada:\s*"([^"]+)"[^\]]*\]/i;
+  const matchQr = cleanText.match(qrRegex);
+  if (matchQr) {
+    quickReplyTitle = matchQr[1].trim();
+    cleanText = cleanText.replace(qrRegex, "").trim();
+  }
+
+  cleanText = cleanText.replace(/\[Resposta Rápida Oficial Acoplada:\s*ID\s*[^\]]+\]/gi, "").trim();
+
+  return { cleanText, media, quickReplyTitle };
+}
 
 export default function AttendantsPage() {
   const { role } = useUserRole();
@@ -192,8 +432,35 @@ export default function AttendantsPage() {
 
   // Test sandbox & interactive console (Chat / Evolution / Real Sync)
   const [sandboxInput, setSandboxInput] = useState("");
-  const [sandboxMessages, setSandboxMessages] = useState<Array<{ sender: "user" | "agent"; text: string }>>([]);
+  const [sandboxMessages, setSandboxMessages] = useState<SandboxChatMessage[]>([]);
   const [isTestingAgent, setIsTestingAgent] = useState(false);
+  const [testingElapsedMs, setTestingElapsedMs] = useState(0);
+  const [zaiUsage, setZaiUsage] = useState<{
+    isAdmin: boolean;
+    isUnlimited: boolean;
+    countToday: number;
+    limitToday: number | string;
+    remainingToday: number | string;
+    balanceCredits: number;
+    canUse: boolean;
+    message?: string;
+  } | null>(null);
+  const [isRechargingZai, setIsRechargingZai] = useState(false);
+  const [rechargeModalOpen, setRechargeModalOpen] = useState(false);
+
+  const fetchZaiUsage = useCallback(async () => {
+    try {
+      const res = await apiService.getZaiUsage();
+      if (res?.data) {
+        setZaiUsage(res.data);
+      }
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    fetchZaiUsage();
+  }, [fetchZaiUsage]);
+
   const [sessionMetrics, setSessionMetrics] = useState<AIMetricsResponse | null>(null);
   const [sandboxTab, setSandboxTab] = useState<"chat" | "evolution" | "sync">("chat");
   const [evolutionData, setEvolutionData] = useState<any>(null);
@@ -894,29 +1161,106 @@ export default function AttendantsPage() {
     const userText = sandboxInput.trim();
     const testedAgentKey = previewAgent?.key;
     const version = ++testVersion.current;
+    const startTime = Date.now();
     setSandboxInput("");
-    setSandboxMessages((prev) => [...prev, { sender: "user", text: userText }]);
+
+    const userMsg: SandboxChatMessage = {
+      id: generateUuid(),
+      sender: "user",
+      text: userText,
+      cleanText: userText,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    setSandboxMessages((prev) => [...prev, userMsg]);
     setIsTestingAgent(true);
+    setTestingElapsedMs(0);
+
+    const timerInterval = setInterval(() => {
+      setTestingElapsedMs(Date.now() - startTime);
+    }, 100);
 
     try {
+      // Passar histórico acumulado para contexto comercial contínuo
+      const historyPayload = sandboxMessages.map((m) => ({
+        role: m.sender === "user" ? "user" : "assistant",
+        content: m.text,
+      }));
+
       const response = await apiService.testAIMessage({
         prompt: agentPrompt || previewAgent?.personality || undefined,
         message: userText,
         agentKey: previewAgent?.key,
+        agentName: previewAgent?.name,
         sessionId: previewAgent?.sessionIds?.[0],
+        providerId: selectedProvider,
+        model: selectedModel,
+        history: historyPayload,
       });
 
+      clearInterval(timerInterval);
+      const totalElapsedMs = Date.now() - startTime;
+      setTestingElapsedMs(totalElapsedMs);
+
+      if (response.result?.quotaInfo) {
+        setZaiUsage(response.result.quotaInfo as any);
+      }
+
       const reply = response.result?.response;
-      if (response.success === false || !response.result?.ok || !reply) throw new Error(response.error || "O teste não retornou uma resposta.");
+      if (response.success === false || !response.result?.ok || !reply) {
+        const errorMsg = response.error || response.result?.error || "O teste não retornou uma resposta.";
+        throw new Error(errorMsg);
+      }
+
       if (selectedAgentKey.current !== testedAgentKey || version !== testVersion.current) return;
-      setSandboxMessages((prev) => [...prev, { sender: "agent", text: reply }]);
+
+      const { cleanText, media, quickReplyTitle } = parseMediaFromResponse(reply, response.result);
+      const isFast = response.result?.provider === "vps_fast_path";
+
+      const agentMsg: SandboxChatMessage = {
+        id: generateUuid(),
+        sender: "agent",
+        text: reply,
+        cleanText: cleanText || reply,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        media,
+        quickReplyTitle,
+        metrics: {
+          responseTimeMs: response.result?.responseTimeMs ?? totalElapsedMs,
+          tokens: response.result?.totalTokens ?? 0,
+          provider: isFast ? "Rota Rápida VPS" : (getProviderDef(selectedProvider)?.name || selectedProvider),
+          model: response.result?.model || selectedModel,
+          isFastPath: isFast,
+        },
+      };
+
+      setSandboxMessages((prev) => [...prev, agentMsg]);
+      await fetchZaiUsage();
     } catch (err: any) {
+      clearInterval(timerInterval);
       if (selectedAgentKey.current !== testedAgentKey || version !== testVersion.current) return;
+
+      const isQuotaExceeded = err?.response?.status === 402 || String(err?.message || "").includes("Limite diário gratuito");
+      const errorText = isQuotaExceeded
+        ? "⚠️ Limite diário gratuito do Provedor ZAI atingido (50/50). Adicione saldo à sua conta para continuar hoje."
+        : `Serviço de IA indisponível: ${err?.message || "conexão recusada"}`;
+
+      if (isQuotaExceeded) {
+        fetchZaiUsage();
+      }
+
       setSandboxMessages((prev) => [
         ...prev,
-        { sender: "agent", text: `Serviço de IA indisponível: ${err?.message || "conexão recusada"}` }
+        {
+          id: generateUuid(),
+          sender: "agent",
+          text: errorText,
+          cleanText: errorText,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
       ]);
     } finally {
+      clearInterval(timerInterval);
       if (version === testVersion.current) setIsTestingAgent(false);
     }
   };
@@ -1812,6 +2156,64 @@ export default function AttendantsPage() {
           </Badge>
         </div>
 
+        {/* Status / Cota do Provedor ZAI */}
+        {selectedProvider === "vps_engine" && (
+          isAdmin ? (
+            <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-300 shrink-0">
+                  <Crown className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-emerald-300 flex items-center gap-2">
+                    <span>Conta Administrador — Provedor ZAI com Acesso Ilimitado</span>
+                    <Badge className="bg-emerald-500 text-black text-[9px] font-bold px-1.5 py-0">LIBERADO</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Sua conta master tem uso liberado e ilimitado sem limite de mensagens diárias ou necessidade de recarga de saldo.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl border border-border/70 bg-card/60 space-y-2 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span className="text-xs font-bold text-foreground">Cota Diária Provedor ZAI</span>
+                </div>
+                <span className="text-xs font-semibold text-emerald-400">
+                  {zaiUsage ? `${zaiUsage.countToday} / ${zaiUsage.limitToday} mensagens grátis hoje` : "50 mensagens grátis/dia"}
+                </span>
+              </div>
+              <div className="w-full bg-muted/40 h-2 rounded-full overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full transition-all",
+                    zaiUsage?.remainingToday === 0 && (zaiUsage?.balanceCredits || 0) <= 0 ? "bg-destructive" : "bg-emerald-500"
+                  )}
+                  style={{ width: `${Math.min(100, ((zaiUsage?.countToday || 0) / (Number(zaiUsage?.limitToday) || 50)) * 100)}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+                <span>
+                  {zaiUsage?.remainingToday !== undefined ? `${zaiUsage.remainingToday} gratuitas restantes hoje` : "50 restantes"}
+                  {Number(zaiUsage?.balanceCredits || 0) > 0 && ` • Saldo extra: R$ ${(Number(zaiUsage.balanceCredits)).toFixed(2)}`}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRechargeModalOpen(true)}
+                  className="h-7 text-[11px] rounded-lg border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 cursor-pointer"
+                >
+                  + Adicionar Saldo
+                </Button>
+              </div>
+            </div>
+          )
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Provider Select */}
           <div className="space-y-1.5">
@@ -1971,7 +2373,7 @@ export default function AttendantsPage() {
         </div>
 
         {/* Chat message box */}
-        <div className="h-[220px] rounded-xl border border-border/60 bg-background/50 p-3 overflow-y-auto space-y-2.5 text-xs scrollbar-zai">
+        <div className="h-[280px] rounded-xl border border-border/60 bg-background/50 p-3 overflow-y-auto space-y-3 text-xs scrollbar-zai">
           {sandboxMessages.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground space-y-1.5">
               <Headset className="h-7 w-7 text-muted-foreground/60" />
@@ -1981,23 +2383,54 @@ export default function AttendantsPage() {
               </p>
             </div>
           )}
-          {sandboxMessages.map((msg, idx) => (
+          {sandboxMessages.map((msg) => (
             <div
-              key={idx}
+              key={msg.id}
               className={cn(
-                "max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed shadow-xs",
+                "max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-xs transition-all",
                 msg.sender === "user"
                   ? "ml-auto bg-emerald-600 text-white rounded-br-xs"
                   : "mr-auto bg-card border border-border/60 text-foreground rounded-bl-xs"
               )}
             >
-              {msg.text}
+              {/* Texto principal da mensagem sem tags de código cru */}
+              <div className="whitespace-pre-wrap">{msg.cleanText || msg.text}</div>
+
+              {/* Mídia Anexada (Áudio Player funcional / Imagem com zoom / Vídeo / Documento) */}
+              {msg.media && <SandboxMediaPreview media={msg.media} />}
+
+              {/* Metadados e badges de performance e delay */}
+              {msg.sender === "agent" && msg.metrics && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 mt-2 border-t border-border/40 text-[10px] text-muted-foreground font-mono">
+                  <span className="flex items-center gap-1 text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
+                    ⏱️ {(msg.metrics.responseTimeMs / 1000).toFixed(1)}s
+                  </span>
+                  <span className="flex items-center gap-1 text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded-md">
+                    🪙 {msg.metrics.tokens ?? 0} tokens
+                  </span>
+                  <span className="flex items-center gap-1 text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded-md">
+                    ⚡ {msg.metrics.provider} ({msg.metrics.model})
+                  </span>
+                  {msg.quickReplyTitle && (
+                    <span className="text-emerald-300 font-semibold bg-emerald-500/15 px-1.5 py-0.5 rounded-md truncate max-w-[200px]">
+                      🎵 Resposta Rápida: {msg.quickReplyTitle}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {isTestingAgent && (
-            <div className="mr-auto bg-card border border-border/60 text-muted-foreground rounded-2xl rounded-bl-xs px-3.5 py-2 text-xs italic animate-pulse flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              <span>{previewAgent.name} está digitando...</span>
+            <div className="mr-auto bg-card border border-emerald-500/40 text-foreground rounded-2xl rounded-bl-xs px-3.5 py-2 text-xs flex items-center gap-2.5 shadow-xs">
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+              <span className="font-medium text-emerald-300">{previewAgent.name} está digitando...</span>
+              <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/40 text-emerald-400 bg-emerald-500/10 px-1.5 py-0">
+                ⏱️ {(testingElapsedMs / 1000).toFixed(1)}s
+              </Badge>
             </div>
           )}
         </div>
@@ -3324,6 +3757,81 @@ export default function AttendantsPage() {
               className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white"
             >
               {isReassigning ? "Salvando..." : "Salvar Vínculo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================= MODAL: RECARGA DE SALDO PROVEDOR ZAI ================= */}
+      <Dialog open={rechargeModalOpen} onOpenChange={setRechargeModalOpen}>
+        <DialogContent className="max-w-md bg-card border-border/80 text-foreground p-5 rounded-2xl">
+          <DialogHeader className="space-y-1.5">
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Zap className="h-5 w-5 text-emerald-400" />
+              <span>Adicionar Saldo — Provedor ZAI</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Sua conta comum possui 50 mensagens gratuitas por dia. Adicione créditos para continuar respondendo após a cota diária.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-3 space-y-3">
+            <div className="p-3 rounded-xl border border-border/60 bg-background/50 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Status de Uso Hoje:</span>
+              <span className="font-bold text-foreground">
+                {zaiUsage?.countToday || 0}/{zaiUsage?.limitToday || 50} gratuitas utilizadas
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Selecione o Pacote de Recarga:</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { amount: 10, label: "R$ 10", desc: "+200 respostas" },
+                  { amount: 25, label: "R$ 25", desc: "+550 respostas", popular: true },
+                  { amount: 50, label: "R$ 50", desc: "+1200 respostas" },
+                ].map((pkg) => (
+                  <button
+                    key={pkg.amount}
+                    type="button"
+                    onClick={async () => {
+                      setIsRechargingZai(true);
+                      try {
+                        const res = await apiService.rechargeZaiUsage(pkg.amount);
+                        if (res?.data) setZaiUsage(res.data);
+                        notify.success(`Recarga de ${pkg.label} efetuada com sucesso!`);
+                        setRechargeModalOpen(false);
+                      } catch (err: any) {
+                        notify.error(err?.message || "Erro ao recarregar saldo.");
+                      } finally {
+                        setIsRechargingZai(false);
+                      }
+                    }}
+                    disabled={isRechargingZai}
+                    className={cn(
+                      "p-3 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1",
+                      pkg.popular
+                        ? "border-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300"
+                        : "border-border/60 bg-card/70 hover:bg-muted/30 text-foreground"
+                    )}
+                  >
+                    <span className="text-sm font-bold">{pkg.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{pkg.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setRechargeModalOpen(false)}
+              className="text-xs rounded-xl"
+            >
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

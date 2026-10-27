@@ -259,6 +259,19 @@ export interface AIConnectionTestResult {
   fullPrompt?: string;
   memoriesUsed?: string;
   rulesTriggered?: string;
+  send_media?: { type?: string; value?: string; caption?: string };
+  sendMedia?: { type?: string; value?: string; caption?: string };
+  trigger_quick_reply?: string | number;
+  quotaInfo?: {
+    isAdmin?: boolean;
+    isUnlimited?: boolean;
+    countToday?: number;
+    limitToday?: number | string;
+    remainingToday?: number | string;
+    balanceCredits?: number;
+    canUse?: boolean;
+    message?: string;
+  };
 }
 
 export interface SessionInfo {
@@ -1678,6 +1691,19 @@ export const apiService = {
     const queryParam = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
     return request<AIMetricsResponse>({ endpoint: `/ai/metrics${queryParam}`, method: "GET" });
   },
+
+  getZaiUsage: () =>
+    request<{ success: boolean; data?: { isAdmin: boolean; isUnlimited: boolean; countToday: number; limitToday: number | string; remainingToday: number | string; balanceCredits: number; canUse: boolean; message?: string } }>({
+      endpoint: "/ai/usage/zai",
+      method: "GET",
+    }),
+
+  rechargeZaiUsage: (amount: number = 25) =>
+    request<{ success: boolean; data?: any; message?: string }>({
+      endpoint: "/ai/usage/zai/recharge",
+      method: "POST",
+      body: { amount },
+    }),
 
   testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; sessionId?: string; temperature?: number; responseStyle?: string; history?: any[]; maxWords?: number }) =>
     request<{ success?: boolean; result?: AIConnectionTestResult; error?: string }>({

@@ -199,9 +199,59 @@ async function getAiMetrics(req, res) {
   }
 }
 
+async function getZaiUsage(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ success: false, error: 'Autenticação obrigatória.' });
+  try {
+    const zaiUsageService = require('../../../services/zaiUsageService');
+    const role = req.auth?.role || 'user';
+    const userId = req.auth?.sub || req.auth?.username || 'user';
+    const usage = await zaiUsageService.getUsage({ companyId: req.authTenantId, userId, role });
+    return res.status(200).json({ success: true, data: usage });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao consultar cota ZAI.' });
+  }
+}
+
+async function rechargeZaiUsage(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ success: false, error: 'Autenticação obrigatória.' });
+  try {
+    const zaiUsageService = require('../../../services/zaiUsageService');
+    const userId = req.auth?.sub || req.auth?.username || 'user';
+    const amount = Number(req.body?.amount || 25);
+    const updated = await zaiUsageService.rechargeBalance({ companyId: req.authTenantId, userId, amount });
+    return res.status(200).json({ success: true, data: updated, message: `Saldo de ${amount} créditos adicionado com sucesso.` });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao recarregar saldo.' });
+  }
+}
+
 async function testReply(req, res) {
   if (!req.authTenantId) return res.status(401).json({ success: false, error: "Autenticação obrigatória." });
   try {
+    const role = req.auth?.role || 'user';
+    const userId = req.auth?.sub || req.auth?.username || 'user';
+    const providerId = String(req.body?.providerId || 'vps_engine').toLowerCase();
+    const isZai = providerId === 'vps_engine' || providerId === 'zai' || providerId === 'vps';
+
+    const zaiUsageService = require('../../../services/zaiUsageService');
+
+    // Se for Provedor ZAI e NÃO for admin, verificar e consumir cota diária
+    if (isZai && !zaiUsageService.isAdminRole(role)) {
+      const quotaCheck = await zaiUsageService.consumeUsage({ companyId: req.authTenantId, userId, role });
+      if (!quotaCheck.ok) {
+        return res.status(402).json({
+          success: false,
+          quotaExceeded: true,
+          error: quotaCheck.error || 'Limite diário gratuito do Provedor ZAI atingido. Adicione saldo para continuar.',
+          result: {
+            ok: false,
+            error: quotaCheck.error,
+            quotaInfo: quotaCheck.currentUsage,
+          }
+        });
+      }
+    }
+
     if (req.body?.sessionId) await require("../../../services/aiMemoryEngine").assertSession(req.authTenantId, req.body.sessionId);
     const store = getStore(req);
     const result = await testAIConnection({
@@ -220,9 +270,14 @@ async function testReply(req, res) {
       maxWords: req.body?.maxWords,
     });
 
+    const quotaInfo = isZai ? await zaiUsageService.getUsage({ companyId: req.authTenantId, userId, role }) : null;
+
     return res.status(200).json({
       success: Boolean(result.ok),
-      result,
+      result: {
+        ...result,
+        quotaInfo,
+      },
       error: result.ok ? null : result.error || 'AI test failed.',
     });
   } catch (error) {
@@ -1323,6 +1378,8 @@ module.exports = {
   toggle,
   getAiLogs,
   getAiMetrics,
+  getZaiUsage,
+  rechargeZaiUsage,
   testReply,
   testProviders,
   refinePrompt,

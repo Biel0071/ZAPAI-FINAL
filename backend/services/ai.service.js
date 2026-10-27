@@ -13,7 +13,7 @@ function resolveProviderBaseUrl(providerId) {
   if (p === 'deepseek') return 'https://api.deepseek.com/v1';
   if (p === 'openrouter') return 'https://openrouter.ai/api/v1';
   if (p === 'ollama') return process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1';
-  if (p === 'vps_engine' || p === 'vps' || p === 'api_platform' || p === 'vps_api') {
+  if (p === 'vps_engine' || p === 'vps' || p === 'api_platform' || p === 'vps_api' || p === 'zai') {
     return process.env.VPS_AI_BASE_URL || 'http://209.50.241.22:3001/v1';
   }
   return 'https://api.openai.com/v1';
@@ -31,7 +31,8 @@ function normalizeProviderError(error) {
 async function testProviderConnection(provider = {}, options = {}) {
   const providerId = String(provider.id || '').trim().toLowerCase();
   const apiKey = String(provider.apiKey || provider.api_key || '').trim();
-  const model = String(options.model || provider.model || '').trim();
+  const rawModel = String(options.model || provider.model || '').trim();
+  const model = (!rawModel || rawModel === 'auto') ? (providerId === 'vps_engine' || providerId === 'zai' ? 'laya-system1' : rawModel) : rawModel;
   const message = String(options.message || 'Responda apenas OK.').trim();
   const systemPrompt = String(options.prompt || 'Voce e um verificador tecnico.').trim();
   const maxTokens = Math.max(32, Number(options.maxTokens) || 32);
@@ -40,9 +41,9 @@ async function testProviderConnection(provider = {}, options = {}) {
   const history = Array.isArray(options.history) ? options.history : [];
   const startedAt = Date.now();
 
-  const isVpsOrOllama = providerId === 'ollama' || providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform';
+  const isVpsOrOllama = providerId === 'ollama' || providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform' || providerId === 'zai';
   let effectiveApiKey = apiKey;
-  if (!effectiveApiKey && (providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform')) {
+  if (!effectiveApiKey && (providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform' || providerId === 'zai')) {
     effectiveApiKey = process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd';
   }
 
@@ -747,19 +748,22 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     if (item) resolvedProvider = { ...item, model: model || item.model };
   }
 
-  if (!resolvedProvider && (providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform')) {
+  const normPid = String(providerId || '').toLowerCase();
+  const effectiveModel = (!model || model === 'auto') ? 'laya-system1' : model;
+
+  if (!resolvedProvider && (normPid === 'vps_engine' || normPid === 'vps' || normPid === 'api_platform' || normPid === 'zai' || !providerId)) {
     resolvedProvider = {
       id: 'vps_engine',
       apiKey: process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd',
-      model: model || 'laya-system1',
+      model: effectiveModel,
       active: true,
     };
   }
-  if (!resolvedProvider && providerId === 'ollama') {
+  if (!resolvedProvider && normPid === 'ollama') {
     resolvedProvider = {
       id: 'ollama',
       apiKey: '',
-      model: model || 'qwen2.5:0.5b',
+      model: (!model || model === 'auto') ? 'qwen2.5:0.5b' : model,
       active: true,
     };
   }
