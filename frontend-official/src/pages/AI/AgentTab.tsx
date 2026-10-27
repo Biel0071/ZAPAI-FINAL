@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProviderLogo } from "@/components/ai/ProviderLogo";
+import { useUserRole } from "@/state/hooks/useUserRole";
 import {
   Sparkles,
   Bot,
@@ -120,7 +122,7 @@ export const TONE_OPTIONS = [
 ];
 
 export const PROVIDER_OPTIONS = [
-  { id: "vps_engine", name: "API VPS (Rota Rápida / Modelo do Sistema)", defaultModel: "laya-system1", models: ["laya-system1", "qwen2.5:0.5b", "qwen3.5:0.8b", "deepseek-r1:1.5b", "auto"] },
+  { id: "vps_engine", name: "Provedor ZAI", defaultModel: "laya-system1", models: ["laya-system1", "qwen2.5:0.5b", "qwen3.5:0.8b", "deepseek-r1:1.5b", "auto"] },
   { id: "openai", name: "OpenAI", defaultModel: "gpt-4o-mini", models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"] },
   { id: "groq", name: "Groq (Ultra Rápido)", defaultModel: "llama-3.3-70b-versatile", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"] },
   { id: "deepseek", name: "DeepSeek", defaultModel: "deepseek-chat", models: ["deepseek-chat", "deepseek-reasoner"] },
@@ -128,6 +130,19 @@ export const PROVIDER_OPTIONS = [
   { id: "gemini", name: "Google Gemini", defaultModel: "gemini-2.0-flash", models: ["gemini-2.0-flash", "gemini-1.5-pro"] },
   { id: "ollama", name: "Ollama (Servidor Local)", defaultModel: "qwen2.5:0.5b", models: ["qwen2.5:0.5b", "qwen3.5:0.8b", "deepseek-r1:1.5b", "qwen2.5:3b"] },
 ];
+
+export function normalizeProviderId(id?: string): string {
+  const norm = String(id || "").toLowerCase().trim();
+  if (norm === "vps" || norm === "vps_engine" || norm === "zai" || norm === "vps_api" || norm === "api_platform") {
+    return "vps_engine";
+  }
+  return norm || "vps_engine";
+}
+
+export function getProviderDef(providerId?: string) {
+  const norm = normalizeProviderId(providerId);
+  return PROVIDER_OPTIONS.find((p) => p.id === norm) || PROVIDER_OPTIONS[0];
+}
 
 export const QUICK_TEST_PROMPTS = [
   "Vocês aceitam Pix ou parcelam no cartão?",
@@ -316,8 +331,8 @@ export function AgentTab({
   }, [searchParams]);
 
   // Provider configuration
-  const [selectedProvider, setSelectedProvider] = useState("openai");
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
+  const [selectedProvider, setSelectedProvider] = useState("vps_engine");
+  const [selectedModel, setSelectedModel] = useState("laya-system1");
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -401,8 +416,8 @@ export function AgentTab({
         if (providersRes?.providers && providersRes.providers.length > 0) {
           const activeProv = providersRes.providers.find((p: any) => p.enabled ?? p.active) || providersRes.providers[0];
           if (activeProv) {
-            setSelectedProvider(activeProv.provider || activeProv.id || "openai");
-            setSelectedModel(activeProv.model || "gpt-4o-mini");
+            setSelectedProvider(activeProv.provider || activeProv.id || "vps_engine");
+            setSelectedModel(activeProv.model || "laya-system1");
             setApiKey("");
           }
         }
@@ -428,12 +443,22 @@ export function AgentTab({
     return () => { mounted = false; };
   }, [agents, toast]);
 
+  const { role } = useUserRole();
+  const isAdmin = role === "admin" || role === "master";
+
   // Update model choices when provider changes
-  const currentProviderDef = PROVIDER_OPTIONS.find((p) => p.id === selectedProvider) || PROVIDER_OPTIONS[0];
+  const currentProviderDef = getProviderDef(selectedProvider);
+
+  const availableModels = useMemo(() => {
+    if (!isAdmin) {
+      return ["auto"];
+    }
+    return currentProviderDef.models;
+  }, [isAdmin, currentProviderDef]);
 
   const handleProviderChange = (newProviderId: string) => {
     setSelectedProvider(newProviderId);
-    const def = PROVIDER_OPTIONS.find((p) => p.id === newProviderId);
+    const def = getProviderDef(newProviderId);
     if (def) {
       setSelectedModel(def.defaultModel);
     }
@@ -1057,8 +1082,9 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
       {viewMode === "complete" && collapsedCards.providers ? (
         <div className="p-3 bg-muted/10 flex items-center justify-between text-xs animate-fade-in">
           <span className="text-muted-foreground">Provedor & Modelo:</span>
-          <Badge className="bg-sky-500/20 text-sky-300 border-sky-500/40 text-[10px]">
-            {currentProviderDef.name} ({selectedModel})
+          <Badge className="bg-sky-500/20 text-sky-300 border-sky-500/40 text-[10px] flex items-center gap-1.5 py-0.5 px-2">
+            <ProviderLogo providerId={currentProviderDef.id} className="h-3 w-3 shrink-0" />
+            <span>{currentProviderDef.name} ({selectedModel})</span>
           </Badge>
         </div>
       ) : (showAdvancedConfig || viewMode === "steps" || !collapsedCards.providers) ? (
@@ -1068,12 +1094,18 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
               <label className="text-xs font-semibold text-foreground">Provedor de Inteligência</label>
               <Select value={selectedProvider} onValueChange={handleProviderChange}>
                 <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="Selecione o provedor" />
+                  <div className="flex items-center gap-2 truncate">
+                    <ProviderLogo providerId={selectedProvider} className="h-4 w-4 shrink-0" />
+                    <SelectValue placeholder="Selecione o provedor" />
+                  </div>
                 </SelectTrigger>
                 <SelectContent>
                   {PROVIDER_OPTIONS.map((p) => (
                     <SelectItem key={p.id} value={p.id} className="text-xs">
-                      {p.name}
+                      <div className="flex items-center gap-2">
+                        <ProviderLogo providerId={p.id} className="h-4 w-4 shrink-0" />
+                        <span className="font-medium">{p.name}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1081,19 +1113,37 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">Modelo de Linguagem</label>
-              <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground">Modelo de Linguagem</label>
+                {!isAdmin && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-500/40 text-amber-400 bg-amber-500/10">
+                    Modo Auto (Gerenciado por Admin)
+                  </Badge>
+                )}
+              </div>
+              <Select
+                value={isAdmin ? selectedModel : "auto"}
+                onValueChange={(val) => {
+                  if (isAdmin) setSelectedModel(val);
+                }}
+                disabled={!isAdmin}
+              >
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue placeholder="Selecione o modelo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {currentProviderDef.models.map((m) => (
+                  {availableModels.map((m) => (
                     <SelectItem key={m} value={m} className="text-xs">
-                      {m}
+                      {m === "auto" ? "auto (Automático / Otimizado por IA)" : m}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {!isAdmin && (
+                <p className="text-[10px] text-muted-foreground leading-tight">
+                  Usuários operacionais utilizam roteamento automático. Troca manual reservada a administradores.
+                </p>
+              )}
             </div>
           </div>
 
@@ -1702,9 +1752,12 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
                         <span className="text-muted-foreground">Tom de Voz:</span>
                         <span className="font-semibold text-foreground">{currentToneDef.label}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Provedor:</span>
-                        <span className="font-semibold text-foreground">{currentProviderDef.name} ({selectedModel})</span>
+                        <span className="font-semibold text-foreground flex items-center gap-1.5">
+                          <ProviderLogo providerId={currentProviderDef.id} className="h-3.5 w-3.5 shrink-0" />
+                          <span>{currentProviderDef.name} ({selectedModel})</span>
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Temperatura:</span>

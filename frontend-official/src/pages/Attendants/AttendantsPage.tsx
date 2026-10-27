@@ -90,7 +90,10 @@ import {
   PROVIDER_OPTIONS,
   PROMPT_TEMPLATES,
   QUICK_TEST_PROMPTS,
+  getProviderDef,
 } from "@/pages/AI/AgentTab";
+import { ProviderLogo } from "@/components/ai/ProviderLogo";
+import { useUserRole } from "@/state/hooks/useUserRole";
 import { createAgentAvatar, buildStoreVisualDNA, resolveSpriteForAvatar, applyStylePreset } from "@/components/avatar-engine/CharacterFactory";
 import {
   AVATAR_HAIRS,
@@ -113,6 +116,8 @@ const EvolutionTab = React.lazy(() => import("@/pages/AI/EvolutionTab").then(mod
 const MemoryView = React.lazy(() => import("@/pages/Memory").then(module => ({ default: module.default })));
 
 export default function AttendantsPage() {
+  const { role } = useUserRole();
+  const isAdmin = role === "admin" || role === "master";
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab");
@@ -640,8 +645,8 @@ export default function AttendantsPage() {
   const [responseStyle, setResponseStyle] = useState<string>("short_natural");
   const [temperature, setTemperature] = useState<number>(0.3);
   const [agentPrompt, setAgentPrompt] = useState<string>(PROMPT_TEMPLATES[0].prompt);
-  const [selectedProvider, setSelectedProvider] = useState<string>("openai");
-  const [selectedModel, setSelectedModel] = useState<string>("gpt-4o-mini");
+  const [selectedProvider, setSelectedProvider] = useState<string>("vps_engine");
+  const [selectedModel, setSelectedModel] = useState<string>("laya-system1");
   const [apiKey, setApiKey] = useState<string>("");
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
   const [isSavingAgent, setIsSavingAgent] = useState<boolean>(false);
@@ -658,8 +663,8 @@ export default function AttendantsPage() {
       if (previewAgent.personality || previewAgent.prompt) {
         setAgentPrompt(previewAgent.personality || previewAgent.prompt);
       }
-      if (previewAgent.provider) setSelectedProvider(previewAgent.provider);
-      if (previewAgent.model) setSelectedModel(previewAgent.model);
+      setSelectedProvider(previewAgent.provider || "vps_engine");
+      setSelectedModel(previewAgent.model || "laya-system1");
     }
   }, [previewAgent?.key]);
 
@@ -736,7 +741,14 @@ export default function AttendantsPage() {
 
   const currentObjectiveDef = OBJECTIVES.find((o) => o.id === selectedObjective) || OBJECTIVES[0];
   const currentToneDef = TONE_OPTIONS.find((t) => t.id === selectedTone) || TONE_OPTIONS[0];
-  const currentProviderDef = PROVIDER_OPTIONS.find((p) => p.id === selectedProvider) || PROVIDER_OPTIONS[0];
+  const currentProviderDef = getProviderDef(selectedProvider);
+
+  const availableModels = useMemo(() => {
+    if (!isAdmin) {
+      return ["auto"];
+    }
+    return currentProviderDef.models;
+  }, [isAdmin, currentProviderDef]);
 
   const handleSaveAll = async () => {
     await handleSaveAgentConfig();
@@ -1794,8 +1806,9 @@ export default function AttendantsPage() {
               Configure o motor neural e a chave de API que processará as respostas deste atendente.
             </p>
           </div>
-          <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300 bg-emerald-500/10 uppercase">
-            {currentProviderDef.name}
+          <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300 bg-emerald-500/10 uppercase flex items-center gap-1.5 py-1 px-2.5">
+            <ProviderLogo providerId={currentProviderDef.id} className="h-3.5 w-3.5 shrink-0" />
+            <span>{currentProviderDef.name}</span>
           </Badge>
         </div>
 
@@ -1807,17 +1820,23 @@ export default function AttendantsPage() {
               value={selectedProvider}
               onValueChange={(val) => {
                 setSelectedProvider(val);
-                const def = PROVIDER_OPTIONS.find((p) => p.id === val);
+                const def = getProviderDef(val);
                 if (def) setSelectedModel(def.defaultModel);
               }}
             >
               <SelectTrigger className="h-10 rounded-xl bg-background/70 border-border/70 text-xs">
-                <SelectValue placeholder="Selecione o provedor" />
+                <div className="flex items-center gap-2 truncate">
+                  <ProviderLogo providerId={selectedProvider} className="h-4 w-4 shrink-0" />
+                  <SelectValue placeholder="Selecione o provedor" />
+                </div>
               </SelectTrigger>
               <SelectContent>
                 {PROVIDER_OPTIONS.map((p) => (
                   <SelectItem key={p.id} value={p.id} className="text-xs">
-                    {p.name}
+                    <div className="flex items-center gap-2">
+                      <ProviderLogo providerId={p.id} className="h-4 w-4 shrink-0" />
+                      <span className="font-medium">{p.name}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1826,19 +1845,37 @@ export default function AttendantsPage() {
 
           {/* Model Select */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground">Modelo</label>
-            <Select value={selectedModel} onValueChange={(val) => setSelectedModel(val)}>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-foreground">Modelo</label>
+              {!isAdmin && (
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-500/40 text-amber-400 bg-amber-500/10">
+                  Modo Auto (Admin gerencia)
+                </Badge>
+              )}
+            </div>
+            <Select
+              value={isAdmin ? selectedModel : "auto"}
+              onValueChange={(val) => {
+                if (isAdmin) setSelectedModel(val);
+              }}
+              disabled={!isAdmin}
+            >
               <SelectTrigger className="h-10 rounded-xl bg-background/70 border-border/70 text-xs">
                 <SelectValue placeholder="Selecione o modelo" />
               </SelectTrigger>
               <SelectContent>
-                {currentProviderDef.models.map((m) => (
+                {availableModels.map((m) => (
                   <SelectItem key={m} value={m} className="text-xs">
-                    {m}
+                    {m === "auto" ? "auto (Automático / Otimizado por IA)" : m}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {!isAdmin && (
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Usuários operacionais utilizam roteamento automático. Troca manual reservada a administradores.
+              </p>
+            )}
           </div>
 
           {/* API Key */}
@@ -3025,8 +3062,9 @@ export default function AttendantsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground font-mono hidden sm:inline-flex">
-                            {selectedProvider} • {selectedModel}
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground font-mono hidden sm:inline-flex items-center gap-1.5 py-0.5 px-2">
+                            <ProviderLogo providerId={selectedProvider} className="h-3.5 w-3.5 shrink-0" />
+                            <span>{currentProviderDef.name} • {selectedModel}</span>
                           </Badge>
                           <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
                             {collapsedCards.providers ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
