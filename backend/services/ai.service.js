@@ -206,6 +206,11 @@ function enforceResponseWordLimit(text, agent = {}) {
     normalized = 'Perfeito! Para agendarmos a sua entrega e emitirmos a NF, você pode me passar seus dados cadastrais (Nome completo, CPF, Telefone, Endereço com bairro/cidade e ponto de referência)?';
   }
 
+  const isPayOnDelivery = /pagamento\s+na\s+entrega|paga\s+na\s+entrega|aceitam?\s+pagamento\s+na\s+entrega|como\s+funciona.*entrega/i.test(userMsgForClosure);
+  if (isPayOnDelivery && (!normalized.includes('maquininha') && !normalized.includes('sinal de 10%') && !normalized.includes('no ato da entrega'))) {
+    normalized = 'Sim, aceitamos pagamento no ato da entrega! Nosso motorista leva a maquininha para cartão em até 10x sem juros ou chave PIX da empresa (com sinal de 10% para agendamento de fabricação). Para qual bairro ou cidade seria a sua entrega?';
+  }
+
   // 1. Strip unsolicited bulleted essay lists unless it's a confirmed order sheet summary
   if (!normalized.includes('Ficha de Pedido') && !normalized.includes('Resumo do Pedido') && !normalized.includes('Dados para entrega:')) {
     const lines = normalized.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
