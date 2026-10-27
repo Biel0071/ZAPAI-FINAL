@@ -42,7 +42,7 @@ import {
 import { apiService, API_ORIGIN, type AIMetricsResponse, type AIStatusResponse } from "@/core/services/apiService";
 import { useAppStore } from "@/state/stores/appStore";
 import { notify } from "@/core/services/notifyService";
-import { cn } from "@/core/lib/utils";
+import { cn, generateUuid } from "@/core/lib/utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ZaiPlatformAssistantView } from "@/components/ai/ZaiPlatformAssistantView";
 import { AgentCustomizerModal } from "@/components/ai/AgentCustomizerModal";
