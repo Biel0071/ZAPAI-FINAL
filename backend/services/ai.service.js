@@ -483,10 +483,11 @@ function compileSystemPrompt(agent, store, contact = null) {
     compiled += `- Regra: Se o cliente insistir muito em falar com um humano, informe que no momento o canal é automatizado mas que a equipe analisará o caso.\n`;
   }
   // 10. CAPACIDADES DE MÍDIA, ENVIOS E RESPOSTAS RÁPIDAS DA LOJA
-  if (!contact?.isTest || contact?.matchedCapability) {
+  const wantsMedia = /foto|imagem|áudio|audio|ouvir|voz|vídeo|video|catálogo|catalogo|pdf/i.test(contact?.message || '');
+  if (!contact?.isTest || wantsMedia) {
     const quickReplyCapability = require('./quickReplyCapability');
     const quickRepliesList = contact?.verifiedQuickReplies || store?.verifiedQuickReplies || [];
-    if (quickRepliesList.length > 0) {
+    if (quickRepliesList.length > 0 && (contact?.matchedCapability || wantsMedia)) {
       compiled += `[CAPACIDADES DE MÍDIA E RESPOSTAS RÁPIDAS DA LOJA]\n`;
       compiled += `- Sugira anexos somente quando uma mídia cadastrada e autorizada estiver disponível.\n`;
       compiled += `- Quando o cliente solicitar mídia, use somente o recurso cadastrado identificado no contexto.\n`;
@@ -777,6 +778,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     matchedCapability: bestQuickReplyMatch,
     companyId: resolvedCompanyId,
     sessionId,
+    message,
     isTest: true,
   };
 
