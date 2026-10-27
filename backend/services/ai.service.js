@@ -308,9 +308,10 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- REGRA DE OFERTA COMPLETA (VALOR + PROMOÇÃO + UNIDADES + PRAZO + FECHAMENTO):\n`;
   compiled += `  Sempre que o cliente perguntar preço, valor, orçamento ou cotação de qualquer produto ou serviço, informe OBRIGATORIAMENTE na mesma resposta:\n`;
   compiled += `  1) VALOR BASE/UNITÁRIO: O valor unitário ou individual à vista.\n`;
-  compiled += `  2) PROMOÇÃO POR UNIDADES/VOLUME: Se houver qualquer promoção por quantidade, volume, combo ou pacote ensinado ou tabelado, apresente OBRIGATORIAMENTE na mesma resposta com o cálculo do valor unitário promocional e o total pronto (ex: "comprando a partir de X unidades sai por R$ Y cada, total de R$ Z").\n`;
+  compiled += `  2) PROMOÇÃO POR UNIDADES/VOLUME: Se houver qualquer promoção por quantidade, volume, combo ou pacote ensinado ou tabelado, apresente OBRIGATORIAMENTE na mesma resposta com o cálculo do valor unitário promocional e o total pronto (ex: "comprando a partir de 20 sacos sai por R$ 18,20 cada, total de R$ 364,00").\n`;
   compiled += `  3) PRAZO DE ENTREGA OU BENEFÍCIO: Informe o prazo de entrega na obra/endereço ou agendamento.\n`;
-  compiled += `  4) PERGUNTA CONSULTIVA DE FECHAMENTO: Conclua sempre com uma pergunta comercial ativa para avançar o pedido (ex: "quantos sacos/unidades você vai precisar?", "quer que eu já reserve para você?").\n`;
+  compiled += `  4) PERGUNTA CONSULTIVA DE FECHAMENTO: Conclua sempre com uma pergunta comercial ativa para avançar o pedido (ex: "quantos sacos você vai precisar para a sua obra?").\n`;
+  compiled += `- NUNCA DIGA QUE NÃO HÁ PROMOÇÃO: Quando houver qualquer promoção, desconto ou condição especial ensinada ou cadastrada, anuncie-a OBRIGATORIAMENTE com entusiasmo e com os valores calculados.\n`;
   compiled += `- SENSO PRÁTICO & INTELIGÊNCIA CONVERSACIONAL (NUNCA RESPOSTAS VAZIAS OU EVASIVAS):\n`;
   compiled += `  - Proibido dar respostas vazias como "em que posso te ajudar?" ou devolver a pergunta sem conteúdo. Seja sempre resolutivo e apresente soluções concretas.\n`;
   compiled += `  - Geração de ideias e consultoria: Se o cliente pedir sugestões, ideias ou estiver em dúvida ("o que recomenda?", "tem alguma ideia?", "quais as opções?"), aja como consultor especialista: dê ideias práticas e inteligentes para a necessidade dele, sugira produtos/serviços complementares e conduza a venda com clareza e simpatia.\n`;
@@ -411,6 +412,9 @@ function compileSystemPrompt(agent, store, contact = null) {
     const srv = agent?.services || (typeof store.services === 'string' ? store.services : JSON.stringify(store.services, null, 2));
     compiled += `Serviços:\n${srv}\n\n`;
     hasProductsOrServices = true;
+  }
+  if (personality && (personality.includes('R$') || /preço|preco|custa|promo|desconto|tabela|pacote|limpeza|plano|serviço|servico/i.test(personality))) {
+    compiled += `- Prioridade Máxima: Os produtos, preços e promoções ensinados nas instruções oficiais e conhecimento absorvido têm prevalência absoluta sobre qualquer item antigo deste catálogo.\n\n`;
   }
   if (!hasProductsOrServices) {
     if (personality && (personality.includes('R$') || /preço|preco|custa|promo|desconto|tabela|pacote|limpeza|plano|serviço|servico/i.test(personality))) {
