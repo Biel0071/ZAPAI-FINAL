@@ -115,7 +115,15 @@ class HistorySync {
         row.id, text, type, row.media_path || row.media_url, type === 'text' ? 'none' : 'pending', origin || 'unknown'])).rows[0];
       const itemId = inserted?.id;
       if (itemId) {
-        await db.query(`UPDATE messages SET history_item_id=$1 WHERE id=$2 AND company_id=$3 AND session_id=$4`, [itemId, row.id, companyId, sessionId]);
+        try {
+          await db.query(`UPDATE messages SET history_item_id=$1 WHERE id=$2 AND company_id=$3 AND session_id=$4`, [itemId, row.id, companyId, sessionId]);
+        } catch (updateErr) {
+          if (updateErr?.code === '23505') {
+            // idx_messages_history_item unique constraint: itemId already claimed by another message row
+            continue;
+          }
+          throw updateErr;
+        }
       }
     }
     return rows.length;
