@@ -314,7 +314,7 @@ function buildCoupledQuickReplyMemory(quickReplies = [], { agent = null, message
   lines.push('');
   lines.push('--- [RECURSOS MULTIMODAIS DETALHADOS (FOTOS REAIS, ÁUDIOS & TEXTOS)] ---');
 
-  for (const qr of priorityQRs.slice(0, 16)) {
+  for (const qr of priorityQRs.slice(0, 4)) {
     const items = Array.isArray(qr.items) && qr.items.length > 0 ? qr.items : (qr.steps || []);
     const images = items.filter(i => i.type === 'image' || (qr.mediaType === 'image' && qr.mediaUrl));
     const audios = items.filter(i => i.type === 'audio' || (qr.mediaType === 'audio' && qr.mediaUrl));
@@ -330,10 +330,10 @@ function buildCoupledQuickReplyMemory(quickReplies = [], { agent = null, message
     }
     if (images.length > 0) {
       lines.push(`  Imagens Reais (${images.length} fotos disponíveis):`);
-      images.slice(0, 4).forEach((img, idx) => {
+      images.slice(0, 2).forEach((img, idx) => {
         lines.push(`    - Foto ${idx + 1}: ${img.value || qr.mediaUrl} ${img.caption ? `(Legenda: "${img.caption}")` : ''}`);
       });
-      if (images.length > 4) lines.push(`    - (+ ${images.length - 4} fotos adicionais disponíveis ao disparar trigger_quick_reply)`);
+      if (images.length > 2) lines.push(`    - (+ ${images.length - 2} fotos adicionais disponíveis ao disparar trigger_quick_reply)`);
     }
     if (audios.length > 0) {
       lines.push(`  Áudios de Voz Gravados (${audios.length} áudio(s) disponível(is)):`);
@@ -343,9 +343,9 @@ function buildCoupledQuickReplyMemory(quickReplies = [], { agent = null, message
     }
   }
 
-  if (otherQRs.length > 0) {
+  if (otherQRs.length > 0 && !matchedCapability) {
     lines.push('\n--- [OUTRAS RESPOSTAS RÁPIDAS DA LOJA (CATÁLOGO GERAL)] ---');
-    for (const qr of otherQRs.slice(0, 25)) {
+    for (const qr of otherQRs.slice(0, 4)) {
       const items = Array.isArray(qr.items) && qr.items.length > 0 ? qr.items : [];
       const types = [...new Set(items.map(i => i.type).filter(Boolean))];
       if (qr.mediaUrl) types.push(qr.mediaType || 'media');

@@ -319,19 +319,17 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Qualquer dado contido em [CONHECIMENTO ABSORVIDO ...] ou na base de conhecimento ensinada tem PREVALÊNCIA ABSOLUTA sobre qualquer dado genérico antigo.\n`;
   compiled += `- Se uma instrução ensinada alterar preços, promoções, horários ou regras, utilize SEMPRE os dados mais recentes ensinados.\n\n`;
 
-  // 1. IDENTIDADE DO ATENDENTE
-  compiled += `[IDENTIDADE DO ATENDENTE]\n`;
-  compiled += `- Nome: ${agentName}\n`;
+  // 1. IDENTIDADE DO ATENDENTE E INSTRUÇÕES PRINCIPAIS (MÁXIMA PRIORIDADE)
+  const companyName = store?.name || store?.companyName || agent?.company || agent?.companyName || 'Nossa Empresa';
+  compiled += `[IDENTIDADE DO ATENDENTE E CONHECIMENTO ENSINADO (MÁXIMA PRIORIDADE)]\n`;
+  compiled += `- Nome do Atendente: ${agentName}\n`;
+  compiled += `- Empresa / Loja: ${companyName}\n`;
   compiled += `- Cargo/Setor: ${sector}\n`;
   compiled += `- Objetivo: ${objective}\n`;
-  compiled += `\n`;
-
-  // 2. TOM/PERSONALIDADE
-  compiled += `[TOM/PERSONALIDADE]\n`;
   if (personality) {
-    compiled += `${personality}\n`;
+    compiled += `- Instruções Oficiais & Conhecimento Ensinado (PREVALÊNCIA TOTAL):\n${personality}\n`;
   } else {
-    compiled += `Atendimento amigável, direto, simpático e profissional.\n`;
+    compiled += `- Postura: Atendimento amigável, direto, simpático e profissional.\n`;
   }
   compiled += styleInstruction;
   compiled += `\n`;
@@ -376,7 +374,6 @@ function compileSystemPrompt(agent, store, contact = null) {
 
   // 4. CONTEXTO DA EMPRESA E LOJA
   compiled += `[CONTEXTO DA EMPRESA E LOJA]\n`;
-  const companyName = store?.name || agent?.company || 'Nossa Empresa';
   const companyDesc = store?.description || store?.companyDescription || agent?.companyDescription || 'Atendimento Comercial e Vendas';
   const policies = store?.policies || store?.deliveryPolicy || agent?.policies || 'Garantia legal conforme normas vigentes. Frete sob consulta de CEP e região. Condições de pagamento conforme tabela vigente.';
   const storeAddress = store?.address || store?.location || agent?.storeAddress || '';
@@ -389,7 +386,8 @@ function compileSystemPrompt(agent, store, contact = null) {
   if (storePhone) compiled += `- Telefone / Contato Oficial: ${storePhone}\n`;
   if (storeHours) compiled += `- Horário de Funcionamento Oficial: ${storeHours}\n`;
   if (policies) compiled += `- Políticas da Loja (Frete/Troca/Pagamento): ${policies}\n`;
-  if (store?.knowledge) compiled += `- Base de Conhecimento Específica da Loja:\n${store.knowledge}\n`;
+  const storeKnowledge = store?.knowledge || store?.knowledgeBase || store?.aiConfig?.knowledgeBase || '';
+  if (storeKnowledge) compiled += `- Base de Conhecimento Específica da Loja:\n${storeKnowledge}\n`;
   compiled += `\n`;
 
   // 5. PRODUTOS/SERVIÇOS
@@ -413,7 +411,11 @@ function compileSystemPrompt(agent, store, contact = null) {
     hasProductsOrServices = true;
   }
   if (!hasProductsOrServices) {
-    compiled += `Nenhum produto ou serviço específico configurado.\n`;
+    if (personality && (personality.includes('R$') || personality.includes('preço') || personality.includes('custa') || personality.includes('promoção') || personality.includes('cimento'))) {
+      compiled += `Consulte os produtos, valores e promoções detalhados diretamente nas instruções e conhecimento ensinado da atendente acima.\n`;
+    } else {
+      compiled += `Nenhum produto ou serviço específico configurado.\n`;
+    }
   }
   compiled += `\n`;
 
@@ -651,7 +653,7 @@ async function getAIIntegrationStatus(store, companyId = 'default') {
   };
 }
 
-async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle, history, maxWords, sessionId }) {
+async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle, history, maxWords, sessionId, agent }) {
   const resolvedCompanyId = companyId || store?.activeCompanyId || 'default';
   
   // Try to resolve user-scoped key first
@@ -719,6 +721,10 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     );
   } catch {}
 
+  if (!matchedAgent && agent) {
+    matchedAgent = agent;
+  }
+
   // Create temporary simulator agent if none matched
   if (!matchedAgent) {
     matchedAgent = {
@@ -741,6 +747,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
   }
   if (prompt !== undefined) {
     finalAgent.personality = prompt;
+    finalAgent.prompt = prompt;
   }
   if (maxWords !== undefined) {
     finalAgent.maxWords = Number(maxWords);
