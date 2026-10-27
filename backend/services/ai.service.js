@@ -653,7 +653,7 @@ async function getAIIntegrationStatus(store, companyId = 'default') {
   };
 }
 
-async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle, history, maxWords, sessionId, agent }) {
+async function testAIConnection({ store, providerId, model, message, prompt, agentKey, agentName, companyId, temperature, responseStyle, history, maxWords, sessionId, agent, timeoutMs }) {
   const resolvedCompanyId = companyId || store?.activeCompanyId || 'default';
   
   // Try to resolve user-scoped key first
@@ -849,18 +849,23 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     };
   }
 
+  const isVpsOrLocal = String(resolvedProvider.id || '').toLowerCase() === 'vps_engine' || String(resolvedProvider.id || '').toLowerCase() === 'zai' || String(resolvedProvider.id || '').toLowerCase() === 'ollama';
+  const effectiveMaxTokens = isVpsOrLocal
+    ? Math.min(Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 130, 160)
+    : Math.min(Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 240, 260);
+
   let result = await testProviderConnection(resolvedProvider, {
     model,
     message,
     prompt: fullPrompt,
     history,
-    maxTokens: Math.min(Number(store?.aiConfig?.advancedAISettings?.maxTokens) || 240, 260),
+    maxTokens: effectiveMaxTokens,
     temperature: typeof finalAgent?.temperature === 'number'
       ? finalAgent.temperature
       : (store?.aiConfig?.advancedAISettings && typeof store.aiConfig.advancedAISettings.temperature === 'number'
          ? store.aiConfig.advancedAISettings.temperature
          : 0.6),
-    timeoutMs: 80000,
+    timeoutMs: Number(timeoutMs) || 90000,
   });
 
   // Fallback se o provedor primário falhar por falta de créditos ou timeout
