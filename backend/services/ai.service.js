@@ -32,9 +32,9 @@ async function testProviderConnection(provider = {}, options = {}) {
   const providerId = String(provider.id || '').trim().toLowerCase();
   const apiKey = String(provider.apiKey || provider.api_key || '').trim();
   const rawModel = String(options.model || provider.model || '').trim();
-  let model = (!rawModel || rawModel === 'auto') ? (providerId === 'vps_engine' || providerId === 'zai' ? 'qwen2.5:3b' : rawModel) : rawModel;
+  let model = (!rawModel || rawModel === 'auto') ? (providerId === 'vps_engine' || providerId === 'zai' ? 'qwen2.5:0.5b' : rawModel) : rawModel;
   if ((providerId === 'vps_engine' || providerId === 'zai' || providerId === 'ollama') && (model === 'laya-system1' || model === 'auto' || !model)) {
-    model = 'qwen2.5:3b';
+    model = 'qwen2.5:0.5b';
   }
   const message = String(options.message || 'Responda apenas OK.').trim();
   const systemPrompt = String(options.prompt || 'Voce e um verificador tecnico.').trim();
@@ -1466,7 +1466,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
           const response = await axios.post(
             `${baseURL}/chat/completions`,
             {
-              model: pModel || (pId === 'vps_engine' || pId === 'zai' ? 'qwen2.5:3b' : (pId === 'ollama' ? 'qwen2.5:3b' : 'gpt-4o-mini')),
+              model: pModel || (pId === 'vps_engine' || pId === 'zai' ? 'qwen2.5:0.5b' : (pId === 'ollama' ? 'qwen2.5:0.5b' : 'gpt-4o-mini')),
               messages,
               temperature,
               max_tokens: maxTokens,
