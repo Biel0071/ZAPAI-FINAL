@@ -473,20 +473,21 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `\n`;
 
   // 9. DIRETRIZES DE TRANSBORDO HUMANO
-  if (agent?.escalationActive && !contact?.isTest) {
+  if (!contact?.isTest) {
     compiled += `[DIRETRIZES DE TRANSBORDO HUMANO]\n`;
-    compiled += `- Transbordo Ativo: Sim\n`;
-    compiled += `- Modo de Escalação: ${agent.escalationMode || 1}\n`;
-    if (agent.escalationPhone) compiled += `- Telefone de Transbordo: ${agent.escalationPhone}\n`;
-    if (agent.escalationWhatsapp) compiled += `- WhatsApp de Transbordo: ${agent.escalationWhatsapp}\n`;
-    if (agent.escalationTriggers && agent.escalationTriggers.length > 0) {
-      compiled += `- Gatilhos de Escalação: ${agent.escalationTriggers.join(', ')}\n`;
+    if (agent?.escalationActive) {
+      compiled += `- Transbordo Ativo: Sim\n`;
+      compiled += `- Modo de Escalação: ${agent.escalationMode || 1}\n`;
+      if (agent.escalationPhone) compiled += `- Telefone de Transbordo: ${agent.escalationPhone}\n`;
+      if (agent.escalationWhatsapp) compiled += `- WhatsApp de Transbordo: ${agent.escalationWhatsapp}\n`;
+      if (agent.escalationTriggers && agent.escalationTriggers.length > 0) {
+        compiled += `- Gatilhos de Escalação: ${agent.escalationTriggers.join(', ')}\n`;
+      }
+      compiled += `- Regra: Se o cliente acionar algum gatilho de transbordo, solicitar atendimento humano ou se você não souber responder, solicite transbordo humano imediatamente.\n`;
+    } else {
+      compiled += `- Transbordo Ativo: Não\n`;
+      compiled += `- Regra: Se o cliente insistir muito em falar com um humano, informe que no momento o canal é automatizado mas que a equipe analisará o caso.\n`;
     }
-    compiled += `- Regra: Se o cliente acionar algum gatilho de transbordo, solicitar atendimento humano ou se você não souber responder, solicite transbordo humano imediatamente.\n`;
-  }
-  } else {
-    compiled += `- Transbordo Ativo: Não\n`;
-    compiled += `- Regra: Se o cliente insistir muito em falar com um humano, informe que no momento o canal é automatizado mas que a equipe analisará o caso.\n`;
   }
   // 10. CAPACIDADES DE MÍDIA, ENVIOS E RESPOSTAS RÁPIDAS DA LOJA
   const wantsMedia = /foto|imagem|áudio|audio|ouvir|voz|vídeo|video|catálogo|catalogo|pdf/i.test(contact?.message || '');
