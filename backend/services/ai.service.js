@@ -166,18 +166,18 @@ function adjustPromptIdentity(basePrompt, agent) {
 }
 
 const RESPONSE_STYLE_DEFAULT_WORDS = Object.freeze({
-  one_sentence: 30,
-  ultra_short: 75,
-  short_natural: 110, // WhatsApp natural concise length: allows unit prices, promotions, delivery and closing question (50-110 words)
-  elaborate: 180,    // Consultative, ideas, promotions, calculations, detailed explanation
+  one_sentence: 22,
+  ultra_short: 35,
+  short_natural: 50, // Real WhatsApp human attendant standard: 1 to 3 short sentences (~35-50 words)
+  elaborate: 50,     // Strictly capped at 50 words on WhatsApp (Zap GPT & Human Standard)
 });
 
 function resolveResponseWordLimit(agent = {}) {
   const style = String(agent.responseStyle || 'short_natural');
   const customLimit = Number(agent.maxWords);
   const defaultLimit = RESPONSE_STYLE_DEFAULT_WORDS[style] || RESPONSE_STYLE_DEFAULT_WORDS.short_natural;
-  const limit = customLimit > 0 ? customLimit : defaultLimit;
-  return Math.min(Math.max(Math.round(limit), 10), 190);
+  const limit = customLimit > 0 ? Math.min(customLimit, 50) : defaultLimit;
+  return Math.min(Math.max(Math.round(limit), 10), 50);
 }
 
 function enforceResponseWordLimit(text, agent = {}) {
@@ -192,7 +192,7 @@ function enforceResponseWordLimit(text, agent = {}) {
     .replace(/\b(?:prezado(?:a)? cliente,?\s*|caro(?:a)? cliente,?\s*)\b/gi, '');
 
   // 1. Strip unsolicited bulleted essay lists unless it's a confirmed order sheet summary
-  if (!normalized.includes('Ficha de Pedido') && !normalized.includes('Resumo do Pedido')) {
+  if (!normalized.includes('Ficha de Pedido') && !normalized.includes('Resumo do Pedido') && !normalized.includes('Dados para entrega:')) {
     const lines = normalized.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const hasBullets = lines.some(l => /^[•\-\*]\s+/.test(l));
     if (hasBullets) {
@@ -223,14 +223,14 @@ function enforceResponseWordLimit(text, agent = {}) {
   // 2. Eliminate multi-paragraph walls of text: collapse multiple spaces/newlines
   normalized = normalized.replace(/\s+/g, ' ').trim();
 
-  // 3. Sentence cap: strict limit 1 to 4 short sentences (preserving closing question)
+  // 3. Sentence cap: strict limit 1 to 3 short sentences (preserving closing question)
   const sentenceRegex = /[^.!?]+[.!?]+(?:[\s"'\u{1F300}-\u{1F9FF}]|$)/gu;
   const rawSentences = normalized.match(sentenceRegex) || [normalized];
   const cleanSentences = rawSentences.map(s => s.trim()).filter(Boolean);
 
   const limit = resolveResponseWordLimit(agent);
   const style = String(agent?.responseStyle || 'short_natural');
-  const maxSentences = style === 'one_sentence' ? 1 : (style === 'ultra_short' ? 4 : 5);
+  const maxSentences = style === 'one_sentence' ? 1 : 3;
 
   if (cleanSentences.length > maxSentences) {
     let combined = '';
@@ -240,7 +240,7 @@ function enforceResponseWordLimit(text, agent = {}) {
     for (let i = 0; i < Math.min(cleanSentences.length, targetSentences); i++) {
       const candidate = combined ? `${combined} ${cleanSentences[i]}` : cleanSentences[i];
       const wordCount = candidate.split(/\s+/).filter(Boolean).length;
-      if (wordCount <= limit + 10) {
+      if (wordCount <= limit + 5) {
         combined = candidate;
       } else {
         if (!combined) combined = cleanSentences[0];
@@ -250,9 +250,9 @@ function enforceResponseWordLimit(text, agent = {}) {
     normalized = combined || cleanSentences[0];
   }
 
-  // 4. Word limit cap
+  // 4. Word limit cap (allows slight +5 buffer to preserve complete sentence)
   const words = normalized.split(/\s+/).filter(Boolean);
-  if (words.length <= limit) {
+  if (words.length <= limit + 5) {
     return normalized;
   }
 
@@ -287,24 +287,35 @@ function compileSystemPrompt(agent, store, contact = null) {
     const limit = maxWords;
     styleInstruction = `- Diretriz de Tamanho: Seja ultracurto. Responda com no máximo 1 frase curta (máximo de ${limit} palavras). Vá direto ao ponto sem saudações repetidas.\n`;
   } else if (responseStyle === 'ultra_short') {
-    const limit = Math.max(maxWords, 75);
-    styleInstruction = `- Diretriz de Tamanho (WHATSAPP ÁGIL & COMPLETO): Responda em 1 a 4 frases naturais (até ${limit} palavras). Se for perguntado preço ou cotação, formule a resposta completa: valor unitário, promoção por unidades/volume, total calculado e pergunta de fechamento, sem respostas vazias.\n`;
+    const limit = Math.min(Math.max(maxWords, 35), 50);
+    styleInstruction = `- Diretriz de Tamanho (WHATSAPP ÁGIL & COMPLETO): Responda em 1 a 3 frases naturais (até ${limit} palavras). Se for perguntado preço ou cotação, formule a resposta completa: valor unitário, promoção por unidades/volume, total calculado e pergunta de fechamento, sem respostas vazias.\n`;
   } else {
-    const limit = Math.max(maxWords, 110);
-    styleInstruction = `- Diretriz de Tamanho (PADRÃO WHATSAPP HUMANO CONCISO & CONSULTIVO): Responda em 1 a 5 frases claras e completas (geralmente entre 40 a ${limit} palavras). Escreva de forma ágil, simpática, consultiva e cheia de boas ideias, sem deixar respostas vazias.\n`;
+    const limit = Math.min(Math.max(maxWords, 45), 50);
+    styleInstruction = `- Diretriz de Tamanho (PADRÃO WHATSAPP HUMANO CONCISO & CONSULTIVO): Responda em 1 a 3 frases curtas, claras e completas (limite estrito de 35 a 50 palavras). Escreva de forma ágil, simpática, consultiva e cheia de boas ideias, sem deixar respostas vazias.\n`;
   }
 
   // 0. DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP
   let compiled = `[DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP]\n`;
-  compiled += `- Seja ágil, natural, empático e prestativo. NUNCA dê respostas vazias, vagas ou monossilábicas.\n`;
-  compiled += `- Use frases naturais e diretas no padrão de mensagens de WhatsApp, mantendo clareza comercial.\n`;
-  compiled += `- PROIBIDO responder em formato de lista fria com marcadores desnecessários. Use texto corrido fluído e agradável.\n`;
-  compiled += `- NÃO envie links no formato markdown [texto](url), envie apenas a URL pura se solicitada.\n`;
+  compiled += `- MENSAGENS COMPACTAS OBRIGATÓRIAS: SEMPRE limite as respostas a no máximo 35 a 50 palavras! Responda em 1 a 3 frases curtas e diretas, mantendo clareza comercial e simpatia.\n`;
   compiled += `- NUNCA dê "Olá" ou "Oi" mais de uma vez na mesma conversa. Se você já falou antes, vá direto ao assunto.\n`;
   compiled += `- NUNCA pergunte "em que posso te ajudar hoje?" mais de uma vez na mesma conversa.\n`;
+  compiled += `- PROIBIDO responder em formato de lista ou Markdown com marcadores frios no chat comum. Use texto corrido fluído, natural e acolhedor.\n`;
+  compiled += `- NÃO envie links no formato markdown [texto](url), envie apenas a URL pura se solicitada.\n`;
   compiled += `- NÃO envie mensagens repetidas na mesma conversa.\n`;
   compiled += `- Use no máximo 1 a 2 emojis pertinentes por resposta.\n`;
   compiled += `- Se o cliente fechou o pedido ou solicitou atendimento humano, confirme brevemente e encaminhe com cordialidade.\n\n`;
+
+  // 0.0 PROTOCOLO ESTRITO ANTI-DELÍRIO E ANTI-ALUCINAÇÃO
+  compiled += `[PROTOCOLO ESTRITO ANTI-DELÍRIO E ANTI-ALUCINAÇÃO]\n`;
+  compiled += `- NUNCA INVENTE PREÇOS, modelos ou dados que não existam no catálogo oficial ou instruções ensinadas.\n`;
+  compiled += `- NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS além das políticas da loja.\n`;
+  compiled += `- ZERO CENÁRIOS FICTÍCIOS OU DELÍRIOS: baseie 100% das suas informações nos fatos verdadeiros da loja.\n\n`;
+
+  // 0.01 PADRÃO DE ATENDIMENTO HUMANO EXPERIENTE DA LOJA
+  try {
+    const { buildHumanStylePrompt } = require('./attendantStyleGuide');
+    compiled += `${buildHumanStylePrompt()}\n\n`;
+  } catch (_) {}
 
   // 0.1 ATENDENTE GERAL & INTELIGÊNCIA CONSULTIVA UNIVERSAL
   compiled += `[ATENDENTE GERAL & INTELIGÊNCIA CONSULTIVA UNIVERSAL (PRODUTOS & SERVIÇOS)]\n`;

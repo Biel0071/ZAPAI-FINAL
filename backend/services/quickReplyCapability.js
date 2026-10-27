@@ -362,7 +362,20 @@ function buildCoupledQuickReplyMemory(quickReplies = [], { agent = null, message
  * Formata capacidades de respostas rápidas para inclusão no System Prompt da IA (compatibilidade).
  */
 function formatCapabilitiesForPrompt(quickReplies = []) {
-  return buildCoupledQuickReplyMemory(quickReplies);
+  if (!Array.isArray(quickReplies) || quickReplies.length === 0) {
+    return 'Nenhuma capacidade de resposta rápida registrada.';
+  }
+  const lines = ['--- [CATÁLOGO DE CAPACIDADES E RESPOSTAS RÁPIDAS DA LOJA] ---'];
+  for (const qr of quickReplies) {
+    const id = qr.id;
+    const title = qr.title || qr.label || qr.cmd || 'Recurso';
+    const items = Array.isArray(qr.items) && qr.items.length > 0 ? qr.items : (qr.steps || []);
+    const stepsCount = items.length || 1;
+    const firstText = items.find(i => i.type === 'text' && i.value)?.value || qr.content || qr.text || '';
+    const textPreview = firstText ? ` - "${String(firstText).slice(0, 120)}"` : '';
+    lines.push(`* "${title}" (ID: ${id}) [${stepsCount} etapas]${textPreview}`);
+  }
+  return lines.join('\n');
 }
 
 module.exports = {
