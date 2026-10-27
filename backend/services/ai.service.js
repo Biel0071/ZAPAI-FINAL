@@ -835,8 +835,19 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     finalAgent.maxWords = Number(maxWords);
   }
 
-  if (sessionId) await require('./aiMemoryEngine').assertSession(resolvedCompanyId, sessionId);
-  const knowledge = sessionId ? await aiAgentService.sessionKnowledge(resolvedCompanyId, sessionId) : '';
+  if (sessionId) {
+    try {
+      await require('./aiMemoryEngine').assertSession(resolvedCompanyId, sessionId);
+    } catch (_) {
+      // No Sandbox/Teste, não falhar caso a sessão seja virtual ou não cadastrada no DB
+    }
+  }
+  let knowledge = '';
+  if (sessionId) {
+    try {
+      knowledge = await aiAgentService.sessionKnowledge(resolvedCompanyId, sessionId);
+    } catch (_) {}
+  }
 
   // Carregar respostas rápidas e matching para a memória acoplada no teste
   let allQuickReplies = [];

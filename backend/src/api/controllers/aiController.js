@@ -252,7 +252,11 @@ async function testReply(req, res) {
       }
     }
 
-    if (req.body?.sessionId) await require("../../../services/aiMemoryEngine").assertSession(req.authTenantId, req.body.sessionId);
+    if (req.body?.sessionId) {
+      try {
+        await require("../../../services/aiMemoryEngine").assertSession(req.authTenantId, req.body.sessionId);
+      } catch (_) {}
+    }
     const store = getStore(req);
     const result = await testAIConnection({
       store,
