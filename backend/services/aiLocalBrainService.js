@@ -154,8 +154,19 @@ async function matchQuickReplyFastPath(messageText, { companyId = 'default', bes
       if (typeof parsed.text === 'string') {
         responseText = parsed.text.trim();
       }
-      if (!match.selectedMediaItem && Array.isArray(parsed.items) && parsed.items.length > 0) {
-        match.selectedMediaItem = parsed.items[0];
+      const mediaItem = (parsed.items || []).find(i => i.type && i.type !== 'text');
+      if (mediaItem) {
+        match.selectedMediaItem = {
+          type: mediaItem.type,
+          value: mediaItem.value || mediaItem.mediaUrl || mediaItem.content,
+          caption: mediaItem.caption || '',
+        };
+      } else if (parsed.mediaUrl) {
+        match.selectedMediaItem = {
+          type: parsed.mediaType || 'image',
+          value: parsed.mediaUrl,
+          caption: parsed.filename || '',
+        };
       }
     } catch (_) {}
   }
