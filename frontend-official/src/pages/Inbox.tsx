@@ -115,10 +115,6 @@ export default function Inbox() {
   const activeSessionId = useAppStore((state) => state.activeSessionId);
 
   const filteredConversations = useMemo(() => {
-    if (state.isWhatsappConnected === false) {
-      return [];
-    }
-
     const normalizedSearch = state.searchQuery.trim().toLowerCase();
     const phoneSearch = /^[+\d\s().-]+$/.test(normalizedSearch) ? normalizedSearch.replace(/\D/g, "") : "";
     const archivedSet = new Set(state.archivedChatIds.map(String));
@@ -670,25 +666,7 @@ export default function Inbox() {
     error: state.error,
   };
 
-  const leadPanelContent = !state.isWhatsappConnected ? (
-    <div className="flex flex-1 flex-col items-center justify-center p-8 text-center text-sm text-muted-foreground select-none">
-      <div className="rounded-2xl bg-amber-500/10 p-4 ring-1 ring-amber-500/20 mb-3">
-        <ArrowClockwise className="h-8 w-8 text-amber-500/70" />
-      </div>
-      <p className="font-semibold text-foreground">Conexão Offline</p>
-      <p className="mt-1 text-xs text-muted-foreground/80 max-w-[240px] leading-relaxed">
-        Os detalhes do cliente ficam protegidos enquanto a sessão do WhatsApp estiver desconectada.
-      </p>
-      <Button
-        variant="outline"
-        size="sm"
-        className="mt-4 text-xs"
-        onClick={() => state.setShowLeadPanel(false)}
-      >
-        Fechar
-      </Button>
-    </div>
-  ) : state.selectedConversation ? (
+  const leadPanelContent = state.selectedConversation ? (
     <SidebarPanel 
       {...sidebarProps} 
       isDrawer={true} 
@@ -713,16 +691,11 @@ export default function Inbox() {
       {(!state.isMobile || state.mobileScreen !== "chat") && (
         <Header 
           title="Inbox" 
-          subtitle={state.isWhatsappConnected === false ? "Sessão desconectada" : `${filteredConversations.length} conversas ativas`} 
+          subtitle={state.isWhatsappConnected === false ? `${filteredConversations.length} conversas (WhatsApp offline)` : `${filteredConversations.length} conversas ativas`} 
         />
       )}
 
-      {state.isWhatsappConnected === false ? (
-        <main className="flex-1 min-h-0 w-full flex flex-col overflow-hidden bg-background">
-          <ActiveChatPane {...activeChatPaneProps} />
-        </main>
-      ) : (
-        <InboxView
+      <InboxView
           isMobile={state.isMobile}
           mobileScreen={state.mobileScreen}
           leftPanelCollapsed={state.leftPanelCollapsed}
@@ -1387,7 +1360,6 @@ export default function Inbox() {
           </>
         }
       />
-      )}
     </div>
   );
 }
