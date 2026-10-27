@@ -272,6 +272,7 @@ async function testReply(req, res) {
       responseStyle: req.body?.responseStyle,
       history: req.body?.history,
       maxWords: req.body?.maxWords,
+      timeoutMs: Number(req.body?.timeoutMs) || 90000,
     });
 
     const quotaInfo = isZai ? await zaiUsageService.getUsage({ companyId: req.authTenantId, userId, role }) : null;
