@@ -32,9 +32,9 @@ async function testProviderConnection(provider = {}, options = {}) {
   const providerId = String(provider.id || '').trim().toLowerCase();
   const apiKey = String(provider.apiKey || provider.api_key || '').trim();
   const rawModel = String(options.model || provider.model || '').trim();
-  let model = (!rawModel || rawModel === 'auto') ? (providerId === 'vps_engine' || providerId === 'zai' ? 'qwen2.5:0.5b' : rawModel) : rawModel;
-  if ((providerId === 'vps_engine' || providerId === 'zai' || providerId === 'ollama') && (model === 'laya-system1' || model === 'auto')) {
-    model = 'qwen2.5:0.5b';
+  let model = (!rawModel || rawModel === 'auto') ? (providerId === 'vps_engine' || providerId === 'zai' ? 'qwen2.5:3b' : rawModel) : rawModel;
+  if ((providerId === 'vps_engine' || providerId === 'zai' || providerId === 'ollama') && (model === 'laya-system1' || model === 'auto' || !model)) {
+    model = 'qwen2.5:3b';
   }
   const message = String(options.message || 'Responda apenas OK.').trim();
   const systemPrompt = String(options.prompt || 'Voce e um verificador tecnico.').trim();
@@ -166,18 +166,18 @@ function adjustPromptIdentity(basePrompt, agent) {
 }
 
 const RESPONSE_STYLE_DEFAULT_WORDS = Object.freeze({
-  one_sentence: 18,
-  ultra_short: 28,
-  short_natural: 45, // WhatsApp natural concise length: 1 to 3 short sentences, ~35-50 words (180-260 chars)
-  elaborate: 50,     // Strictly capped at 50 words on WhatsApp (Zap GPT standard)
+  one_sentence: 22,
+  ultra_short: 35,
+  short_natural: 85, // WhatsApp natural concise length: allows unit prices, promotions, delivery and closing question (50-85 words)
+  elaborate: 140,    // Consultative, ideas, promotions, calculations, detailed explanation
 });
 
 function resolveResponseWordLimit(agent = {}) {
   const style = String(agent.responseStyle || 'short_natural');
   const customLimit = Number(agent.maxWords);
   const defaultLimit = RESPONSE_STYLE_DEFAULT_WORDS[style] || RESPONSE_STYLE_DEFAULT_WORDS.short_natural;
-  const limit = customLimit > 0 ? Math.min(customLimit, 50) : defaultLimit;
-  return Math.min(Math.max(Math.round(limit), 5), 50);
+  const limit = customLimit > 0 ? customLimit : defaultLimit;
+  return Math.min(Math.max(Math.round(limit), 10), 180);
 }
 
 function enforceResponseWordLimit(text, agent = {}) {
@@ -229,10 +229,12 @@ function enforceResponseWordLimit(text, agent = {}) {
   const cleanSentences = rawSentences.map(s => s.trim()).filter(Boolean);
 
   const limit = resolveResponseWordLimit(agent);
+  const style = String(agent?.responseStyle || 'short_natural');
+  const maxSentences = style === 'ultra_short' || style === 'one_sentence' ? 1 : 5;
 
-  if (cleanSentences.length > 3) {
+  if (cleanSentences.length > maxSentences) {
     let combined = '';
-    for (let i = 0; i < Math.min(cleanSentences.length, 3); i++) {
+    for (let i = 0; i < Math.min(cleanSentences.length, maxSentences); i++) {
       const candidate = combined ? `${combined} ${cleanSentences[i]}` : cleanSentences[i];
       const wordCount = candidate.split(/\s+/).filter(Boolean).length;
       if (wordCount <= limit + 5) {
@@ -286,20 +288,34 @@ function compileSystemPrompt(agent, store, contact = null) {
     styleInstruction = `- Diretriz de Tamanho: Seja ultracurto. Responda com no máximo 1 frase curta (máximo de ${limit} palavras). Vá direto ao ponto sem saudações repetidas.\n`;
   } else {
     const limit = maxWords;
-    styleInstruction = `- Diretriz de Tamanho (PADRÃO WHATSAPP HUMANO CONCISO): Responda OBRIGATORIAMENTE em no máximo 1 a 3 frases curtas (limite estrito de ${limit} palavras, cerca de 180 a 260 caracteres). É TERMINANTEMENTE PROIBIDO enviar blocos de texto, cartas, parágrafos longos ou listas com marcadores desnecessárias. Escreva de forma ágil, simpática e objetiva.\n`;
+    styleInstruction = `- Diretriz de Tamanho (PADRÃO WHATSAPP HUMANO CONCISO & CONSULTIVO): Responda em 1 a 3 frases claras e completas (geralmente entre 40 a ${limit} palavras). Escreva de forma ágil, simpática e consultiva, sem deixar respostas vazias.\n`;
   }
 
-  // 0. DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP (PADRÃO ZAP-GPT DE ALTA CONVERSÃO)
+  // 0. DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP
   let compiled = `[DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP]\n`;
-  compiled += `- SEMPRE limite as respostas a no máximo 35 a 50 palavras! NUNCA ultrapasse 50 palavras.\n`;
-  compiled += `- Use frases curtas, naturais e diretas, evitando textos longos ou monólogos.\n`;
-  compiled += `- PROIBIDO responder em formato de lista ou Markdown (*, -, •). Use texto corrido natural.\n`;
+  compiled += `- Seja ágil, natural, empático e prestativo. NUNCA dê respostas vazias, vagas ou monossilábicas.\n`;
+  compiled += `- Use frases naturais e diretas no padrão de mensagens de WhatsApp, mantendo clareza comercial.\n`;
+  compiled += `- PROIBIDO responder em formato de lista fria com marcadores desnecessários. Use texto corrido fluído e agradável.\n`;
   compiled += `- NÃO envie links no formato markdown [texto](url), envie apenas a URL pura se solicitada.\n`;
   compiled += `- NUNCA dê "Olá" ou "Oi" mais de uma vez na mesma conversa. Se você já falou antes, vá direto ao assunto.\n`;
   compiled += `- NUNCA pergunte "em que posso te ajudar hoje?" mais de uma vez na mesma conversa.\n`;
   compiled += `- NÃO envie mensagens repetidas na mesma conversa.\n`;
-  compiled += `- Use no máximo 1 a 2 emojis a cada resposta.\n`;
-  compiled += `- Se o cliente fechou o pedido ou solicitou atendimento humano, confirme brevemente e silencie.\n\n`;
+  compiled += `- Use no máximo 1 a 2 emojis pertinentes por resposta.\n`;
+  compiled += `- Se o cliente fechou o pedido ou solicitou atendimento humano, confirme brevemente e encaminhe com cordialidade.\n\n`;
+
+  // 0.1 INTELIGÊNCIA COMERCIAL: VALORES, UNIDADES, PROMOÇÕES E CÁLCULO CONSULTIVO
+  compiled += `[INTELIGÊNCIA COMERCIAL: VALORES, UNIDADES, PROMOÇÕES E CÁLCULO CONSULTIVO]\n`;
+  compiled += `- VALOR UNITÁRIO CLARO: Sempre que o cliente perguntar o preço de qualquer item ou serviço, informe o valor unitário com precisão e clareza (ex: "O cimento CP II sai por R$ 26,00 a unidade à vista").\n`;
+  compiled += `- PROMOÇÃO E ESCALA POR QUANTIDADE / VOLUME: Se houver qualquer promoção, desconto por volume ou pacote especial (ex: 20 unidades com 30% de desconto), APRESENTE A PROMOÇÃO ATIVAMENTE para incentivar a compra em maior volume! Apresente o cálculo pronto (ex: "Comprando a partir de 20 unidades, tem 30% de desconto, saindo por R$ 18,20 cada saco, total de R$ 364,00").\n`;
+  compiled += `- COMPREENSÃO DE UNIDADES: Entenda e opere com todas as unidades comerciais (unidades, sacos, pacotes, peças, caixas, metros, m², m³, quilos, litros, sessões, planos). Ao calcular totais, multiplique a quantidade pelo valor unitário correto.\n`;
+  compiled += `- PRAZOS E CONDIÇÕES: Destaque prazos rápidos de entrega (ex: "entregamos em até 2 horas na sua obra!") e facilidades de pagamento (Pix à vista com desconto ou parcelamento no cartão).\n`;
+  compiled += `- POSTURA CONSULTIVA & GERAÇÃO DE IDEIAS (ZERO RESPOSTAS VAZIAS): Nunca deixe respostas vazias ou monossilábicas. Apresente ideias, explique opções e alternativas de acordo com o que o cliente precisa.\n`;
+  compiled += `- PERGUNTA CONSULTIVA DE FECHAMENTO: Conclua sempre com uma pergunta prática que auxilie o cliente a avançar (ex: "De quantos sacos você vai precisar para a sua obra hoje?", "Para qual região seria a entrega?", "Prefere fechar no Pix à vista com desconto ou parcelar no cartão?").\n\n`;
+
+  // 0.2 PRIORIDADE ABSOLUTA DE CONHECIMENTO ENSINADO & ABSORVIDO
+  compiled += `[CONHECIMENTO ATUALIZADO & MEMÓRIA ABSORVIDA (MÁXIMA PRIORIDADE)]\n`;
+  compiled += `- Qualquer dado contido em [CONHECIMENTO ABSORVIDO ...] ou na base de conhecimento ensinada tem PREVALÊNCIA ABSOLUTA sobre qualquer dado genérico antigo.\n`;
+  compiled += `- Se uma instrução ensinada alterar preços, promoções, horários ou regras, utilize SEMPRE os dados mais recentes ensinados.\n\n`;
 
   // 1. IDENTIDADE DO ATENDENTE
   compiled += `[IDENTIDADE DO ATENDENTE]\n`;
@@ -358,9 +374,9 @@ function compileSystemPrompt(agent, store, contact = null) {
 
   // 4. CONTEXTO DA EMPRESA E LOJA
   compiled += `[CONTEXTO DA EMPRESA E LOJA]\n`;
-  const companyName = store?.name || agent?.company || 'Depósito Mais';
-  const companyDesc = store?.description || store?.companyDescription || agent?.companyDescription || 'Materiais de Construção & Reforma';
-  const policies = store?.policies || store?.deliveryPolicy || agent?.policies || 'Garantia legal em ferramentas e materiais com defeito de fabricação. Frete sob consulta de CEP e região. Condições de pagamento conforme tabela vigente da loja.';
+  const companyName = store?.name || agent?.company || 'Nossa Empresa';
+  const companyDesc = store?.description || store?.companyDescription || agent?.companyDescription || 'Atendimento Comercial e Vendas';
+  const policies = store?.policies || store?.deliveryPolicy || agent?.policies || 'Garantia legal conforme normas vigentes. Frete sob consulta de CEP e região. Condições de pagamento conforme tabela vigente.';
   const storeAddress = store?.address || store?.location || agent?.storeAddress || '';
   const storePhone = store?.phone || store?.contactPhone || agent?.storePhone || '';
   const storeHours = store?.business_hours || agent?.hours || (store?.aiConfig?.businessHours?.open ? `Seg a Sex: ${store.aiConfig.businessHours.open} às ${store.aiConfig.businessHours.close}` : '');
@@ -507,21 +523,21 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `- Nunca mencione que você é um robô ou inteligência artificial, a menos que seja estritamente necessário para realizar o transbordo humano.\n`;
   compiled += `- Se o cliente solicitar atendimento humano ou se a IA não souber responder sobre preços ou condições críticas que você não tem acesso, acione o transbordo imediatamente.\n`;
   compiled += `- Continue o atendimento do ponto atual; não reinicie com saudações repetidas se já existe histórico.\n`;
-  compiled += `- PROTOCOLO ESTRITO ANTI-DELÍRIO E ANTI-ALUCINAÇÃO (FIXAÇÃO NA LOJA DEPÓSITO MAIS):\n`;
-  compiled += `  * NUNCA INVENTE PREÇOS: Se o cliente perguntar o preço de um item, material ou serviço que NÃO está listado explicitamente na tabela de produtos/serviços acima, NUNCA invente números, descontos ou valores aproximados. Em vez disso, responda com naturalidade: "Vou verificar o valor atualizado desse item no estoque da loja e já te confirmo!" ou acione o transbordo para a equipe.\n`;
-  compiled += `  * NUNCA INVENTE PRAZOS OU ENDEREÇOS: Informe apenas prazos de entrega e horários confirmados no contexto da loja. Não prometa entrega imediata sem confirmação da expedição.\n`;
-  compiled += `  * NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS: Nunca invente percentuais de desconto fictícios (ex: 20%, 30%) nem parcelamentos que não constem na loja. Informe apenas as condições oficiais (desconto à vista no PIX ou até 10x no cartão) e informe que condições especiais dependem de autorização da gerência.\n`;
-  compiled += `  * ZERO CENÁRIOS FICTÍCIOS OU DELÍRIOS: Responda ESTRITAMENTE ao que o cliente perguntou. NUNCA crie histórias, situações imaginárias, marcas não citadas, brindes fictícios ou hipóteses fantasiosas. Foco 100% no pedido real de materiais de construção.\n`;
-  compiled += `  * SE NÃO SOUBER DETALHE TÉCNICO: NUNCA invente medidas ou especificações. Diga: "Vou confirmar essa medida certinho no estoque para você!".\n`;
+  compiled += `- PROTOCOLO DE QUALIDADE E GROUNDING OFICIAL:\n`;
+  compiled += `  * NUNCA INVENTE PREÇOS: Se o cliente perguntar o preço de um item ou serviço que NÃO está listado explicitamente na base de produtos ou conhecimento recente, responda com naturalidade: "Vou verificar o valor atualizado desse item no sistema e já te confirmo!" ou acione o transbordo para a equipe.\n`;
+  compiled += `  * NUNCA INVENTE PRAZOS OU ENDEREÇOS: Informe apenas prazos e horários confirmados no contexto do negócio. Não prometa entrega imediata sem confirmação.\n`;
+  compiled += `  * CONDIÇÕES REAIS: Informe apenas condições oficiais confirmadas (ex: descontos autorizados, Pix à vista ou parcelamento em cartão).\n`;
+  compiled += `  * ZERO CENÁRIOS FICTÍCIOS OU DELÍRIOS: Responda ESTRITAMENTE ao que o cliente perguntou com clareza e utilidade prática. Foco 100% no atendimento real do cliente.\n`;
+  compiled += `  * SE NÃO SOUBER DETALHE TÉCNICO: NUNCA invente medidas ou especificações. Diga: "Vou confirmar essa especificação certinho para você!".\n`;
   compiled += `  * MEMÓRIA DAS CONVERSAS: Se o cliente já informou itens, medidas ou endereço em mensagens anteriores, RESPEITE o que já foi dito. Nunca reinicie o atendimento do zero nem pergunte o que o cliente já respondeu.\n`;
-  compiled += `  * COMPREENSÃO DE MÚLTIPLOS ITENS E MATERIAIS DE CONSTRUÇÃO / COMÉRCIO:\n`;
-  compiled += `    - Entenda pedidos de múltiplos materiais em uma mesma mensagem (ex: cimento, areia, brita, blocos, argamassa, tintas, tubos, telhas).\n`;
-  compiled += `    - Reconheça unidades usuais do comércio brasileiro (saco / sc, metro cúbico / m³, milheiro, barra, lata, fardo, caixa, peça).\n`;
+  compiled += `  * COMPREENSÃO DE MÚLTIPLOS ITENS E UNIDADES DE COMÉRCIO:\n`;
+  compiled += `    - Entenda pedidos de múltiplos itens ou serviços em uma mesma mensagem.\n`;
+  compiled += `    - Reconheça unidades usuais do comércio brasileiro (unidade / un, saco / sc, pacote / pct, caixa / cx, metro cúbico / m³, metro / m, quilo / kg, litro / L, peça / pç).\n`;
   compiled += `    - Extraia todos os itens e confirme o pedido por completo antes de pedir o endereço de entrega ou dados de faturamento.\n`;
   compiled += `- DIRETRIZ DE HUMANIZAÇÃO NATURAL & ANTI-ROBÔ (WHATSAPP REAL BRASILEIRO):\n`;
-  compiled += `  * ZERO JARGÕES DE ROBÔ: NUNCA diga frases como "Sou uma inteligência artificial", "Sou o assistente virtual da Loja...", "Como posso te ajudar hoje?".\n`;
-  compiled += `  * FALE COMO UM ATENDENTE REAL DE WHATSAPP: Escreva de forma acolhedora, brasileira, simpática, prática e ágil.\n`;
-  compiled += `  * MENSAGENS COMPACTAS OBRIGATÓRIAS (MÁXIMO 1 A 3 FRASES, 35 A 50 PALAVRAS): Responda em no máximo 1 a 3 frases curtas e diretas (cerca de 180 a 260 caracteres). É expressamente proibido enviar blocos de texto, cartas, monólogos ou redações cansativas.\n`;
+  compiled += `  * ZERO JARGÕES DE ROBÔ: NUNCA diga frases como "Sou uma inteligência artificial", "Sou o assistente virtual...", "Como posso te ajudar hoje?".\n`;
+  compiled += `  * FALE COMO UM ATENDENTE REAL DE WHATSAPP: Escreva de forma acolhedora, brasileira, simpática, prática e consultiva.\n`;
+  compiled += `  * RESPOSTAS COMPLETAS E OBJETIVAS (1 A 3 FRASES): Responda com clareza incluindo valor unitário, promoções por volume e pergunta consultiva, sem deixar respostas vazias e sem blocos monótonos.\n`;
   compiled += `  * NÃO REPITA SAUDAÇÕES: Não repita "Olá", "Bom dia" se a conversa já está em andamento. Vá direto ao ponto.\n`;
   compiled += `  * VARIAÇÃO CONTÍNUA & ANTI-REPETIÇÃO: NUNCA inicie respostas com fórmulas repetidas ("Olá tudo bem? Eu sou a Camila..."). Varie os cumprimentos de forma dinâmica ("Oi!", "Opa!", "Olá!", ou vá direto ao assunto). Adapte o vocabulário para cada cliente para soar 100% como uma pessoa real digitando no celular.\n`;
   compiled += `  * AMPLA COMPREENSÃO LINGUÍSTICA E TOLERÂNCIA A ERROS: Compreenda gírias, abreviações (vc, qto, blz, sc, m3, pct, hj, pix, cartao) e áudios transcritos sem travar nem pedir repetições desnecessárias.\n`;
@@ -575,12 +591,12 @@ function compileSystemPrompt(agent, store, contact = null) {
     if (algo.preferredPayment && algo.preferredPayment !== 'indefinido') {
       compiled += `- Forma de Pagamento Preferida: ${algo.preferredPayment}\n`;
     }
-    compiled += `- PROTOCOLO ESTUDADO ANTI-DELÍRIO (Grounding Oficial Depósito Mais):\n`;
-    compiled += `  * Direto / Objetivo: respostas em 1 a 2 frases curtas com o valor exato oficial e confirmação imediata da rota de entrega pelo CEP/bairro.\n`;
-    compiled += `  * Consultivo Técnico: dimensões e especificações reais do catálogo (capacidades canônicas de 500L a 10.000L), fotos oficiais da resposta rápida, sem inventar medidas.\n`;
-    compiled += `  * Negociador / Preço: desconto à vista no PIX e parcelamento em até 10x sem juros no cartão; sem prometer descontos fictícios fora da política.\n`;
-    compiled += `  * Pós-Venda / Suporte: prioridade máxima para entrega e logística, zero ofertas comerciais a clientes que já compraram.\n`;
-    compiled += `  * Mantenha 100% de aderência aos dados reais da loja Depósito Mais sem alucinar!\n\n`;
+    compiled += `- PROTOCOLO ESTUDADO ANTI-DELÍRIO (Grounding Oficial do Negócio):\n`;
+    compiled += `  * Direto / Objetivo: respostas em 1 a 2 frases curtas com o valor exato oficial e confirmação imediata da rota de entrega ou serviço.\n`;
+    compiled += `  * Consultivo Técnico: dimensões e especificações reais do catálogo ou conhecimento recente, sem inventar dados.\n`;
+    compiled += `  * Negociador / Preço: desconto à vista no PIX e parcelamento oficial; sem prometer descontos fictícios fora da política.\n`;
+    compiled += `  * Pós-Venda / Suporte: prioridade máxima para entrega e atendimento de quem já comprou, sem empurrar novas vendas.\n`;
+    compiled += `  * Mantenha 100% de aderência aos dados reais sem alucinar!\n\n`;
   }
 
   // 11. ANÁLISE DE CONTEXTO E METADADOS DO FUNIL
@@ -753,10 +769,10 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
 
   const normPid = String(providerId || '').toLowerCase();
   let effectiveModel = (!model || model === 'auto')
-    ? (normPid === 'vps_engine' || normPid === 'zai' ? 'qwen2.5:0.5b' : 'gpt-4o-mini')
+    ? (normPid === 'vps_engine' || normPid === 'zai' ? 'qwen2.5:3b' : 'gpt-4o-mini')
     : model;
-  if ((normPid === 'vps_engine' || normPid === 'zai') && (effectiveModel === 'laya-system1' || effectiveModel === 'auto')) {
-    effectiveModel = 'qwen2.5:0.5b';
+  if ((normPid === 'vps_engine' || normPid === 'zai') && (effectiveModel === 'laya-system1' || effectiveModel === 'auto' || !effectiveModel)) {
+    effectiveModel = 'qwen2.5:3b';
   }
 
   if (!resolvedProvider && (normPid === 'vps_engine' || normPid === 'vps' || normPid === 'api_platform' || normPid === 'zai' || !providerId)) {
@@ -771,7 +787,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     resolvedProvider = {
       id: 'ollama',
       apiKey: '',
-      model: (!model || model === 'auto') ? 'qwen2.5:0.5b' : model,
+      model: (!model || model === 'auto') ? 'qwen2.5:3b' : model,
       active: true,
     };
   }
@@ -848,9 +864,12 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
   const memoriesUsed = matchedAgent?.memory || 'Nenhuma memória consultada neste teste';
   const rulesTriggered = matchedAgent?.rules || 'Regras oficiais da loja';
 
-  // 1. ROTA RÁPIDA VPS: Se a pergunta do cliente no Sandbox corresponder a uma resposta rápida ou mídia oficial
+  // 1. ROTA RÁPIDA VPS: Se a pergunta for estritamente uma solicitação isolada de mídia oficial (ex: "manda o áudio", "envia o catálogo")
   const isTestProbe = /^(responda apenas|teste de conex|ping)/i.test(String(message || '').trim());
-  if (!isTestProbe && message) {
+  const normTestMsg = String(message || '').toLowerCase();
+  const isMediaOnlyRequest = /^(manda|envia|toca|mostra)\s+(o\s+|a\s+)?([aá]udio|foto|imagem|v[ií]deo|cat[aá]logo)\b/i.test(normTestMsg);
+
+  if (isMediaOnlyRequest && !isTestProbe && message) {
     try {
       const aiLocalBrainService = require('./aiLocalBrainService');
       const fastMatch = await aiLocalBrainService.queryLocalBrain(finalAgent?.key || agentKey || 'camila', resolvedCompanyId, message, {
@@ -859,7 +878,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
         history,
       });
       if (fastMatch && fastMatch.text) {
-        console.log(`[AI SERVICE testAIConnection] Rota Rápida VPS acionada no teste Sandbox! Item: "${fastMatch.title || 'FAQ'}"`);
+        console.log(`[AI SERVICE testAIConnection] Rota Rápida VPS para mídia/catálogo acionada no Sandbox! Item: "${fastMatch.title || 'FAQ'}"`);
         let replyClean = enforceResponseWordLimit(fastMatch.text, finalAgent);
         let previewMediaNotice = '';
         if (fastMatch.send_media?.value) {
@@ -921,15 +940,15 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     const fallbackVps = {
       id: 'vps_engine',
       apiKey: process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd',
-      model: 'qwen2.5:0.5b',
+      model: 'qwen2.5:3b',
     };
     const fbResult = await testProviderConnection(fallbackVps, {
-      model: 'qwen2.5:0.5b',
+      model: 'qwen2.5:3b',
       message,
       prompt: fullPrompt,
       history,
-      maxTokens: 250,
-      timeoutMs: 10000,
+      maxTokens: 300,
+      timeoutMs: 45000,
     });
     if (fbResult.ok) {
       result = fbResult;
@@ -1403,14 +1422,14 @@ async function processAI({ contact, history, message, store, agentName, companyI
           const response = await axios.post(
             `${baseURL}/chat/completions`,
             {
-              model: pModel || (pId === 'vps_engine' || pId === 'zai' ? 'qwen2.5:0.5b' : (pId === 'ollama' ? 'qwen2.5:0.5b' : 'gpt-4o-mini')),
+              model: pModel || (pId === 'vps_engine' || pId === 'zai' ? 'qwen2.5:3b' : (pId === 'ollama' ? 'qwen2.5:3b' : 'gpt-4o-mini')),
               messages,
               temperature,
               max_tokens: maxTokens,
             },
             {
               headers: reqHeaders,
-              timeout: pId === 'vps_engine' ? 8000 : 15000,
+              timeout: 45000,
             }
           );
           pReply = response.data?.choices?.[0]?.message?.content || '';

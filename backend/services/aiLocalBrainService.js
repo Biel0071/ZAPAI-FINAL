@@ -107,6 +107,13 @@ async function matchQuickReplyFastPath(messageText, { companyId = 'default', bes
     return null;
   }
 
+  // Perguntas comerciais, cotações, cálculos, valores, unidades, promoções, dúvidas ou aconselhamento
+  // NUNCA devem ser interceptadas por rota rápida estática! Elas necessitam do raciocínio da LLM neural!
+  const isConsultativeOrPricing = /\b(quanto|custa|fica|pre[cç]o|valor|valores|promo[cç][aã]o|promo[cç][oõ]es|desconto|descontos|unidade|unidades|saco|sacos|pacote|pacotes|pe[cç]a|pe[cç]as|caixa|caixas|metro|m2|m3|or[cç]amento|cota[cç][aã]o|parcel|vezes|juros|avista|a vista|entrega|prazo|frete|ideia|ideias|recomenda|sugere|op[cç][aã]o|op[cç][oõ]es|diferen[cç]a|como funciona|qual o melhor|vale a pena)\b/i.test(norm);
+  if (isConsultativeOrPricing) {
+    return null;
+  }
+
   let match = bestQuickReplyMatch;
   if (!match) {
     try {
