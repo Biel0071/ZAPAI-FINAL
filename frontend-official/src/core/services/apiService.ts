@@ -1705,7 +1705,7 @@ export const apiService = {
       body: { amount },
     }),
 
-  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; sessionId?: string; temperature?: number; responseStyle?: string; history?: any[]; maxWords?: number }) =>
+  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; agent?: any; sessionId?: string; temperature?: number; responseStyle?: string; history?: any[]; maxWords?: number }) =>
     request<{ success?: boolean; result?: AIConnectionTestResult; error?: string }>({
       endpoint: "/ai/test",
       method: "POST",

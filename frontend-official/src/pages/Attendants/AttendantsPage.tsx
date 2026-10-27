@@ -1027,12 +1027,31 @@ export default function AttendantsPage() {
     }
     setIsTestingConnection(true);
     setConnectionTestResult(null);
+    const testQuery = "Olá! Gostaria de saber quais produtos, serviços e promoções você tem disponíveis e como pode me ajudar.";
     try {
+      const userMsg: SandboxChatMessage = {
+        id: generateUuid(),
+        sender: "user",
+        text: testQuery,
+        cleanText: testQuery,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setSandboxMessages((prev) => [...prev, userMsg]);
+
       const response = await apiService.testAIMessage({
-        message: "Olá! Confirme de forma curta e simpática que você está operando normalmente para o atendimento dos clientes.",
-        prompt: agentPrompt || `Você é ${previewAgent?.name || "a atendente virtual"} da nossa loja. Confirme de forma simpática que está pronta para o atendimento em até 2 frases curtas.`,
+        message: testQuery,
+        prompt: agentPrompt || previewAgent?.personality || undefined,
         agentKey: previewAgent?.key,
         agentName: previewAgent?.name,
+        agent: previewAgent ? {
+          ...previewAgent,
+          personality: agentPrompt || previewAgent.personality,
+          prompt: agentPrompt || previewAgent.prompt,
+          responseStyle,
+          temperature,
+        } : undefined,
+        responseStyle,
+        temperature,
         model: selectedModel,
         providerId: selectedProvider,
       });
@@ -1040,7 +1059,29 @@ export default function AttendantsPage() {
       if (!res) throw new Error(response.error || "O teste não retornou dados.");
       setConnectionTestResult(res);
       if (res.ok) {
-        notify.success(`${currentProviderDef.name} validado com sucesso! Latência: ${res.responseTimeMs || 0}ms.`);
+        if (res.quotaInfo) {
+          setZaiUsage(res.quotaInfo as any);
+        }
+        if (res.response) {
+          const { cleanText, media, quickReplyTitle } = parseMediaFromResponse(res.response, res);
+          const agentMsg: SandboxChatMessage = {
+            id: generateUuid(),
+            sender: "agent",
+            text: res.response,
+            cleanText: cleanText || res.response,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            media,
+            quickReplyTitle,
+            metrics: {
+              responseTimeMs: res.responseTimeMs || 0,
+              tokens: res.totalTokens || 0,
+              provider: currentProviderDef.name || selectedProvider,
+              model: res.model || selectedModel,
+            },
+          };
+          setSandboxMessages((prev) => [...prev, agentMsg]);
+        }
+        notify.success(`${currentProviderDef.name} validado com sucesso! ${previewAgent?.name || "Atendente"} respondeu em ${res.responseTimeMs || 0}ms.`);
       } else {
         notify.error(res.error || "Falha na conexão com o provedor.");
       }
@@ -1237,6 +1278,15 @@ export default function AttendantsPage() {
         message: userText,
         agentKey: previewAgent?.key,
         agentName: previewAgent?.name,
+        agent: previewAgent ? {
+          ...previewAgent,
+          personality: agentPrompt || previewAgent.personality,
+          prompt: agentPrompt || previewAgent.prompt,
+          responseStyle,
+          temperature,
+        } : undefined,
+        responseStyle,
+        temperature,
         sessionId: previewAgent?.sessionIds?.[0],
         providerId: selectedProvider,
         model: selectedModel,
@@ -2444,6 +2494,55 @@ export default function AttendantsPage() {
             A chave é armazenada com criptografia de ponta a ponta no backend da loja.
           </p>
         </div>
+
+        {/* Resposta Real da Atendente ao Testar Provedor */}
+        {connectionTestResult && connectionTestResult.ok && connectionTestResult.response && (
+          <div className="p-3.5 rounded-xl border border-emerald-500/40 bg-emerald-950/20 space-y-2 mt-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6 border border-emerald-500/40">
+                  <AvatarImage src={previewAgent.avatar} />
+                  <AvatarFallback className="text-[10px] bg-emerald-900/50 text-emerald-200">
+                    {previewAgent.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs font-semibold text-foreground">
+                  Resposta Real de {previewAgent.name} (Atendente Oficial da Loja):
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                  ⏱️ {connectionTestResult.responseTimeMs || 0}ms
+                </Badge>
+                {connectionTestResult.totalTokens ? (
+                  <Badge variant="outline" className="text-[10px] border-border/60 text-muted-foreground bg-muted/20">
+                    🪙 {connectionTestResult.totalTokens} tokens
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+            <p className="text-xs text-foreground/90 bg-background/50 p-2.5 rounded-lg border border-border/40 whitespace-pre-wrap leading-relaxed">
+              {connectionTestResult.response}
+            </p>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[11px] text-muted-foreground">
+                Interação registrada ao vivo no Chat Sandbox ao lado.
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const chatEl = document.getElementById("chat-sandbox-content") || document.getElementById("sandbox-container");
+                  chatEl?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="h-7 text-[11px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
+              >
+                <span>💬 Ir para o Chat ao Lado &rarr;</span>
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -3400,9 +3499,50 @@ export default function AttendantsPage() {
                     <div className="animate-in fade-in duration-200">
                       {activeStep === 1 && renderAvatarStudioSection()}
                       {activeStep === 2 && renderObjectiveToneSection()}
-                      {activeStep === 3 && renderPromptSection()}
-                      {activeStep === 4 && renderProvidersSection()}
-                      {activeStep === 5 && renderSandboxSection()}
+                      {activeStep === 3 && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
+                            {renderPromptSection()}
+                          </div>
+                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
+                            {renderSandboxSection()}
+                          </div>
+                        </div>
+                      )}
+                      {activeStep === 4 && (
+                        <div className="space-y-6">
+                          {renderProvidersSection()}
+                          <div className="pt-2 border-t border-border/50">
+                            <div className="mb-3">
+                              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                                <Sparkle weight="fill" className="h-4 w-4 text-emerald-400" />
+                                <span>Studio de Atendimento Meia Tela ({previewAgent?.name})</span>
+                              </h4>
+                              <p className="text-xs text-muted-foreground">
+                                Envie comandos e instruções no prompt à esquerda para a atendente absorver conhecimento e teste no chat à direita.
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+                              <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
+                                {renderPromptSection()}
+                              </div>
+                              <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
+                                {renderSandboxSection()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {activeStep === 5 && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
+                            {renderPromptSection()}
+                          </div>
+                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
+                            {renderSandboxSection()}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Stepper Navigation Footer */}

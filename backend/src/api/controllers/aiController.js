@@ -268,10 +268,11 @@ async function testReply(req, res) {
       prompt: req.body?.prompt,
       agentKey: req.body?.agentKey,
       agentName: req.body?.agentName,
+      agent: req.body?.agent,
       temperature: req.body?.temperature,
-      responseStyle: req.body?.responseStyle,
+      responseStyle: req.body?.responseStyle || req.body?.agent?.responseStyle,
       history: req.body?.history,
-      maxWords: req.body?.maxWords,
+      maxWords: req.body?.maxWords || req.body?.agent?.maxWords,
       timeoutMs: Number(req.body?.timeoutMs) || 90000,
     });
 
