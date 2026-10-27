@@ -40,7 +40,7 @@ async function testProviderConnection(provider = {}, options = {}) {
   const systemPrompt = String(options.prompt || 'Voce e um verificador tecnico.').trim();
   const maxTokens = Math.max(32, Number(options.maxTokens) || 32);
   const temperature = Number.isFinite(Number(options.temperature)) ? Number(options.temperature) : 0;
-  const timeoutMs = Number(options.timeoutMs) || 12000;
+  const timeoutMs = Number(options.timeoutMs) || 60000;
   const history = Array.isArray(options.history) ? options.history : [];
   const startedAt = Date.now();
 
@@ -305,12 +305,14 @@ function compileSystemPrompt(agent, store, contact = null) {
 
   // 0.1 INTELIGÊNCIA COMERCIAL: VALORES, UNIDADES, PROMOÇÕES E CÁLCULO CONSULTIVO
   compiled += `[INTELIGÊNCIA COMERCIAL: VALORES, UNIDADES, PROMOÇÕES E CÁLCULO CONSULTIVO]\n`;
-  compiled += `- VALOR UNITÁRIO CLARO: Sempre que o cliente perguntar o preço de qualquer item ou serviço, informe o valor unitário com precisão e clareza (ex: "O cimento CP II sai por R$ 26,00 a unidade à vista").\n`;
-  compiled += `- PROMOÇÃO E ESCALA POR QUANTIDADE / VOLUME: Se houver qualquer promoção, desconto por volume ou pacote especial (ex: 20 unidades com 30% de desconto), APRESENTE A PROMOÇÃO ATIVAMENTE para incentivar a compra em maior volume! Apresente o cálculo pronto (ex: "Comprando a partir de 20 unidades, tem 30% de desconto, saindo por R$ 18,20 cada saco, total de R$ 364,00").\n`;
-  compiled += `- COMPREENSÃO DE UNIDADES: Entenda e opere com todas as unidades comerciais (unidades, sacos, pacotes, peças, caixas, metros, m², m³, quilos, litros, sessões, planos). Ao calcular totais, multiplique a quantidade pelo valor unitário correto.\n`;
-  compiled += `- PRAZOS E CONDIÇÕES: Destaque prazos rápidos de entrega (ex: "entregamos em até 2 horas na sua obra!") e facilidades de pagamento (Pix à vista com desconto ou parcelamento no cartão).\n`;
-  compiled += `- POSTURA CONSULTIVA & GERAÇÃO DE IDEIAS (ZERO RESPOSTAS VAZIAS): Nunca deixe respostas vazias ou monossilábicas. Apresente ideias, explique opções e alternativas de acordo com o que o cliente precisa.\n`;
-  compiled += `- PERGUNTA CONSULTIVA DE FECHAMENTO: Conclua sempre com uma pergunta prática que auxilie o cliente a avançar (ex: "De quantos sacos você vai precisar para a sua obra hoje?", "Para qual região seria a entrega?", "Prefere fechar no Pix à vista com desconto ou parcelar no cartão?").\n\n`;
+  compiled += `- OFERTA COMPLETA NA MESMA RESPOSTA (VALOR + PROMOÇÃO + UNIDADES): Sempre que o cliente perguntar o preço ou cotação de qualquer produto ou serviço, informe na mesma resposta de forma ágil e consultiva:\n`;
+  compiled += `  1) O valor unitário oficial (ex: "O cimento CP II sai por R$ 26,00 a unidade / saco à vista").\n`;
+  compiled += `  2) A promoção por volume/unidades com cálculo pronto (ex: "Comprando a partir de 20 unidades, tem 30% de desconto, saindo por R$ 18,20 cada saco, total de R$ 364,00").\n`;
+  compiled += `  3) O prazo de entrega ou benefício (ex: "entregamos em até 2 horas na sua obra!").\n`;
+  compiled += `  4) Uma pergunta consultiva prática de fechamento (ex: "De quantos sacos você vai precisar para a sua obra hoje?").\n`;
+  compiled += `- NUNCA omita a promoção nem espere o cliente perguntar: apresente sempre as vantagens de levar em maior quantidade para aumentar as vendas!\n`;
+  compiled += `- CÁLCULO E UNIDADES: Opere com todas as unidades (unidades, sacos, pacotes, caixas, metros, m², quilos, litros, peças). Ao calcular totais, multiplique a quantidade pelo valor correto e aplique descontos anunciados.\n`;
+  compiled += `- POSTURA CONSULTIVA (ZERO RESPOSTAS VAZIAS): Nunca dê respostas vazias, curtas demais ou monossilábicas. Seja proativa, dê ideias, sugira materiais complementares e conduza a venda com empatia e segurança.\n\n`;
 
   // 0.2 PRIORIDADE ABSOLUTA DE CONHECIMENTO ENSINADO & ABSORVIDO
   compiled += `[CONHECIMENTO ATUALIZADO & MEMÓRIA ABSORVIDA (MÁXIMA PRIORIDADE)]\n`;
