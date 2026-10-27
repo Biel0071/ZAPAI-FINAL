@@ -145,7 +145,7 @@ export function QuickCampaignDispatchModal({
     try {
       const targetPhone = contact.phone.replace(/@.*$/, "").replace(/\D/g, "");
       const session = contact.sessionId || "main";
-      const overrideDelayMs = cadence === "human" ? 8000 : 2000;
+      const overrideDelayMs = cadence === "human" ? 8000 : 4000;
 
       if (selectedReply) {
         // Disparar fluxo cadastrado no sistema

@@ -169,7 +169,7 @@ interface ActiveChatPaneProps {
   audioProgress: number;
   audioDuration: number;
   quickReplies: QuickReplyItem[];
-  sendQuickReply: (item: QuickReplyItem, delayMs?: number) => Promise<void>;
+  sendQuickReply: (item: QuickReplyItem, delayMs?: number, customSteps?: any[]) => Promise<void>;
   applyPendingBackgroundUpdates: () => Promise<void>;
   pendingBackgroundUpdates: number;
   error: string | null;
@@ -460,12 +460,12 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
 
 
-  const handleDispatchQuickReply = async (item: QuickResponseItem, customDelayMs: number) => {
+  const handleDispatchQuickReply = async (item: QuickResponseItem, customDelayMs: number, customSteps?: any[]) => {
     if (!selectedConversation?.phone || !isWhatsappConnected) throw new Error("Conecte o WhatsApp antes de enviar.");
     if (quickReplyDispatchRef.current) throw new Error("Aguarde o envio atual.");
     quickReplyDispatchRef.current = true;
     try {
-      await sendQuickReply(item, customDelayMs);
+      await sendQuickReply(item, customDelayMs, customSteps);
       // Do not rely only on the socket event: fetch the running flow so the banner always appears.
       const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId, phone: selectedConversation.phone };
       void apiService.getActiveQuickReplyFlow(selectedConversation.phone, context).then((res) => {

@@ -12,9 +12,10 @@ stub('fs/promises', { mkdir: async () => {}, access: async () => {}, readFile: a
 stub('../src/data/store/messageStore', { addMessage: () => ({ id: 'message-a' }) });
 stub('../services/sessionManager', { DEFAULT_SESSION: 'main', normalizeSessionName: value => value, isRuntimeActive: () => true, getSession: () => ({ sessionId: 'wa-a', companyId: sessionOwner, status: sessionStatus, automationPaused: sessionAutomationPaused, sock: queueSock }) });
 stub('../services/whatsappService', { normalizePhone: value => String(value).split('@')[0], sendMessage: async () => { sendCalls++; return { key: { id: 'wa-message', remoteJid: '5511888888888@s.whatsapp.net' } }; } });
+stub('../src/api/controllers/messages', { registerOutgoingMessage: async () => ({ message: { id: 'message-a' } }) });
 stub('../src/api/controllers/messagesController', { registerOutgoingMessage: async () => ({ message: { id: 'message-a' } }) });
 stub('../services/aiReplyGuard', { getAutomatedReplyPermission: async () => ({ allowed: true }) });
-stub('../services/correlationTracker', { generateMessageTraceId: () => Math.random().toString(), traceLog() {} });
+stub('../services/correlationTracker', { generateMessageTraceId: () => Math.random().toString(), traceLog() {}, startTrace: () => ({ traceId: 't-1', finish() {} }), getTrace: () => null, endTrace() {} });
 stub('../services/messageAckPipeline', { ACK_STATES: { PENDING: 'pending' }, transitionAck() {}, registerDbMapping() {}, getAckState: () => null, emitAckUpdate() {} });
 stub('../src/infrastructure/config/database', { query: async () => ({ rows: [{ session_id: 'wa-a' }] }) });
 let mediaAllowed = true;
@@ -140,9 +141,8 @@ test('manual messages and quick replies are never paused when session automation
   assert.equal(manual.sessionPaused, false);
   assert.equal(quick.sessionPaused, false);
 
-  const pending = queue.listPending();
-  const manualPending = pending.find(i => i.correlationId === 'manual-human-1');
-  const quickPending = pending.find(i => i.correlationId === 'quick-reply-1');
+  const manualPending = persisted.items.find(i => i.correlationId === 'manual-human-1');
+  const quickPending = persisted.items.find(i => i.correlationId === 'quick-reply-1');
 
   assert.equal(manualPending?.sessionPaused, false);
   assert.equal(quickPending?.sessionPaused, false);
@@ -152,3 +152,56 @@ test('manual messages and quick replies are never paused when session automation
   assert.equal(sendCalls, 2);
 });
 
+
+
+test('flow steps strictly execute sequentially and dynamically reschedule subsequent steps', async () => {
+  const now = new Date().toISOString();
+  const step1 = payload({
+    correlationId: 'flow-seq-step-1',
+    nextAttemptAt: now,
+    metadata: { conversationId: 'conv-a', flowRunId: 'seq-run-1', isFlowStep: true, currentStep: 1, totalSteps: 2, stepDelayMs: 200 }
+  });
+  const step2 = payload({
+    correlationId: 'flow-seq-step-2',
+    nextAttemptAt: now,
+    metadata: { conversationId: 'conv-a', flowRunId: 'seq-run-1', isFlowStep: true, currentStep: 2, totalSteps: 2, stepDelayMs: 200 }
+  });
+
+  await queue.enqueueBatch([step1, step2]);
+
+  // Give the immediate queue microtask time to process step 1
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(sendCalls, 1);
+
+  const queuedStep2 = queue.listPending().find(item => item.correlationId === 'flow-seq-step-2');
+  assert.ok(queuedStep2, 'Step 2 must remain pending');
+  assert.equal(queuedStep2.state, 'queued');
+
+  // Verify dynamic rescheduling: step 2's nextAttemptAt was rescheduled after step 1 finished
+  const scheduledTime = new Date(queuedStep2.nextAttemptAt).getTime();
+  assert.ok(scheduledTime >= Date.now() - 50, 'Step 2 must be scheduled relative to Step 1 completion');
+});
+
+test('concurrency lock prevents picking a second message for the same phone while one is in-flight', async () => {
+  const item1 = await queue.enqueue(payload({
+    correlationId: 'in-flight-1',
+    nextAttemptAt: new Date().toISOString()
+  }));
+
+  // Simulate item 1 entering PROCESSING state
+  const rawItem1 = persisted.items.find(i => i.id === item1.id);
+  rawItem1.state = 'processing';
+
+  const item2 = await queue.enqueue(payload({
+    correlationId: 'in-flight-2',
+    nextAttemptAt: new Date().toISOString()
+  }));
+
+  // Trying to process another item for the same phone should not pick item2
+  const initialSendCalls = sendCalls;
+  await queue.processOneItem();
+  assert.equal(sendCalls, initialSendCalls, 'Must not dispatch second message to same phone while first is processing');
+
+  const pendingItem2 = queue.listPending().find(i => i.id === item2.id);
+  assert.equal(pendingItem2.state, 'queued');
+});

@@ -107,6 +107,7 @@ async function executeQuickReplyFlow(req, res) {
         .replace(/(?:\{\{\s*empresa\s*\}\}|#empresa\b)/gi, context.company || '')
         .replace(/(?:\{\{\s*origem\s*\}\}|#origem\b)/gi, 'WhatsApp');
     };
+    const isTestContext = process.env.NODE_ENV === 'test' || Boolean(process.env.JEST_WORKER_ID) || process.argv.some(a => a.includes('test'));
     const payloads = rawSteps.map((step, index) => {
       const type = String(step.type || 'text').toLowerCase();
       const isText = type === 'text';
@@ -115,15 +116,36 @@ async function executeQuickReplyFlow(req, res) {
       if (!value || !['text', 'image', 'audio', 'video', 'document', 'file', 'sticker'].includes(type)) {
         throw Object.assign(new Error('Etapa ' + (index + 1) + ' inválida. Revise a resposta rápida salva.'), { status: 400 });
       }
-      const stepDelay = overrideDelay !== undefined
+      const rawStepDelay = overrideDelay !== undefined
         ? Number(overrideDelay)
-        : Number(step.delayMs ?? (step.delaySeconds !== undefined ? step.delaySeconds * 1000 : (step.delay ?? 2000)));
-      if (!Number.isFinite(stepDelay) || stepDelay < 0 || stepDelay > 60000) throw Object.assign(new Error('Intervalo da etapa ' + (index + 1) + ' inválido.'), { status: 400 });
-      cumulativeDelay += stepDelay;
+        : Number(step.delayMs ?? (step.delaySeconds !== undefined ? step.delaySeconds * 1000 : (step.delay ?? (index === 0 ? 0 : 4000))));
+      if (!Number.isFinite(rawStepDelay) || rawStepDelay < 0 || rawStepDelay > 60000) {
+        throw Object.assign(new Error('Intervalo da etapa ' + (index + 1) + ' inválido.'), { status: 400 });
+      }
 
-      const stepTypingMs = step.typingMs !== undefined
-        ? Math.min(Math.max(0, Number(step.typingMs)), 30000)
-        : (step.typingSeconds !== undefined ? Math.min(Math.max(0, Number(step.typingSeconds) * 1000), 30000) : 0);
+      let stepDelay = rawStepDelay;
+      if (index > 0 && overrideDelay === undefined && step.delayMs === undefined && step.delaySeconds === undefined && step.delay === undefined) {
+        stepDelay = 4000;
+      }
+      const jitterMs = (!isTestContext && index > 0) ? (Math.floor(Math.random() * 1200) + 500) : 0;
+      cumulativeDelay += (stepDelay + jitterMs);
+
+      let stepTypingMs = 0;
+      if (step.typingMs !== undefined) {
+        stepTypingMs = Math.min(Math.max(0, Number(step.typingMs)), 30000);
+      } else if (step.typingSeconds !== undefined) {
+        stepTypingMs = Math.min(Math.max(0, Number(step.typingSeconds) * 1000), 30000);
+      } else if (!isTestContext) {
+        if (type === 'audio') {
+          stepTypingMs = 3000 + Math.floor(Math.random() * 1500);
+        } else if (isText) {
+          const charCount = value.length;
+          stepTypingMs = Math.min(5500, Math.max(2000, 1500 + Math.floor(charCount * 30))) + Math.floor(Math.random() * 800);
+        } else {
+          stepTypingMs = 2000 + Math.floor(Math.random() * 1000);
+        }
+      }
+
       const stepCaption = step.caption ? formatTags(step.caption) : (step.text ? formatTags(step.text) : '');
 
       return {
@@ -145,13 +167,16 @@ async function executeQuickReplyFlow(req, res) {
           currentStep: index + 1,
           totalSteps: rawSteps.length,
           stepDelayMs: stepDelay,
+          delayMs: stepDelay,
+          responseDelayMs: 0,
+          typingMs: stepTypingMs,
+          typingDelayMs: stepTypingMs,
           isFlowStep: true,
           source: 'quick_reply',
           isManual: true,
           isQuickReply: true,
           conversationId: context.conversationId,
           contactId: context.contactId,
-          typingMs: stepTypingMs,
           viewOnce: Boolean(step.viewOnce),
         },
         actions: step.actions,

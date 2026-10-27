@@ -26,6 +26,11 @@ test('flow execution only uses saved tenant reply and gives each step a distinct
   assert.equal(items[0].companyId, 'tenant-a');
   assert.equal(items[0].metadata.conversationId, 'conv-a');
   assert.notEqual(items[0].correlationId, items[1].correlationId);
+  assert.equal(items[0].metadata.stepDelayMs, 0);
+  assert.equal(items[0].metadata.delayMs, 0);
+  assert.ok(items[0].metadata.typingDelayMs !== undefined);
+  assert.ok(items[1].metadata.stepDelayMs !== undefined);
+  assert.ok(items[1].metadata.delayMs !== undefined);
 });
 
 test('a missing saved flow is 404 and cannot fall back to item or id as text', async () => {
