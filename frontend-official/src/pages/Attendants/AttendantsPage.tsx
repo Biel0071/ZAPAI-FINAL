@@ -923,8 +923,9 @@ export default function AttendantsPage() {
   const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>({
     avatarStudio: false,
     objectiveTone: true,
-    prompt: false,
     providers: false,
+    trainingSandbox: false,
+    prompt: false,
     chatSandbox: false,
   });
 
@@ -948,8 +949,9 @@ export default function AttendantsPage() {
     setCollapsedCards({
       avatarStudio: nextVal,
       objectiveTone: nextVal,
-      prompt: nextVal,
       providers: nextVal,
+      trainingSandbox: nextVal,
+      prompt: nextVal,
       chatSandbox: nextVal,
     });
   };
@@ -1370,9 +1372,8 @@ export default function AttendantsPage() {
   const STEPS = [
     { step: 1, title: "Avatar Studio", desc: "Aparência do atendente", icon: TShirt },
     { step: 2, title: "Objetivo & Tom", desc: "Conversão e linguagem", icon: Target },
-    { step: 3, title: "Prompt & Instruções", desc: "Personalidade da IA", icon: Sparkle },
-    { step: 4, title: "Provedores & Modelos", desc: "Motor e chaves de API", icon: Cpu },
-    { step: 5, title: "Chat & Sandbox", desc: "Teste ao vivo interativo", icon: ChatCircleText },
+    { step: 3, title: "Provedores & Modelos", desc: "Motor e chaves de API", icon: Cpu },
+    { step: 4, title: "Treinamento & Sandbox", desc: "Instruções e teste ao vivo", icon: ChatCircleText },
   ];
 
   /* -------------------------------------------------------------
@@ -2557,7 +2558,7 @@ export default function AttendantsPage() {
   const renderSandboxSection = () => {
     if (!previewAgent) return null;
     return (
-      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5">
+      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5 flex flex-col h-full">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -3533,41 +3534,8 @@ export default function AttendantsPage() {
                     <div className="animate-in fade-in duration-200">
                       {activeStep === 1 && renderAvatarStudioSection()}
                       {activeStep === 2 && renderObjectiveToneSection()}
-                      {activeStep === 3 && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
-                            {renderPromptSection()}
-                          </div>
-                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
-                            {renderSandboxSection()}
-                          </div>
-                        </div>
-                      )}
+                      {activeStep === 3 && renderProvidersSection()}
                       {activeStep === 4 && (
-                        <div className="space-y-6">
-                          {renderProvidersSection()}
-                          <div className="pt-2 border-t border-border/50">
-                            <div className="mb-3">
-                              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                                <Sparkle weight="fill" className="h-4 w-4 text-emerald-400" />
-                                <span>Studio de Atendimento Meia Tela ({previewAgent?.name})</span>
-                              </h4>
-                              <p className="text-xs text-muted-foreground">
-                                Envie comandos e instruções no prompt à esquerda para a atendente absorver conhecimento e teste no chat à direita.
-                              </p>
-                            </div>
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-                              <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
-                                {renderPromptSection()}
-                              </div>
-                              <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
-                                {renderSandboxSection()}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {activeStep === 5 && (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
                           <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
                             {renderPromptSection()}
@@ -3706,7 +3674,7 @@ export default function AttendantsPage() {
                       )}
                     </Card>
 
-                    {/* Card 4: Provedores & Modelos */}
+                    {/* Card 3: Provedores & Modelos */}
                     <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
                       <CardHeader
                         onClick={() => toggleCard("providers")}
@@ -3723,7 +3691,7 @@ export default function AttendantsPage() {
                           </div>
                           <div className="min-w-0">
                             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                              <span>4. Provedores de IA & Modelos</span>
+                              <span>3. Provedores de IA & Modelos</span>
                               <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
                                 Infraestrutura
                               </Badge>
@@ -3750,94 +3718,51 @@ export default function AttendantsPage() {
                       )}
                     </Card>
 
-                    {/* Studio Meia Tela: 3. Treinamento & Instruções (Esquerda) + 5. Sandbox & Chat ao Vivo (Direita) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-                      {/* Card 3: Treinamento & Instruções do Agente */}
-                      <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden flex flex-col">
-                        <CardHeader
-                          onClick={() => toggleCard("prompt")}
-                          onKeyDown={(event) => handleCardHeaderKeyDown(event, "prompt")}
-                          role="button"
-                          tabIndex={0}
-                          aria-expanded={!collapsedCards.prompt}
-                          aria-controls="agent-prompt-content"
-                          className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                              <Sparkle weight="fill" className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                                <span>3. Prompt & Treinamento</span>
-                                <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
-                                  Instrução
-                                </Badge>
-                              </CardTitle>
-                              <CardDescription className="text-[11px] text-muted-foreground truncate">
-                                Envie comandos e instruções que a atendente absorve.
-                              </CardDescription>
-                            </div>
+                    {/* Card 4: Treinamento & Sandbox de Atendimento ao Vivo (Unificado) */}
+                    <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                      <CardHeader
+                        onClick={() => toggleCard("trainingSandbox")}
+                        onKeyDown={(event) => handleCardHeaderKeyDown(event, "trainingSandbox")}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={!collapsedCards.trainingSandbox}
+                        aria-controls="training-sandbox-content"
+                        className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                            <ChatCircleText weight="bold" className="h-4 w-4" />
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
-                              {agentPrompt.length} chars
-                            </span>
-                            <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
-                              {collapsedCards.prompt ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                            </span>
+                          <div className="min-w-0">
+                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
+                              <span>4. Treinamento & Sandbox de Atendimento ao Vivo</span>
+                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
+                                Instrução & Simulação
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription className="text-[11px] text-muted-foreground truncate">
+                              Envie comandos e instruções no prompt à esquerda e teste o chat ao vivo à direita em tempo real.
+                            </CardDescription>
                           </div>
-                        </CardHeader>
-                        {!collapsedCards.prompt && (
-                          <CardContent id="agent-prompt-content" className="p-4 sm:p-5 flex-1 flex flex-col">
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/10 font-bold uppercase hidden sm:inline-flex">
+                            AO VIVO
+                          </Badge>
+                          <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
+                            {collapsedCards.trainingSandbox ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                          </span>
+                        </div>
+                      </CardHeader>
+                      {!collapsedCards.trainingSandbox && (
+                        <CardContent id="training-sandbox-content" className="p-4 sm:p-5">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
                             {renderPromptSection()}
-                          </CardContent>
-                        )}
-                      </Card>
-
-                      {/* Card 5: Sandbox de Atendimento & Chat ao Vivo */}
-                      <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden flex flex-col">
-                        <CardHeader
-                          onClick={() => toggleCard("chatSandbox")}
-                          onKeyDown={(event) => handleCardHeaderKeyDown(event, "chatSandbox")}
-                          role="button"
-                          tabIndex={0}
-                          aria-expanded={!collapsedCards.chatSandbox}
-                          aria-controls="chat-sandbox-content"
-                          className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                              <ChatCircleText weight="bold" className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                                <span>5. Sandbox & Chat ao Vivo</span>
-                                <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
-                                  Simulação
-                                </Badge>
-                              </CardTitle>
-                              <CardDescription className="text-[11px] text-muted-foreground truncate">
-                                Converse e teste respostas com inteligência real.
-                              </CardDescription>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/10 font-bold uppercase">
-                              AO VIVO
-                            </Badge>
-                            <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground">
-                              {collapsedCards.chatSandbox ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                            </span>
-                          </div>
-                        </CardHeader>
-                        {!collapsedCards.chatSandbox && (
-                          <CardContent id="chat-sandbox-content" className="p-4 sm:p-5 flex-1 flex flex-col">
                             {renderSandboxSection()}
-                          </CardContent>
-                        )}
-                      </Card>
-                    </div>
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
                   </div>
                 )}
               </div>

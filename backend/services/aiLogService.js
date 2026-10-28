@@ -191,7 +191,7 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
                COUNT(*)::int AS count,
                COALESCE(SUM(LENGTH(COALESCE(text, content, ''))), 0)::int AS total_chars
              FROM messages
-             WHERE (LOWER(COALESCE(sender, '')) IN ('ai', 'bot', 'assistant') OR message_origin = 'ai' OR origin = 'ai')
+             WHERE (LOWER(COALESCE(sender, '')) IN ('ai', 'bot', 'assistant') OR message_origin = 'ai')
                AND COALESCE(created_at, timestamp) >= CURRENT_DATE
                AND ($1::text IS NULL OR company_id = $1)
                AND ($2::text IS NULL OR session_id = $2)`,
