@@ -96,14 +96,15 @@ export default function Memory() {
   }, []);
 
   return (
-    <>
-      <div className="px-6 pt-4 flex items-center justify-between border-b border-border/40 pb-3 bg-background/50 backdrop-blur">
+    <div className="flex flex-1 flex-col overflow-y-auto">
+      <Header title="Central de Memória da IA" subtitle="Acompanhe a cognição, aprendizado e persistência da IA em tempo real." />
+      <div className="px-6 py-2.5 flex items-center justify-between border-b border-border/40 bg-card/40 backdrop-blur shrink-0">
         <div className="flex items-center gap-2">
-          <Label htmlFor="whatsapp-connection-select" className="text-sm font-medium text-foreground">Conexão WhatsApp:</Label>
+          <Label htmlFor="whatsapp-connection-select" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Conexão WhatsApp:</Label>
           <select
             id="whatsapp-connection-select"
             aria-label="WhatsApp da memória"
-            className="ml-2 rounded-lg border border-border/80 bg-background px-3 py-1.5 text-sm font-medium shadow-sm transition-colors hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="rounded-lg border border-border/80 bg-background/80 px-2.5 py-1 text-xs font-medium shadow-xs transition-colors hover:bg-muted/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 text-foreground"
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
           >
@@ -118,7 +119,7 @@ export default function Memory() {
         {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
       </div>
       <ScopedMemory key={sessionId || 'all'} sessionId={sessionId} />
-    </>
+    </div>
   );
 }
 
@@ -319,10 +320,8 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
   ];
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto">
-      <Header title="Central de Memória da IA" subtitle="Acompanhe a cognição, aprendizado e persistência da IA em tempo real." />
-      
-      <div className="page-container section-stack pb-12">
+    <div className="flex flex-col flex-1">
+      <div className="page-container section-stack pb-12 flex-1">
         {error ? (
           <Card className="glass-card rounded-2xl border-destructive/30">
             <CardContent className="flex flex-col items-center gap-4 p-8 text-center">

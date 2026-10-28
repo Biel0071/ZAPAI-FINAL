@@ -1131,7 +1131,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
                 </span>
-                <span className="truncate font-medium">WhatsApp desconectado. As mensagens e conversas estão salvas no banco.</span>
+                <span className="truncate font-medium" title="WhatsApp desconectado · Mensagens salvas com segurança no banco.">WhatsApp desconectado · Mensagens salvas no banco.</span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <Button

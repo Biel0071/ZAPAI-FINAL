@@ -2178,7 +2178,7 @@ export default function AttendantsPage() {
 
   const renderPromptSection = () => {
     return (
-      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5 flex flex-col h-full">
+      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5 flex flex-col h-full min-w-0 max-w-full">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="space-y-0.5">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -2558,7 +2558,7 @@ export default function AttendantsPage() {
   const renderSandboxSection = () => {
     if (!previewAgent) return null;
     return (
-      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5 flex flex-col h-full">
+      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5 flex flex-col h-full min-w-0 max-w-full">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -2587,7 +2587,7 @@ export default function AttendantsPage() {
         </div>
 
         {/* Quick test pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 min-w-0 w-full max-w-full">
           <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Perguntas rápidas:</span>
           {[
             "Quanto custa o cimento?",
@@ -3536,11 +3536,11 @@ export default function AttendantsPage() {
                       {activeStep === 2 && renderObjectiveToneSection()}
                       {activeStep === 3 && renderProvidersSection()}
                       {activeStep === 4 && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch min-w-0 max-w-full">
+                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col min-w-0 max-w-full">
                             {renderPromptSection()}
                           </div>
-                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col">
+                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col min-w-0 max-w-full">
                             {renderSandboxSection()}
                           </div>
                         </div>
@@ -3756,9 +3756,13 @@ export default function AttendantsPage() {
                       </CardHeader>
                       {!collapsedCards.trainingSandbox && (
                         <CardContent id="training-sandbox-content" className="p-4 sm:p-5">
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-                            {renderPromptSection()}
-                            {renderSandboxSection()}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch min-w-0 max-w-full">
+                            <div className="min-w-0 max-w-full flex flex-col h-full">
+                              {renderPromptSection()}
+                            </div>
+                            <div className="min-w-0 max-w-full flex flex-col h-full">
+                              {renderSandboxSection()}
+                            </div>
                           </div>
                         </CardContent>
                       )}

@@ -21,11 +21,11 @@ export function SystemHealthMatrix() {
       if (res) {
         setHealth({
           services: {
-            postgresql: { name: "PostgreSQL Database", status: res.db ? "online" : "offline", lastSync: res.timestamp, error: null, attempts: 0 },
-            baileys: { name: "WhatsApp Baileys Socket", status: res.whatsapp?.status === "online" ? "online" : "offline", lastSync: res.timestamp, error: null, attempts: 0 },
-            redis: { name: "Redis Cache & Queue", status: "online", lastSync: res.timestamp, error: null, attempts: 0 },
-            aiGateway: { name: "AI Model Gateway", status: res.system?.aiEngine === "healthy" ? "online" : "degraded", lastSync: res.timestamp, error: null, attempts: 0 },
-            websocket: { name: "WebSocket Realtime Engine", status: res.system?.socket === "connected" ? "online" : "offline", lastSync: res.timestamp, error: null, attempts: 0 },
+            postgresql: { name: "PostgreSQL", status: res.db ? "online" : "offline", lastSync: res.timestamp, error: null, attempts: 0 },
+            baileys: { name: "WhatsApp Socket", status: res.whatsapp?.status === "online" ? "online" : "offline", lastSync: res.timestamp, error: null, attempts: 0 },
+            redis: { name: "Redis Cache", status: "online", lastSync: res.timestamp, error: null, attempts: 0 },
+            aiGateway: { name: "Engine IA", status: res.system?.aiEngine === "healthy" ? "online" : "degraded", lastSync: res.timestamp, error: null, attempts: 0 },
+            websocket: { name: "WebSocket RT", status: res.system?.socket === "connected" ? "online" : "offline", lastSync: res.timestamp, error: null, attempts: 0 },
           },
           lastHealthCheck: res.timestamp,
         });
@@ -75,13 +75,15 @@ export function SystemHealthMatrix() {
                 key={key}
                 className="bg-background/80 p-3 rounded-xl border border-border/60 flex flex-col justify-between space-y-2"
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-foreground truncate text-[11px]">{service.name}</span>
+                <div className="flex items-center justify-between gap-1.5 min-w-0">
+                  <span className="font-bold text-foreground truncate text-xs min-w-0" title={service.name}>{service.name}</span>
                   <Badge
-                    className={`text-[9px] uppercase font-bold px-1.5 py-0.5 ${
+                    className={`text-[9px] uppercase font-bold font-mono px-1.5 py-0.5 shrink-0 ${
                       service.status === "online"
                         ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                        : "bg-red-500/20 text-red-300 border-red-500/30"
+                        : service.status === "degraded"
+                          ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                          : "bg-red-500/20 text-red-300 border-red-500/30"
                     }`}
                   >
                     {service.status}

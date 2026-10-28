@@ -647,7 +647,7 @@ export const ChatListPanel = memo(function ChatListPanel({
               value="all"
               className="flex flex-col items-center justify-center py-1 px-0.5 rounded-lg text-center transition-all min-w-0 data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs"
             >
-              <span className="text-[11px] leading-tight truncate w-full text-center">Todas</span>
+              <span className="text-[10.5px] leading-tight truncate w-full text-center tracking-tight">Todas</span>
               <span className="text-[10px] font-mono opacity-75 mt-0.5 leading-none">
                 {conversationCounts?.active ?? 0}
               </span>
@@ -657,7 +657,7 @@ export const ChatListPanel = memo(function ChatListPanel({
               value="unread"
               className="flex flex-col items-center justify-center py-1 px-0.5 rounded-lg text-center transition-all min-w-0 data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs"
             >
-              <span className="text-[11px] leading-tight truncate w-full text-center">Não lidas</span>
+              <span className="text-[10.5px] leading-tight truncate w-full text-center tracking-tight">Não lidas</span>
               {conversationCounts?.unread != null && conversationCounts.unread > 0 ? (
                 <span className="text-[10px] font-bold text-white bg-emerald-500 px-1.5 py-0.2 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.7)] mt-0.5 leading-none">
                   {conversationCounts.unread}
@@ -671,7 +671,7 @@ export const ChatListPanel = memo(function ChatListPanel({
               value="ai"
               className="flex flex-col items-center justify-center py-1 px-0.5 rounded-lg text-center transition-all min-w-0 data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs"
             >
-              <span className="text-[11px] leading-tight truncate w-full text-center">IA ativa</span>
+              <span className="text-[10.5px] leading-tight truncate w-full text-center tracking-tight">IA ativa</span>
               <span className="text-[10px] font-mono opacity-75 mt-0.5 leading-none">
                 {aiCount ?? 0}
               </span>
@@ -681,7 +681,7 @@ export const ChatListPanel = memo(function ChatListPanel({
               value="archived"
               className="flex flex-col items-center justify-center py-1 px-0.5 rounded-lg text-center transition-all min-w-0 data-[state=active]:font-bold data-[state=active]:bg-card data-[state=active]:shadow-xs"
             >
-              <span className="text-[11px] leading-tight truncate w-full text-center">Arquivadas</span>
+              <span className="text-[10.5px] leading-tight truncate w-full text-center tracking-tight">Arquivadas</span>
               <span className="text-[10px] font-mono opacity-75 mt-0.5 leading-none">
                 {conversationCounts?.archived ?? (filter === "archived" ? filteredConversations.length : 0)}
               </span>

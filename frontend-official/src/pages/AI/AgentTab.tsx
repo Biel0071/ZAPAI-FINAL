@@ -1246,7 +1246,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
   );
 
   const renderSandboxSimulator = () => (
-    <Card className="bg-card border-border/80 shadow-md flex flex-col h-[585px] overflow-hidden">
+    <Card className="bg-card border-border/80 shadow-md flex flex-col h-[585px] overflow-hidden min-w-0 max-w-full">
       {/* Header do Sandbox */}
       <CardHeader className="p-3 border-b border-border/40 bg-muted/10 shrink-0">
         <div className="flex items-center justify-between gap-2">
@@ -1348,7 +1348,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
           {sandboxTab === "chat" && (
             <div className="flex-1 flex flex-col min-h-0">
               {/* Quick Test Chips */}
-              <div className="p-2 border-b border-border/30 bg-muted/5 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+              <div className="p-2 border-b border-border/30 bg-muted/5 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0 min-w-0 w-full max-w-full">
                 <span className="text-[10px] text-muted-foreground shrink-0 font-medium pl-1">Exemplos:</span>
                 {QUICK_TEST_PROMPTS.map((q, idx) => (
                   <button
@@ -1698,11 +1698,11 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
             {activeStep === 1 && (
               <div className="space-y-6 animate-fade-in">
                 {/* SIDE-BY-SIDE: CHARACTER 3D WORKSPACE & LIVE INTERACTIVE CONSOLE */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                  <div className="lg:col-span-7 space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start min-w-0 max-w-full">
+                  <div className="lg:col-span-7 space-y-4 min-w-0 max-w-full">
                     {renderWorkspaceSection()}
                   </div>
-                  <div className="lg:col-span-5 space-y-4">
+                  <div className="lg:col-span-5 space-y-4 min-w-0 max-w-full">
                     {renderSandboxSimulator()}
                   </div>
                 </div>
@@ -1813,14 +1813,14 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         ========================================================================= */
         <div className="space-y-6">
           {/* INICIO DO ATENDENTE IA: PERSONAGEM COM EDIÇÃO VISUAL AO LADO DO CHAT/EVOLUÇÃO/SYNC */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start min-w-0 max-w-full">
             {/* LEFT COLUMN: 3D LIVING WORKSPACE & VISUAL CUSTOMIZATION (7 cols) */}
-            <div className="lg:col-span-7 space-y-4">
+            <div className="lg:col-span-7 space-y-4 min-w-0 max-w-full">
               {renderWorkspaceSection()}
             </div>
 
             {/* RIGHT COLUMN: INTERACTIVE CHAT, EVOLUTION & REAL SYNC (5 cols) */}
-            <div className="lg:col-span-5 space-y-4">
+            <div className="lg:col-span-5 space-y-4 min-w-0 max-w-full">
               {renderSandboxSimulator()}
             </div>
           </div>

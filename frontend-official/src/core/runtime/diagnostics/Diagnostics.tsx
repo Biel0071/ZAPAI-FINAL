@@ -578,19 +578,20 @@ const Diagnostics = memo(function Diagnostics() {
                         isOk ? "border-emerald-500/30 hover:border-emerald-500/50" : "border-destructive/40 hover:border-destructive/70"
                       )}
                     >
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="text-xs font-semibold text-foreground truncate">{node.name}</span>
+                      <div className="flex items-center justify-between gap-1.5 mb-1.5 min-w-0">
+                        <span className="text-xs font-semibold text-foreground truncate min-w-0" title={node.name}>{node.name}</span>
                         <Badge
                           variant="outline"
                           className={cn(
                             "text-[10px] px-1.5 py-0 font-mono rounded-md shrink-0",
                             isOk ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-destructive/10 text-destructive border-destructive/30"
                           )}
+                          title={isOk ? `PASSED (${node.durationMs}ms)` : `FAILED (${node.durationMs}ms)`}
                         >
-                          {isOk ? `PASSED (${node.durationMs}ms)` : `FAILED (${node.durationMs}ms)`}
+                          {isOk ? `✓ ${node.durationMs}ms` : `✗ ${node.durationMs}ms`}
                         </Badge>
                       </div>
-                      <p className="text-[11px] text-muted-foreground line-clamp-2">{node.details}</p>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-tight">{node.details}</p>
                     </div>
                   );
                 })}
