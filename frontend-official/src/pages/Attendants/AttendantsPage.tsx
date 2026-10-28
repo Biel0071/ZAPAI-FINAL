@@ -2587,7 +2587,7 @@ export default function AttendantsPage() {
         </div>
 
         {/* Quick test pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 min-w-0 w-full max-w-full">
+        <div className="flex flex-wrap items-center gap-1.5 pb-1 min-w-0 w-full max-w-full">
           <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Perguntas rápidas:</span>
           {[
             "Quanto custa o cimento?",

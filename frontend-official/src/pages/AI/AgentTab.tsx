@@ -1348,7 +1348,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
           {sandboxTab === "chat" && (
             <div className="flex-1 flex flex-col min-h-0">
               {/* Quick Test Chips */}
-              <div className="p-2 border-b border-border/30 bg-muted/5 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0 min-w-0 w-full max-w-full">
+              <div className="p-2 border-b border-border/30 bg-muted/5 flex flex-wrap items-center gap-1.5 shrink-0 min-w-0 w-full max-w-full">
                 <span className="text-[10px] text-muted-foreground shrink-0 font-medium pl-1">Exemplos:</span>
                 {QUICK_TEST_PROMPTS.map((q, idx) => (
                   <button
