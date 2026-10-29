@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiService } from "@/core/services/apiService";
+import { getSharedSocket } from "@/core/runtime/socket/socketManager";
 import { toast } from "sonner";
 import { cn } from "@/core/lib/utils";
 
@@ -220,7 +221,7 @@ export function CatalogSelectorPopover({
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Fetch real products from backend repository on mount / open
+  // Fetch real products from backend repository on mount, on open, and whenever WhatsApp connects/syncs
   useEffect(() => {
     let mounted = true;
     async function loadCatalog() {
@@ -251,13 +252,58 @@ export function CatalogSelectorPopover({
       }
     }
 
-    if (open) {
-      loadCatalog();
+    // Prefetch immediately so catalog is instant when opening
+    loadCatalog();
+
+    // Listen to realtime WhatsApp login / sync events to update items automatically
+    const handleSyncEvent = () => {
+      if (mounted) {
+        loadCatalog();
+      }
+    };
+
+    const socket = getSharedSocket();
+    if (socket && typeof socket.on === "function") {
+      socket.on("catalog:synced", handleSyncEvent);
+      socket.on("session_connected", handleSyncEvent);
+      socket.on("whatsapp_connection", handleSyncEvent);
+      socket.on("session.connected", handleSyncEvent);
     }
 
     return () => {
       mounted = false;
+      if (socket && typeof socket.off === "function") {
+        socket.off("catalog:synced", handleSyncEvent);
+        socket.off("session_connected", handleSyncEvent);
+        socket.off("whatsapp_connection", handleSyncEvent);
+        socket.off("session.connected", handleSyncEvent);
+      }
     };
+  }, []);
+
+  // Also refresh when popover is explicitly opened
+  useEffect(() => {
+    if (open) {
+      apiService.getProducts().then((res) => {
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          const mapped: CatalogProduct[] = res.data.map((item: any) => ({
+            id: item.id || `prod_${Math.random()}`,
+            code: item.code || "",
+            name: item.name || "Produto Sem Nome",
+            description: item.description || "",
+            price: Number(item.price) || 0,
+            category: item.category || "Geral",
+            stock: item.stock ?? 10,
+            images: Array.isArray(item.images) ? item.images : item.images ? [item.images] : [],
+            whatsapp_url: item.whatsapp_url || OFFICIAL_STORE_CATALOG_URL,
+            promotions: item.promotions || "",
+            condition: item.condition || "Novo",
+            shipping: item.shipping || "Pronta Entrega",
+          }));
+          setProducts(mapped);
+        }
+      }).catch(() => {});
+    }
   }, [open]);
 
   // Extract unique categories

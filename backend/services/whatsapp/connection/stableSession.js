@@ -1501,6 +1501,28 @@ async function createStableSession({
 
       await onSessionConnected(session);
 
+      // Automatically sync WhatsApp Business catalog on connection open so products are immediately available for dispatch
+      setTimeout(async () => {
+        if (session.isDisposed || session.isClosing || session.status !== 'connected') return;
+        try {
+          const productsController = require('../../../src/api/controllers/productsController');
+          if (typeof productsController.syncWhatsAppCatalogInternal === 'function') {
+            // eslint-disable-next-line no-console
+            console.log(`[CATALOG] Auto-syncing WhatsApp Business catalog for session: ${normalizedSessionName}`);
+            const result = await productsController.syncWhatsAppCatalogInternal({
+              companyId: session.companyId || process.env.DEFAULT_COMPANY_ID || 'default',
+              sessionId: normalizedSessionName,
+              sock,
+            });
+            // eslint-disable-next-line no-console
+            console.log(`[CATALOG] Auto-sync finished: ${result.total} products ready for dispatch.`);
+          }
+        } catch (catErr) {
+          // eslint-disable-next-line no-console
+          console.warn('[CATALOG] Auto-sync catalog on connection open warning:', catErr?.message || catErr);
+        }
+      }, 3500);
+
       // Sync Blocklist asynchronously after initial offline sync settles
       setTimeout(async () => {
         if (session.isDisposed || session.isClosing || session.status !== 'connected') return;

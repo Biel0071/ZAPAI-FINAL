@@ -132,25 +132,22 @@ async function getProductById(req, res) {
   }
 }
 
-async function syncWhatsAppCatalog(req, res) {
+async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 'main', sock = null } = {}) {
+  let syncedCount = 0;
+  let waFetched = 0;
+
+  // First ensure baseline core products are always synced in PostgreSQL
+  for (const coreProd of CORE_STORE_PRODUCTS) {
+    await productRepository.upsertProduct({
+      ...coreProd,
+      companyId,
+    });
+  }
+
+  // Attempt live WhatsApp Business sync if an active session exists
+  let activeSock = sock;
   try {
-    const companyId = req.companyId || req.user?.companyId || 'default';
-    const sessionId = req.body?.sessionId || req.query?.sessionId || 'main';
-
-    let syncedCount = 0;
-    let waFetched = 0;
-
-    // First ensure baseline core products are always synced in PostgreSQL
-    for (const coreProd of CORE_STORE_PRODUCTS) {
-      await productRepository.upsertProduct({
-        ...coreProd,
-        companyId,
-      });
-    }
-
-    // Attempt live WhatsApp Business sync if an active session exists
-    let activeSock = null;
-    try {
+    if (!activeSock) {
       const session = sessionManager.getSession(sessionId);
       if (session?.sock) {
         activeSock = session.sock;
@@ -164,51 +161,78 @@ async function syncWhatsAppCatalog(req, res) {
           }
         }
       }
+    }
 
-      if (activeSock && typeof activeSock.getCatalog === 'function') {
-        const catalogResult = await activeSock.getCatalog({ limit: 50 });
-        if (catalogResult && Array.isArray(catalogResult.products) && catalogResult.products.length > 0) {
-          waFetched = catalogResult.products.length;
-          for (const item of catalogResult.products) {
-            let priceVal = Number(item.price) || 0;
-            if (priceVal > 10000) {
-              priceVal = priceVal / 1000;
-            }
-            await productRepository.upsertProduct({
-              id: item.id ? `wa_${item.id}` : undefined,
-              name: item.name || 'Produto WhatsApp',
-              code: item.retailerId || item.id || '',
-              description: item.description || '',
-              price: priceVal,
-              category: 'WhatsApp Business',
-              images: item.imageUrls || [],
-              whatsapp_url: item.url || `https://wa.me/c/553193672075`,
-              companyId,
-            });
-            syncedCount++;
+    if (activeSock && typeof activeSock.getCatalog === 'function') {
+      const catalogResult = await activeSock.getCatalog({ limit: 50 });
+      if (catalogResult && Array.isArray(catalogResult.products) && catalogResult.products.length > 0) {
+        waFetched = catalogResult.products.length;
+        for (const item of catalogResult.products) {
+          let priceVal = Number(item.price) || 0;
+          if (priceVal > 10000) {
+            priceVal = priceVal / 1000;
           }
+          await productRepository.upsertProduct({
+            id: item.id ? `wa_${item.id}` : undefined,
+            name: item.name || 'Produto WhatsApp',
+            code: item.retailerId || item.id || '',
+            description: item.description || '',
+            price: priceVal,
+            category: 'WhatsApp Business',
+            images: item.imageUrls || (item.image && [item.image]) || [],
+            whatsapp_url: item.url || `https://wa.me/c/553193672075`,
+            companyId,
+          });
+          syncedCount++;
         }
       }
-    } catch (waErr) {
-      console.warn('[ProductsController] WhatsApp getCatalog query returned:', waErr.message);
     }
+  } catch (waErr) {
+    console.warn('[ProductsController] WhatsApp getCatalog query returned:', waErr.message);
+  }
 
-    // Clear fast cache so fresh products are served immediately
-    if (typeof clearFastCache === 'function') {
-      clearFastCache();
+  // Clear fast cache so fresh products are served immediately
+  if (typeof clearFastCache === 'function') {
+    clearFastCache();
+  }
+
+  const currentProducts = await productRepository.listProducts({ companyId });
+
+  // Broadcast realtime socket event to all clients so they immediately show updated products
+  try {
+    const io = global.io;
+    if (io) {
+      io.emit('catalog:synced', {
+        sessionId,
+        companyId,
+        synced: syncedCount,
+        waFetched,
+        total: currentProducts.length,
+        products: currentProducts,
+      });
     }
+  } catch (ioErr) {
+    console.warn('[ProductsController] Socket broadcast error:', ioErr.message);
+  }
 
-    const currentProducts = await productRepository.listProducts({ companyId });
-    return res.json({
-      success: true,
-      synced: syncedCount,
-      waFetched,
-      total: currentProducts.length,
-      data: currentProducts,
-      message: syncedCount > 0
-        ? `${syncedCount} produtos importados do WhatsApp Business com sucesso!`
-        : `Catálogo de produtos sincronizado com sucesso (${currentProducts.length} itens disponíveis).`,
-    });
+  return {
+    success: true,
+    synced: syncedCount,
+    waFetched,
+    total: currentProducts.length,
+    data: currentProducts,
+    message: syncedCount > 0
+      ? `${syncedCount} produtos importados do WhatsApp Business com sucesso!`
+      : `Catálogo de produtos sincronizado com sucesso (${currentProducts.length} itens disponíveis).`,
+  };
+}
+
+async function syncWhatsAppCatalog(req, res) {
+  try {
+    const companyId = req.companyId || req.user?.companyId || 'default';
+    const sessionId = req.body?.sessionId || req.query?.sessionId || 'main';
+    const result = await syncWhatsAppCatalogInternal({ companyId, sessionId });
+    return res.json(result);
   } catch (error) {
     console.error('[ProductsController] syncWhatsAppCatalog error:', error);
     return res.status(500).json({ success: false, error: error.message });
@@ -219,4 +243,6 @@ module.exports = {
   getProducts,
   getProductById,
   syncWhatsAppCatalog,
+  syncWhatsAppCatalogInternal,
+  CORE_STORE_PRODUCTS,
 };
