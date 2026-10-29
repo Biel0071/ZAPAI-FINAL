@@ -205,9 +205,9 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     });
 
     const text = document.body.textContent || "";
-      expect(text).toContain("Progresso por registros de atendimento");
-    expect(text).toContain("Pilares da Inteligência Cognitiva");
-    expect(text).toContain("Central de Aprendizado");
+    expect(text).toContain("Evolução & Memória do Atendente");
+    expect(text).toContain("Painel de Nível & XP");
+    expect(text).toContain("Progresso para o Próximo Nível");
   });
 
   it("sidebar has the unified attendants entry and stores without duplicate navigation", async () => {

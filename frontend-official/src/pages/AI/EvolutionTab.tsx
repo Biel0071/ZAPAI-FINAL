@@ -1019,13 +1019,19 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
 
       {/* MODE 0: PAINEL DE EVOLUÇÃO & XP (HUB GAMIFICADO DE MATURIDADE) */}
       {evolutionSubTab === "hub" && (
-        <AttendantEvolutionHub
-          agentKey={selectedAgentKey}
-          agentName={currentAgent?.name || "Atendente"}
-          agentRole={currentAgent?.role || "Atendente Virtual"}
-          avatarConfig={currentAvatarConfig}
-          onRefresh={() => selectedAgentKey && loadAgentData(selectedAgentKey)}
-        />
+        hasEvolutionData ? (
+          <AttendantEvolutionHub
+            agentKey={selectedAgentKey}
+            agentName={currentAgent?.name || "Atendente"}
+            agentRole={currentAgent?.role || "Atendente Virtual"}
+            avatarConfig={currentAvatarConfig}
+            onRefresh={() => selectedAgentKey && loadAgentData(selectedAgentKey)}
+          />
+        ) : (
+          <Card className="p-5 text-sm text-muted-foreground border-border/70 bg-card/60">
+            {isLoading ? "Carregando evolução..." : "Sem dados de evolução disponíveis para este agente."}
+          </Card>
+        )
       )}
 
       {/* CAMPO 2: CÉREBRO & MEMÓRIA ATIVA (UNIFICA GRAFO NEURAL 2.5D E LISTA DE MEMÓRIAS) */}
