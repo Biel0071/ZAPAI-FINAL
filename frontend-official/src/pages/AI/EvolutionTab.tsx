@@ -197,8 +197,9 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
   const [customDateStart, setCustomDateStart] = useState<string>("");
   const [customDateEnd, setCustomDateEnd] = useState<string>("");
 
-  // View sub-tabs & Active Brain Graph state
-  const [evolutionSubTab, setEvolutionSubTab] = useState<"hub" | "graph" | "list" | "timeline" | "cognitive" | "conversations">("hub");
+  // View sub-tabs (Consolidado em 4 campos de evolução de IA) & Active Brain state
+  const [evolutionSubTab, setEvolutionSubTab] = useState<"hub" | "brain" | "timeline" | "conversations">("hub");
+  const [brainViewMode, setBrainViewMode] = useState<"graph" | "list">("graph");
   const [selectedMemoryNode, setSelectedMemoryNode] = useState<MemoryNodeData | null>(null);
   const [graphCategoryFilter, setGraphCategoryFilter] = useState<string>("todos");
 
@@ -897,9 +898,10 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
         </div>
       </div>
 
-      {/* SUB-TABS & DATE FILTER BAR */}
+      {/* 4 CAMPOS DE EVOLUÇÃO DE IA CONSOLIDADOS & DATE FILTER BAR */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/80 border border-border/70 w-fit flex-wrap">
+          {/* CAMPO 1: PAINEL DE NÍVEL & XP */}
           <button
             type="button"
             onClick={() => setEvolutionSubTab("hub")}
@@ -911,37 +913,25 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             )}
           >
             <Zap className="h-4 w-4 text-purple-400" />
-            <span>Painel de Evolução & XP</span>
+            <span>Painel de Nível & XP</span>
           </button>
 
+          {/* CAMPO 2: CÉREBRO & MEMÓRIA ATIVA */}
           <button
             type="button"
-            onClick={() => setEvolutionSubTab("graph")}
+            onClick={() => setEvolutionSubTab("brain")}
             className={cn(
               "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
-              evolutionSubTab === "graph"
+              evolutionSubTab === "brain"
                 ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-card/50"
             )}
           >
             <Brain className="h-4 w-4 text-purple-400" />
-            <span>Cérebro Ativo</span>
+            <span>Cérebro & Memória</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setEvolutionSubTab("list")}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
-              evolutionSubTab === "list"
-                ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-            )}
-          >
-            <BookOpen className="h-4 w-4 text-purple-400" />
-            <span>Memórias Relevantes</span>
-          </button>
-
+          {/* CAMPO 3: LINHA DO TEMPO COGNITIVA */}
           <button
             type="button"
             onClick={() => setEvolutionSubTab("timeline")}
@@ -953,23 +943,10 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             )}
           >
             <History className="h-4 w-4 text-purple-400" />
-            <span>Linha do Tempo</span>
+            <span>Linha do Tempo Cognitiva</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setEvolutionSubTab("cognitive")}
-            className={cn(
-              "flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all select-none cursor-pointer",
-              evolutionSubTab === "cognitive"
-                ? "bg-purple-500/20 border border-purple-500/50 text-purple-300 shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
-            )}
-          >
-            <Sparkles className="h-4 w-4 text-purple-400" />
-            <span>Evolução Cognitiva</span>
-          </button>
-
+          {/* CAMPO 4: PONTUAÇÃO & CONVERSAS REAIS */}
           <button
             type="button"
             onClick={() => setEvolutionSubTab("conversations")}
@@ -981,7 +958,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             )}
           >
             <Award className="h-4 w-4 text-purple-400" />
-            <span>Pontuação Real & Conversas</span>
+            <span>Pontuação & Conversas Reais</span>
           </button>
         </div>
 
@@ -1047,8 +1024,48 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
         />
       )}
 
-      {/* MODE 1: CÉREBRO ATIVO (GRAFO) */}
-      {evolutionSubTab === "graph" && (
+      {/* CAMPO 2: CÉREBRO & MEMÓRIA ATIVA (UNIFICA GRAFO NEURAL 2.5D E LISTA DE MEMÓRIAS) */}
+      {evolutionSubTab === "brain" && (
+        <div className="space-y-4">
+          {/* Sub-view switcher: Grafo Neural vs Lista de Memórias */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded-2xl bg-card/60 border border-border/70 shadow-xs">
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/40 border border-border/60 w-fit">
+              <button
+                type="button"
+                onClick={() => setBrainViewMode("graph")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none",
+                  brainViewMode === "graph"
+                    ? "bg-purple-500/20 text-purple-300 border border-purple-500/50 shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                )}
+              >
+                <Network className="h-3.5 w-3.5 text-purple-400" />
+                <span>Grafo Neural 2.5D</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBrainViewMode("list")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none",
+                  brainViewMode === "list"
+                    ? "bg-purple-500/20 text-purple-300 border border-purple-500/50 shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                )}
+              >
+                <BookOpen className="h-3.5 w-3.5 text-purple-400" />
+                <span>Lista de Memórias ({filteredMemories.length})</span>
+              </button>
+            </div>
+
+            <div className="text-xs text-muted-foreground flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+              <span>Memória contínua e nós neurais sincronizados com o cérebro da IA</span>
+            </div>
+          </div>
+
+          {brainViewMode === "graph" ? (
         <div className="space-y-6">
           <div className={cn(
             "grid grid-cols-1 gap-4 items-start",
@@ -1275,10 +1292,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
           </CardHeader>
         </Card>
       </div>
-      )}
-
-      {/* MODE 2: MEMÓRIAS RELEVANTES (LISTA COM PAGINAÇÃO CANÔNICA) */}
-      {evolutionSubTab === "list" && (
+      ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           <div className={cn(selectedMemoryNode ? "lg:col-span-8" : "lg:col-span-12")}>
             <Card className="bg-card border-border/80 shadow-md overflow-hidden flex flex-col">
@@ -1444,10 +1458,12 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             </div>
           )}
         </div>
+        )}
+      </div>
       )}
 
-      {/* MODE 3 & 4: LINHA DO TEMPO & EVOLUÇÃO COGNITIVA UNIFICADAS */}
-      {(evolutionSubTab === "timeline" || evolutionSubTab === "cognitive") && (
+      {/* CAMPO 3: LINHA DO TEMPO COGNITIVA */}
+      {evolutionSubTab === "timeline" && (
         <div className="space-y-6">
           {hasEvolutionData ? (
             <>

@@ -993,6 +993,9 @@ async function getAgentEvolutionProfile(agentKey = 'camila', companyId = 'defaul
     totalAnalyzed: levelData?.totalAnalyzed || scoredCount,
     scoredConversationsCount: scoredCount,
     badges,
+    cognitiveTiers: levelData?.cognitiveTiers || [],
+    activeCapabilities: levelData?.activeCapabilities || [],
+    nextLevelUnlocks: levelData?.nextLevelUnlocks || [],
     recentLogs: logsRes.rows,
     activeMemories: memoriesRes.rows,
   };

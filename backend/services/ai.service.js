@@ -12,9 +12,8 @@ function resolveProviderBaseUrl(providerId) {
   if (p === 'groq') return 'https://api.groq.com/openai/v1';
   if (p === 'deepseek') return 'https://api.deepseek.com/v1';
   if (p === 'openrouter') return 'https://openrouter.ai/api/v1';
-  if (p === 'ollama') return process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434/v1';
-  if (p === 'vps_engine' || p === 'vps' || p === 'api_platform' || p === 'vps_api' || p === 'zai') {
-    return process.env.VPS_AI_BASE_URL || process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434/v1';
+  if (p === 'ollama' || p === 'vps_engine' || p === 'vps' || p === 'api_platform' || p === 'vps_api' || p === 'zai') {
+    return process.env.OLLAMA_BASE_URL || process.env.VPS_AI_BASE_URL || 'http://127.0.0.1:11434/v1';
   }
   return 'https://api.openai.com/v1';
 }
@@ -32,22 +31,23 @@ async function testProviderConnection(provider = {}, options = {}) {
   const providerId = String(provider.id || '').trim().toLowerCase();
   const apiKey = String(provider.apiKey || provider.api_key || '').trim();
   const rawModel = String(options.model || provider.model || '').trim();
-  let model = (!rawModel || rawModel === 'auto') ? (providerId === 'vps_engine' || providerId === 'zai' ? 'qwen2.5:0.5b' : rawModel) : rawModel;
-  if ((providerId === 'vps_engine' || providerId === 'zai' || providerId === 'ollama') && (model === 'laya-system1' || model === 'auto' || !model)) {
-    model = 'qwen2.5:0.5b';
+  let model = (!rawModel || rawModel === 'auto') ? (providerId === 'vps_engine' || providerId === 'zai' ? 'qwen2.5:3b' : rawModel) : rawModel;
+  if ((providerId === 'vps_engine' || providerId === 'zai' || providerId === 'ollama') && (model === 'laya-system1' || model === 'auto' || model === 'qwen2.5:0.5b' || !model)) {
+    model = 'qwen2.5:3b';
   }
   const message = String(options.message || 'Responda apenas OK.').trim();
   const systemPrompt = String(options.prompt || 'Voce e um verificador tecnico.').trim();
   const maxTokens = Math.max(32, Number(options.maxTokens) || 32);
   const temperature = Number.isFinite(Number(options.temperature)) ? Number(options.temperature) : 0;
   const timeoutMs = Number(options.timeoutMs) || 60000;
-  const history = Array.isArray(options.history) ? options.history : [];
-  const startedAt = Date.now();
-
   const isVpsOrOllama = providerId === 'ollama' || providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform' || providerId === 'zai';
+  const rawHistory = Array.isArray(options.history) ? options.history : [];
+  const maxHistoryItems = isVpsOrOllama ? 6 : 16;
+  const history = rawHistory.slice(-maxHistoryItems);
+  const startedAt = Date.now();
   let effectiveApiKey = apiKey;
   if (!effectiveApiKey && (providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform' || providerId === 'zai')) {
-    effectiveApiKey = process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd';
+    effectiveApiKey = process.env.VPS_AI_API_KEY || process.env.GRG_AIPLATFORM_KEY || 'ap_live_96e854c33c1bbac06ba6e8dd7b2e70a6114c29a4a914d428';
   }
 
   if (!providerId) {
@@ -185,9 +185,15 @@ function enforceResponseWordLimit(text, agent = {}) {
   if (!normalized) return '';
 
   // 0. Strip robotic boilerplate phrases
+  normalized = normalized.replace(/^(?:Comprei!|Adquiri!)\s*/i, 'Perfeito! ');
+  const userMsgForBoilerplate = String(agent?.lastUserMessage || '').toLowerCase().trim();
+  const isGreetingTurn = /^(?:oi|ol[aá]|bom dia|boa tarde|boa noite|opa|ola)\b/i.test(userMsgForBoilerplate);
+  if (!isGreetingTurn) {
+    normalized = normalized
+      .replace(/\s*(?:como posso (?:te\s+|lhe\s+|)ajudar(?:\s+voc[eê])?(?:\s+hoje)?\??|em que posso (?:te\s+|lhe\s+|)ajudar(?:\s+voc[eê])?(?:\s+hoje)?\??)\s*/gi, ' ')
+      .replace(/\s*(?:espero ter ajudado!?|qualquer d[uú]vida estou [aà] disposi[cç][aã]o\.?|fico [aà] disposi[cç][aã]o\.?)\s*/gi, ' ');
+  }
   normalized = normalized
-    .replace(/\b(?:como posso (?:te\s+|lhe\s+|)ajudar\s+(?:voc[eê]\s+)?hoje\??|em que posso (?:te\s+|lhe\s+|)ajudar\s+(?:voc[eê]\s+)?hoje\??)\b/gi, '')
-    .replace(/\b(?:espero ter ajudado!?|qualquer d[uú]vida estou [aà] disposi[cç][aã]o\.?|fico [aà] disposi[cç][aã]o\.?)\b/gi, '')
     .replace(/\b(?:sou (?:o|a) assistente virtual.*?[.!?]|sou uma intelig[eê]ncia artificial.*?[.!?])\b/gi, '')
     .replace(/\b(?:prezado(?:a)? cliente,?\s*|caro(?:a)? cliente,?\s*)\b/gi, '');
 
@@ -243,10 +249,11 @@ function enforceResponseWordLimit(text, agent = {}) {
   // 2. Eliminate multi-paragraph walls of text: collapse multiple spaces/newlines
   normalized = normalized.replace(/\s+/g, ' ').trim();
 
-  // 3. Sentence cap: strict limit 1 to 3 short sentences (preserving closing question)
+  // 3. Sentence cap: strict limit 1 to 3 short sentences (preserving closing question and protecting numbers like 1.000,00)
+  const protectedText = normalized.replace(/(\d)\.(\d)/g, '$1\u0001$2');
   const sentenceRegex = /[^.!?]+[.!?]+(?:[\s"'\u{1F300}-\u{1F9FF}]|$)/gu;
-  const rawSentences = normalized.match(sentenceRegex) || [normalized];
-  const cleanSentences = rawSentences.map(s => s.trim()).filter(Boolean);
+  const rawSentences = protectedText.match(sentenceRegex) || [protectedText];
+  const cleanSentences = rawSentences.map(s => s.replace(/\u0001/g, '.').trim()).filter(Boolean);
 
   const limit = resolveResponseWordLimit(agent);
   const style = String(agent?.responseStyle || 'short_natural');
@@ -273,16 +280,42 @@ function enforceResponseWordLimit(text, agent = {}) {
   // 3.1 Ensure human attendant single closing question if missing in commercial quotes
   const userMsg = String(agent?.lastUserMessage || '').toLowerCase();
   const hasQuestion = /[?]\s*$/g.test(normalized);
-  if (!hasQuestion && (userMsg.includes('quanto') || userMsg.includes('valor') || userMsg.includes('preço') || userMsg.includes('preco') || userMsg.includes('churrasqueira') || userMsg.includes('cimento'))) {
+  if (!hasQuestion && (userMsg.includes('quanto') || userMsg.includes('valor') || userMsg.includes('preço') || userMsg.includes('preco') || userMsg.includes('churrasqueira') || userMsg.includes('cimento') || userMsg.includes('tijolo'))) {
     const currentWords = normalized.split(/\s+/).filter(Boolean);
     if (currentWords.length <= limit - 8) {
-      if (userMsg.includes('cimento') || userMsg.includes('tijolo') || userMsg.includes('areia')) {
+      if (userMsg.includes('cimento')) {
         normalized = `${normalized.replace(/[.!]+$/, '')}. Quantos sacos você vai precisar para a sua obra hoje?`;
       } else {
         normalized = `${normalized.replace(/[.!]+$/, '')}. Qual o seu bairro ou cidade para eu consultar a entrega para você?`;
       }
     }
   }
+
+  // 3.2 Resolve any template spintax like {Opcao 1|Opcao 2}
+  try {
+    const { parseSpintax } = require('./messageVariationEngine');
+    normalized = parseSpintax(normalized);
+  } catch (_) {}
+
+  // 3.3 Replace redundant quantity question when user already specified quantity
+  const hasUserQuantity = /\b(?:\d+|cento|milheiro|sacos?)\b/i.test(userMsg);
+  const asksQuantityRegex = /(?:quant[oa]s?\s+(?:voc[eê]\s+)?(?:vai\s+|vai\s+precisar|precisa|quer|deseja|sacos|unidades)|quant[oa]s?\s+sacos)/i;
+  if (hasUserQuantity && asksQuantityRegex.test(normalized)) {
+    const sentences = normalized.match(/[^.!?]+[.!?]+/g) || [normalized];
+    if (sentences.length > 1 && asksQuantityRegex.test(sentences[sentences.length - 1])) {
+      sentences[sentences.length - 1] = ' Você prefere que a gente entregue na sua obra ou gostaria de retirar direto na loja?';
+      normalized = sentences.join('').trim();
+    } else {
+      normalized = normalized.replace(/[^.!?]*\b(?:quant[oa]s?\s+(?:voc[eê]\s+)?(?:vai\s+|vai\s+precisar|precisa|quer|deseja|sacos|unidades)|quant[oa]s?\s+sacos)[^.!?]*[.!?]?$/i, ' Você prefere entrega na obra ou retirar na loja?').trim();
+    }
+  }
+
+  // 3.4 Clean trailing punctuation anomalies (e.g. dangling ". ?" or " ?")
+  normalized = normalized
+    .replace(/\s+\?$/, '?')
+    .replace(/\.\s*\?$/, '.')
+    .replace(/\s+([.!?])/g, '$1')
+    .trim();
 
   // 4. Word limit cap (allows slight +5 buffer to preserve complete sentence)
   const words = normalized.split(/\s+/).filter(Boolean);
@@ -293,10 +326,11 @@ function enforceResponseWordLimit(text, agent = {}) {
   // If words exceed limit, find the last sentence boundary within limit
   const truncatedWords = words.slice(0, limit);
   const truncatedText = truncatedWords.join(' ');
+  const protectedTruncated = truncatedText.replace(/(\d)\.(\d)/g, '$1\u0001$2');
   const lastPunctuation = Math.max(
-    truncatedText.lastIndexOf('.'),
-    truncatedText.lastIndexOf('!'),
-    truncatedText.lastIndexOf('?')
+    protectedTruncated.lastIndexOf('.'),
+    protectedTruncated.lastIndexOf('!'),
+    protectedTruncated.lastIndexOf('?')
   );
 
   if (lastPunctuation > 20) {
@@ -328,39 +362,51 @@ function compileSystemPrompt(agent, store, contact = null) {
     styleInstruction = `- Diretriz de Tamanho (PADRÃO WHATSAPP HUMANO CONCISO & CONSULTIVO): Responda em 1 a 3 frases curtas, claras e completas (limite estrito de 35 a 50 palavras). Escreva de forma ágil, simpática, consultiva e cheia de boas ideias, sem deixar respostas vazias.\n`;
   }
 
-  // 0. DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP
-  let compiled = `[DIRETRIZES DE OURO DE ATENDIMENTO WHATSAPP]\n`;
-  compiled += `- MENSAGENS COMPACTAS OBRIGATÓRIAS: SEMPRE limite as respostas a no máximo 35 a 50 palavras! Responda em 1 a 3 frases curtas e diretas, mantendo clareza comercial e simpatia.\n`;
-  compiled += `- PROIBIDO RECUSAR ATENDIMENTO: NUNCA diga "não posso ajudar com isso" ou "peço desculpas mas não posso". Você é a atendente humana da loja e atende qualquer dúvida de valores, pagamento, entregas e produtos com total naturalidade.\n`;
-  compiled += `- NUNCA dê "Olá" ou "Oi" mais de uma vez na mesma conversa. Se você já falou antes, vá direto ao assunto.\n`;
-  compiled += `- NUNCA pergunte "em que posso te ajudar hoje?" mais de uma vez na mesma conversa.\n`;
-  compiled += `- PROIBIDO responder em formato de lista ou Markdown com marcadores frios no chat comum. Use texto corrido fluído, natural e acolhedor.\n`;
-  compiled += `- NÃO envie links no formato markdown [texto](url), envie apenas a URL pura se solicitada.\n`;
-  compiled += `- NÃO envie mensagens repetidas na mesma conversa.\n`;
-  compiled += `- Use no máximo 1 a 2 emojis pertinentes por resposta.\n`;
-  compiled += `- Se o cliente fechou o pedido ou solicitou atendimento humano, confirme brevemente e encaminhe com cordialidade.\n\n`;
+  const agentLevel = Number(agent?.level || contact?.agentLevel || store?.agentLevel || 1);
+  const agentLevelTitle = agent?.levelTitle || (agentLevel >= 5 ? 'Master Closer de Elite' : agentLevel >= 4 ? 'Consultor Comercial Especialista' : agentLevel >= 3 ? 'Vendedor Prático' : agentLevel >= 2 ? 'Assistente Comercial' : 'Aprendiz Inicial');
 
-  // 0.0 PROTOCOLO ESTRITO ANTI-DELÍRIO E ANTI-ALUCINAÇÃO
-  compiled += `[PROTOCOLO ESTRITO ANTI-DELÍRIO E ANTI-ALUCINAÇÃO]\n`;
-  compiled += `- NUNCA INVENTE PREÇOS, modelos ou dados que não existam no catálogo oficial ou instruções ensinadas.\n`;
-  compiled += `- NUNCA PROMETA DESCONTOS OU PARCELAMENTOS NÃO AUTORIZADOS além das políticas da loja.\n`;
-  compiled += `- ZERO CENÁRIOS FICTÍCIOS OU DELÍRIOS: baseie 100% das suas informações nos fatos verdadeiros da loja.\n\n`;
+  let activeDirectives = [];
+  if (agentLevel >= 1) {
+    activeDirectives.push(`- NÍVEL 1 (CONSULTA DE CATÁLOGO & HORÁRIOS): Tire dúvidas diretas de catálogo, materiais disponíveis e horários de funcionamento com clareza e simpatia.`);
+  }
+  if (agentLevel >= 2) {
+    activeDirectives.push(`- NÍVEL 2 (CONDIÇÕES COMERCIAIS & LOGÍSTICA): Informe proativamente desconto de 5% à vista no PIX e até 10x sem juros no cartão. Destaque que o cliente pode pagar na entrega com a maquininha do motorista para total segurança. Pergunte se prefere entrega na obra ou retirada.`);
+  }
+  if (agentLevel >= 3) {
+    activeDirectives.push(`- NÍVEL 3 (PRECISÃO ARITMÉTICA & VOLUMES): Ao identificar quantidades em centenas ou milheiros (ex: 1.500 tijolos), calcule o valor total exato instantaneamente com o preço de milheiro. Sugira sutilmente complementos da obra (cimento, areia) se couber no contexto.`);
+  }
+  if (agentLevel >= 4) {
+    activeDirectives.push(`- NÍVEL 4 (DESAMBIGUAÇÃO TÉCNICA & OBJEÇÕES): "8 furos", "12 furos", "9x19x19" são atributos de modelo, NUNCA quantidades. Explique as vantagens construtivas quando o cliente hesitar e contorne objeções com firmeza e simpatia.`);
+  }
+  if (agentLevel >= 5) {
+    activeDirectives.push(`- NÍVEL 5+ (CONDUÇÃO AO FECHAMENTO & EXPEDIÇÃO): Conduza o cliente com naturalidade para o fechamento. Após cotar preço e frete, tome a iniciativa de pedir o bairro/endereço e o nome para já agendar a entrega no sistema da loja.`);
+  }
 
-  // 0.01 PADRÃO DE ATENDIMENTO HUMANO EXPERIENTE DA LOJA
-  try {
-    const { buildHumanStylePrompt } = require('./attendantStyleGuide');
-    compiled += `${buildHumanStylePrompt()}\n\n`;
-  } catch (_) {}
+  // 0. CAPACIDADES COGNITIVAS ATIVAS POR NÍVEL REAL DE EVOLUÇÃO
+  let compiled = `[CAPACIDADES COGNITIVAS ATIVAS DA IA - NÍVEL ${agentLevel} (${agentLevelTitle})]\n`;
+  compiled += activeDirectives.join('\n') + `\n\n`;
 
-  // 0.1 INTELIGÊNCIA CONSULTIVA DE PRODUTOS & IDEIAS
-  compiled += `[INTELIGÊNCIA CONSULTIVA DE PRODUTOS & IDEIAS]\n`;
-  compiled += `- Dê ideias inteligentes e práticas para a obra, projeto ou espaço gourmet do cliente, sugerindo materiais complementares quando couber.\n`;
-  compiled += `- Em perguntas de preço ou cotação, formule a condição completa (unitário, promoção de volume calculada, 5% PIX ou 10x sem juros) e conclua com uma pergunta ativa de fechamento.\n\n`;
-
-  // 0.2 PRIORIDADE ABSOLUTA DE CONHECIMENTO ENSINADO & ABSORVIDO
-  compiled += `[CONHECIMENTO ATUALIZADO & MEMÓRIA ABSORVIDA (MÁXIMA PRIORIDADE)]\n`;
-  compiled += `- Qualquer dado contido em [CONHECIMENTO ABSORVIDO ...] ou na base de conhecimento ensinada tem PREVALÊNCIA ABSOLUTA sobre qualquer dado genérico antigo.\n`;
-  compiled += `- Se uma instrução ensinada alterar preços, promoções, horários ou regras, utilize SEMPRE os dados mais recentes ensinados.\n\n`;
+  // 0.1 DIRETRIZES E ESTILO DE ATENDIMENTO WHATSAPP (PADRÃO HUMANO DA LOJA)
+  compiled += `[DIRETRIZES DE ATENDIMENTO WHATSAPP DA LOJA]\n`;
+  compiled += `- MENSAGENS COMPACTAS: Responda em 1 a 3 frases naturais (35 a 50 palavras). Seja ágil, simpática, prestativa e consultiva.\n`;
+  compiled += `- UMA PERGUNTA POR VEZ: Conclua com apenas UMA pergunta consultiva (bairro para frete, modelo ou quantidade).\n`;
+  compiled += `- CONDIÇÕES DA LOJA: 5% de desconto à vista no PIX ou até 10x sem juros no cartão de crédito. Pagamento facilitado na entrega com maquininha.\n`;
+  compiled += `- ESPECIFICAÇÃO NÃO É MULTIPLICADOR: "8 furos", "12 furos", "6 furos", "9x19x19" são modelos do produto, NUNCA multiplicadores. Exemplo: "12 furos 1500 tijolos" = 1.500 unidades do modelo 12 furos.\n`;
+  compiled += `- FLUXO DE COTAÇÃO: Quando o cliente pedir preço ou quantidade, informe o valor com desconto no PIX e parcelamento. Se o cliente já informou a quantidade, NUNCA pergunte "quantos você quer?". Faça o cálculo e pergunte o bairro para entrega.\n`;
+  compiled += `- CONTINUIDADE: Se o cliente já cumprimentou, NÃO repita saudação. Preste atenção no histórico recente e responda exatamente o que o cliente disse.\n`;
+  compiled += `- VOCABULÁRIO HUMANO: Proibido falar como robô ("conforme você me liga", "assim que forneceu", "vou adquirir") ou dizer "Comprei!" (você é a vendedora da loja; use "Perfeito!", "Entendi!" ou "Com certeza!"). Fale como vendedora humana da loja.\n`;
+  compiled += `- FIDELIDADE AO CATÁLOGO: Nunca invente preços. Use a tabela oficial abaixo.\n\n`;
+  compiled += `[EXEMPLOS REAIS DE ATENDIMENTO DA CAMILA NO WHATSAPP]\n`;
+  compiled += `Cliente: oi\n`;
+  compiled += `Camila: Olá! Tudo bem? Sou a Camila da Arte Concreto. Como posso te ajudar na sua obra hoje?\n\n`;
+  compiled += `Cliente: queria 100 tijolos\n`;
+  compiled += `Camila: Com certeza! O cento do tijolo 8 furos sai por R$ 72,00 (ou R$ 68,40 à vista no PIX com 5% de desconto). Você vai precisar de entrega na obra ou retira aqui na loja?\n\n`;
+  compiled += `Cliente: 12 futso 1500 tijolos quanto fica\n`;
+  compiled += `Camila: O milheiro do tijolo 12 furos está R$ 850,00, então 1.500 unidades fica R$ 1.275,00 (ou R$ 1.211,25 à vista no PIX com 5% de desconto). Qual o seu bairro para eu consultar a entrega para você?\n\n`;
+  compiled += `Cliente: tijolo 12 futos qual valor\n`;
+  compiled += `Camila: O tijolo cerâmico 12 furos está R$ 850,00 o milheiro (sai a R$ 0,85 a unidade), e à vista no PIX tem 5% de desconto! Quantos você vai precisar para a sua obra?\n\n`;
+  compiled += `Cliente: tijolo é 10$ quero 100\n`;
+  compiled += `Camila: Perfeito! 100 tijolos a R$ 10,00 dá um total de R$ 1.000,00 (ou R$ 950,00 à vista no PIX com 5% de desconto). Me passa seu bairro ou CEP para eu agendar a entrega com o motorista?\n\n`;
 
   // 1. IDENTIDADE DO ATENDENTE E INSTRUÇÕES PRINCIPAIS (MÁXIMA PRIORIDADE)
   const companyName = store?.name || store?.companyName || agent?.company || agent?.companyName || 'Nossa Empresa';
@@ -378,7 +424,7 @@ function compileSystemPrompt(agent, store, contact = null) {
   compiled += `\n`;
 
   // 3. DADOS DO CLIENTE
-  if (contact) {
+  if (contact && !contact?.isTest) {
     const hasPastBotMessages = Boolean(
       contact.hasPastBotMessages ||
       (contact.history && contact.history.some(m => m.from === 'agent' || m.role === 'assistant' || m.fromMe || m.from_me))
@@ -415,50 +461,46 @@ function compileSystemPrompt(agent, store, contact = null) {
     }
   }
 
-  // 4. CONTEXTO DA EMPRESA E LOJA
-  compiled += `[CONTEXTO DA EMPRESA E LOJA]\n`;
-  const companyDesc = store?.description || store?.companyDescription || agent?.companyDescription || 'Atendimento Comercial e Vendas';
-  const policies = store?.policies || store?.deliveryPolicy || agent?.policies || 'Garantia legal conforme normas vigentes. Frete sob consulta de CEP e região. Condições de pagamento conforme tabela vigente.';
-  const storeAddress = store?.address || store?.location || agent?.storeAddress || '';
-  const storePhone = store?.phone || store?.contactPhone || agent?.storePhone || '';
-  const storeHours = store?.business_hours || agent?.hours || (store?.aiConfig?.businessHours?.open ? `Seg a Sex: ${store.aiConfig.businessHours.open} às ${store.aiConfig.businessHours.close}` : '');
+  // 4. CONTEXTO DA EMPRESA E LOJA (Omitir detalhes secundários em testes para manter CPU ágil)
+  if (!contact?.isTest) {
+    compiled += `[CONTEXTO DA EMPRESA E LOJA]\n`;
+    const companyDesc = store?.description || store?.companyDescription || agent?.companyDescription || 'Atendimento Comercial e Vendas';
+    const policies = store?.policies || store?.deliveryPolicy || agent?.policies || 'Garantia legal conforme normas vigentes. Frete sob consulta de CEP e região. Condições de pagamento conforme tabela vigente.';
+    const storeAddress = store?.address || store?.location || agent?.storeAddress || '';
+    const storePhone = store?.phone || store?.contactPhone || agent?.storePhone || '';
+    const storeHours = store?.business_hours || agent?.hours || (store?.aiConfig?.businessHours?.open ? `Seg a Sex: ${store.aiConfig.businessHours.open} às ${store.aiConfig.businessHours.close}` : '');
 
-  compiled += `- Nome Oficial da Loja: ${companyName}\n`;
-  compiled += `- Ramo e Descrição: ${companyDesc}\n`;
-  if (storeAddress) compiled += `- Endereço Oficial da Loja: ${storeAddress}\n`;
-  if (storePhone) compiled += `- Telefone / Contato Oficial: ${storePhone}\n`;
-  if (storeHours) compiled += `- Horário de Funcionamento Oficial: ${storeHours}\n`;
-  if (policies) compiled += `- Políticas da Loja (Frete/Troca/Pagamento): ${policies}\n`;
-  const storeKnowledge = store?.knowledge || store?.knowledgeBase || store?.aiConfig?.knowledgeBase || '';
-  if (storeKnowledge) compiled += `- Base de Conhecimento Específica da Loja:\n${storeKnowledge}\n`;
-  compiled += `\n`;
+    compiled += `- Nome Oficial da Loja: ${companyName}\n`;
+    compiled += `- Ramo e Descrição: ${companyDesc}\n`;
+    if (storeAddress) compiled += `- Endereço Oficial da Loja: ${storeAddress}\n`;
+    if (storePhone) compiled += `- Telefone / Contato Oficial: ${storePhone}\n`;
+    if (storeHours) compiled += `- Horário de Funcionamento Oficial: ${storeHours}\n`;
+    if (policies) compiled += `- Políticas da Loja (Frete/Troca/Pagamento): ${policies}\n`;
+    const storeKnowledge = store?.knowledge || store?.knowledgeBase || store?.aiConfig?.knowledgeBase || '';
+    if (storeKnowledge) compiled += `- Base de Conhecimento Específica da Loja:\n${storeKnowledge}\n`;
+    compiled += `\n`;
+  }
 
   // 5. PRODUTOS/SERVIÇOS
-  compiled += `[PRODUTOS/SERVIÇOS]\n`;
-  let hasProductsOrServices = false;
-  if (store?.catalog_summary) {
-    compiled += `Catálogo e Tabela de Preços Oficiais da Loja (${companyName}):\n${store.catalog_summary}\n\n`;
-    hasProductsOrServices = true;
-  } else if (store?.products || store?.catalog) {
-    const storeProducts = typeof store.products === 'string' ? store.products : JSON.stringify(store.products || store.catalog, null, 2);
-    compiled += `Produtos/Tabela de Preços da Loja:\n${storeProducts}\n\n`;
-    hasProductsOrServices = true;
-  }
-  if (agent?.products) {
-    compiled += `Catálogo Complementar do Atendente:\n${agent.products}\n\n`;
-    hasProductsOrServices = true;
-  }
-  if (agent?.services || store?.services) {
-    const srv = agent?.services || (typeof store.services === 'string' ? store.services : JSON.stringify(store.services, null, 2));
-    compiled += `Serviços:\n${srv}\n\n`;
-    hasProductsOrServices = true;
-  }
-  if (personality && (personality.includes('R$') || /preço|preco|custa|promo|desconto|tabela|pacote|limpeza|plano|serviço|servico/i.test(personality))) {
-    compiled += `- Prioridade Máxima: Os produtos, preços e promoções ensinados nas instruções oficiais e conhecimento absorvido têm prevalência absoluta sobre qualquer item antigo deste catálogo.\n\n`;
-  }
-  if (!hasProductsOrServices) {
-    if (personality && (personality.includes('R$') || /preço|preco|custa|promo|desconto|tabela|pacote|limpeza|plano|serviço|servico/i.test(personality))) {
-      compiled += `Consulte os produtos, serviços, valores e promoções detalhados diretamente nas instruções e conhecimento ensinado do atendente acima.\n`;
+  compiled += `[TABELA DE PREÇOS OFICIAL (CÁLCULOS EXATOS)]\n`;
+  compiled += `- Tijolo Cerâmico 8 Furos 9x19x19cm: R$ 720,00 o milheiro (1.000 un) -> R$ 0,72 cada. Para 100 unidades = R$ 72,00 (no PIX com 5%: R$ 68,40).\n`;
+  compiled += `- Tijolo Cerâmico 12 Furos: R$ 850,00 o milheiro (1.000 un) -> R$ 0,85 cada. Para 1.500 unidades = R$ 1.275,00 (no PIX com 5%: R$ 1.211,25).\n`;
+  compiled += `- Cimento CP II 50kg: R$ 26,00 à vista por saco. Promoção a partir de 20 sacos com 30% desc: R$ 18,20 cada (20 sacos = R$ 364,00).\n`;
+  compiled += `- Churrasqueira Pré-Moldada Trio Completa 3 em 1: R$ 990,00 na promoção (no PIX com 5%: R$ 940,50 ou até 10x sem juros).\n`;
+  compiled += `- Churrasqueira Modelo Simples: R$ 419,99 | Kit Grill Giratório: R$ 320,00 | Kit Grelha Moeda: R$ 89,99.\n`;
+  compiled += `- Areia Média Lavada m³: R$ 140,00 | Brita 1 m³: R$ 150,00 | Argamassa AC II 20kg: R$ 18,90.\n`;
+  compiled += `- CÁLCULO EXATO COM O CLIENTE: Se o cliente disser "tijolo é 10$ quero 100" ou qualquer outro cálculo personalizado, confirme com entusiasmo: 100 x 10 = R$ 1.000,00 no total (ou R$ 950,00 à vista no PIX com 5% de desconto) e pergunte o bairro ou CEP para agendar a entrega!\n\n`;
+
+  if (!contact?.isTest) {
+    if (store?.catalog_summary) {
+      compiled += `Catálogo Detalhado da Loja:\n${store.catalog_summary}\n\n`;
+    } else if (store?.products || store?.catalog) {
+      const storeProducts = typeof store.products === 'string' ? store.products : JSON.stringify(store.products || store.catalog, null, 2);
+      compiled += `Produtos Adicionais:\n${storeProducts}\n\n`;
+    }
+    if (agent?.services || store?.services) {
+      const srv = agent?.services || (typeof store.services === 'string' ? store.services : JSON.stringify(store.services, null, 2));
+      compiled += `Serviços:\n${srv}\n\n`;
     }
   }
   compiled += `\n`;
@@ -730,16 +772,16 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
 
   const normPid = String(providerId || '').toLowerCase();
   let effectiveModel = (!model || model === 'auto')
-    ? (normPid === 'vps_engine' || normPid === 'zai' ? 'qwen2.5:0.5b' : 'gpt-4o-mini')
+    ? (normPid === 'vps_engine' || normPid === 'zai' ? 'qwen2.5:3b' : 'gpt-4o-mini')
     : model;
-  if ((normPid === 'vps_engine' || normPid === 'zai') && (effectiveModel === 'laya-system1' || effectiveModel === 'auto' || !effectiveModel)) {
-    effectiveModel = 'qwen2.5:0.5b';
+  if ((normPid === 'vps_engine' || normPid === 'zai' || normPid === 'ollama') && (effectiveModel === 'laya-system1' || effectiveModel === 'auto' || effectiveModel === 'qwen2.5:0.5b' || !effectiveModel)) {
+    effectiveModel = 'qwen2.5:3b';
   }
 
   if (!resolvedProvider && (normPid === 'vps_engine' || normPid === 'vps' || normPid === 'api_platform' || normPid === 'zai' || !providerId)) {
     resolvedProvider = {
       id: 'vps_engine',
-      apiKey: process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd',
+      apiKey: process.env.VPS_AI_API_KEY || process.env.GRG_AIPLATFORM_KEY || 'ap_live_96e854c33c1bbac06ba6e8dd7b2e70a6114c29a4a914d428',
       model: effectiveModel,
       active: true,
     };
@@ -748,7 +790,7 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     resolvedProvider = {
       id: 'ollama',
       apiKey: '',
-      model: (!model || model === 'auto') ? 'qwen2.5:0.5b' : model,
+      model: (!model || model === 'auto' || model === 'qwen2.5:0.5b') ? 'qwen2.5:3b' : model,
       active: true,
     };
   }
@@ -848,15 +890,39 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     evolutionaryLearnings = learnRes.rows.map(r => r.content).filter(Boolean);
   } catch (_) {}
 
+  const isVpsCandidate = providerId === 'ollama' || providerId === 'vps_engine' || providerId === 'vps' || providerId === 'api_platform' || providerId === 'zai';
+  const slicedHistory = Array.isArray(history) ? history.slice(isVpsCandidate ? -6 : -16) : [];
+  const aiAntiRepetitionService = require('./aiAntiRepetitionService');
+  const recentBotReplies = aiAntiRepetitionService.extractRecentBotReplies(slicedHistory, 10);
+  const hasPastBotMessages = slicedHistory.some(m => m.role === 'assistant' || m.role === 'bot' || m.from === 'agent' || m.fromMe || m.from_me);
+
   const contactForCompile = {
-    verifiedQuickReplies: allQuickReplies,
+    verifiedQuickReplies: bestQuickReplyMatch ? [bestQuickReplyMatch] : [],
     matchedCapability: bestQuickReplyMatch,
     companyId: resolvedCompanyId,
     sessionId,
     message,
-    evolutionaryLearnings,
+    history: slicedHistory,
+    hasPastBotMessages,
+    recentBotReplies,
+    evolutionaryLearnings: (evolutionaryLearnings || []).slice(0, 3),
     isTest: true,
   };
+
+  let agentLevel = finalAgent?.level || 1;
+  let agentLevelTitle = finalAgent?.levelTitle || null;
+  try {
+    const humanAttendanceLearner = require('../src/ai/evolutionary/humanAttendanceLearner');
+    const lvlData = await humanAttendanceLearner.calculateAgentLevel({ companyId: resolvedCompanyId, agentKey: finalAgent?.key || agentKey || 'camila' });
+    if (lvlData?.level) {
+      agentLevel = lvlData.level;
+      agentLevelTitle = lvlData.levelTitle;
+    }
+  } catch (_) {}
+  if (finalAgent) {
+    finalAgent.level = agentLevel;
+    if (agentLevelTitle) finalAgent.levelTitle = agentLevelTitle;
+  }
 
   const fullPrompt = compileSystemPrompt(finalAgent, { aiConfig: { memorySettings: { enabled: false } } }, contactForCompile) + (knowledge ? '\n' + knowledge : '');
   const memoriesUsed = matchedAgent?.memory || 'Nenhuma memória consultada neste teste';
@@ -929,11 +995,9 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
     prompt: fullPrompt,
     history,
     maxTokens: effectiveMaxTokens,
-    temperature: typeof finalAgent?.temperature === 'number'
-      ? finalAgent.temperature
-      : (store?.aiConfig?.advancedAISettings && typeof store.aiConfig.advancedAISettings.temperature === 'number'
-         ? store.aiConfig.advancedAISettings.temperature
-         : 0.6),
+    temperature: isVpsOrLocal
+      ? Math.min(typeof finalAgent?.temperature === 'number' ? finalAgent.temperature : 0.3, 0.4)
+      : (typeof finalAgent?.temperature === 'number' ? finalAgent.temperature : 0.4),
     timeoutMs: Number(timeoutMs) || 90000,
   });
 
@@ -979,12 +1043,15 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
         console.error('[AI SERVICE testAIConnection] Failed to parse analysis block:', err.message);
       }
     }
+    console.log('[AI testAIConnection BEFORE sanitize]:', JSON.stringify(replyClean));
     try {
       const aiAntiRepetitionService = require('./aiAntiRepetitionService');
       const testBotReplies = aiAntiRepetitionService.extractRecentBotReplies(history, 20);
       replyClean = aiAntiRepetitionService.sanitizeAndVaryBotReply(replyClean, testBotReplies);
     } catch (_) {}
+    console.log('[AI testAIConnection AFTER sanitize]:', JSON.stringify(replyClean));
     result.response = enforceResponseWordLimit(replyClean, { ...finalAgent, lastUserMessage: message });
+    console.log('[AI testAIConnection FINAL]:', JSON.stringify(result.response));
     result.analysis = analysisResult;
 
     // Auto-preenchimento e formatação de mídia/resposta rápida para visualização no sandbox
@@ -1025,19 +1092,57 @@ async function testAIConnection({ store, providerId, model, message, prompt, age
   result.memoriesUsed = memoriesUsed;
   result.rulesTriggered = rulesTriggered;
 
-  // Calcular XP ganho nesta interação do simulador para feedback visual imediato
-  let xpEarned = { total: 15, reason: 'Atendimento & Resposta WhatsApp' };
-  const normUserMsg = String(message || '').toLowerCase();
+  // Calcular XP ganho nesta interação com proteção anti-farming e retornos decrescentes
+  const normUserMsg = String(message || '').toLowerCase().trim();
+  const pastUserTexts = Array.isArray(history)
+    ? history
+        .filter(h => h && (h.role === 'user' || h.from === 'user' || (!h.from_me && !h.fromMe && h.role !== 'assistant' && h.role !== 'bot')))
+        .map(h => String(h.content || h.text || '').toLowerCase().trim())
+    : [];
+
+  const isFirstTurn = pastUserTexts.length === 0;
+  const isGreeting = /^(?:oi|olá|ola|bom dia|boa tarde|boa noite|e aí|e ai)\b/i.test(normUserMsg);
+
   const hasPrice = normUserMsg.includes('quanto') || normUserMsg.includes('preço') || normUserMsg.includes('preco') || normUserMsg.includes('valor') || normUserMsg.includes('custa');
   const hasObjection = normUserMsg.includes('entrega') || normUserMsg.includes('pagar') || normUserMsg.includes('frete') || normUserMsg.includes('cartão') || normUserMsg.includes('cartao') || normUserMsg.includes('pix');
-  const hasClosure = normUserMsg.includes('fechar') || normUserMsg.includes('comprar') || normUserMsg.includes('levar') || normUserMsg.includes('pedido');
+  const hasClosure = normUserMsg.includes('fechar') || normUserMsg.includes('comprar') || normUserMsg.includes('levar') || normUserMsg.includes('pedido') ||
+    /\b(?:cep|rua|bairro|avenida|meu nome|entrega no)\b/i.test(normUserMsg);
 
-  if (hasClosure) {
-    xpEarned = { total: 40, reason: 'Avanço para Fechamento & Ficha Cadastral' };
+  let xpEarned = { total: 5, reason: 'Atendimento & Esclarecimento Técnico (+5 XP)' };
+
+  if (isGreeting) {
+    if (isFirstTurn) {
+      xpEarned = { total: 2, reason: 'Saudação Inicial Cortês (+2 XP)' };
+    } else {
+      xpEarned = { total: 0, reason: 'Saudação Repetida (Sem XP adicional)' };
+    }
+  } else if (hasClosure) {
+    const previousClosures = pastUserTexts.filter(t => t.includes('fechar') || t.includes('comprar') || t.includes('pedido') || t.includes('bairro') || t.includes('cep')).length;
+    if (previousClosures > 1) {
+      xpEarned = { total: 5, reason: 'Refinamento de Fechamento (+5 XP • Retorno Decrescente)' };
+    } else {
+      xpEarned = { total: 35, reason: 'Avanço para Fechamento & Ficha Cadastral (+35 XP)' };
+    }
   } else if (hasObjection) {
-    xpEarned = { total: 25, reason: 'Superação de Objeção Comercial' };
+    const previousObjections = pastUserTexts.filter(t => t.includes('entrega') || t.includes('frete') || t.includes('cartão') || t.includes('cartao') || t.includes('pagar')).length;
+    if (previousObjections > 0) {
+      xpEarned = { total: 5, reason: 'Esclarecimento Adicional de Objeção (+5 XP • Retorno Decrescente)' };
+    } else {
+      xpEarned = { total: 20, reason: 'Superação de Objeção Comercial (+20 XP)' };
+    }
   } else if (hasPrice) {
-    xpEarned = { total: 20, reason: 'Cotação & Condições Comerciais' };
+    const productKeywords = ['tijolo', 'cimento', 'areia', 'brita', 'bloco', 'telha', 'churrasqueira', 'caixa'];
+    const currentProduct = productKeywords.find(k => normUserMsg.includes(k));
+    const isRepeatedProductPrice = currentProduct && pastUserTexts.some(t => t.includes(currentProduct) && (t.includes('quanto') || t.includes('preço') || t.includes('preco') || t.includes('valor') || t.includes('custa')));
+    const hasPreviousPriceQuotes = pastUserTexts.some(t => t.includes('quanto') || t.includes('preço') || t.includes('preco') || t.includes('valor') || t.includes('custa'));
+
+    if (isRepeatedProductPrice) {
+      xpEarned = { total: 2, reason: 'Cotação Repetida no Mesmo Tópico (+2 XP • Anti-Farming)' };
+    } else if (hasPreviousPriceQuotes) {
+      xpEarned = { total: 5, reason: 'Nova Cotação de Item Adicional (+5 XP)' };
+    } else {
+      xpEarned = { total: 15, reason: 'Cotação & Condições Comerciais (+15 XP)' };
+    }
   }
   result.xpEarned = xpEarned;
 
@@ -1110,8 +1215,8 @@ async function processAI({ contact, history, message, store, agentName, companyI
   // Sempre garantir o VPS Engine como contingência / rota rápida do sistema
   const vpsEngineCandidate = {
     id: 'vps_engine',
-    apiKey: process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd',
-    model: 'laya-system1',
+    apiKey: process.env.VPS_AI_API_KEY || process.env.GRG_AIPLATFORM_KEY || 'ap_live_96e854c33c1bbac06ba6e8dd7b2e70a6114c29a4a914d428',
+    model: 'qwen2.5:3b',
     active: true,
     isVpsFallback: true,
   };
@@ -1341,6 +1446,21 @@ async function processAI({ contact, history, message, store, agentName, companyI
     // Non-blocking fallback
   }
 
+  let agentLevel = resolvedAgent?.level || 1;
+  let agentLevelTitle = resolvedAgent?.levelTitle || null;
+  try {
+    const humanAttendanceLearner = require('../src/ai/evolutionary/humanAttendanceLearner');
+    const lvlData = await humanAttendanceLearner.calculateAgentLevel({ companyId: resolvedCompanyId, agentKey: resolvedAgentKey });
+    if (lvlData?.level) {
+      agentLevel = lvlData.level;
+      agentLevelTitle = lvlData.levelTitle;
+    }
+  } catch (_) {}
+  if (resolvedAgent) {
+    resolvedAgent.level = agentLevel;
+    if (agentLevelTitle) resolvedAgent.levelTitle = agentLevelTitle;
+  }
+
   const storeForCompile = {
     ...(resolvedStore || {}),
     aiConfig: { memorySettings: { enabled: true } },
@@ -1420,8 +1540,8 @@ async function processAI({ contact, history, message, store, agentName, companyI
       let pKey = candidate.apiKey;
       const pModel = candidate.model;
 
-      if (!pKey && (pId === 'vps_engine' || pId === 'vps' || pId === 'api_platform')) {
-        pKey = process.env.VPS_AI_API_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd';
+      if (!pKey && (pId === 'vps_engine' || pId === 'vps' || pId === 'api_platform' || pId === 'zai')) {
+        pKey = process.env.VPS_AI_API_KEY || process.env.GRG_AIPLATFORM_KEY || 'ap_live_96e854c33c1bbac06ba6e8dd7b2e70a6114c29a4a914d428';
       }
 
       try {
@@ -1466,7 +1586,7 @@ async function processAI({ contact, history, message, store, agentName, companyI
           const response = await axios.post(
             `${baseURL}/chat/completions`,
             {
-              model: pModel || (pId === 'vps_engine' || pId === 'zai' ? 'qwen2.5:0.5b' : (pId === 'ollama' ? 'qwen2.5:0.5b' : 'gpt-4o-mini')),
+              model: (pModel && pModel !== 'qwen2.5:0.5b' && pModel !== 'laya-system1') ? pModel : (pId === 'vps_engine' || pId === 'zai' || pId === 'ollama' ? 'qwen2.5:3b' : 'gpt-4o-mini'),
               messages,
               temperature,
               max_tokens: maxTokens,

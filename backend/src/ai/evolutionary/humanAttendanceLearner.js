@@ -63,9 +63,73 @@ function sanitizeText(raw = '') {
     .trim();
 }
 
+const TIER_DEFINITIONS = [
+  {
+    level: 1,
+    title: 'Aprendiz Inicial',
+    minXp: 0,
+    nextXp: 500,
+    badge: 'Catálogo & Horários',
+    capabilities: [
+      'Consulta precisa de catálogo oficial e horários',
+      'Saudação humanizada de 1º contato sem enrolação',
+      'Respostas concisas e acolhedoras (1 a 3 frases)',
+    ],
+  },
+  {
+    level: 2,
+    title: 'Assistente Comercial',
+    minXp: 500,
+    nextXp: 1500,
+    badge: 'Logística & Pagamento',
+    capabilities: [
+      'Apresentação proativa de 5% no PIX e até 10x sem juros',
+      'Esclarecimento de maquininha móvel na entrega na obra',
+      'Sondagem inteligente de entrega na obra vs retirada na loja',
+    ],
+  },
+  {
+    level: 3,
+    title: 'Vendedor Prático',
+    minXp: 1500,
+    nextXp: 4000,
+    badge: 'Aritmética & Descontos de Volume',
+    capabilities: [
+      'Cálculo aritmético exato de milheiros e centenas sem alucinar',
+      'Desconto progressivo em lotes e compras em quantidade',
+      'Cross-selling consultivo (cimento, areia, brita para argamassa)',
+    ],
+  },
+  {
+    level: 4,
+    title: 'Consultor Comercial Especialista',
+    minXp: 4000,
+    nextXp: 10000,
+    badge: 'Desambiguação Técnica & Objeções',
+    capabilities: [
+      'Diferenciação técnica avançada (ex: modelo 8 furos vs 12 furos)',
+      'Nunca confunde modelo com multiplicador de quantidade',
+      'Superação de insegurança de frete, prazos e pagamento',
+    ],
+  },
+  {
+    level: 5,
+    title: 'Master Closer de Elite',
+    minXp: 10000,
+    nextXp: 20000,
+    badge: 'Fechamento Consultivo & Ficha Cadastral',
+    capabilities: [
+      'Iniciativa consultiva de fechamento de pedido',
+      'Coleta estruturada de Nome, Bairro/Endereço e Forma de Pagamento',
+      'Reserva de lote e encaminhamento para expedição',
+    ],
+  },
+];
+
 class HumanAttendanceLearner {
   constructor(dbPool = pool) {
     this.pool = dbPool;
+    this.levelCache = new Map();
   }
 
   /**
@@ -265,8 +329,15 @@ class HumanAttendanceLearner {
   /**
    * Calculates the Agent's dynamic Evolution Level, XP, and Progression
    */
-  async calculateAgentLevel({ companyId = 'default', agentKey = 'camila' }) {
+  async calculateAgentLevel({ companyId = 'default', agentKey = 'camila', force = false } = {}) {
     const cleanCompany = String(companyId || 'default');
+    const cacheKey = `${cleanCompany}:${agentKey}`;
+    if (!force && this.levelCache && this.levelCache.has(cacheKey)) {
+      const cached = this.levelCache.get(cacheKey);
+      if (Date.now() - cached.ts < 30000) {
+        return cached.data;
+      }
+    }
 
     try {
       // Count only messages belonging to this authenticated company.
@@ -409,7 +480,19 @@ class HumanAttendanceLearner {
           : null;
       }
 
-      return {
+      const cognitiveTiers = TIER_DEFINITIONS.map(tier => ({
+        ...tier,
+        isUnlocked: level >= tier.level,
+      }));
+
+      const activeCapabilities = cognitiveTiers
+        .filter(t => t.isUnlocked)
+        .flatMap(t => t.capabilities);
+
+      const nextTier = TIER_DEFINITIONS.find(t => t.level === level + 1);
+      const nextLevelUnlocks = nextTier ? nextTier.capabilities : [];
+
+      const result = {
         level,
         levelTitle,
         totalXp,
@@ -427,7 +510,16 @@ class HumanAttendanceLearner {
         totalAnalyzed: totalHumanMessages,
         realConversationXp: realConvXp,
         scoredConversationsCount,
+        cognitiveTiers,
+        activeCapabilities,
+        nextLevelUnlocks,
       };
+
+      if (this.levelCache) {
+        this.levelCache.set(cacheKey, { ts: Date.now(), data: result });
+      }
+
+      return result;
     } catch (err) {
       console.error('[HumanAttendanceLearner] calculateAgentLevel error:', err.message);
       throw err;
@@ -476,3 +568,4 @@ class HumanAttendanceLearner {
 
 module.exports = new HumanAttendanceLearner();
 module.exports.HumanAttendanceLearner = HumanAttendanceLearner;
+module.exports.TIER_DEFINITIONS = TIER_DEFINITIONS;

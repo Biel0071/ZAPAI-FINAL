@@ -24,6 +24,7 @@ import {
   ChevronRight,
   Brain,
   Info,
+  Lock,
 } from "lucide-react";
 import { apiService, requestApiEndpoint } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
@@ -62,6 +63,73 @@ export interface CognitiveMemoryItem {
   lastSeenAt?: string;
 }
 
+export interface CognitiveTierUnlock {
+  level: number;
+  title: string;
+  badge: string;
+  capabilities: string[];
+  minXp?: number;
+  isUnlocked?: boolean;
+}
+
+export const CANONICAL_COGNITIVE_TIERS: CognitiveTierUnlock[] = [
+  {
+    level: 1,
+    title: "Aprendiz Inicial",
+    badge: "Catálogo & Horários",
+    minXp: 0,
+    capabilities: [
+      "Consulta precisa de catálogo oficial e horários",
+      "Saudação humanizada de 1º contato sem enrolação",
+      "Respostas concisas e acolhedoras (1 a 3 frases)",
+    ],
+  },
+  {
+    level: 2,
+    title: "Assistente Comercial",
+    badge: "Logística & Pagamento",
+    minXp: 500,
+    capabilities: [
+      "Apresentação proativa de 5% no PIX e até 10x sem juros",
+      "Esclarecimento de maquininha móvel na entrega na obra",
+      "Sondagem inteligente de entrega na obra vs retirada na loja",
+    ],
+  },
+  {
+    level: 3,
+    title: "Vendedor Prático",
+    badge: "Aritmética & Descontos de Volume",
+    minXp: 1500,
+    capabilities: [
+      "Cálculo aritmético exato de milheiros e centenas sem alucinar",
+      "Desconto progressivo em lotes e compras em quantidade",
+      "Cross-selling consultivo (cimento, areia, brita para argamassa)",
+    ],
+  },
+  {
+    level: 4,
+    title: "Consultor Comercial Especialista",
+    badge: "Desambiguação Técnica & Objeções",
+    minXp: 4000,
+    capabilities: [
+      "Diferenciação técnica avançada (ex: modelo 8 furos vs 12 furos)",
+      "Nunca confunde modelo com multiplicador de quantidade",
+      "Superação de insegurança de frete, prazos e pagamento",
+    ],
+  },
+  {
+    level: 5,
+    title: "Master Closer de Elite",
+    badge: "Fechamento Consultivo & Ficha Cadastral",
+    minXp: 10000,
+    capabilities: [
+      "Iniciativa consultiva de fechamento de pedido",
+      "Coleta estruturada de Nome, Bairro/Endereço e Forma de Pagamento",
+      "Reserva de lote e encaminhamento para expedição",
+    ],
+  },
+];
+
 export interface AttendantEvolutionProfile {
   agentKey: string;
   level: number;
@@ -77,6 +145,9 @@ export interface AttendantEvolutionProfile {
   totalAnalyzed: number;
   scoredConversationsCount: number;
   badges: MasteryBadge[];
+  cognitiveTiers?: CognitiveTierUnlock[];
+  activeCapabilities?: string[];
+  nextLevelUnlocks?: string[];
   recentLogs: EvolutionLogItem[];
   activeMemories: CognitiveMemoryItem[];
 }
@@ -172,7 +243,7 @@ export function AttendantEvolutionHub({
         // Fallback para getAgentEvolution se /agent-profile ainda não responder
         const fallback = await apiService.getAgentEvolution(agentKey);
         if (fallback?.success) {
-          const hs = fallback.humanStats || {};
+          const hs = (fallback.humanStats as any) || {};
           const defaultProfile: AttendantEvolutionProfile = {
             agentKey,
             level: hs.level || 5,
@@ -307,6 +378,17 @@ export function AttendantEvolutionHub({
     if (!profile) return 0;
     return Math.max(0, profile.nextLevelXp - profile.totalXp);
   }, [profile]);
+
+  const agentLevel = profile?.level || 1;
+  const resolvedCognitiveTiers = useMemo(() => {
+    if (profile?.cognitiveTiers && profile.cognitiveTiers.length > 0) {
+      return profile.cognitiveTiers;
+    }
+    return CANONICAL_COGNITIVE_TIERS.map(tier => ({
+      ...tier,
+      isUnlocked: agentLevel >= tier.level,
+    }));
+  }, [profile?.cognitiveTiers, agentLevel]);
 
   return (
     <div className={cn("space-y-5 w-full", className)}>
@@ -489,6 +571,95 @@ export function AttendantEvolutionHub({
           </div>
         </div>
       </div>
+
+      {/* 2.5. DESBLOQUEIOS COGNITIVOS REAIS DO AGENTE (INTELIGÊNCIA REAL POR NÍVEL) */}
+      <Card className="bg-card/90 border-border/80 shadow-sm overflow-hidden">
+        <CardHeader className="pb-3 border-b border-border/40 bg-muted/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="space-y-0.5">
+              <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                <Brain className="h-5 w-5 text-emerald-400" />
+                Desbloqueios Cognitivos Reais da IA (Inteligência Prática por Nível)
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                A cada nível conquistado, diretrizes neurais avançadas são ativadas em tempo real no cérebro da atendente. A evolução não é um número estético: dita como ela calcula, contorna objeções e fecha vendas.
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-xs font-bold w-fit">
+              Nível Atual: {agentLevel} ({profile?.levelTitle || "Aprendiz"})
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+            {resolvedCognitiveTiers.map((tier) => {
+              const isUnlocked = agentLevel >= tier.level;
+              const isCurrent = agentLevel === tier.level || (tier.level === 5 && agentLevel >= 5);
+              return (
+                <div
+                  key={tier.level}
+                  className={cn(
+                    "p-3.5 rounded-xl border flex flex-col justify-between gap-3 transition-all",
+                    isCurrent
+                      ? "border-emerald-500 bg-emerald-950/20 shadow-sm ring-1 ring-emerald-500/30"
+                      : isUnlocked
+                      ? "border-emerald-500/40 bg-emerald-950/10"
+                      : "border-border/60 bg-muted/5 opacity-60"
+                  )}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground">
+                        NÍVEL {tier.level}
+                      </span>
+                      {isUnlocked ? (
+                        <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] px-1.5 py-0">
+                          {isCurrent ? "★ Ativo" : "✓ Desbloqueado"}
+                        </Badge>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono">
+                          <Lock className="h-3 w-3" /> {(tier.minXp || 0).toLocaleString("pt-BR")} XP
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold text-foreground leading-snug">
+                        {tier.title}
+                      </h4>
+                      <span className="text-[11px] text-emerald-400/90 font-medium block">
+                        {tier.badge}
+                      </span>
+                    </div>
+
+                    <ul className="space-y-1.5 pt-1 border-t border-border/40">
+                      {tier.capabilities.map((cap, idx) => (
+                        <li key={idx} className="text-[11px] text-muted-foreground flex items-start gap-1.5 leading-snug">
+                          <span className={cn("mt-0.5 shrink-0", isUnlocked ? "text-emerald-400" : "text-muted-foreground/50")}>•</span>
+                          <span className={isUnlocked ? "text-foreground/90 font-medium" : ""}>{cap}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="pt-2 border-t border-border/40 text-[10px]">
+                    {isUnlocked ? (
+                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Injetado no Prompt da IA
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground font-mono">
+                        Desbloqueia no próximo patamar
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 3. SUB-TABS: VISÃO GERAL & BADGES | FEED DE APRENDIZADOS | MEMÓRIA ATIVA */}
       <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/80 border border-border/70 w-fit">
