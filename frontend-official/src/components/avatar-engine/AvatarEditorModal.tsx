@@ -275,7 +275,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
   const handleGenderChange = (newGender: "male" | "female") => {
     const newHair = newGender === "male" ? "hair_05" : "hair_01";
-    const newFace = newGender === "male" ? "face_02" : "face_01";
+    const newFace = "face_01";
     const isFemale = newGender !== "male";
     setAvatar((prev) => {
       const updated = {

@@ -161,20 +161,33 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   const object = avatar.workObject || "";
   const glasses = avatar.glasses || "none";
   const outfit = avatar.outfit || avatar.clothing || "";
+  const face = avatar.face || "";
+  const style = avatar.style || "";
 
-  // Check work objects first (Row 3 + gender-aware gestures)
-  if (object === "boxes_delivery") return "sprite_r3_c1";
+  // 1. Check Row 3 Operational Work Objects & Uniforms
+  if (object === "boxes_delivery" || outfit === "outfit_10") return "sprite_r3_c1";
   if (object === "laptop_zai") return "sprite_r3_c5";
-  if (outfit === "vest_hivis_safety" || outfit === "outfit_06") return "sprite_r3_c2";
-  if (avatar.accessories?.headwear === "hardhat_zai_white") return "sprite_r3_c8";
+  if (outfit === "vest_hivis_safety" || outfit === "outfit_06" || style === "style_operacional") return "sprite_r3_c2";
+  if (outfit === "outfit_04" || outfit === "uniform_technical") return "sprite_r3_c3";
+  if (outfit === "outfit_09") return "sprite_r3_c11";
+  if (avatar.accessories?.headwear === "hardhat_zai_white") return gender === "male" ? "sprite_r3_c7" : "sprite_r3_c8";
   if (object === "coffee_cup") return gender === "male" ? "sprite_r1_c5" : "sprite_r2_c5";
   if (object === "peace_sign") return gender === "male" ? "sprite_r1_c8" : "sprite_r2_c8";
   if (object === "thumbs_up") return gender === "male" ? "sprite_r1_c7" : "sprite_r2_c7";
 
-  // Female matches (Row 2)
+  // 2. Female matches (Row 2)
   if (gender === "female") {
-    if (outfit === "outfit_10") return "sprite_r3_c1";
-    if (outfit === "outfit_09") return "sprite_r3_c11";
+    // Explicit face selections & glasses
+    if (face === "face_07" || glasses === "glasses_square_exec" || avatar.accessories?.glasses === "glasses_square_exec") return "sprite_r2_c2";
+    if (face === "face_08" || glasses === "sunglasses_wayfarer" || avatar.accessories?.glasses === "sunglasses_wayfarer" || avatar.glasses?.includes("sunglasses")) return "sprite_r2_c6";
+
+    // Distinctive outfits
+    if (outfit === "outfit_05" || outfit.includes("blazer")) return "sprite_r2_c8";
+    if (outfit === "outfit_02" || outfit === "shirt_formal_blue") return "sprite_r2_c2";
+    if (outfit === "outfit_08") return "sprite_r2_c10";
+    if (avatar.accessories?.headwear?.includes("cap") || outfit === "outfit_03") return "sprite_r2_c6";
+
+    // Hair overrides
     if (hair === "hair_11") return "sprite_r2_c6";
     if (hair === "hair_12") return "sprite_r2_c9";
     if (hair === "hair_13") return "sprite_r3_c8";
@@ -183,50 +196,38 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
     if (hair === "hair_16") return "sprite_r2_c7";
     if (hair === "hair_17") return "sprite_r2_c6";
     if (hair === "hair_18") return "sprite_r2_c2";
+    if (hair === "hair_07" || hair.includes("straight")) return "sprite_r2_c2";
+    if (hair === "hair_03" || hair === "hair_08" || hair.includes("wavy") || hair.includes("blonde")) return "sprite_r2_c3";
+    if (hair === "hair_04" || hair === "hair_09" || hair.includes("curly") || hair.includes("updo")) return "sprite_r2_c4";
+    if (hair === "hair_02" || hair === "hair_06" || hair.includes("short") || hair.includes("business") || hair.includes("afro")) return "sprite_r2_c7";
+    if (hair.includes("silver")) return "sprite_r2_c9";
+    if (hair === "hair_10" || hair.includes("blue")) return "sprite_r2_c10";
+    if (hair === "hair_01" || hair.includes("ponytail")) return "sprite_r2_c1";
 
-    // Distinctive outfits
-    if (outfit === "outfit_05" || outfit.includes("blazer")) {
-      return "sprite_r2_c8";
-    }
-    if (outfit === "outfit_02" || outfit === "shirt_formal_blue") {
-      return "sprite_r2_c2";
-    }
-    if (outfit === "outfit_06" || outfit === "vest_hivis_safety") {
-      return "sprite_r3_c2";
-    }
-    if (outfit === "outfit_04" || outfit === "uniform_technical") {
-      return "sprite_r3_c3";
-    }
-    if (avatar.accessories?.headwear?.includes("cap") || outfit === "outfit_03") {
-      return "sprite_r2_c6";
-    }
-    if (hair === "hair_07" || hair.includes("straight")) {
-      return "sprite_r2_c2";
-    }
-    if (hair === "hair_03" || hair === "hair_08" || hair.includes("wavy") || hair.includes("blonde")) {
-      return "sprite_r2_c3";
-    }
-    if (hair === "hair_04" || hair === "hair_09" || hair.includes("curly") || hair.includes("updo")) {
-      return "sprite_r2_c4";
-    }
-    if (hair === "hair_02" || hair === "hair_06" || hair.includes("short") || hair.includes("business") || hair.includes("afro")) {
-      return "sprite_r2_c7";
-    }
-    if (hair.includes("silver")) {
-      return "sprite_r2_c9";
-    }
-    if (hair === "hair_10" || hair.includes("blue")) {
-      return "sprite_r2_c10";
-    }
-    if (hair === "hair_01" || hair === "hair_05" || hair.includes("ponytail") || hair.includes("fade")) {
-      return "sprite_r2_c1";
-    }
+    if (object === "tablet_zai" || avatar.accessories?.tablet === "tablet_zai") return "sprite_r2_c8";
+
+    // Other faces & styles
+    if (face === "face_04") return "sprite_r2_c3";
+    if (face === "face_03" || style === "style_vendas" || style === "style_corporativo") return "sprite_r2_c8";
+    if (face === "face_02") return "sprite_r2_c4";
+    if (face === "face_05") return "sprite_r2_c2";
+    if (face === "face_06") return "sprite_r2_c7";
+
     return "sprite_r2_c1";
   }
 
-  // Male matches (Row 1)
-  if (outfit === "outfit_10") return "sprite_r3_c1";
-  if (outfit === "outfit_09") return "sprite_r3_c11";
+  // 3. Male matches (Row 1)
+  // Explicit face selections & glasses
+  if (face === "face_07" || hair.includes("beard") || avatar.facialHair === "full_beard" || glasses === "glasses_square_exec" || avatar.accessories?.glasses === "glasses_square_exec") return "sprite_r1_c8";
+  if (face === "face_08" || glasses === "sunglasses_wayfarer" || avatar.accessories?.glasses === "sunglasses_wayfarer" || avatar.glasses?.includes("sunglasses")) return "sprite_r1_c9";
+
+  // Distinctive outfits
+  if (outfit === "outfit_05" || outfit.includes("blazer") || outfit.includes("suit")) return "sprite_r1_c6";
+  if (outfit === "outfit_02" || outfit === "shirt_formal_blue" || outfit === "shirt_business_white") return "sprite_r1_c8";
+  if (outfit === "outfit_08" || outfit.includes("bomber")) return "sprite_r1_c11";
+  if (avatar.accessories?.headwear?.includes("cap") || outfit === "outfit_03") return "sprite_r1_c4";
+
+  // Hair overrides
   if (hair === "hair_11") return "sprite_r1_c4";
   if (hair === "hair_12") return "sprite_r1_c6";
   if (hair === "hair_13") return "sprite_r3_c7";
@@ -235,49 +236,22 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   if (hair === "hair_16") return "sprite_r1_c8";
   if (hair === "hair_17") return "sprite_r1_c10";
   if (hair === "hair_18") return "sprite_r1_c9";
+  if (hair === "hair_07" || hair.includes("straight")) return "sprite_r1_c2";
+  if (hair === "hair_08" || hair.includes("spiky") || hair.includes("blonde")) return "sprite_r1_c3";
+  if (hair === "hair_09" || hair.includes("curly")) return "sprite_r1_c5";
+  if (hair === "hair_10" || hair.includes("silver") || hair.includes("anime")) return "sprite_r1_c6";
+  if (hair === "hair_06" || hair.includes("afro") || outfit === "outfit_07") return "sprite_r1_c7";
+  if (hair.includes("red")) return "sprite_r1_c10";
+  if (hair === "hair_05" || hair === "hair_01" || hair.includes("fade") || hair.includes("short")) return "sprite_r1_c1";
 
-  if (outfit === "outfit_05" || outfit.includes("blazer") || outfit.includes("suit")) {
-    return "sprite_r1_c6";
-  }
-  if (outfit === "outfit_02" || outfit === "shirt_formal_blue") {
-    return "sprite_r1_c8";
-  }
-  if (outfit === "outfit_08" || outfit.includes("bomber")) {
-    return "sprite_r1_c11";
-  }
-  if (avatar.accessories?.headwear?.includes("cap") || outfit === "outfit_03") {
-    return "sprite_r1_c4";
-  }
-  if (object === "tablet_zai" && (outfit === "outfit_01" || outfit === "outfit_07" || !outfit)) {
-    return "sprite_r1_c2";
-  }
-  if (hair === "hair_07" || hair.includes("straight")) {
-    return "sprite_r1_c2";
-  }
-  if (hair === "hair_08" || hair.includes("spiky") || hair.includes("blonde")) {
-    return "sprite_r1_c3";
-  }
-  if (hair === "hair_09" || hair.includes("curly")) {
-    return "sprite_r1_c5";
-  }
-  if (hair === "hair_10" || hair.includes("silver") || hair.includes("anime")) {
-    return "sprite_r1_c6";
-  }
-  if (hair === "hair_06" || hair.includes("afro") || outfit === "outfit_07") {
-    return "sprite_r1_c7";
-  }
-  if (hair.includes("beard") || avatar.facialHair === "full_beard" || outfit === "shirt_business_white") {
-    return "sprite_r1_c8";
-  }
-  if (avatar.glasses?.includes("sunglasses")) {
-    return "sprite_r1_c9";
-  }
-  if (hair.includes("red")) {
-    return "sprite_r1_c10";
-  }
-  if (hair === "hair_05" || hair === "hair_01" || hair.includes("fade") || hair.includes("short")) {
-    return "sprite_r1_c1";
-  }
+  if (object === "tablet_zai") return "sprite_r1_c2";
+
+  // Other faces & styles
+  if (face === "face_04") return "sprite_r1_c6";
+  if (face === "face_03") return "sprite_r1_c3";
+  if (face === "face_02") return "sprite_r1_c2";
+  if (face === "face_05") return "sprite_r1_c7";
+  if (face === "face_06") return "sprite_r1_c4";
 
   return "sprite_r1_c1";
 }

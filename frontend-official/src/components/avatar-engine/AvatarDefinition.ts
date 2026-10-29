@@ -121,10 +121,146 @@ export interface AgentAvatarConfig {
  * while preserving operational row 3 sprites (sprite_r3_*).
  */
 export function resolveItemSpriteForGender(
-  item: { spriteRef?: string; gender?: "male" | "female" | "all"; category?: string } | undefined | null,
+  item: { id?: string; spriteRef?: string; gender?: "male" | "female" | "all"; category?: string } | undefined | null,
   gender?: string
 ): string {
   const isMale = gender === "male";
+  const itemId = item?.id || "";
+
+  // Explicit item-to-sprite mapping for perfect gender & role fidelity
+  const FEMALE_EXPLICIT_MAP: Record<string, string> = {
+    // Face
+    face_01: "sprite_r2_c1",
+    face_02: "sprite_r2_c4",
+    face_03: "sprite_r2_c8",
+    face_04: "sprite_r2_c3",
+    face_05: "sprite_r2_c2",
+    face_06: "sprite_r2_c7",
+    face_07: "sprite_r2_c2",
+    face_08: "sprite_r2_c6",
+    // Outfit
+    outfit_01: "sprite_r2_c1",
+    outfit_02: "sprite_r2_c2",
+    outfit_03: "sprite_r2_c6",
+    outfit_04: "sprite_r3_c3",
+    outfit_05: "sprite_r2_c8",
+    outfit_06: "sprite_r3_c2",
+    outfit_07: "sprite_r2_c7",
+    outfit_08: "sprite_r2_c10",
+    outfit_09: "sprite_r3_c11",
+    outfit_10: "sprite_r3_c1",
+    // Accessories
+    acc_01: "sprite_r2_c7",
+    acc_02: "sprite_r2_c1",
+    acc_03: "sprite_r2_c4",
+    acc_04: "sprite_r2_c2",
+    acc_05: "sprite_r2_c8",
+    acc_06: "sprite_r2_c7",
+    acc_07: "sprite_r2_c6",
+    acc_08: "sprite_r2_c5",
+    acc_09: "sprite_r3_c1",
+    acc_10: "sprite_r3_c5",
+    acc_11: "sprite_r2_c6",
+    acc_12: "sprite_r3_c8",
+    // Styles
+    style_vendas: "sprite_r2_c8",
+    style_corporativo: "sprite_r2_c8",
+    style_atendimento: "sprite_r2_c1",
+    style_operacional: "sprite_r3_c2",
+    style_tech: "sprite_r2_c6",
+    style_casual: "sprite_r2_c7",
+    style_premium: "sprite_r2_c9",
+    // Hair
+    hair_01: "sprite_r2_c1",
+    hair_02: "sprite_r2_c7",
+    hair_03: "sprite_r2_c3",
+    hair_04: "sprite_r2_c4",
+    hair_05: "sprite_r2_c5",
+    hair_06: "sprite_r2_c6",
+    hair_07: "sprite_r2_c2",
+    hair_08: "sprite_r2_c9",
+    hair_09: "sprite_r2_c8",
+    hair_10: "sprite_r2_c10",
+    hair_11: "sprite_r2_c6",
+    hair_12: "sprite_r2_c9",
+    hair_13: "sprite_r3_c8",
+    hair_14: "sprite_r2_c6",
+    hair_15: "sprite_r2_c9",
+    hair_16: "sprite_r2_c7",
+    hair_17: "sprite_r2_c6",
+    hair_18: "sprite_r2_c2",
+  };
+
+  const MALE_EXPLICIT_MAP: Record<string, string> = {
+    // Face
+    face_01: "sprite_r1_c1",
+    face_02: "sprite_r1_c2",
+    face_03: "sprite_r1_c3",
+    face_04: "sprite_r1_c6",
+    face_05: "sprite_r1_c7",
+    face_06: "sprite_r1_c4",
+    face_07: "sprite_r1_c8",
+    face_08: "sprite_r1_c9",
+    // Outfit
+    outfit_01: "sprite_r1_c1",
+    outfit_02: "sprite_r1_c8",
+    outfit_03: "sprite_r1_c4",
+    outfit_04: "sprite_r3_c3",
+    outfit_05: "sprite_r1_c6",
+    outfit_06: "sprite_r3_c2",
+    outfit_07: "sprite_r1_c7",
+    outfit_08: "sprite_r1_c11",
+    outfit_09: "sprite_r3_c11",
+    outfit_10: "sprite_r3_c1",
+    // Accessories
+    acc_01: "sprite_r1_c1",
+    acc_02: "sprite_r1_c1",
+    acc_03: "sprite_r1_c5",
+    acc_04: "sprite_r1_c8",
+    acc_05: "sprite_r1_c2",
+    acc_06: "sprite_r1_c7",
+    acc_07: "sprite_r1_c9",
+    acc_08: "sprite_r1_c5",
+    acc_09: "sprite_r3_c1",
+    acc_10: "sprite_r3_c5",
+    acc_11: "sprite_r1_c4",
+    acc_12: "sprite_r3_c8",
+    // Styles
+    style_vendas: "sprite_r1_c6",
+    style_corporativo: "sprite_r1_c8",
+    style_atendimento: "sprite_r1_c1",
+    style_operacional: "sprite_r3_c2",
+    style_tech: "sprite_r1_c4",
+    style_casual: "sprite_r1_c7",
+    style_premium: "sprite_r1_c6",
+    // Hair
+    hair_01: "sprite_r1_c1",
+    hair_02: "sprite_r1_c8",
+    hair_03: "sprite_r1_c3",
+    hair_04: "sprite_r1_c4",
+    hair_05: "sprite_r1_c1",
+    hair_06: "sprite_r1_c7",
+    hair_07: "sprite_r1_c2",
+    hair_08: "sprite_r1_c3",
+    hair_09: "sprite_r1_c5",
+    hair_10: "sprite_r1_c10",
+    hair_11: "sprite_r1_c4",
+    hair_12: "sprite_r1_c6",
+    hair_13: "sprite_r3_c7",
+    hair_14: "sprite_r1_c4",
+    hair_15: "sprite_r1_c6",
+    hair_16: "sprite_r1_c8",
+    hair_17: "sprite_r1_c10",
+    hair_18: "sprite_r1_c9",
+  };
+
+  if (!isMale && FEMALE_EXPLICIT_MAP[itemId]) {
+    return FEMALE_EXPLICIT_MAP[itemId];
+  }
+  if (isMale && MALE_EXPLICIT_MAP[itemId]) {
+    return MALE_EXPLICIT_MAP[itemId];
+  }
+
   const rawSprite = item?.spriteRef || (isMale ? "sprite_r1_c1" : "sprite_r2_c1");
   if (isMale && rawSprite.startsWith("sprite_r2_")) {
     return rawSprite.replace(/^sprite_r2_/, "sprite_r1_");

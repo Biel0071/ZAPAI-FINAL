@@ -1698,7 +1698,7 @@ export default function AttendantsPage() {
                           base: inlineGender,
                           hair: h.id,
                           hairColor,
-                          catalogSpriteId: resolveSpriteForAvatar(nextConfig, true),
+                          catalogSpriteId: resolvedHairSprite,
                         });
                       }}
                       className={cn(
@@ -1747,7 +1747,7 @@ export default function AttendantsPage() {
                           body: inlineGender,
                           base: inlineGender,
                           face: f.id,
-                          catalogSpriteId: resolvedInlineAvatar.catalogSpriteId || resolveSpriteForAvatar(nextConfig, false),
+                          catalogSpriteId: resolvedFaceSprite,
                         });
                       }}
                       className={cn(
@@ -1798,7 +1798,7 @@ export default function AttendantsPage() {
                           base: inlineGender,
                           outfit: o.id,
                           clothing: o.id,
-                          catalogSpriteId: resolveSpriteForAvatar(nextConfig, true),
+                          catalogSpriteId: resolvedOutfitSprite,
                         });
                       }}
                       className={cn(
@@ -1906,6 +1906,7 @@ export default function AttendantsPage() {
                           headset: updatedHeadset,
                           glasses: updatedGlasses,
                           workObject: updatedWorkObject,
+                          catalogSpriteId: resolvedAccSprite,
                         });
                       }}
                       className={cn(
@@ -1948,7 +1949,7 @@ export default function AttendantsPage() {
                         handleUpdateAvatar({
                           ...updated,
                           style: st.id,
-                          catalogSpriteId: resolveSpriteForAvatar({ ...updated, style: st.id }, true),
+                          catalogSpriteId: resolvedStyleSprite,
                         });
                       }}
                       className={cn(

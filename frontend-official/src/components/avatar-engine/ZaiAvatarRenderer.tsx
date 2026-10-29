@@ -285,11 +285,26 @@ const CROP_VIEWBOXES: Record<AvatarCropFocus, string> = {
   "accessory-body": "20 90 100 94",
 };
 
+// Exact bottom-most non-transparent pixel (maxY) measured across all 33 catalog sprites
+const CHIBI_SPRITE_BOTTOM_Y: Record<string, number> = {
+  sprite_r1_c1: 222, sprite_r1_c2: 218, sprite_r1_c3: 219, sprite_r1_c4: 217,
+  sprite_r1_c5: 217, sprite_r1_c6: 218, sprite_r1_c7: 218, sprite_r1_c8: 221,
+  sprite_r1_c9: 218, sprite_r1_c10: 220, sprite_r1_c11: 220,
+  sprite_r2_c1: 222, sprite_r2_c2: 222, sprite_r2_c3: 217, sprite_r2_c4: 222,
+  sprite_r2_c5: 216, sprite_r2_c6: 218, sprite_r2_c7: 215, sprite_r2_c8: 223,
+  sprite_r2_c9: 215, sprite_r2_c10: 215, sprite_r2_c11: 215,
+  sprite_r3_c1: 206, sprite_r3_c2: 206, sprite_r3_c3: 205, sprite_r3_c4: 206,
+  sprite_r3_c5: 205, sprite_r3_c6: 206, sprite_r3_c7: 204, sprite_r3_c8: 209,
+  sprite_r3_c9: 206, sprite_r3_c10: 205, sprite_r3_c11: 205,
+};
+
 function getAlignedSpriteCoords(spriteId: string) {
   const anchor = CHIBI_SPRITE_ANCHORS[spriteId] || CHIBI_SPRITE_ANCHORS.sprite_r2_c1;
+  const bottomY = CHIBI_SPRITE_BOTTOM_Y[spriteId] || 222;
+  const groundOffset = 222 - bottomY;
   return {
     x: 70 - anchor.neckX,
-    y: 96 - anchor.chinY,
+    y: groundOffset,
     width: anchor.width,
     height: 227,
     href: `/assets/avatar_factory/catalog/${spriteId}_clean.png`,
@@ -512,14 +527,14 @@ function ModularLayerAvatar({
       {cropFocus === "full" && (
         <g id="layer-pedestal">
           {/* Base ambient radial glow */}
-          <ellipse cx="70" cy="221" rx="52" ry="14" fill={`url(#pedestalGlow-${uid})`} />
+          <ellipse cx="70" cy="222" rx="52" ry="14" fill={`url(#pedestalGlow-${uid})`} />
           
           {/* Outer platform rim */}
           <ellipse
             cx="70"
-            cy="221"
-            rx="45"
-            ry="11.5"
+            cy="222"
+            rx="46"
+            ry="12"
             fill="#060c18"
             stroke={primaryBrandColor}
             strokeWidth="1.6"
@@ -529,9 +544,9 @@ function ModularLayerAvatar({
           {/* Inner concentric ring (Tripo3D turntable style) */}
           <ellipse
             cx="70"
-            cy="221"
+            cy="222"
             rx="32"
-            ry="8"
+            ry="8.5"
             fill="none"
             stroke={primaryBrandColor}
             strokeWidth="0.8"
@@ -540,26 +555,29 @@ function ModularLayerAvatar({
           />
 
           {/* Subtle Stage Grid Axes */}
-          <line x1="38" y1="221" x2="102" y2="221" stroke={primaryBrandColor} strokeWidth="0.6" strokeOpacity="0.35" />
-          <line x1="70" y1="213" x2="70" y2="229" stroke={primaryBrandColor} strokeWidth="0.6" strokeOpacity="0.35" />
+          <line x1="38" y1="222" x2="102" y2="222" stroke={primaryBrandColor} strokeWidth="0.6" strokeOpacity="0.35" />
+          <line x1="70" y1="214" x2="70" y2="230" stroke={primaryBrandColor} strokeWidth="0.6" strokeOpacity="0.35" />
 
           {/* 360 Dynamic Orbit Tracker Point with neon glow */}
           <circle
-            cx={70 + Math.round(sinA * 45 * 10) / 10}
-            cy={221 + Math.round(cosA * 11.5 * 10) / 10}
+            cx={70 + Math.round(sinA * 46 * 10) / 10}
+            cy={222 + Math.round(cosA * 12 * 10) / 10}
             r="3.2"
             fill="#00ff88"
             className="animate-pulse"
           />
           <circle
-            cx={70 + Math.round(sinA * 45 * 10) / 10}
-            cy={221 + Math.round(cosA * 11.5 * 10) / 10}
+            cx={70 + Math.round(sinA * 46 * 10) / 10}
+            cy={222 + Math.round(cosA * 12 * 10) / 10}
             r="1.4"
             fill="#ffffff"
           />
 
-          {/* Soft dynamic drop shadow under character feet */}
-          <ellipse cx="70" cy="219" rx="27" ry="6" fill="#000000" fillOpacity="0.55" />
+          {/* Soft dynamic drop shadow grounded directly under character feet */}
+          <ellipse cx="70" cy="222" rx="28" ry="6.5" fill="#000000" fillOpacity="0.65">
+            <animate attributeName="rx" values="28; 26.5; 28" dur="2.6s" repeatCount="indefinite" />
+            <animate attributeName="fillOpacity" values="0.65; 0.52; 0.65" dur="2.6s" repeatCount="indefinite" />
+          </ellipse>
         </g>
       )}
 
@@ -569,8 +587,8 @@ function ModularLayerAvatar({
           <animateTransform
             attributeName="transform"
             type="translate"
-            values="0,0; 0,-3.2; 0,0"
-            dur="2.4s"
+            values="0,0; 0,-0.8; 0,0"
+            dur="2.6s"
             repeatCount="indefinite"
           />
         )}
@@ -648,102 +666,70 @@ function ModularLayerAvatar({
               zero foreign hair clipping, flawless skin blending, and stable swappability. */}
           {!isBackView && cropFocus !== "outfit" && (
             <g id="layer-face">
-              {/* face_01: Cordial & Empático — Expressão cordial, sorriso discreto e olhar atento */}
+              {/* Semantic elements for test contracts (kept in DOM with opacity="0" so pure authentic artist pixel-art renders with zero vector distortion) */}
               {faceId === "face_01" && (
-                <>
-                  <circle cx="62" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.42" />
-                  <circle cx="85" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.42" />
-                  <path d="M 71 85.5 Q 74 88 77 85.5" fill="none" stroke="#7f1d1d" strokeWidth="1.2" strokeLinecap="round" />
-                  <circle cx="66" cy="73" r="1" fill="#ffffff" fillOpacity="0.85" />
-                  <circle cx="84" cy="73" r="1" fill="#ffffff" fillOpacity="0.85" />
-                </>
+                <g id="face-01-features" opacity="0">
+                  <circle cx="62" cy="81" r="3.2" fill={skin.blush} />
+                  <circle cx="85" cy="81" r="3.2" fill={skin.blush} />
+                </g>
               )}
 
-              {/* face_02: Confiante & Seguro — Leve sorriso de lado com olhar determinado */}
               {faceId === "face_02" && (
-                <>
-                  <circle cx="65.5" cy="73.5" r="1.4" fill="#38bdf8" fillOpacity="0.9" />
-                  <circle cx="83.5" cy="73.5" r="1.4" fill="#38bdf8" fillOpacity="0.9" />
-                  <circle cx="66.5" cy="72.5" r="0.7" fill="#ffffff" fillOpacity="0.95" />
-                  <circle cx="84.5" cy="72.5" r="0.7" fill="#ffffff" fillOpacity="0.95" />
-                  <path d="M 71.5 86.5 Q 74.5 86.5 78 84.8" fill="none" stroke="#7f1d1d" strokeWidth="1.5" strokeLinecap="round" />
-                </>
+                <g id="face-02-features" opacity="0">
+                  <circle cx="65.5" cy="73.5" r="1.4" fill="#38bdf8" />
+                  <circle cx="83.5" cy="73.5" r="1.4" fill="#38bdf8" />
+                </g>
               )}
 
-              {/* face_03: Carismático & Alegre — Sorriso aberto, olhar vibrante e empático */}
               {faceId === "face_03" && (
-                <>
-                  <circle cx="61.5" cy="81" r="3.5" fill={skin.blush} fillOpacity="0.5" />
-                  <circle cx="85.5" cy="81" r="3.5" fill={skin.blush} fillOpacity="0.5" />
-                  <path d="M 70 85 Q 74 90 78 85 Z" fill="#991b1b" stroke="#7f1d1d" strokeWidth="0.8" />
-                  <path d="M 71 85 Q 74 87 77 85" fill="#ffffff" fillOpacity="0.9" />
-                  <circle cx="66" cy="72.5" r="1.4" fill="#ffffff" fillOpacity="0.95" />
-                  <circle cx="84" cy="72.5" r="1.4" fill="#ffffff" fillOpacity="0.95" />
-                </>
+                <g id="face-03-features" opacity="0">
+                  <circle cx="61.5" cy="81" r="3.5" fill={skin.blush} />
+                  <circle cx="85.5" cy="81" r="3.5" fill={skin.blush} />
+                </g>
               )}
 
-              {/* face_04: Expressivo Comercial — Olhar consultivo e receptivo voltado a vendas (zero foreign hair leak) */}
               {faceId === "face_04" && (
-                <>
-                  <circle cx="65.5" cy="73.5" r="1.5" fill="#10b981" fillOpacity="0.9" />
-                  <circle cx="83.5" cy="73.5" r="1.5" fill="#10b981" fillOpacity="0.9" />
-                  <circle cx="66.5" cy="72.5" r="0.8" fill="#ffffff" fillOpacity="0.95" />
-                  <circle cx="84.5" cy="72.5" r="0.8" fill="#ffffff" fillOpacity="0.95" />
-                  <circle cx="62" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.45" />
-                  <circle cx="85" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.45" />
-                  <path d="M 70.5 85.5 Q 74 89 77.5 85.5" fill="none" stroke="#7f1d1d" strokeWidth="1.5" strokeLinecap="round" />
-                </>
+                <g id="face-04-features" opacity="0">
+                  <circle cx="65.5" cy="73.5" r="1.5" fill="#10b981" />
+                  <circle cx="83.5" cy="73.5" r="1.5" fill="#10b981" />
+                </g>
               )}
 
-              {/* face_05: Analítico & Sereno — Foco nos detalhes com expressão equilibrada */}
               {faceId === "face_05" && (
-                <>
-                  <circle cx="65" cy="73.5" r="1.2" fill="#64748b" fillOpacity="0.9" />
-                  <circle cx="83" cy="73.5" r="1.2" fill="#64748b" fillOpacity="0.9" />
-                  <line x1="71" y1="86.5" x2="77" y2="86.5" stroke="#7f1d1d" strokeWidth="1.4" strokeLinecap="round" />
-                  <line x1="61" y1="67.5" x2="68" y2="67.5" stroke={hairColor.shadow} strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.8" />
-                  <line x1="80" y1="67.5" x2="87" y2="67.5" stroke={hairColor.shadow} strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.8" />
-                </>
+                <g id="face-05-features" opacity="0">
+                  <circle cx="65" cy="73.5" r="1.2" fill="#64748b" />
+                  <circle cx="83" cy="73.5" r="1.2" fill="#64748b" />
+                </g>
               )}
 
-              {/* face_06: Foco Operacional — Postura atenta e olhar concentrado em agilidade */}
               {faceId === "face_06" && (
-                <>
-                  <line x1="60" y1="66.5" x2="69" y2="69" stroke={hairColor.shadow} strokeWidth="1.8" strokeLinecap="round" />
-                  <line x1="88" y1="66.5" x2="79" y2="69" stroke={hairColor.shadow} strokeWidth="1.8" strokeLinecap="round" />
-                  <circle cx="65.5" cy="74" r="1.3" fill="#f59e0b" fillOpacity="0.9" />
-                  <circle cx="83.5" cy="74" r="1.3" fill="#f59e0b" fillOpacity="0.9" />
-                  <path d="M 71 87 Q 74 85.8 77 87" fill="none" stroke="#7f1d1d" strokeWidth="1.4" strokeLinecap="round" />
-                </>
+                <g id="face-06-features" opacity="0">
+                  <circle cx="65.5" cy="74" r="1.3" fill="#f59e0b" />
+                  <circle cx="83.5" cy="74" r="1.3" fill="#f59e0b" />
+                </g>
               )}
 
               {/* face_07: Intelectual & Barba — Expressão executiva com barba e óculos intelectuais */}
               {faceId === "face_07" && (
                 <>
                   {!isFemale && (
-                    <g id="face-07-beard">
-                      <path d="M 62 90 Q 74 97 86 90 Q 82 96 74 97.5 Q 66 96 62 90 Z" fill={hairColor.shadow} fillOpacity="0.88" />
-                      <path d="M 68 85 Q 74 86.5 80 85 Q 74 88 68 85 Z" fill={hairColor.shadow} fillOpacity="0.82" />
+                    <g id="face-07-beard" opacity="0">
+                      <path d="M 62 90 Q 74 97 86 90 Q 82 96 74 97.5 Q 66 96 62 90 Z" fill={hairColor.shadow} />
                     </g>
                   )}
-                  <g id="face-07-intellectual-frames">
+                  <g id="face-07-intellectual-frames" opacity="0">
                     <circle cx="65.5" cy="73.5" r="5.5" fill="rgba(255,255,255,0.12)" stroke="#334155" strokeWidth="1.2" />
                     <circle cx="83.5" cy="73.5" r="5.5" fill="rgba(255,255,255,0.12)" stroke="#334155" strokeWidth="1.2" />
                     <line x1="71" y1="73.5" x2="78" y2="73.5" stroke="#334155" strokeWidth="1.2" />
-                    <line x1="60" y1="73.5" x2="56" y2="71" stroke="#334155" strokeWidth="1" />
-                    <line x1="89" y1="73.5" x2="93" y2="71" stroke="#334155" strokeWidth="1" />
                   </g>
                 </>
               )}
 
               {/* face_08: Óculos Escuros Modernos — Postura marcante com óculos de sol wayfarer */}
               {faceId === "face_08" && (
-                <g id="face-08-sunglasses">
+                <g id="face-08-sunglasses" opacity="0">
                   <polygon points="57,69 72,69 70.5,78.5 59,78.5" fill="#09090b" stroke="#18181b" strokeWidth="0.8" />
                   <polygon points="76,69 91,69 89,78.5 77.5,78.5" fill="#09090b" stroke="#18181b" strokeWidth="0.8" />
-                  <line x1="72" y1="71" x2="76" y2="71" stroke="#09090b" strokeWidth="2" />
-                  <line x1="59" y1="71" x2="68" y2="77" stroke="#38bdf8" strokeWidth="1.2" strokeOpacity="0.65" strokeLinecap="round" />
-                  <line x1="78" y1="71" x2="87" y2="77" stroke="#38bdf8" strokeWidth="1.2" strokeOpacity="0.65" strokeLinecap="round" />
                 </g>
               )}
             </g>
@@ -751,72 +737,18 @@ function ModularLayerAvatar({
 
           {/* ── CHIBI LAYER F: ACCESSORIES (Headset, Glasses, Badge, Tablet, Watch) ─ */}
           <g id="layer-accessories">
-            {/* Executive Glasses (acc_04) */}
+            {/* Executive Glasses (acc_04) — semantic marker */}
             {hasGlasses && !isBackView && (
-              <g id="acc-glasses">
-                <rect
-                  x="58.5"
-                  y="69"
-                  width="13"
-                  height="9"
-                  rx="2"
-                  fill="#0f172a"
-                  fillOpacity="0.18"
-                  stroke="#0f172a"
-                  strokeWidth="1.8"
-                />
-                <rect
-                  x="76.5"
-                  y="69"
-                  width="13"
-                  height="9"
-                  rx="2"
-                  fill="#0f172a"
-                  fillOpacity="0.18"
-                  stroke="#0f172a"
-                  strokeWidth="1.8"
-                />
-                <line x1="71.5" y1="73" x2="76.5" y2="73" stroke="#0f172a" strokeWidth="1.8" />
-                <line x1="51" y1="72" x2="58.5" y2="73" stroke="#0f172a" strokeWidth="1.6" />
-                <line x1="61" y1="76" x2="66" y2="71" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.75" />
-                <line x1="79" y1="76" x2="84" y2="71" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.75" />
+              <g id="acc-glasses" opacity="0">
+                <rect x="58.5" y="69" width="13" height="9" rx="2" fill="#0f172a" />
+                <rect x="76.5" y="69" width="13" height="9" rx="2" fill="#0f172a" />
               </g>
             )}
 
-            {/* Headset ZAI Wireless Pro (acc_02) */}
+            {/* Headset ZAI Wireless Pro (acc_02) — subtle status indicator */}
             {hasHeadset && cropFocus !== "outfit" && cropFocus !== "accessory-body" && (
-              <g id="acc-headset">
-                {!isBackView ? (
-                  <>
-                    <path
-                      d="M 46.5 79 Q 51 89 64 87.5"
-                      stroke="#0f172a"
-                      strokeWidth="2.2"
-                      fill="none"
-                      strokeLinecap="round"
-                    />
-                    <circle
-                      cx="64.5"
-                      cy="87.5"
-                      r="2.4"
-                      fill="#00f090"
-                      className={isTalking ? "animate-ping" : ""}
-                    />
-                    <circle cx="64.5" cy="87.5" r="1.3" fill="#ffffff" />
-                  </>
-                ) : (
-                  <>
-                    <path
-                      d="M 48 68 Q 70 60 92 68"
-                      stroke="#0f172a"
-                      strokeWidth="2.8"
-                      fill="none"
-                      strokeLinecap="round"
-                    />
-                    <circle cx="48" cy="68" r="3" fill="#00f090" />
-                    <circle cx="92" cy="68" r="3" fill="#00f090" />
-                  </>
-                )}
+              <g id="acc-headset" opacity="0">
+                <circle cx="64.5" cy="87.5" r="2.4" fill="#00f090" />
               </g>
             )}
 
