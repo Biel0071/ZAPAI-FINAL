@@ -58,6 +58,7 @@ import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
 import { QuickCampaignDispatchModal } from "@/components/campaigns/QuickCampaignDispatchModal";
 import { OrderSheetModal } from "./OrderSheetModal";
+import { CatalogSelectorPopover } from "./CatalogSelectorPopover";
 import { FlowExecutionBanner, matchesConversationFlow, type FlowExecutionData } from "./FlowExecutionBanner";
 import { buildSlashOptions, needsFlowPreview, type SlashOption } from "../quickReplySlash";
 import { ZaiAssistantComposer } from "./ZaiAssistantComposer";
@@ -1586,6 +1587,20 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       <Smiley className="h-5 w-5" />
                     </Button>
                     </PopoverTrigger>
+
+                    {/* Catálogo de Produtos WhatsApp (ao lado de emojis) */}
+                    <CatalogSelectorPopover
+                      disabled={!selectedConversation || !canSendMessages}
+                      onSendProduct={async (_product, formattedMessage) => {
+                        await handleSendMessage(formattedMessage);
+                      }}
+                      onInsertInComposer={(text) => {
+                        setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
+                        if (messageInputRef.current) {
+                          messageInputRef.current.focus();
+                        }
+                      }}
+                    />
 
                     <Button
                       type="button"

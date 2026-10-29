@@ -5,5 +5,7 @@ const { fastCacheMiddleware } = require('../middleware/fastCache');
 
 router.get('/products', fastCacheMiddleware(5000), productsController.getProducts);
 router.get('/products/:id', fastCacheMiddleware(5000), productsController.getProductById);
+router.get('/catalog/products', fastCacheMiddleware(5000), productsController.getProducts);
+router.get('/catalog/products/:id', fastCacheMiddleware(5000), productsController.getProductById);
 
 module.exports = router;

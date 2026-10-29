@@ -15,7 +15,8 @@ async function listProducts({ companyId = 'default', limit = 50, offset = 0, cat
 
   if (search) {
     params.push(`%${search}%`);
-    sql += ` AND (name ILIKE $${params.length} || description ILIKE $${params.length} || code ILIKE $${params.length})`;
+    const pIdx = params.length;
+    sql += ` AND (name ILIKE $${pIdx} OR description ILIKE $${pIdx} OR code ILIKE $${pIdx})`;
   }
 
   sql += ` ORDER BY name ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
