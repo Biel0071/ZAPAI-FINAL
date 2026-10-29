@@ -285,13 +285,15 @@ export function formatProductMessage(product: CatalogProduct, customNote?: strin
 
 interface CatalogSelectorPopoverProps {
   disabled?: boolean;
+  canSendToChat?: boolean;
   onSendProduct: (product: CatalogProduct, formattedMessage: string) => Promise<void> | void;
   onInsertInComposer?: (text: string) => void;
   className?: string;
 }
 
 export function CatalogSelectorPopover({
-  disabled,
+  disabled = false,
+  canSendToChat = true,
   onSendProduct,
   onInsertInComposer,
   className,
@@ -373,7 +375,12 @@ export function CatalogSelectorPopover({
   }, [products, search, selectedCategory]);
 
   const handleSend = async (product: CatalogProduct) => {
-    if (disabled || sendingId) return;
+    if (disabled || sendingId || !canSendToChat) {
+      if (!canSendToChat) {
+        toast.warning("Selecione uma conversa ativa para disparar o produto.");
+      }
+      return;
+    }
     try {
       setSendingId(product.id);
       const formatted = formatProductMessage(product);
@@ -627,9 +634,10 @@ export function CatalogSelectorPopover({
                       <Button
                         type="button"
                         size="sm"
-                        disabled={disabled || isSending}
+                        disabled={disabled || isSending || !canSendToChat}
+                        title={!canSendToChat ? "Selecione uma conversa ativa para disparar o produto" : "Enviar no chat"}
                         onClick={() => handleSend(item)}
-                        className="h-7 px-3 text-[11px] font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-xs hover:shadow-emerald-950/40 transition-all flex items-center gap-1.5"
+                        className="h-7 px-3 text-[11px] font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-xs hover:shadow-emerald-950/40 transition-all flex items-center gap-1.5 disabled:opacity-50"
                       >
                         {isSending ? (
                           <>

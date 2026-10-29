@@ -1590,7 +1590,8 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
                     {/* Catálogo de Produtos WhatsApp (ao lado de emojis) */}
                     <CatalogSelectorPopover
-                      disabled={!selectedConversation || !canSendMessages}
+                      disabled={false}
+                      canSendToChat={Boolean(selectedConversation && canSendMessages)}
                       onSendProduct={async (_product, formattedMessage) => {
                         await handleSendMessage(formattedMessage);
                       }}
