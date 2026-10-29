@@ -49,7 +49,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 980.0,
     category: "Tijolos & Blocos",
     stock: 45,
-    images: ["/uploads/quick_replies/qualidade_tijolo_1.mp4"],
+    images: ["/assets/catalog/tijolo_8f.jpg"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "5% de desconto no PIX/Dinheiro ou até 10x sem juros no cartão",
     condition: "Novo",
@@ -63,7 +63,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 650.0,
     category: "Tijolos & Blocos",
     stock: 30,
-    images: ["/uploads/quick_replies/tijolo_promo_1.mp4"],
+    images: ["/assets/catalog/tijolo_macico.jpg"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Desconto especial para cargas fechadas",
     condition: "Novo",
@@ -77,7 +77,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 34.9,
     category: "Cimento & Argamassas",
     stock: 250,
-    images: ["/uploads/quick_replies/cimento_1.png"],
+    images: ["/assets/catalog/cimento_cp2.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Preço promocional para compras acima de 50 sacos",
     condition: "Novo",
@@ -91,7 +91,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 37.5,
     category: "Cimento & Argamassas",
     stock: 120,
-    images: ["/uploads/quick_replies/cimento_1.png"],
+    images: ["/assets/catalog/cimento_cp2.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Condição facilitada no cartão de crédito",
     condition: "Novo",
@@ -105,7 +105,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 110.0,
     category: "Areia & Brita",
     stock: 80,
-    images: ["/uploads/quick_replies/blocos_promo_1.png"],
+    images: ["/assets/catalog/blocos.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Preço por metro cúbico (m³). Consulte frete para sua rua",
     condition: "Novo",
@@ -119,7 +119,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 125.0,
     category: "Areia & Brita",
     stock: 60,
-    images: ["/uploads/quick_replies/blocos_promo_1.png"],
+    images: ["/assets/catalog/blocos.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Desconto no combo Areia + Brita",
     condition: "Novo",
@@ -133,7 +133,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 890.0,
     category: "Churrasqueiras",
     stock: 18,
-    images: ["/uploads/quick_replies/churras_2.png"],
+    images: ["/assets/catalog/churras_65.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Kit inox incluso (grelha + porta-espetos inox)",
     condition: "Novo",
@@ -147,7 +147,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 1290.0,
     category: "Churrasqueiras",
     stock: 9,
-    images: ["/uploads/quick_replies/churras_11.jpg"],
+    images: ["/assets/catalog/churras_75.jpg"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Parcelamento em até 10x sem juros",
     condition: "Novo",
@@ -161,7 +161,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 58.0,
     category: "Coberturas & Telhas",
     stock: 200,
-    images: ["/uploads/quick_replies/telha_black_1.mp4"],
+    images: ["/assets/catalog/telha_fibro.jpg"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Desconto para quantidade de obra fechada",
     condition: "Novo",
@@ -175,7 +175,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 380.0,
     category: "Caixas d'Água",
     stock: 28,
-    images: ["/uploads/quick_replies/cx_promocao_1.png"],
+    images: ["/assets/catalog/caixa_dagua.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Garantia oficial de 5 anos pelo fabricante",
     condition: "Novo",
@@ -189,7 +189,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 2490.0,
     category: "Caixas d'Água",
     stock: 12,
-    images: ["/uploads/quick_replies/cx_promocao_1.png"],
+    images: ["/assets/catalog/caixa_dagua.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Até 10x sem juros no cartão ou 5% à vista",
     condition: "Novo",
@@ -203,7 +203,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 3850.0,
     category: "Máquinas & Equipamentos",
     stock: 6,
-    images: ["/uploads/quick_replies/betoneira_2.png"],
+    images: ["/assets/catalog/betoneira.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Nota fiscal e garantia de 1 ano de fábrica",
     condition: "Novo",
@@ -217,7 +217,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 289.9,
     category: "Tintas & Acabamentos",
     stock: 42,
-    images: ["/uploads/quick_replies/natal_1.png"],
+    images: ["/assets/catalog/tinta.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Leve 2 latas com frete grátis na região",
     condition: "Novo",
@@ -231,7 +231,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 32.9,
     category: "Cimento & Argamassas",
     stock: 180,
-    images: ["/uploads/quick_replies/cimento_1.png"],
+    images: ["/assets/catalog/cimento_cp2.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Desconto progressivo por palete fechado",
     condition: "Novo",
@@ -245,7 +245,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 4.8,
     category: "Tijolos & Blocos",
     stock: 700,
-    images: ["/uploads/quick_replies/blocos_promo_1.png"],
+    images: ["/assets/catalog/blocos.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Venda unitária ou por palete com 108 unidades",
     condition: "Novo",
@@ -570,6 +570,18 @@ export function CatalogSelectorPopover({
                     className="p-3 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-emerald-500/30 transition-all duration-150 flex flex-col gap-2 relative group"
                   >
                     <div className="flex items-start justify-between gap-3">
+                      {item.images && item.images.length > 0 && item.images[0] && (
+                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted/40 border border-border/50 shrink-0 relative flex items-center justify-center">
+                          <img
+                            src={item.images[0]}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = "none";
+                            }}
+                          />
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-semibold text-xs text-foreground group-hover:text-emerald-400 transition-colors">

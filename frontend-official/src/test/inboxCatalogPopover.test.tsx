@@ -8,7 +8,8 @@ import {
   FALLBACK_STORE_PRODUCTS,
   type CatalogProduct,
 } from "@/pages/Inbox/components/CatalogSelectorPopover";
-import { apiService } from "@/core/services/apiService";
+import { MessageRow } from "@/pages/Inbox/components/MessageRow";
+import { apiService, type ChatMessage } from "@/core/services/apiService";
 
 vi.spyOn(apiService, "getProducts").mockResolvedValue({
   success: true,
@@ -128,5 +129,62 @@ describe("WhatsApp Catalog Integration & Inbox Dispatch", () => {
       expect.objectContaining({ name: expect.any(String), price: expect.anything() }),
       expect.stringContaining("[CATÁLOGO WHATSAPP]")
     );
+  });
+
+  it("renders authentic WhatsApp Product Card bubble in MessageRow when catalog message is sent", async () => {
+    const sampleProduct: CatalogProduct = {
+      id: "prod_tijolo_8f",
+      code: "TIJ-8F-MIL",
+      name: "Tijolo Cerâmico 8 Furos 9x19x19cm (Milheiro)",
+      description: "Tijolo cerâmico 8 furos padrão 9x19x19cm de alta qualidade.",
+      price: 980.0,
+      category: "Tijolos & Blocos",
+      stock: 45,
+      shipping: "Entrega expressa com caminhão próprio",
+      promotions: "5% de desconto à vista no PIX",
+      whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    };
+
+    const formatted = formatProductMessage(sampleProduct);
+
+    const testMessage: ChatMessage = {
+      id: "msg_catalog_test_01",
+      conversationId: "conv_123",
+      content: formatted,
+      fromMe: true,
+      timestamp: "12:30",
+      status: "delivered",
+      sender: "user",
+    };
+
+    await renderComponent(
+      <MessageRow
+        message={testMessage}
+        onReact={vi.fn()}
+        onOpenMediaPreview={vi.fn()}
+        isMenuOpen={false}
+        isReactionPickerOpen={false}
+        onToggleMenu={vi.fn()}
+        onToggleReactionPicker={vi.fn()}
+        onCopyMessage={vi.fn()}
+        onReplyMessage={vi.fn()}
+        onForwardMessage={vi.fn()}
+        onDeleteMessage={vi.fn()}
+        onDownloadMedia={vi.fn()}
+        backendOnline={true}
+      />
+    );
+
+    const productCard = document.querySelector("[data-testid='whatsapp-product-card']");
+    expect(productCard).not.toBeNull();
+    expect(productCard?.textContent).toContain("Tijolo Cerâmico 8 Furos");
+    expect(productCard?.textContent).toContain("R$");
+    expect(productCard?.textContent).toContain("980,00");
+    expect(productCard?.textContent).toContain("Catálogo WhatsApp");
+    expect(productCard?.textContent).toContain("Ver no WhatsApp");
+
+    const link = productCard?.querySelector<HTMLAnchorElement>("a[href*='wa.me']");
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute("href")).toContain("553193672075");
   });
 });

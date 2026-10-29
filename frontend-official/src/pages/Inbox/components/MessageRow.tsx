@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useRef } from "react";
+import { memo, useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowBendUpRight,
@@ -19,6 +19,9 @@ import {
   User,
   Storefront,
   DotsThreeVertical,
+  WhatsappLogo,
+  ArrowSquareOut,
+  Truck,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,6 +46,66 @@ import {
   formatPlaybackTime,
   formatTime,
 } from "../utils";
+
+interface ParsedCatalogItem {
+  title: string;
+  code?: string;
+  price?: string;
+  shipping?: string;
+  condition?: string;
+  stock?: string;
+  description?: string;
+  catalogUrl?: string;
+  image?: string;
+}
+
+function parseCatalogCard(text: string): ParsedCatalogItem | null {
+  if (!text || (!text.includes("[CATÁLOGO WHATSAPP]") && !text.includes("[CATÁLOGO DE PRODUTOS]"))) {
+    return null;
+  }
+
+  let title = "";
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    if (line.includes("[CATÁLOGO") || line.includes("━━━━")) continue;
+    if (line.startsWith("*") && line.endsWith("*") && !line.includes(":")) {
+      title = line.replace(/^\*+|\*+$/g, "").trim();
+      break;
+    }
+  }
+
+  const codeMatch = text.match(/(?:Código|Codigo):\*?\s*([^\n]+)/i);
+  const priceMatch = text.match(/Valor:\*?\s*([^\n]+)/i);
+  const shippingMatch = text.match(/Entrega:\*?\s*([^\n]+)/i);
+  const promoMatch = text.match(/(?:Condição|Condicao):\*?\s*([^\n]+)/i);
+  const stockMatch = text.match(/Disponibilidade:\*?\s*([^\n]+)/i);
+  const descMatch = text.match(/(?:Descrição|Descricao):\*?\s*([\s\S]*?)(?=(?:🔗|━━━━━━━━|💬|$))/i);
+  const urlMatch = text.match(/https?:\/\/[^\s*]+/i);
+
+  const lowerTitle = (title || "").toLowerCase();
+  let image = "/assets/catalog/tijolo_8f.jpg";
+  if (lowerTitle.includes("maciço") || lowerTitle.includes("macico")) image = "/assets/catalog/tijolo_macico.jpg";
+  else if (lowerTitle.includes("cimento") || lowerTitle.includes("argamassa")) image = "/assets/catalog/cimento_cp2.png";
+  else if (lowerTitle.includes("churrasqueira") && (lowerTitle.includes("75") || lowerTitle.includes("prem"))) image = "/assets/catalog/churras_75.jpg";
+  else if (lowerTitle.includes("churrasqueira")) image = "/assets/catalog/churras_65.png";
+  else if (lowerTitle.includes("telha")) image = "/assets/catalog/telha_fibro.jpg";
+  else if (lowerTitle.includes("caixa") || lowerTitle.includes("água") || lowerTitle.includes("agua")) image = "/assets/catalog/caixa_dagua.png";
+  else if (lowerTitle.includes("betoneira")) image = "/assets/catalog/betoneira.png";
+  else if (lowerTitle.includes("tinta")) image = "/assets/catalog/tinta.png";
+  else if (lowerTitle.includes("bloco") || lowerTitle.includes("areia") || lowerTitle.includes("brita")) image = "/assets/catalog/blocos.png";
+
+  return {
+    title: title || "Produto do Catálogo",
+    code: codeMatch ? codeMatch[1].replace(/\*+/g, "").trim() : undefined,
+    price: priceMatch ? priceMatch[1].replace(/\*+/g, "").trim() : undefined,
+    shipping: shippingMatch ? shippingMatch[1].replace(/\*+/g, "").trim() : undefined,
+    condition: promoMatch ? promoMatch[1].replace(/\*+/g, "").trim() : undefined,
+    stock: stockMatch ? stockMatch[1].replace(/\*+/g, "").trim() : undefined,
+    description: descMatch ? descMatch[1].replace(/\*+/g, "").trim() : undefined,
+    catalogUrl: urlMatch ? urlMatch[0].trim() : "https://wa.me/c/553193672075",
+    image,
+  };
+}
 
 export const MessageRow = memo(function MessageRow({
   message,
@@ -196,6 +259,7 @@ export const MessageRow = memo(function MessageRow({
 
   const safeTextContent = getMessageDisplayContent(message);
   const displayText = hasRenderableMedia && safeTextContent === getMediaTypeLabel(resolvedMediaType) ? "" : safeTextContent;
+  const parsedCatalog = useMemo(() => parseCatalogCard(displayText), [displayText]);
 
   const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
 
@@ -497,7 +561,79 @@ export const MessageRow = memo(function MessageRow({
             </div>
           )}
 
-          {displayText && (
+          {parsedCatalog ? (
+            <div className="rounded-2xl overflow-hidden bg-card/95 dark:bg-[#1f2c34] border border-emerald-500/35 max-w-[320px] shadow-lg my-1 select-none text-left" data-testid="whatsapp-product-card">
+              {/* Product Image Banner */}
+              <div className="relative w-full h-44 bg-muted/60 overflow-hidden">
+                <img
+                  src={mediaUrl || parsedCatalog.image}
+                  alt={parsedCatalog.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = "none";
+                  }}
+                />
+                <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600/90 text-white text-[11px] font-semibold backdrop-blur-xs shadow-xs">
+                  <Storefront className="h-3.5 w-3.5" weight="bold" />
+                  <span>Catálogo WhatsApp</span>
+                </div>
+                {parsedCatalog.code && (
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/70 text-white font-mono text-[10px] backdrop-blur-xs border border-white/10">
+                    {parsedCatalog.code}
+                  </div>
+                )}
+              </div>
+
+              {/* Card Body */}
+              <div className="p-3.5 space-y-2">
+                <h4 className="font-bold text-sm text-foreground leading-snug">
+                  {parsedCatalog.title}
+                </h4>
+
+                {parsedCatalog.price && (
+                  <div className="text-base font-extrabold text-emerald-500 dark:text-emerald-400">
+                    {parsedCatalog.price}
+                  </div>
+                )}
+
+                {parsedCatalog.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                    {parsedCatalog.description}
+                  </p>
+                )}
+
+                {(parsedCatalog.shipping || parsedCatalog.stock) && (
+                  <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-border/40 text-[11px] text-muted-foreground flex-wrap">
+                    {parsedCatalog.shipping && (
+                      <span className="flex items-center gap-1">
+                        <Truck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <span className="truncate max-w-[190px]">{parsedCatalog.shipping}</span>
+                      </span>
+                    )}
+                    {parsedCatalog.stock && (
+                      <span className="flex items-center gap-1 ml-auto font-medium text-emerald-500">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        <span>{parsedCatalog.stock}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* WhatsApp Link CTA */}
+                <a
+                  href={parsedCatalog.catalogUrl || "https://wa.me/c/553193672075"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full mt-2 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <WhatsappLogo className="h-4 w-4" weight="fill" />
+                  <span>Ver no WhatsApp</span>
+                  <ArrowSquareOut className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </div>
+          ) : displayText ? (
             <p className="whitespace-pre-wrap">
               <HighlightedMessageText
                 text={displayText}
@@ -505,7 +641,7 @@ export const MessageRow = memo(function MessageRow({
                 active={Boolean(isActiveSearchMatch)}
               />
             </p>
-          )}
+          ) : null}
 
           {isAiMessage && message.fromMe && (
             <AIMessageFeedback
