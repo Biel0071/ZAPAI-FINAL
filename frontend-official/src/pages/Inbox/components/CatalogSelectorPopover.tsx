@@ -127,146 +127,6 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     condition: "Novo",
     shipping: "Frete especial com guincho/descarga apropriada",
   },
-  {
-    id: "prod_tijolo_macico_mil",
-    code: "TIJ-MAC-MIL",
-    name: "Tijolo Maciço Comum 5x10x20cm (Milheiro)",
-    description: "Tijolo de barro cozido maciço para alvenaria aparente, fornos a lenha, fogões e churrasqueiras rústicas. Alta durabilidade e acabamento colonial.",
-    price: 650.0,
-    category: "Tijolos & Blocos",
-    stock: 30,
-    images: ["/assets/catalog/tijolo_macico.jpg"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Desconto especial para cargas fechadas",
-    condition: "Novo",
-    shipping: "Entrega imediata na Grande BH e região",
-  },
-  {
-    id: "prod_cimento_cp2_50kg",
-    code: "CIM-CPII-50",
-    name: "Cimento CP-II E-32 50kg Nacional",
-    description: "Cimento Portland Composto com escória granulada. Indicado para concreto armado, lajes, vigas, pilares, contrapisos e assentamento.",
-    price: 34.9,
-    category: "Cimento & Argamassas",
-    stock: 250,
-    images: ["/assets/catalog/cimento_cp2.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Preço promocional para compras acima de 50 sacos",
-    condition: "Novo",
-    shipping: "Descarga no térreo inclusa na entrega",
-  },
-  {
-    id: "prod_cimento_cp3_50kg",
-    code: "CIM-CPIII-50",
-    name: "Cimento CP-III 40 RS Resistente a Sulfatos (50kg)",
-    description: "Cimento Portland de alto-forno com elevado teor de escória. Máxima impermeabilidade em fundações, subsolos e locais com umidade.",
-    price: 37.5,
-    category: "Cimento & Argamassas",
-    stock: 120,
-    images: ["/assets/catalog/cimento_cp2.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Condição facilitada no cartão de crédito",
-    condition: "Novo",
-    shipping: "Pronta entrega",
-  },
-  {
-    id: "prod_areia_media_m3",
-    code: "AGR-AREIA-M3",
-    name: "Areia Média Lavada (m³)",
-    description: "Areia média pura, limpa e lavada, sem terra ou matéria orgânica. Granulometria perfeita para concreto e argamassa de reboco.",
-    price: 110.0,
-    category: "Areia & Brita",
-    stock: 80,
-    images: ["/assets/catalog/blocos.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Preço por metro cúbico (m³). Consulte frete para sua rua",
-    condition: "Novo",
-    shipping: "Entrega em caminhão basculante",
-  },
-  {
-    id: "prod_brita_1_m3",
-    code: "AGR-BRITA-1-M3",
-    name: "Brita 1 Granítica (m³)",
-    description: "Pedra britada nº 1 (malha 19mm) de rocha sã granítica. Alta aderência para lajes maciças, sapatas e blocos de fundação.",
-    price: 125.0,
-    category: "Areia & Brita",
-    stock: 60,
-    images: ["/assets/catalog/blocos.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Desconto no combo Areia + Brita",
-    condition: "Novo",
-    shipping: "Entrega expressa basculante",
-  },
-  {
-    id: "prod_churrasqueira_65cm",
-    code: "CHUR-65-COMP",
-    name: "Churrasqueira Pré-Moldada Tijolinho 65cm Completa",
-    description: "Churrasqueira pré-moldada estilo tijolinho vermelho cerâmico com revestimento refratário. Kit completo com grelha em inox, porta-espetos e gaveta cinzeiro.",
-    price: 890.0,
-    category: "Churrasqueiras",
-    stock: 18,
-    images: ["/assets/catalog/churras_65.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Kit inox incluso (grelha + porta-espetos inox)",
-    condition: "Novo",
-    shipping: "Entrega programada para todo o vetor leste e BH",
-  },
-  {
-    id: "prod_churrasqueira_75cm_prem",
-    code: "CHUR-75-PREM",
-    name: "Churrasqueira Predial Refratária 75cm Premium",
-    description: "Churrasqueira pré-moldada grande 75cm para áreas gourmet amplas. Coifa prolongada, refratários duplos de alta retenção térmica.",
-    price: 1290.0,
-    category: "Churrasqueiras",
-    stock: 9,
-    images: ["/assets/catalog/churras_75.jpg"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Parcelamento em até 10x sem juros",
-    condition: "Novo",
-    shipping: "Montagem rápida por encaixe modulado",
-  },
-  {
-    id: "prod_telha_fibro_244",
-    code: "TEL-FIB-244",
-    name: "Telha Fibrocimento 2,44 x 1,10m 6mm Brasilit/Eternit",
-    description: "Telha ondulada sem amianto (tecnologia CRFS). Dimensões 2,44m x 1,10m x 6mm de espessura. Alta durabilidade e proteção contra intempéries.",
-    price: 58.0,
-    category: "Coberturas & Telhas",
-    stock: 200,
-    images: ["/assets/catalog/telha_fibro.jpg"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Desconto para quantidade de obra fechada",
-    condition: "Novo",
-    shipping: "Pronta entrega",
-  },
-  {
-    id: "prod_caixa_dagua_1000l",
-    code: "CXA-1000L-FTL",
-    name: "Caixa d'Água 1000L Polietileno com Tampa Fortlev",
-    description: "Reservatório de água potável 1.000 Litros em polietileno virgem atóxico com proteção antibacteriana e anti-UV. Tampa de 1/4 de volta com trava segura.",
-    price: 380.0,
-    category: "Caixas d'Água",
-    stock: 28,
-    images: ["/assets/catalog/caixa_dagua.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Garantia oficial de 5 anos pelo fabricante",
-    condition: "Novo",
-    shipping: "Pronta entrega",
-  },
-  {
-    id: "prod_tinta_acrilica_18l",
-    code: "TNT-ACR-18L",
-    name: "Tinta Acrílica Fosca Premium 18L Branco Neve",
-    description: "Tinta acrílica lavável premium para paredes internas e externas. Rendimento de até 500m² por demão, secagem ultra rápida e acabamento sem odor.",
-    price: 289.9,
-    category: "Tintas & Acabamentos",
-    stock: 42,
-    images: ["/assets/catalog/tinta.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Leve 2 latas com frete grátis na região",
-    condition: "Novo",
-    shipping: "Pronta entrega",
-  },
 ];
 
 export function formatProductMessage(product: CatalogProduct, customNote?: string): string {
@@ -602,7 +462,7 @@ export function CatalogSelectorPopover({
         side="top"
         sideOffset={10}
         data-catalog-popover
-        className="w-[430px] max-w-[calc(100vw-24px)] p-0 rounded-2xl border border-emerald-500/30 bg-[#111b21] backdrop-blur-md shadow-2xl shadow-emerald-950/50 overflow-hidden flex flex-col z-50 text-[#e9edef]"
+        className="w-[360px] max-w-[calc(100vw-24px)] p-0 rounded-2xl border border-emerald-500/30 bg-[#111b21] backdrop-blur-md shadow-2xl shadow-emerald-950/50 overflow-hidden flex flex-col z-50 text-[#e9edef]"
       >
         {/* Header - Identical to WhatsApp Web 'Enviar produtos' */}
         <div className="px-4 py-3 bg-[#202c33] border-b border-[#2a3942] flex items-center justify-between gap-2">
@@ -618,9 +478,6 @@ export function CatalogSelectorPopover({
               <span className="font-semibold text-sm text-[#e9edef] truncate block">
                 Enviar produtos
               </span>
-              <p className="text-[11px] text-[#8696a0] truncate">
-                Catálogo WhatsApp • Depósito Vista Alegre
-              </p>
             </div>
           </div>
 
@@ -653,6 +510,7 @@ export function CatalogSelectorPopover({
         {/* Top Action Row: 'Enviar catálogo' - Exact duplicate of WhatsApp Web */}
         <div
           onClick={handleSendCatalogLink}
+          data-send-catalog-trigger
           className="px-4 py-3 bg-[#111b21] hover:bg-[#202c33] border-b border-[#2a3942]/60 flex items-center justify-between gap-3 cursor-pointer transition-colors group"
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -663,26 +521,21 @@ export function CatalogSelectorPopover({
               <span className="font-medium text-sm text-[#e9edef] group-hover:text-emerald-400 transition-colors block">
                 Enviar catálogo
               </span>
-              <p className="text-[11px] text-[#8696a0] truncate">
-                Disparar link com todos os produtos da loja
-              </p>
             </div>
           </div>
 
-          <Button
+          <button
             type="button"
-            size="sm"
-            variant="ghost"
             data-send-catalog-trigger
             onClick={(e) => {
               e.stopPropagation();
               handleSendCatalogLink();
             }}
             disabled={disabled || !canSendToChat || sendingId === "catalog_root"}
-            className="h-7 px-2.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/15 rounded-md"
+            className="text-[11px] font-medium text-emerald-400 hover:underline px-1 py-0.5"
           >
-            {sendingId === "catalog_root" ? "Enviando..." : "Enviar link"}
-          </Button>
+            {sendingId === "catalog_root" ? "Enviando..." : ""}
+          </button>
         </div>
 
         {/* Search input & Category chips */}
@@ -707,27 +560,7 @@ export function CatalogSelectorPopover({
             )}
           </div>
 
-          {/* Category pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
-            {categories.map((cat) => {
-              const active = selectedCategory.toLowerCase() === cat.toLowerCase();
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={cn(
-                    "px-2.5 py-1 rounded-lg shrink-0 transition-all font-medium border text-[11px]",
-                    active
-                      ? "bg-emerald-600 text-white border-emerald-500 shadow-xs"
-                      : "bg-[#202c33] text-[#8696a0] border-[#2a3942] hover:bg-[#2a3942] hover:text-[#e9edef]"
-                  )}
-                >
-                  {cat}
-                </button>
-              );
-            })}
           </div>
-        </div>
 
         {/* Product list with checkboxes */}
         <ScrollArea className="h-[340px] p-2 bg-[#111b21]">
@@ -758,7 +591,8 @@ export function CatalogSelectorPopover({
                 const isSelected = selectedIds.has(item.id);
                 const isSending = sendingId === item.id;
                 const priceNum = typeof item.price === "number" ? item.price : parseFloat(item.price) || 0;
-                const formattedPrice = priceNum > 0 ? priceNum.toLocaleString("pt-BR", {
+                const isTelha = item.id === "prod_telhas_ceramica" || item.name.toUpperCase().includes("TELHAS");
+                const formattedPrice = priceNum > 0 && !isTelha ? priceNum.toLocaleString("pt-BR", {
                   style: "currency",
                   currency: "BRL",
                 }) : "";
@@ -814,14 +648,10 @@ export function CatalogSelectorPopover({
                       </div>
 
                       {formattedPrice && (
-                        <div className="text-xs font-semibold text-emerald-400 mt-0.5">
+                        <div className="text-xs font-normal text-[#8696a0] mt-0.5">
                           {formattedPrice}
                         </div>
                       )}
-
-                      <p className="text-[11px] text-[#8696a0] line-clamp-1 mt-0.5">
-                        {item.description}
-                      </p>
                     </div>
 
                     {/* Right: Quick send actions */}
