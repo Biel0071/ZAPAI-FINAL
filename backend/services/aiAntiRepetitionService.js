@@ -323,7 +323,7 @@ function buildAntiRepetitionPromptBlock({ recentBotReplies = [], knownPreference
     }
     prompt += `3. PROIBIDO REPETIR A MESMA FRASE OU EXPLICAÇÃO: Não repita frases idênticas já enviadas nas mensagens anteriores.\n`;
   } else {
-    prompt += `Esta é a primeira mensagem do atendente nesta interação. Faça uma saudação amigável e acolhedora, variando naturalmente o cumprimento ("Oi!", "Olá!", "Opa!").\n`;
+    prompt += `Esta é a primeira mensagem do atendente nesta interação. Faça uma saudação amigável e acolhedora (por exemplo: "Olá, tudo bem?"). Não use chaves {} ou formatos de template.\n`;
   }
 
   prompt += `4. SEGUIMENTO REAL NA LINHA DE RACIOCÍNIO: Se o cliente acabou de responder uma pergunta sua (por exemplo, informando capacidade "De 5 mil litros", local "Centro", ou pagamento "no pix"), você DEVE responder e confirmar exatamente o dado informado ("Temos a de 5 mil litros em polietileno com tampa de rosca...", "Para o Centro nossa entrega é rápida...", etc.) e em seguida fazer uma pergunta de avanço comercial.\n`;
@@ -424,6 +424,10 @@ function sanitizeAndVaryBotReply(replyText = '', recentBotReplies = [], options 
       const currentSentences = cleaned.split(/(?<=[.!?])\s+/).filter(Boolean);
       const filtered = currentSentences.filter(s => {
         const normS = s.trim().toLowerCase();
+        // NUNCA eliminar frases substantivas com valores monetários, cálculos ou especificações de produto
+        if (/\b(?:r\$|\$|\d+(?:[.,]\d+)?\s*(?:reais|milheiro|sacos|litros|unidades|furos))\b/i.test(s)) {
+          return true;
+        }
         if (normS.length > 15 && pastSentences.has(normS)) return false;
         if (isSentenceRepeated(normS, recentBotReplies)) return false;
         return true;
@@ -432,9 +436,10 @@ function sanitizeAndVaryBotReply(replyText = '', recentBotReplies = [], options 
     }
   }
 
-  // 4. Apply human micro-variations for natural tone
+  // 4. Resolve any residual spintax safely without leaving raw brackets
   try {
-    cleaned = applyHumanMicroVariations(cleaned);
+    const { parseSpintax } = require('./messageVariationEngine');
+    cleaned = parseSpintax(cleaned).replace(/[ \t]+/g, ' ').trim();
   } catch (_) {}
 
   return cleaned.trim();
@@ -485,7 +490,7 @@ function calculateTextSimilarity(textA = '', textB = '') {
 /**
  * Checks if a candidate sentence is substantially similar to any sentence previously sent by the bot
  */
-function isSentenceRepeated(sentence = '', recentBotReplies = [], threshold = 0.70) {
+function isSentenceRepeated(sentence = '', recentBotReplies = [], threshold = 0.88) {
   if (!sentence || typeof sentence !== 'string') return false;
   const normS = normalizeTextForComparison(sentence);
   if (normS.length < 15) return false;
@@ -493,7 +498,7 @@ function isSentenceRepeated(sentence = '', recentBotReplies = [], threshold = 0.
   for (const botMsg of recentBotReplies) {
     const pastText = botMsg.text || '';
     const normPastText = normalizeTextForComparison(pastText);
-    if (normPastText.includes(normS) && normS.length > 25) return true;
+    if (normPastText.includes(normS) && normS.length > 30) return true;
 
     const sents = botMsg.sentences || (pastText.split(/(?<=[.!?])\s+/).map(s => s.trim().toLowerCase()).filter(Boolean));
     for (const pastSentence of sents) {

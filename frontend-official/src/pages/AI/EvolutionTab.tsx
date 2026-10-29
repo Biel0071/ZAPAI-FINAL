@@ -111,6 +111,7 @@ export interface EvolutionTabProps {
   agents?: any[];
   selectedAgent?: any;
   isSessionConnected?: boolean;
+  initialSubTab?: "hub" | "brain" | "timeline" | "conversations";
 }
 
 const KNOWN_MEMORY_CATEGORIES = [
@@ -123,7 +124,7 @@ const KNOWN_MEMORY_CATEGORIES = [
   { id: "objection", label: "Objeções Resolvidas", color: "#8b5cf6" },
 ];
 
-export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, selectedAgent, isSessionConnected: propIsSessionConnected }: EvolutionTabProps = {}) {
+export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, selectedAgent, isSessionConnected: propIsSessionConnected, initialSubTab = "hub" }: EvolutionTabProps = {}) {
   const storeSessions = useAppStore((state) => state.sessions);
   const hasLiveSession = storeSessions.length > 0
     ? storeSessions.some((s) => s.connected || s.status === "connected")
@@ -198,7 +199,10 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
   const [customDateEnd, setCustomDateEnd] = useState<string>("");
 
   // View sub-tabs (Consolidado em 4 campos de evolução de IA) & Active Brain state
-  const [evolutionSubTab, setEvolutionSubTab] = useState<"hub" | "brain" | "timeline" | "conversations">("hub");
+  const [evolutionSubTab, setEvolutionSubTab] = useState<"hub" | "brain" | "timeline" | "conversations">(initialSubTab);
+  useEffect(() => {
+    if (initialSubTab) setEvolutionSubTab(initialSubTab);
+  }, [initialSubTab]);
   const [brainViewMode, setBrainViewMode] = useState<"graph" | "list">("graph");
   const [selectedMemoryNode, setSelectedMemoryNode] = useState<MemoryNodeData | null>(null);
   const [graphCategoryFilter, setGraphCategoryFilter] = useState<string>("todos");
@@ -900,7 +904,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
 
       {/* 4 CAMPOS DE EVOLUÇÃO DE IA CONSOLIDADOS & DATE FILTER BAR */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/80 border border-border/70 w-fit flex-wrap">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/80 border border-border/70 max-w-full overflow-x-auto no-scrollbar flex-nowrap shrink-0">
           {/* CAMPO 1: PAINEL DE NÍVEL & XP */}
           <button
             type="button"

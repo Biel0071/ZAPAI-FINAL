@@ -860,7 +860,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         )}
                       >
                         <div className="flex items-center gap-2.5">
-                          <AvatarItemPreview spriteRef={resolveItemSpriteForGender(f, avatar.body)} itemId={f.id} gender={avatar.body} focus="face" title={f.title} />
+                          <AvatarItemPreview spriteRef={previewSpriteId || resolveItemSpriteForGender(f, avatar.body)} itemId={f.id} gender={avatar.body} focus="face" title={f.title} />
                           <div className="min-w-0">
                             <div className="text-xs font-bold text-foreground truncate">{f.title}</div>
                             <div className="text-[10px] text-muted-foreground line-clamp-2">{f.description}</div>

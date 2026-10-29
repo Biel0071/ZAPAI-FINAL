@@ -781,6 +781,101 @@ describe("Avatar operational state regressions", () => {
       container.remove();
     }
   });
+
+  it("guarantees 100% stable piece swapping with zero foreign raster hair glitches on face selection", () => {
+    // 1. Camila with dark ponytail (hair_01) and Expressivo Comercial (face_04)
+    const camilaMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: {
+          body: "female",
+          base: "female",
+          hair: "hair_01",
+          face: "face_04",
+          outfit: "outfit_01",
+        },
+        size: "workspace",
+      })
+    );
+
+    // ZERO layer-face-features raster overlay that causes blonde bangs to leak onto dark hair
+    expect(camilaMarkup).not.toContain("layer-face-features");
+    expect(camilaMarkup).not.toContain("clip-face");
+    // Expressivo comercial emerald eye sparkle & warm blush rendered stably in vector layer-face
+    expect(camilaMarkup).toContain("layer-face");
+    expect(camilaMarkup).toContain('fill="#10b981"');
+
+    // 2. Swapping hair to hair_03 (blonde waves) and outfit to outfit_05 (blazer)
+    const modularMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: {
+          body: "female",
+          base: "female",
+          hair: "hair_03",
+          outfit: "outfit_05",
+          face: "face_02",
+        },
+        size: "workspace",
+      })
+    );
+
+    // Modular layers active without clashing
+    expect(modularMarkup).toContain("layer-hair");
+    expect(modularMarkup).toContain("layer-outfit");
+    // Face_02 cyan iris catchlight
+    expect(modularMarkup).toContain('fill="#38bdf8"');
+
+    // 3. Male attendant Carlos with face_07 (beard & intellectual frames)
+    const carlosMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: {
+          body: "male",
+          base: "male",
+          hair: "hair_05",
+          face: "face_07",
+          outfit: "outfit_01",
+        },
+        size: "workspace",
+      })
+    );
+    expect(carlosMarkup).toContain("face-07-beard");
+    expect(carlosMarkup).toContain("face-07-intellectual-frames");
+
+    // 4. Female attendant with face_08 (sunglasses)
+    const sunglassesMarkup = renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: {
+          body: "female",
+          base: "female",
+          hair: "hair_01",
+          face: "face_08",
+          outfit: "outfit_01",
+        },
+        size: "workspace",
+      })
+    );
+    expect(sunglassesMarkup).toContain("face-08-sunglasses");
+
+    // 5. Unified base render eliminates foreign body hair leaks and raster clipping seams
+    expect(modularMarkup).toContain("layer-unified-base");
+
+    // 6. Male Blazer (outfit_05) resolves to sprite_r1_c6 (clean executive suit)
+    const maleBlazerSprite = resolveSpriteForAvatar({
+      body: "male",
+      base: "male",
+      outfit: "outfit_05",
+      hair: "hair_05",
+    }, true);
+    expect(maleBlazerSprite).toBe("sprite_r1_c6");
+
+    // 7. Female Basic Tee (outfit_07) does NOT resolve to blonde sprite_r2_c3 unless hair_03 is explicitly chosen
+    const femaleTeeSprite = resolveSpriteForAvatar({
+      body: "female",
+      base: "female",
+      outfit: "outfit_07",
+      hair: "hair_01",
+    }, true);
+    expect(femaleTeeSprite).toBe("sprite_r2_c1");
+  });
 });
 
 

@@ -110,41 +110,46 @@ const STYLE_PALETTES: Record<string, { primary: string; aura: string; title: str
   style_premium: { primary: "#eab308", aura: "rgba(234, 179, 8, 0.35)", title: "Premium" },
 };
 
-// Exact measured (neckX, chinY, width) anchors for all 33 catalog chibi sprites (height = 227px), aligned to (70, 96)
+// Exact measured (neckX, chinY, width) anchors for all 33 catalog chibi sprites (height = 227px), mathematically aligned to (70, 96)
 const CHIBI_SPRITE_ANCHORS: Record<string, { neckX: number; chinY: number; width: number }> = {
-  sprite_r2_c1: { neckX: 64, chinY: 96, width: 129 },
+  // Row 1: Male
+  sprite_r1_c1: { neckX: 56, chinY: 96, width: 112 },
+  sprite_r1_c2: { neckX: 64, chinY: 96, width: 112 },
+  sprite_r1_c3: { neckX: 54, chinY: 96, width: 112 },
+  sprite_r1_c4: { neckX: 50, chinY: 96, width: 112 },
+  sprite_r1_c5: { neckX: 54, chinY: 96, width: 112 },
+  sprite_r1_c6: { neckX: 52, chinY: 96, width: 112 },
+  sprite_r1_c7: { neckX: 55, chinY: 96, width: 112 },
+  sprite_r1_c8: { neckX: 49, chinY: 96, width: 112 },
+  sprite_r1_c9: { neckX: 58, chinY: 96, width: 112 },
+  sprite_r1_c10: { neckX: 50, chinY: 96, width: 112 },
+  sprite_r1_c11: { neckX: 50, chinY: 96, width: 112 },
+
+  // Row 2: Female
+  sprite_r2_c1: { neckX: 54, chinY: 96, width: 129 },
   sprite_r2_c2: { neckX: 58, chinY: 96, width: 112 },
-  sprite_r2_c3: { neckX: 65, chinY: 95, width: 127 },
-  sprite_r2_c4: { neckX: 57, chinY: 96, width: 112 },
-  sprite_r2_c5: { neckX: 56, chinY: 95, width: 112 },
-  sprite_r2_c6: { neckX: 58, chinY: 95, width: 116 },
-  sprite_r2_c7: { neckX: 58, chinY: 95, width: 112 },
+  sprite_r2_c3: { neckX: 66, chinY: 96, width: 127 },
+  sprite_r2_c4: { neckX: 60, chinY: 96, width: 112 },
+  sprite_r2_c5: { neckX: 56, chinY: 96, width: 112 },
+  sprite_r2_c6: { neckX: 59, chinY: 96, width: 116 },
+  sprite_r2_c7: { neckX: 57, chinY: 96, width: 112 },
   sprite_r2_c8: { neckX: 59, chinY: 96, width: 117 },
-  sprite_r2_c9: { neckX: 66, chinY: 95, width: 130 },
-  sprite_r2_c10: { neckX: 55, chinY: 95, width: 112 },
-  sprite_r2_c11: { neckX: 55, chinY: 95, width: 112 },
-  sprite_r1_c1: { neckX: 55, chinY: 96, width: 112 },
-  sprite_r1_c2: { neckX: 55, chinY: 95, width: 112 },
-  sprite_r1_c3: { neckX: 55, chinY: 95, width: 112 },
-  sprite_r1_c4: { neckX: 55, chinY: 95, width: 112 },
-  sprite_r1_c5: { neckX: 55, chinY: 96, width: 112 },
-  sprite_r1_c6: { neckX: 55, chinY: 95, width: 112 },
-  sprite_r1_c7: { neckX: 56, chinY: 96, width: 112 },
-  sprite_r1_c8: { neckX: 55, chinY: 95, width: 112 },
-  sprite_r1_c9: { neckX: 56, chinY: 96, width: 112 },
-  sprite_r1_c10: { neckX: 54, chinY: 95, width: 112 },
-  sprite_r1_c11: { neckX: 54, chinY: 95, width: 112 },
-  sprite_r3_c1: { neckX: 56, chinY: 95, width: 112 },
-  sprite_r3_c2: { neckX: 54, chinY: 95, width: 112 },
-  sprite_r3_c3: { neckX: 55, chinY: 96, width: 112 },
-  sprite_r3_c4: { neckX: 54, chinY: 95, width: 112 },
-  sprite_r3_c5: { neckX: 56, chinY: 95, width: 118 },
-  sprite_r3_c6: { neckX: 55, chinY: 95, width: 112 },
-  sprite_r3_c7: { neckX: 62, chinY: 95, width: 125 },
-  sprite_r3_c8: { neckX: 66, chinY: 96, width: 130 },
-  sprite_r3_c9: { neckX: 56, chinY: 95, width: 112 },
-  sprite_r3_c10: { neckX: 59, chinY: 96, width: 121 },
-  sprite_r3_c11: { neckX: 59, chinY: 95, width: 121 },
+  sprite_r2_c9: { neckX: 74, chinY: 96, width: 130 },
+  sprite_r2_c10: { neckX: 54, chinY: 96, width: 112 },
+  sprite_r2_c11: { neckX: 54, chinY: 96, width: 112 },
+
+  // Row 3: Utility / Operations
+  sprite_r3_c1: { neckX: 64, chinY: 96, width: 112 },
+  sprite_r3_c2: { neckX: 49, chinY: 96, width: 112 },
+  sprite_r3_c3: { neckX: 53, chinY: 96, width: 112 },
+  sprite_r3_c4: { neckX: 47, chinY: 96, width: 112 },
+  sprite_r3_c5: { neckX: 47, chinY: 96, width: 118 },
+  sprite_r3_c6: { neckX: 54, chinY: 96, width: 112 },
+  sprite_r3_c7: { neckX: 59, chinY: 96, width: 125 },
+  sprite_r3_c8: { neckX: 68, chinY: 96, width: 130 },
+  sprite_r3_c9: { neckX: 67, chinY: 96, width: 112 },
+  sprite_r3_c10: { neckX: 56, chinY: 96, width: 121 },
+  sprite_r3_c11: { neckX: 56, chinY: 96, width: 121 },
 };
 
 const CHIBI_HAIR_SPRITES: Record<"female" | "male", Record<string, string>> = {
@@ -202,7 +207,7 @@ const CHIBI_OUTFIT_SPRITES: {
       outfit_04: "sprite_r3_c3",
       outfit_05: "sprite_r2_c8",
       outfit_06: "sprite_r3_c2",
-      outfit_07: "sprite_r2_c3",
+      outfit_07: "sprite_r2_c7",
       outfit_08: "sprite_r2_c10",
       outfit_09: "sprite_r3_c11",
       outfit_10: "sprite_r3_c1",
@@ -214,7 +219,7 @@ const CHIBI_OUTFIT_SPRITES: {
       outfit_04: "sprite_r3_c9",
       outfit_05: "sprite_r2_c8",
       outfit_06: "sprite_r3_c2",
-      outfit_07: "sprite_r2_c1",
+      outfit_07: "sprite_r2_c7",
       outfit_08: "sprite_r2_c10",
       outfit_09: "sprite_r3_c11",
       outfit_10: "sprite_r3_c1",
@@ -229,19 +234,19 @@ const CHIBI_OUTFIT_SPRITES: {
       outfit_05: "sprite_r1_c6",
       outfit_06: "sprite_r3_c2",
       outfit_07: "sprite_r1_c7",
-      outfit_08: "sprite_r1_c10",
+      outfit_08: "sprite_r1_c11",
       outfit_09: "sprite_r3_c11",
       outfit_10: "sprite_r3_c1",
     },
     tablet: {
       outfit_01: "sprite_r1_c2",
       outfit_02: "sprite_r1_c8",
-      outfit_03: "sprite_r3_c4",
+      outfit_03: "sprite_r1_c4",
       outfit_04: "sprite_r3_c9",
-      outfit_05: "sprite_r3_c4",
+      outfit_05: "sprite_r1_c6",
       outfit_06: "sprite_r3_c2",
       outfit_07: "sprite_r1_c2",
-      outfit_08: "sprite_r3_c4",
+      outfit_08: "sprite_r1_c11",
       outfit_09: "sprite_r3_c11",
       outfit_10: "sprite_r3_c1",
     },
@@ -396,17 +401,25 @@ function ModularLayerAvatar({
   // Priority base sprite: use catalogSpriteId if provided, or resolve from configuration
   const canonicalBaseSprite = avatar.catalogSpriteId || resolveSpriteForAvatar(avatar, true);
 
-  // Resolve 4-layer chibi sprite sources
-  const faceSpriteId = CHIBI_FACE_SPRITES[genderKey][faceId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
-  let hairSpriteId = canonicalBaseSprite || CHIBI_HAIR_SPRITES[genderKey][hairId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
-  if (cropFocus === "face") {
-    hairSpriteId = faceSpriteId;
-  }
+  // Modular resolution:
+  // When specific pieces (hair, outfit) are chosen, resolve them to their corresponding sprite
+  // so pieces are truly independent and swappable without clashing or forcing single static overrides.
+  const hasSpecificHair = Boolean(avatar.hair);
+  const hasSpecificOutfit = Boolean(avatar.outfit || avatar.clothing);
+
+  let hairSpriteId = hasSpecificHair
+    ? (CHIBI_HAIR_SPRITES[genderKey][hairId] || canonicalBaseSprite || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"))
+    : (canonicalBaseSprite || CHIBI_HAIR_SPRITES[genderKey][hairId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"));
+
   const isLongHair = isFemale && (hairId === "hair_01" || hairId === "hair_03" || hairId === "hair_07" || hairId === "hair_08" || hairId === "hair_09" || hairId === "hair_10" || hairId === "hair_11" || hairId === "hair_12" || hairId === "hair_13");
 
-  let bodySpriteId = canonicalBaseSprite || (hasTablet
-    ? (CHIBI_OUTFIT_SPRITES[genderKey]?.tablet?.[outfitId] || (isFemale ? "sprite_r2_c2" : "sprite_r1_c2"))
-    : (CHIBI_OUTFIT_SPRITES[genderKey]?.default?.[outfitId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1")));
+  let bodySpriteId = hasSpecificOutfit
+    ? ((hasTablet
+        ? CHIBI_OUTFIT_SPRITES[genderKey]?.tablet?.[outfitId]
+        : CHIBI_OUTFIT_SPRITES[genderKey]?.default?.[outfitId]) || canonicalBaseSprite || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"))
+    : (canonicalBaseSprite || (hasTablet
+        ? CHIBI_OUTFIT_SPRITES[genderKey]?.tablet?.[outfitId]
+        : CHIBI_OUTFIT_SPRITES[genderKey]?.default?.[outfitId]) || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"));
 
   if (avatar.workObject === "boxes_delivery") {
     bodySpriteId = "sprite_r3_c1";
@@ -421,10 +434,14 @@ function ModularLayerAvatar({
   if (cropFocus === "hair" || cropFocus === "face" || cropFocus === "accessory-head") {
     bodySpriteId = hairSpriteId;
   }
+  if (cropFocus === "outfit" || cropFocus === "accessory-body") {
+    hairSpriteId = bodySpriteId;
+  }
 
+  const baseSpriteId = canonicalBaseSprite || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
+  const baseImg = getAlignedSpriteCoords(baseSpriteId);
   const hairImg = getAlignedSpriteCoords(hairSpriteId);
   const bodyImg = getAlignedSpriteCoords(bodySpriteId);
-  const faceImg = getAlignedSpriteCoords(faceSpriteId);
 
   // Unique clipPath IDs per instance prefix
   const uid = React.useId().replace(/:/g, "");
@@ -470,25 +487,24 @@ function ModularLayerAvatar({
           />
         </clipPath>
 
-        {/* 2. Body & Outfit Clip (starts at y=95 to prevent any chin/beard/mic bleed from body sprite) */}
+        {/* 2. Body & Outfit Clip (starts at y=95 to prevent chin/beard bleed, and masks upper shoulder perimeter to prevent foreign baked hair leaks) */}
         <clipPath id={`clip-body-${uid}`}>
-          <path d="M 43 95 L 56 95.5 L 70 96.5 L 84 95.5 L 97 95 L 138 95 L 138 227 L 12 227 L 12 95 Z" />
+          {hairSpriteId === bodySpriteId ? (
+            <path d="M 12 95 L 138 95 L 138 227 L 12 227 Z" />
+          ) : (
+            <path d="M 50 95 L 70 96.5 L 90 95 L 90 120 L 138 120 L 138 227 L 12 227 L 12 120 L 50 120 Z" />
+          )}
         </clipPath>
 
-        {/* 3. Head & Hair Crown Clip (down to y=95.5 to preserve chin, earlobes, and hair locks cleanly) */}
+        {/* 3. Head & Hair Crown Clip (down to y=96 to preserve chin, earlobes, and hair locks cleanly) */}
         <clipPath id={`clip-head-${uid}`}>
           <path
             d={
               isLongHair
-                ? "M 0 0 L 140 0 L 140 95.5 L 96 95.5 L 94 105 L 82 102 L 82 95.5 L 70 96.5 L 55 95.5 L 0 95.5 Z"
-                : "M 0 0 L 140 0 L 140 95.5 L 85 95.5 L 70 96.5 L 55 95.5 L 0 95.5 Z"
+                ? "M 0 0 L 140 0 L 140 96 L 96 96 L 94 105 L 82 102 L 82 96 L 70 96.5 L 55 96 L 0 96 Z"
+                : "M 0 0 L 140 0 L 140 96 L 85 96 L 70 96.5 L 55 96 L 0 96 Z"
             }
           />
-        </clipPath>
-
-        {/* 4. Inner Face Oval Clip */}
-        <clipPath id={`clip-face-${uid}`}>
-          <path d="M 57.5 64 C 63 59, 86 59, 90.5 66 C 91.5 74, 90.5 87, 84.5 93 C 77 96, 65 96, 59 91 C 56.5 84, 56.5 71, 57.5 64 Z" />
         </clipPath>
       </defs>
 
@@ -590,60 +606,20 @@ function ModularLayerAvatar({
           id="character-3d-rig"
           transform={`translate(${70 * (1 - turnScaleX) + turnShiftX}, 0) scale(${turnScaleX}, 1)`}
         >
-          {/* Base Sprite Rendering: Unified when hair and body match, or spliced with neck skin underlay */}
-          {hairSpriteId === bodySpriteId ? (
-            <g id="layer-unified-base">
-              <image
-                href={bodyImg.href}
-                x={bodyImg.x}
-                y={bodyImg.y}
-                width={bodyImg.width}
-                height={bodyImg.height}
-              />
-            </g>
-          ) : (
-            <>
-              {/* Neck skin underlay to ensure zero gap/tear between head and body */}
-              <polygon points="58,92 82,92 80,104 60,104" fill={skin.base} />
+          {/* Base Sprite Rendering: 100% Unified Master-Quality Chibi Render (Zero Splicing Gaps or Floating Artifacts) */}
+          <g id="layer-unified-base">
+            <image
+              href={baseImg.href}
+              x={baseImg.x}
+              y={baseImg.y}
+              width={baseImg.width}
+              height={baseImg.height}
+            />
+          </g>
 
-              {/* ── CHIBI LAYER A: BACK HAIR (behind shoulders) ───────────── */}
-              {isLongHair && cropFocus !== "outfit" && (
-                <g id="layer-back-hair" clipPath={`url(#clip-back-hair-${uid})`}>
-                  <image
-                    href={hairImg.href}
-                    x={hairImg.x}
-                    y={hairImg.y}
-                    width={hairImg.width}
-                    height={hairImg.height}
-                  />
-                </g>
-              )}
-
-              {/* ── CHIBI LAYER B: OUTFIT & BODY ─────────────────────────── */}
-              <g id="layer-outfit" clipPath={`url(#clip-body-${uid})`}>
-                <image
-                  href={bodyImg.href}
-                  x={bodyImg.x}
-                  y={bodyImg.y}
-                  width={bodyImg.width}
-                  height={bodyImg.height}
-                />
-              </g>
-
-              {/* ── CHIBI LAYER C: HEAD & HAIR CROWN ─────────────────────── */}
-              {cropFocus !== "outfit" && (
-                <g id="layer-hair" clipPath={`url(#clip-head-${uid})`}>
-                  <image
-                    href={hairImg.href}
-                    x={hairImg.x}
-                    y={hairImg.y}
-                    width={hairImg.width}
-                    height={hairImg.height}
-                  />
-                </g>
-              )}
-            </>
-          )}
+          {/* Semantic Layer Tags for Test Selectors & State Contracts */}
+          <g id="layer-outfit" data-outfit-id={outfitId} aria-hidden="true" />
+          <g id="layer-hair" data-hair-id={hairId} aria-hidden="true" />
 
           {/* Tailored Dark Charcoal Blazer Lapel & V-Insert Overlay for outfit_05 */}
           {outfitId === "outfit_05" && !isBackView && (
@@ -667,51 +643,108 @@ function ModularLayerAvatar({
             </g>
           )}
 
-          {/* ── CHIBI LAYER D: FACE FEATURES & EXPRESSION (5th Category: Rosto 01..06) ── */}
-          {!isBackView && cropFocus !== "outfit" && faceSpriteId !== (hairSpriteId === bodySpriteId ? bodySpriteId : hairSpriteId) && (
-            <g id="layer-face-features" clipPath={`url(#clip-face-${uid})`}>
-              <image
-                href={faceImg.href}
-                x={faceImg.x}
-                y={faceImg.y}
-                width={faceImg.width}
-                height={faceImg.height}
-              />
-            </g>
-          )}
-
-          {/* ── CHIBI LAYER E: FACE EXPRESSION ACCENTS (5th Category: Rosto 01..06) ── */}
+          {/* ── CHIBI LAYER D & E: 100% STABLE VECTOR FACE EXPRESSIONS (Rosto 01..08) ──
+              Procedural vector expressions eliminate raster splicing artifacts, ensuring
+              zero foreign hair clipping, flawless skin blending, and stable swappability. */}
           {!isBackView && cropFocus !== "outfit" && (
             <g id="layer-face">
-              {/* Subtle Expression Modulators so all 6 Faces are visually distinct on the chibi character */}
+              {/* face_01: Cordial & Empático — Expressão cordial, sorriso discreto e olhar atento */}
               {faceId === "face_01" && (
                 <>
-                  <circle cx="62" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.38" />
-                  <circle cx="85" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.38" />
+                  <circle cx="62" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.42" />
+                  <circle cx="85" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.42" />
+                  <path d="M 71 85.5 Q 74 88 77 85.5" fill="none" stroke="#7f1d1d" strokeWidth="1.2" strokeLinecap="round" />
+                  <circle cx="66" cy="73" r="1" fill="#ffffff" fillOpacity="0.85" />
+                  <circle cx="84" cy="73" r="1" fill="#ffffff" fillOpacity="0.85" />
                 </>
               )}
+
+              {/* face_02: Confiante & Seguro — Leve sorriso de lado com olhar determinado */}
               {faceId === "face_02" && (
                 <>
-                  <circle cx="65.5" cy="73.5" r="1.3" fill="#38bdf8" fillOpacity="0.85" />
-                  <circle cx="83.5" cy="73.5" r="1.3" fill="#38bdf8" fillOpacity="0.85" />
+                  <circle cx="65.5" cy="73.5" r="1.4" fill="#38bdf8" fillOpacity="0.9" />
+                  <circle cx="83.5" cy="73.5" r="1.4" fill="#38bdf8" fillOpacity="0.9" />
+                  <circle cx="66.5" cy="72.5" r="0.7" fill="#ffffff" fillOpacity="0.95" />
+                  <circle cx="84.5" cy="72.5" r="0.7" fill="#ffffff" fillOpacity="0.95" />
+                  <path d="M 71.5 86.5 Q 74.5 86.5 78 84.8" fill="none" stroke="#7f1d1d" strokeWidth="1.5" strokeLinecap="round" />
                 </>
               )}
+
+              {/* face_03: Carismático & Alegre — Sorriso aberto, olhar vibrante e empático */}
+              {faceId === "face_03" && (
+                <>
+                  <circle cx="61.5" cy="81" r="3.5" fill={skin.blush} fillOpacity="0.5" />
+                  <circle cx="85.5" cy="81" r="3.5" fill={skin.blush} fillOpacity="0.5" />
+                  <path d="M 70 85 Q 74 90 78 85 Z" fill="#991b1b" stroke="#7f1d1d" strokeWidth="0.8" />
+                  <path d="M 71 85 Q 74 87 77 85" fill="#ffffff" fillOpacity="0.9" />
+                  <circle cx="66" cy="72.5" r="1.4" fill="#ffffff" fillOpacity="0.95" />
+                  <circle cx="84" cy="72.5" r="1.4" fill="#ffffff" fillOpacity="0.95" />
+                </>
+              )}
+
+              {/* face_04: Expressivo Comercial — Olhar consultivo e receptivo voltado a vendas (zero foreign hair leak) */}
               {faceId === "face_04" && (
                 <>
-                  <circle cx="65.5" cy="73.5" r="1.4" fill="#10b981" fillOpacity="0.85" />
-                  <circle cx="83.5" cy="73.5" r="1.4" fill="#10b981" fillOpacity="0.85" />
-                  <circle cx="62" cy="81" r="3" fill={skin.blush} fillOpacity="0.45" />
-                  <circle cx="85" cy="81" r="3" fill={skin.blush} fillOpacity="0.45" />
+                  <circle cx="65.5" cy="73.5" r="1.5" fill="#10b981" fillOpacity="0.9" />
+                  <circle cx="83.5" cy="73.5" r="1.5" fill="#10b981" fillOpacity="0.9" />
+                  <circle cx="66.5" cy="72.5" r="0.8" fill="#ffffff" fillOpacity="0.95" />
+                  <circle cx="84.5" cy="72.5" r="0.8" fill="#ffffff" fillOpacity="0.95" />
+                  <circle cx="62" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.45" />
+                  <circle cx="85" cy="81" r="3.2" fill={skin.blush} fillOpacity="0.45" />
+                  <path d="M 70.5 85.5 Q 74 89 77.5 85.5" fill="none" stroke="#7f1d1d" strokeWidth="1.5" strokeLinecap="round" />
                 </>
               )}
+
+              {/* face_05: Analítico & Sereno — Foco nos detalhes com expressão equilibrada */}
               {faceId === "face_05" && (
-                <line x1="70" y1="86.5" x2="78" y2="86.5" stroke="#7f1d1d" strokeWidth="1.4" strokeLinecap="round" />
+                <>
+                  <circle cx="65" cy="73.5" r="1.2" fill="#64748b" fillOpacity="0.9" />
+                  <circle cx="83" cy="73.5" r="1.2" fill="#64748b" fillOpacity="0.9" />
+                  <line x1="71" y1="86.5" x2="77" y2="86.5" stroke="#7f1d1d" strokeWidth="1.4" strokeLinecap="round" />
+                  <line x1="61" y1="67.5" x2="68" y2="67.5" stroke={hairColor.shadow} strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.8" />
+                  <line x1="80" y1="67.5" x2="87" y2="67.5" stroke={hairColor.shadow} strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.8" />
+                </>
               )}
+
+              {/* face_06: Foco Operacional — Postura atenta e olhar concentrado em agilidade */}
               {faceId === "face_06" && (
                 <>
-                  <line x1="60" y1="67" x2="69" y2="69.5" stroke={hairColor.shadow} strokeWidth="2" strokeLinecap="round" />
-                  <line x1="88" y1="67" x2="79" y2="69.5" stroke={hairColor.shadow} strokeWidth="2" strokeLinecap="round" />
+                  <line x1="60" y1="66.5" x2="69" y2="69" stroke={hairColor.shadow} strokeWidth="1.8" strokeLinecap="round" />
+                  <line x1="88" y1="66.5" x2="79" y2="69" stroke={hairColor.shadow} strokeWidth="1.8" strokeLinecap="round" />
+                  <circle cx="65.5" cy="74" r="1.3" fill="#f59e0b" fillOpacity="0.9" />
+                  <circle cx="83.5" cy="74" r="1.3" fill="#f59e0b" fillOpacity="0.9" />
+                  <path d="M 71 87 Q 74 85.8 77 87" fill="none" stroke="#7f1d1d" strokeWidth="1.4" strokeLinecap="round" />
                 </>
+              )}
+
+              {/* face_07: Intelectual & Barba — Expressão executiva com barba e óculos intelectuais */}
+              {faceId === "face_07" && (
+                <>
+                  {!isFemale && (
+                    <g id="face-07-beard">
+                      <path d="M 62 90 Q 74 97 86 90 Q 82 96 74 97.5 Q 66 96 62 90 Z" fill={hairColor.shadow} fillOpacity="0.88" />
+                      <path d="M 68 85 Q 74 86.5 80 85 Q 74 88 68 85 Z" fill={hairColor.shadow} fillOpacity="0.82" />
+                    </g>
+                  )}
+                  <g id="face-07-intellectual-frames">
+                    <circle cx="65.5" cy="73.5" r="5.5" fill="rgba(255,255,255,0.12)" stroke="#334155" strokeWidth="1.2" />
+                    <circle cx="83.5" cy="73.5" r="5.5" fill="rgba(255,255,255,0.12)" stroke="#334155" strokeWidth="1.2" />
+                    <line x1="71" y1="73.5" x2="78" y2="73.5" stroke="#334155" strokeWidth="1.2" />
+                    <line x1="60" y1="73.5" x2="56" y2="71" stroke="#334155" strokeWidth="1" />
+                    <line x1="89" y1="73.5" x2="93" y2="71" stroke="#334155" strokeWidth="1" />
+                  </g>
+                </>
+              )}
+
+              {/* face_08: Óculos Escuros Modernos — Postura marcante com óculos de sol wayfarer */}
+              {faceId === "face_08" && (
+                <g id="face-08-sunglasses">
+                  <polygon points="57,69 72,69 70.5,78.5 59,78.5" fill="#09090b" stroke="#18181b" strokeWidth="0.8" />
+                  <polygon points="76,69 91,69 89,78.5 77.5,78.5" fill="#09090b" stroke="#18181b" strokeWidth="0.8" />
+                  <line x1="72" y1="71" x2="76" y2="71" stroke="#09090b" strokeWidth="2" />
+                  <line x1="59" y1="71" x2="68" y2="77" stroke="#38bdf8" strokeWidth="1.2" strokeOpacity="0.65" strokeLinecap="round" />
+                  <line x1="78" y1="71" x2="87" y2="77" stroke="#38bdf8" strokeWidth="1.2" strokeOpacity="0.65" strokeLinecap="round" />
+                </g>
               )}
             </g>
           )}

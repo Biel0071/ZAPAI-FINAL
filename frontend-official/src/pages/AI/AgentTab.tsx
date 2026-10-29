@@ -122,13 +122,13 @@ export const TONE_OPTIONS = [
 ];
 
 export const PROVIDER_OPTIONS = [
-  { id: "vps_engine", name: "Provedor ZAI", defaultModel: "laya-system1", models: ["laya-system1", "qwen2.5:3b", "qwen2.5:0.5b", "qwen3.5:0.8b", "deepseek-r1:1.5b", "auto"] },
+  { id: "vps_engine", name: "Provedor ZAI", defaultModel: "qwen2.5:3b", models: ["qwen2.5:3b", "qwen3.5:0.8b", "deepseek-r1:1.5b", "llama3.2:1b", "auto"] },
   { id: "openai", name: "OpenAI", defaultModel: "gpt-4o-mini", models: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"] },
   { id: "groq", name: "Groq (Ultra Rápido)", defaultModel: "llama-3.3-70b-versatile", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"] },
   { id: "deepseek", name: "DeepSeek", defaultModel: "deepseek-chat", models: ["deepseek-chat", "deepseek-reasoner"] },
   { id: "claude", name: "Claude (Anthropic)", defaultModel: "claude-3-5-sonnet-latest", models: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"] },
   { id: "gemini", name: "Google Gemini", defaultModel: "gemini-2.0-flash", models: ["gemini-2.0-flash", "gemini-1.5-pro"] },
-  { id: "ollama", name: "Ollama (Servidor Local)", defaultModel: "qwen2.5:0.5b", models: ["qwen2.5:0.5b", "qwen3.5:0.8b", "deepseek-r1:1.5b", "qwen2.5:3b"] },
+  { id: "ollama", name: "Ollama (Servidor Local)", defaultModel: "qwen2.5:3b", models: ["qwen2.5:3b", "qwen3.5:0.8b", "deepseek-r1:1.5b", "llama3.2:1b"] },
 ];
 
 export function normalizeProviderId(id?: string): string {
@@ -332,7 +332,7 @@ export function AgentTab({
 
   // Provider configuration
   const [selectedProvider, setSelectedProvider] = useState("vps_engine");
-  const [selectedModel, setSelectedModel] = useState("laya-system1");
+  const [selectedModel, setSelectedModel] = useState("qwen2.5:3b");
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -417,7 +417,7 @@ export function AgentTab({
           const activeProv = providersRes.providers.find((p: any) => p.enabled ?? p.active) || providersRes.providers[0];
           if (activeProv) {
             setSelectedProvider(activeProv.provider || activeProv.id || "vps_engine");
-            setSelectedModel(activeProv.model || "laya-system1");
+            setSelectedModel((activeProv.model && activeProv.model !== "qwen2.5:0.5b" && activeProv.model !== "laya-system1") ? activeProv.model : "qwen2.5:3b");
             setApiKey("");
           }
         }
@@ -532,6 +532,11 @@ Objetivo Atual: ${activeObjDef?.title || "Vendas"} (${activeObjDef?.desc || ""})
 Tom: ${agentTone}. Estilo: ${responseStyle}.`;
 
       setRuntimeState("working");
+      const historyPayload = chatMessages.map((m) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text,
+      }));
+
       const response = await apiService.testAIMessage({
         message: text,
         prompt: enhancedPrompt,
@@ -541,6 +546,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
         sessionId: agentsList.find(agent => (agent.key || agent.id) === selectedAgentKey)?.sessionIds?.[0],
         temperature,
         responseStyle,
+        history: historyPayload,
       });
       if (version !== testVersion.current || agentKey !== selectedKeyRef.current) return;
       const res = response.result;

@@ -345,7 +345,7 @@ function extractFactsFromContext(text = '', analysis = {}, memory) {
   }
 
   // Localização / Entrega (apenas preposições de destino como para/pra/em, NUNCA 'de/da/do' de produto)
-  const cityMatch = text.match(/(?:entrega|entregam|entregas|envio|frete|manda)\s+(?:para|pra|em|no|na)\s+([a-zA-ZÀ-ÿ\s]{3,30})/i) ||
+  const cityMatch = text.match(/(?:entrega|entregam|entregas|envio|frete|manda)(?:\s+[ée])?\s+(?:para|pra|em|no|na)\s+([a-zA-ZÀ-ÿ\s]{3,30})/i) ||
                     text.match(/(?:sou|moro|estou)\s+(?:de|em)\s+([a-zA-ZÀ-ÿ\s]{3,30})/i);
   if (cityMatch && cityMatch[1]) {
     let rawCity = cityMatch[1].replace(/[?.,!].*$/, '').trim();

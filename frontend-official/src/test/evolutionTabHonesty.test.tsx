@@ -67,7 +67,7 @@ async function renderEvolution(props: React.ComponentProps<typeof EvolutionTab> 
   await act(async () => {
     root!.render(
       <MemoryRouter>
-        <EvolutionTab {...props} />
+        <EvolutionTab initialSubTab="brain" {...props} />
       </MemoryRouter>
     );
   });

@@ -963,7 +963,7 @@ export default function AttendantsPage() {
   const [temperature, setTemperature] = useState<number>(0.3);
   const [agentPrompt, setAgentPrompt] = useState<string>(PROMPT_TEMPLATES[0].prompt);
   const [selectedProvider, setSelectedProvider] = useState<string>("vps_engine");
-  const [selectedModel, setSelectedModel] = useState<string>("laya-system1");
+  const [selectedModel, setSelectedModel] = useState<string>("qwen2.5:3b");
   const [apiKey, setApiKey] = useState<string>("");
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
   const [isSavingAgent, setIsSavingAgent] = useState<boolean>(false);
@@ -981,7 +981,7 @@ export default function AttendantsPage() {
         setAgentPrompt(previewAgent.personality || previewAgent.prompt);
       }
       setSelectedProvider(previewAgent.provider || "vps_engine");
-      setSelectedModel(previewAgent.model || "laya-system1");
+      setSelectedModel((previewAgent.model && previewAgent.model !== "qwen2.5:0.5b" && previewAgent.model !== "laya-system1") ? previewAgent.model : "qwen2.5:3b");
     }
   }, [previewAgent?.key]);
 
@@ -1484,14 +1484,14 @@ export default function AttendantsPage() {
                         body: "male" as const,
                         base: "male" as const,
                         hair: "hair_05",
-                        face: "face_02",
+                        face: "face_01",
                         catalogSpriteId: undefined,
                       };
                       handleUpdateAvatar({
                         body: "male",
                         base: "male",
                         hair: "hair_05",
-                        face: "face_02",
+                        face: "face_01",
                         hairColor: resolveHairColorForHair("hair_05", resolvedInlineAvatar.hairColor, false),
                         catalogSpriteId: resolveSpriteForAvatar(updated, true),
                       });
@@ -1747,7 +1747,7 @@ export default function AttendantsPage() {
                           body: inlineGender,
                           base: inlineGender,
                           face: f.id,
-                          catalogSpriteId: resolveSpriteForAvatar(nextConfig, true),
+                          catalogSpriteId: resolvedInlineAvatar.catalogSpriteId || resolveSpriteForAvatar(nextConfig, false),
                         });
                       }}
                       className={cn(
@@ -1758,7 +1758,7 @@ export default function AttendantsPage() {
                       )}
                     >
                       <AvatarItemPreview
-                        spriteRef={resolvedFaceSprite || inlineSpriteId}
+                        spriteRef={inlineSpriteId || resolvedFaceSprite}
                         itemId={f.id}
                         gender={inlineGender}
                         focus="face"

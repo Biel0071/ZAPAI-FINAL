@@ -183,20 +183,24 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
     if (hair === "hair_16") return "sprite_r2_c7";
     if (hair === "hair_17") return "sprite_r2_c6";
     if (hair === "hair_18") return "sprite_r2_c2";
-    if (avatar.face === "face_07") return "sprite_r2_c2";
-    if (avatar.face === "face_08") return "sprite_r2_c6";
 
     // Distinctive outfits
-    if ((outfit === "outfit_05" || outfit.includes("blazer") || outfit === "outfit_02") && (!hair || hair === "hair_01" || hair === "hair_02")) {
+    if (outfit === "outfit_05" || outfit.includes("blazer")) {
       return "sprite_r2_c8";
     }
-    if ((outfit === "outfit_07" || outfit.includes("casual")) && (!hair || hair === "hair_03")) {
-      return "sprite_r2_c3";
+    if (outfit === "outfit_02" || outfit === "shirt_formal_blue") {
+      return "sprite_r2_c2";
+    }
+    if (outfit === "outfit_06" || outfit === "vest_hivis_safety") {
+      return "sprite_r3_c2";
+    }
+    if (outfit === "outfit_04" || outfit === "uniform_technical") {
+      return "sprite_r3_c3";
     }
     if (avatar.accessories?.headwear?.includes("cap") || outfit === "outfit_03") {
       return "sprite_r2_c6";
     }
-    if (hair === "hair_07" || hair.includes("straight") || (hair.includes("glasses") && glasses !== "none")) {
+    if (hair === "hair_07" || hair.includes("straight")) {
       return "sprite_r2_c2";
     }
     if (hair === "hair_03" || hair === "hair_08" || hair.includes("wavy") || hair.includes("blonde")) {
@@ -213,9 +217,6 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
     }
     if (hair === "hair_10" || hair.includes("blue")) {
       return "sprite_r2_c10";
-    }
-    if (outfit === "outfit_05" || outfit === "outfit_02" || outfit.includes("blazer")) {
-      return "sprite_r2_c8";
     }
     if (hair === "hair_01" || hair === "hair_05" || hair.includes("ponytail") || hair.includes("fade")) {
       return "sprite_r2_c1";
@@ -234,16 +235,23 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   if (hair === "hair_16") return "sprite_r1_c8";
   if (hair === "hair_17") return "sprite_r1_c10";
   if (hair === "hair_18") return "sprite_r1_c9";
-  if (avatar.face === "face_07") return "sprite_r1_c8";
-  if (avatar.face === "face_08") return "sprite_r1_c9";
 
-  if (outfit === "outfit_08" || outfit.includes("bomber")) {
+  if (outfit === "outfit_05" || outfit.includes("blazer") || outfit.includes("suit")) {
     return "sprite_r1_c6";
+  }
+  if (outfit === "outfit_02" || outfit === "shirt_formal_blue") {
+    return "sprite_r1_c8";
+  }
+  if (outfit === "outfit_08" || outfit.includes("bomber")) {
+    return "sprite_r1_c11";
   }
   if (avatar.accessories?.headwear?.includes("cap") || outfit === "outfit_03") {
     return "sprite_r1_c4";
   }
-  if (hair === "hair_07" || glasses !== "none" || hair.includes("glasses")) {
+  if (object === "tablet_zai" && (outfit === "outfit_01" || outfit === "outfit_07" || !outfit)) {
+    return "sprite_r1_c2";
+  }
+  if (hair === "hair_07" || hair.includes("straight")) {
     return "sprite_r1_c2";
   }
   if (hair === "hair_08" || hair.includes("spiky") || hair.includes("blonde")) {
@@ -258,7 +266,7 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   if (hair === "hair_06" || hair.includes("afro") || outfit === "outfit_07") {
     return "sprite_r1_c7";
   }
-  if (hair.includes("beard") || avatar.facialHair === "full_beard" || outfit === "shirt_business_white" || outfit === "outfit_02" || outfit === "outfit_05") {
+  if (hair.includes("beard") || avatar.facialHair === "full_beard" || outfit === "shirt_business_white") {
     return "sprite_r1_c8";
   }
   if (avatar.glasses?.includes("sunglasses")) {
