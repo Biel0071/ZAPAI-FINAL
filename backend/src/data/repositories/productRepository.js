@@ -196,8 +196,19 @@ async function upsertProduct(product) {
   }
 }
 
+async function deleteProductsByCompany(companyId = 'default') {
+  try {
+    await query(`DELETE FROM products WHERE company_id = $1`, [companyId]);
+    return true;
+  } catch (err) {
+    console.error('[productRepository] deleteProductsByCompany error:', err.message);
+    return false;
+  }
+}
+
 module.exports = {
   listProducts,
   getProductById,
   upsertProduct,
+  deleteProductsByCompany,
 };

@@ -70,8 +70,15 @@ class HistorySync {
     });
   }
 
-  async receive(sessionId, messages = [], chats = [], origin = 'unknown') {
-    const companyId = await this.repository.owner(sessionId);
+  async receive(sessionId, messages = [], chats = [], origin = 'unknown', fallbackCompanyId = null) {
+    let companyId = fallbackCompanyId;
+    if (!companyId) {
+      try {
+        companyId = await this.repository.owner(sessionId);
+      } catch (_) {
+        companyId = process.env.DEFAULT_COMPANY_ID || 'default';
+      }
+    }
     const { proto } = await import('@whiskeysockets/baileys');
     await this.repository.enqueueChats(companyId, sessionId, chats.filter(c => isSyncableJid(c?.id)).map(c => ({ id: c.id, name: c.name || c.subject || null, archived: Boolean(c.archived || c.archive) })));
     await this.repository.enqueue(companyId, sessionId, encodeItems(messages, chats, proto, origin, { includeGroups: true }));

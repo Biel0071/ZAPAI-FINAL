@@ -268,6 +268,8 @@ export function CatalogSelectorPopover({
       socket.on("session_connected", handleSyncEvent);
       socket.on("whatsapp_connection", handleSyncEvent);
       socket.on("session.connected", handleSyncEvent);
+      socket.on("session_switched", handleSyncEvent);
+      socket.on("inbox:refresh", handleSyncEvent);
     }
 
     return () => {
@@ -277,6 +279,8 @@ export function CatalogSelectorPopover({
         socket.off("session_connected", handleSyncEvent);
         socket.off("whatsapp_connection", handleSyncEvent);
         socket.off("session.connected", handleSyncEvent);
+        socket.off("session_switched", handleSyncEvent);
+        socket.off("inbox:refresh", handleSyncEvent);
       }
     };
   }, []);

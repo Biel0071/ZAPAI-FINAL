@@ -468,8 +468,19 @@ async function sendMediaMessage(
       return sendSticker(sock, phone, mediaPath, { beforeSend });
     case 'product':
     case 'catalog':
-      // Fallback: If it's a catalog or product, just send the text/URL so it doesn't crash the queue.
-      return sendMessage(sock, phone, caption ? `${caption}\n${mediaPath}` : String(mediaPath || ''), { beforeSend });
+      // If a valid image URL or path is present, send as real product image with the description card as caption
+      if (mediaPath && typeof mediaPath === 'string' && (mediaPath.startsWith('http') || mediaPath.startsWith('/') || /\.(png|jpe?g|webp)$/i.test(mediaPath))) {
+        try {
+          return await sendImage(sock, phone, mediaPath, caption || '', { beforeSend });
+        } catch {
+          const fallbackText = caption && mediaPath ? `${caption}\n${mediaPath}` : (caption || String(mediaPath || ''));
+          return sendMessage(sock, phone, fallbackText, { beforeSend });
+        }
+      }
+      {
+        const textContent = caption && mediaPath ? `${caption}\n${mediaPath}` : (caption || String(mediaPath || ''));
+        return sendMessage(sock, phone, textContent, { beforeSend });
+      }
     default:
       throw new Error('Unsupported mediaType. Use image, video, audio, document, sticker, product, or catalog.');
   }

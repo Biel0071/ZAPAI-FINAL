@@ -274,80 +274,82 @@ async function loadRealtimeHistory({ io, session, sock }) {
     return;
   }
 
-  const contacts = typeof sock.getContacts === 'function' ? await sock.getContacts() : [];
-  store.contacts = Object.create(null);
+  const companyId = session.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+  const sessionId = session.sessionId || session.sessionName || 'default';
 
+  store.contacts = store.contacts || Object.create(null);
+  store.chats = store.chats || Object.create(null);
+
+  // 1. Process contacts if exposed by socket adapter
+  const contacts = typeof sock.getContacts === 'function' ? await sock.getContacts().catch(() => []) : [];
   for (const contact of Array.isArray(contacts) ? contacts : []) {
     const id = contact?.id || contact?.jid || contact?.phone || '';
-
-    if (!id) {
-      continue;
-    }
-
+    if (!id) continue;
     store.contacts[id] = contact;
     const normalizedId = normalizeContactKey(id);
-    if (normalizedId) {
-      store.contacts[normalizedId] = contact;
+    if (normalizedId) store.contacts[normalizedId] = contact;
+  }
+
+  // 2. Hydrate contacts from PostgreSQL leads
+  try {
+    const { pool } = require('../../../src/infrastructure/config/database');
+    const leadsRes = await pool.query(
+      `SELECT phone, name, remote_jid, profile_picture_url FROM leads WHERE company_id = $1 ORDER BY id DESC LIMIT 200`,
+      [companyId]
+    );
+    for (const lead of leadsRes.rows || []) {
+      const id = lead.remote_jid || (lead.phone ? `${lead.phone}@s.whatsapp.net` : null);
+      if (id) {
+        store.contacts[id] = { id, name: lead.name, notify: lead.name, phone: lead.phone, imgUrl: lead.profile_picture_url };
+        const norm = normalizeContactKey(id);
+        if (norm) store.contacts[norm] = store.contacts[id];
+      }
     }
+  } catch (err) {
+    console.warn(`[WHATSAPP] Failed to hydrate contacts from DB: ${err?.message || err}`);
   }
 
   const uniqueContacts = Array.from(new Set(Object.values(store.contacts))).filter(Boolean);
-  socketServer.emit('contacts_loaded', uniqueContacts);
+  if (uniqueContacts.length > 0) {
+    socketServer.emit('contacts_loaded', uniqueContacts);
+  }
 
-  const chatsFromSocket = typeof sock.getChats === 'function' ? await sock.getChats() : [];
-  const chatList = Array.isArray(chatsFromSocket) ? chatsFromSocket : [];
+  // 3. Hydrate chats from PostgreSQL conversations and recent messages
+  try {
+    const { pool } = require('../../../src/infrastructure/config/database');
+    const convsRes = await pool.query(
+      `SELECT c.id, c.remote_jid, c.status, c.unread_count, c.last_message, c.last_message_at, c.updated_at,
+              l.name AS contact_name, l.phone AS contact_phone
+       FROM conversations c
+       LEFT JOIN leads l ON l.id = c.lead_id AND l.company_id = c.company_id
+       WHERE c.company_id = $1 AND (c.session_id = $2 OR c.session_id IS NULL OR c.session_id = 'main' OR c.session_id = 'default')
+       ORDER BY COALESCE(c.last_message_at, c.updated_at, c.created_at) DESC
+       LIMIT 100`,
+      [companyId, sessionId]
+    );
 
-  // Sort chats by last activity timestamp descending to prioritize active chats
-  const sortedChats = [...chatList].sort((a, b) => {
-    const timeA = Number(a?.conversationTimestamp || a?.lastMsgTimestamp || a?.tc || 0);
-    const timeB = Number(b?.conversationTimestamp || b?.lastMsgTimestamp || b?.tc || 0);
-    return timeB - timeA;
-  });
+    for (const conv of convsRes.rows || []) {
+      const chatId = conv.remote_jid || (conv.contact_phone ? `${conv.contact_phone}@s.whatsapp.net` : null);
+      if (!chatId) continue;
+      const isGroup = String(chatId).endsWith('@g.us');
+      const name = conv.contact_name || conv.contact_phone || chatId;
+      const isArchived = conv.status === 'archived';
 
-  store.chats = Object.create(null);
-
-  // We only fetch history from WhatsApp for the top 15 most recent chats or chats with unread messages to avoid event loop blocking, CPU spikes, and memory bloat
-  const MAX_HISTORICAL_FETCH_LIMIT = 15;
-  let fetchCount = 0;
-
-  for (const chat of sortedChats) {
-    const chatId = chat?.id;
-
-    if (!isValidRealtimeChatId(chatId)) {
-      continue;
-    }
-
-    let historicalMessages = [];
-    const hasUnread = Number(chat?.unreadCount || 0) > 0;
-    const shouldFetchHistory = fetchCount < MAX_HISTORICAL_FETCH_LIMIT || hasUnread;
-
-    if (shouldFetchHistory && typeof sock.fetchMessagesFromWA === 'function') {
-      try {
-        historicalMessages = await sock.fetchMessagesFromWA(chatId, INITIAL_CHAT_HISTORY_LIMIT);
-        fetchCount++;
-      } catch {
-        historicalMessages = [];
+      if (!store.chats[chatId]) {
+        store.chats[chatId] = createRealtimeChatState({
+          chatId,
+          isGroup,
+          name,
+          archived: isArchived,
+        });
       }
+      store.chats[chatId].name = name;
+      store.chats[chatId].lastMessage = conv.last_message || '';
+      store.chats[chatId].unreadCount = Number(conv.unread_count || 0);
+      store.chats[chatId].updatedAt = new Date(conv.last_message_at || conv.updated_at || Date.now()).getTime();
     }
-
-    const formattedHistory = (Array.isArray(historicalMessages) ? historicalMessages : [])
-      .map((entry) => buildRealtimeIncomingMessage(entry))
-      .filter((entry) => entry.id && entry.chatId);
-
-    const messages = pruneChatMessages(formattedHistory);
-    const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-    const fallbackTimestamp = Number(chat?.conversationTimestamp || chat?.lastMsgTimestamp || chat?.tc || 0) * 1000;
-
-    store.chats[chatId] = {
-      ...createRealtimeChatState({
-        chatId,
-        isGroup: String(chatId).endsWith('@g.us'),
-        name: chat?.name || chat?.pushName || chat?.subject || chatId,
-      }),
-      lastMessage: latestMessage ? getMessagePreview(latestMessage) : (chat?.lastMessage || ''),
-      messages,
-      updatedAt: latestMessage ? toUnixMillis(latestMessage.timestamp) : (fallbackTimestamp || Date.now()),
-    };
+  } catch (err) {
+    console.warn(`[WHATSAPP] Failed to hydrate chats from DB: ${err?.message || err}`);
   }
 
   emitChatsLoaded(socketServer, store);
@@ -1421,6 +1423,51 @@ async function createStableSession({
           phone: session.phone,
         });
       }
+
+      // Detect if a different WhatsApp account was connected to this session
+      let isDifferentAccount = false;
+      let previousPhone = null;
+      try {
+        const { pool } = require('../../../src/infrastructure/config/database');
+        const sessRow = await pool.query(
+          'SELECT phone_number FROM sessions WHERE (session_id = $1 OR session_name = $1) AND company_id = $2',
+          [normalizedSessionName, session.companyId || process.env.DEFAULT_COMPANY_ID || 'default']
+        );
+        previousPhone = sessRow?.rows?.[0]?.phone_number;
+        if (previousPhone && session.phone) {
+          const cleanPrev = String(previousPhone).replace(/\D/g, '');
+          const cleanCurr = String(session.phone).replace(/\D/g, '');
+          if (cleanPrev && cleanCurr && cleanPrev !== cleanCurr) {
+            isDifferentAccount = true;
+            session.isDifferentAccount = true;
+          }
+        }
+      } catch (_) {}
+
+      if (isDifferentAccount) {
+        // eslint-disable-next-line no-console
+        console.log(`[WHATSAPP] Different WhatsApp connected for session "${normalizedSessionName}": previous=${previousPhone}, new=${session.phone}. Resetting active state.`);
+        try {
+          const { pool } = require('../../../src/infrastructure/config/database');
+          await pool.query(
+            `UPDATE conversations SET status = 'archived' WHERE company_id = $1 AND session_id = $2 AND status != 'archived'`,
+            [session.companyId || process.env.DEFAULT_COMPANY_ID || 'default', normalizedSessionName]
+          );
+        } catch (_) {}
+
+        const store = ensureRealtimeStore(session);
+        store.chats = Object.create(null);
+        store.contacts = Object.create(null);
+
+        try {
+          const { clearFastCache } = require('../../../src/infrastructure/cache/fastCache');
+          clearFastCache();
+        } catch (_) {}
+
+        (io || global.io)?.emit('inbox:refresh', { sessionId: normalizedSessionName, switched: true, phone: session.phone });
+        (io || global.io)?.emit('session_switched', { sessionId: normalizedSessionName, previousPhone, phone: session.phone });
+      }
+
       const resolvedWhatsAppName = session.whatsAppName || sock.user?.name || sock.user?.notify || null;
       await safeUpdateSessionStatus(
         normalizedSessionName,
@@ -1513,6 +1560,7 @@ async function createStableSession({
               companyId: session.companyId || process.env.DEFAULT_COMPANY_ID || 'default',
               sessionId: normalizedSessionName,
               sock,
+              forceClean: Boolean(session.isDifferentAccount),
             });
             // eslint-disable-next-line no-console
             console.log(`[CATALOG] Auto-sync finished: ${result.total} products ready for dispatch.`);
@@ -2442,7 +2490,7 @@ async function createStableSession({
     emitChatsLoaded(io || global.io, store);
 
     const hSync = require('../historySync').historySync;
-    hSync.receive(normalizedSessionName, [], chatList)
+    hSync.receive(normalizedSessionName, [], chatList, 'chats_set', session.companyId || 'default')
       .then(async () => {
         try {
           await hSync.process(session.companyId || 'default', normalizedSessionName);
@@ -2452,6 +2500,7 @@ async function createStableSession({
             activeIo.emit('conversation_updated', { sessionId: normalizedSessionName });
             activeIo.emit('chats:loaded', { sessionId: normalizedSessionName });
             activeIo.emit('chats_loaded', { sessionId: normalizedSessionName });
+            activeIo.emit('inbox:refresh', { sessionId: normalizedSessionName });
           }
         } catch (_) {}
       })
@@ -2459,22 +2508,34 @@ async function createStableSession({
   });
 
   // ── History sync (fired when the connection retrieves historical messages/chats) ──
-  sock.ev.on('messaging-history.set', ({ chats = [], messages = [], syncType, progress, peerDataRequestSessionId }) => {
+  sock.ev.on('messaging-history.set', ({ chats = [], contacts = [], messages = [], syncType, progress, peerDataRequestSessionId }) => {
     session.lastPingAt = Date.now();
     if (session.isDisposed || session.isClosing) return;
-    // Durable history ingestion never enters realtime automation.
+
+    const companyId = session.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+
+    // 1. Ingest contacts to update names, pushNames, and profile info
+    if (Array.isArray(contacts) && contacts.length > 0) {
+      for (const contact of contacts) {
+        processContactForLidMapping(contact);
+      }
+      contactsEngine.fullSync(contacts, normalizedSessionName, companyId, io || global.io).catch(() => {});
+    }
+
+    // 2. Durable history ingestion
     const hSync = require('../historySync').historySync;
-    hSync.receive(normalizedSessionName, messages, chats)
+    hSync.receive(normalizedSessionName, messages, chats, 'history_sync', companyId)
       .then(async () => {
         try {
-          await hSync.correlateHistoryResponse(session.companyId || 'default', normalizedSessionName, { peerDataRequestSessionId });
-          await hSync.process(session.companyId || 'default', normalizedSessionName, { syncType, progress });
+          await hSync.correlateHistoryResponse(companyId, normalizedSessionName, { peerDataRequestSessionId });
+          await hSync.process(companyId, normalizedSessionName, { syncType, progress });
           const activeIo = io || session.io || global.io;
           if (activeIo) {
             activeIo.emit('conversation:update', { sessionId: normalizedSessionName });
             activeIo.emit('conversation_updated', { sessionId: normalizedSessionName });
             activeIo.emit('chats:loaded', { sessionId: normalizedSessionName });
             activeIo.emit('chats_loaded', { sessionId: normalizedSessionName });
+            activeIo.emit('inbox:refresh', { sessionId: normalizedSessionName });
           }
         } catch (_) {}
       })
@@ -2615,6 +2676,23 @@ async function createStableSession({
   });
 
   // ── Contacts sync ──────────────────────────────────────────────────────
+  sock.ev.on('contacts.set', ({ contacts = [] }) => {
+    session.lastPingAt = Date.now();
+    if (session.isDisposed || session.isClosing) return;
+    for (const contact of contacts || []) {
+      processContactForLidMapping(contact);
+    }
+    const companyId = session.companyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    contactsEngine.fullSync(
+      contacts || [],
+      normalizedSessionName,
+      companyId,
+      io || global.io
+    ).catch((err) => {
+      console.error(`[WHATSAPP] ContactsEngine sync failed on contacts.set: ${err?.message || err}`);
+    });
+  });
+
   sock.ev.on('contacts.upsert', (contacts) => {
     session.lastPingAt = Date.now();
     if (session.isDisposed || session.isClosing) return;

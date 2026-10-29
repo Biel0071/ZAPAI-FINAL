@@ -132,20 +132,19 @@ async function getProductById(req, res) {
   }
 }
 
-async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 'main', sock = null } = {}) {
+async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 'main', sock = null, forceClean = false } = {}) {
   let syncedCount = 0;
   let waFetched = 0;
 
-  // First ensure baseline core products are always synced in PostgreSQL
-  for (const coreProd of CORE_STORE_PRODUCTS) {
-    await productRepository.upsertProduct({
-      ...coreProd,
-      companyId,
-    });
+  if (forceClean) {
+    try {
+      await productRepository.deleteProductsByCompany(companyId);
+    } catch (_) {}
   }
 
   // Attempt live WhatsApp Business sync if an active session exists
   let activeSock = sock;
+  let sessionPhone = '553193672075';
   try {
     if (!activeSock) {
       const session = sessionManager.getSession(sessionId);
@@ -163,8 +162,18 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
       }
     }
 
-    if (activeSock && typeof activeSock.getCatalog === 'function') {
-      const catalogResult = await activeSock.getCatalog({ limit: 50 });
+    if (activeSock?.user?.id) {
+      sessionPhone = String(activeSock.user.id).split(':')[0].split('@')[0];
+    }
+
+    const isReady = Boolean(activeSock && (activeSock.ws ? activeSock.ws.readyState === 1 : true));
+    if (isReady && typeof activeSock.getCatalog === 'function') {
+      const fetchPromise = activeSock.getCatalog({ limit: 50 });
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('WhatsApp getCatalog timeout')), 4000));
+      const catalogResult = await Promise.race([fetchPromise, timeoutPromise]).catch(err => {
+        console.warn('[ProductsController] getCatalog warning/timeout:', err?.message || err);
+        return null;
+      });
       if (catalogResult && Array.isArray(catalogResult.products) && catalogResult.products.length > 0) {
         waFetched = catalogResult.products.length;
         for (const item of catalogResult.products) {
@@ -174,13 +183,13 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
           }
           await productRepository.upsertProduct({
             id: item.id ? `wa_${item.id}` : undefined,
-            name: item.name || 'Produto WhatsApp',
+            name: item.name || item.title || 'Produto WhatsApp',
             code: item.retailerId || item.id || '',
             description: item.description || '',
             price: priceVal,
             category: 'WhatsApp Business',
             images: item.imageUrls || (item.image && [item.image]) || [],
-            whatsapp_url: item.url || `https://wa.me/c/553193672075`,
+            whatsapp_url: item.url || `https://wa.me/p/${item.id}/${sessionPhone}`,
             companyId,
           });
           syncedCount++;
@@ -189,6 +198,17 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
     }
   } catch (waErr) {
     console.warn('[ProductsController] WhatsApp getCatalog query returned:', waErr.message);
+  }
+
+  // If no products exist yet (e.g. personal account or offline), seed baseline core products
+  const currentCount = (await productRepository.listProducts({ companyId })).length;
+  if (currentCount === 0 || waFetched === 0) {
+    for (const coreProd of CORE_STORE_PRODUCTS) {
+      await productRepository.upsertProduct({
+        ...coreProd,
+        companyId,
+      });
+    }
   }
 
   // Clear fast cache so fresh products are served immediately
