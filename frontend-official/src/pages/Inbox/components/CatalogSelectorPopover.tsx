@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
+  Storefront,
   ShoppingBag,
   WhatsappLogo,
   MagnifyingGlass,
@@ -12,6 +13,7 @@ import {
   X,
   Truck,
   TextT,
+  ArrowsClockwise,
 } from "@phosphor-icons/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -42,18 +44,88 @@ export const OFFICIAL_STORE_CATALOG_URL = "https://wa.me/c/553193672075";
 
 export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
   {
-    id: "prod_tijolo_8f_mil",
-    code: "TIJ-8F-MIL",
-    name: "Tijolo Cerâmico 8 Furos 9x19x19cm (Milheiro)",
-    description: "Tijolo cerâmico 8 furos padrão 9x19x19cm. Isolamento térmico e acústico, alta resistência e queima uniforme. Venda por milheiro (1.000 unidades) paletizado.",
-    price: 980.0,
-    category: "Tijolos & Blocos",
-    stock: 45,
-    images: ["/assets/catalog/tijolo_8f.jpg"],
+    id: "prod_betoneira_csm_400l",
+    code: "BET-CSM-400L",
+    name: "BETONEIRA - CSM - 400L",
+    description: "Betoneira 400L CSM com motor profissional de alto torque. Estrutura reforçada, descarga rápida e máxima durabilidade para obras pesadas.",
+    price: 3499.0,
+    category: "Máquinas & Equipamentos",
+    stock: 8,
+    images: ["/assets/catalog/betoneira_csm_400l.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "5% de desconto no PIX/Dinheiro ou até 10x sem juros no cartão",
+    promotions: "Frete especial na Grande BH ou parcelamento facilitado no cartão",
     condition: "Novo",
-    shipping: "Entrega com caminhão próprio com descarga rápida",
+    shipping: "Entrega rápida com caminhão próprio",
+  },
+  {
+    id: "prod_tijolo_12_furos",
+    code: "TIJ-12F",
+    name: "TIJOLO 12 FUROS",
+    description: "Tijolo cerâmico 12 furos de primeira linha. Alto isolamento térmico e acústico, perfeito para paredes externas e divisórias de precisão.",
+    price: 900.0,
+    category: "Tijolos & Blocos",
+    stock: 35,
+    images: ["/assets/catalog/tijolo_12_furos.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Preço por milheiro (1.000 unidades) paletizado",
+    condition: "Novo",
+    shipping: "Descarga rápida no canteiro de obras",
+  },
+  {
+    id: "prod_tijolo_9_furos",
+    code: "TIJ-9F",
+    name: "TIJOLO 9 FUROS",
+    description: "Tijolo cerâmico 9 furos padrão estrutural e vedação. Queima perfeita, economia de argamassa e grande resistência mecânica.",
+    price: 850.0,
+    category: "Tijolos & Blocos",
+    stock: 40,
+    images: ["/assets/catalog/tijolo_9_furos.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Desconto progressivo para cargas completas",
+    condition: "Novo",
+    shipping: "Pronta entrega",
+  },
+  {
+    id: "prod_tijolo_8f_mil",
+    code: "TIJ-8F",
+    name: "TIJOLO 8 FUROS",
+    description: "Tijolo cerâmico 8 furos padrão comercial 9x19x19cm (Milheiro). Venda paletizada com garantia de qualidade e resistência uniforme.",
+    price: 780.0,
+    category: "Tijolos & Blocos",
+    stock: 50,
+    images: ["/assets/catalog/tijolo_8_furos.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Valor por milheiro. 5% de desconto no PIX",
+    condition: "Novo",
+    shipping: "Entrega imediata na Grande BH e região",
+  },
+  {
+    id: "prod_telhas_ceramica",
+    code: "TEL-CER",
+    name: "TELHAS CERÂMICA",
+    description: "Telhas cerâmicas coloniais esmaltadas e naturais de alta resistência. Encaixe perfeito, proteção térmica superior e acabamento nobre.",
+    price: 3.2,
+    category: "Coberturas & Telhas",
+    stock: 5000,
+    images: ["/assets/catalog/telhas_ceramica.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Venda por unidade ou milheiro fechado",
+    condition: "Novo",
+    shipping: "Entrega paletizada com proteção contra quebra",
+  },
+  {
+    id: "prod_caixa_dagua_10000l",
+    code: "CXA-10000L",
+    name: "CAIXA D'ÁGUA 10.000L",
+    description: "Reservatório de grande capacidade 10.000 Litros em polietileno virgem estrutural. Alta resistência contra intempéries e raios UV.",
+    price: 4290.0,
+    category: "Caixas d'Água",
+    stock: 5,
+    images: ["/assets/catalog/caixa_dagua.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Até 10x sem juros no cartão ou preço à vista negociável",
+    condition: "Novo",
+    shipping: "Frete especial com guincho/descarga apropriada",
   },
   {
     id: "prod_tijolo_macico_mil",
@@ -182,34 +254,6 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     shipping: "Pronta entrega",
   },
   {
-    id: "prod_caixa_dagua_5000l",
-    code: "CXA-5000L-FTL",
-    name: "Caixa d'Água 5.000 Litros Fortlev Polietileno",
-    description: "Caixa d'água de grande capacidade (5.000L) com tripla camada de polietileno estrutural. Indicada para condomínios, comércio e sítios.",
-    price: 2490.0,
-    category: "Caixas d'Água",
-    stock: 12,
-    images: ["/assets/catalog/caixa_dagua.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Até 10x sem juros no cartão ou 5% à vista",
-    condition: "Novo",
-    shipping: "Entrega com veículo apropriado",
-  },
-  {
-    id: "prod_betoneira_400l_2cv",
-    code: "BET-400L-2CV",
-    name: "Betoneira 400L 2CV Monofásica Reforçada",
-    description: "Betoneira profissional capacidade de mistura 400 Litros, motor monofásico de 2CV blindado WEG, engrenagens em ferro fundido nodular e rodas maciças.",
-    price: 3850.0,
-    category: "Máquinas & Equipamentos",
-    stock: 6,
-    images: ["/assets/catalog/betoneira.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Nota fiscal e garantia de 1 ano de fábrica",
-    condition: "Novo",
-    shipping: "Frete sob consulta para Minas Gerais",
-  },
-  {
     id: "prod_tinta_acrilica_18l",
     code: "TNT-ACR-18L",
     name: "Tinta Acrílica Fosca Premium 18L Branco Neve",
@@ -223,49 +267,21 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     condition: "Novo",
     shipping: "Pronta entrega",
   },
-  {
-    id: "prod_argamassa_ac3_20kg",
-    code: "ARG-AC3-20",
-    name: "Argamassa AC-III 20kg Cinza Alta Aderência",
-    description: "Argamassa flexível tipo AC-III para assentamento de porcelanatos, placas grandes, piscinas e sobreposição piso sobre piso.",
-    price: 32.9,
-    category: "Cimento & Argamassas",
-    stock: 180,
-    images: ["/assets/catalog/cimento_cp2.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Desconto progressivo por palete fechado",
-    condition: "Novo",
-    shipping: "Pronta entrega",
-  },
-  {
-    id: "prod_bloco_estrutural_14",
-    code: "BLC-EST-14",
-    name: "Bloco de Concreto Estrutural 14x19x39cm",
-    description: "Bloco vazado de concreto vibroprensado para alvenaria estrutural e de vedação. Face perfeitamente alinhada e alta resistência à compressão (>= 4.5 MPa).",
-    price: 4.8,
-    category: "Tijolos & Blocos",
-    stock: 700,
-    images: ["/assets/catalog/blocos.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Venda unitária ou por palete com 108 unidades",
-    condition: "Novo",
-    shipping: "Entrega rápida na obra",
-  },
 ];
 
 export function formatProductMessage(product: CatalogProduct, customNote?: string): string {
   const priceVal = typeof product.price === "number" ? product.price : parseFloat(product.price) || 0;
-  const formattedPrice = priceVal.toLocaleString("pt-BR", {
+  const formattedPrice = priceVal > 0 ? priceVal.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
-  });
+  }) : "";
 
   const lines: (string | null)[] = [
     `📦 *[CATÁLOGO WHATSAPP]*`,
     `━━━━━━━━━━━━━━━━━━━━`,
     `*${product.name.trim()}*`,
     product.code ? `🏷️ *Código:* ${product.code}` : null,
-    `💰 *Valor:* ${formattedPrice}`,
+    formattedPrice ? `💰 *Valor:* ${formattedPrice}` : null,
     product.shipping ? `🚚 *Entrega:* ${product.shipping}` : null,
     product.promotions ? `🎁 *Condição:* ${product.promotions}` : null,
     product.stock !== undefined ? `📊 *Disponibilidade:* ${product.stock} un. em estoque` : null,
@@ -275,6 +291,43 @@ export function formatProductMessage(product: CatalogProduct, customNote?: strin
     `🔗 *Ver Catálogo Completo:* ${product.whatsapp_url || OFFICIAL_STORE_CATALOG_URL}`,
     `━━━━━━━━━━━━━━━━━━━━`,
   ];
+
+  if (customNote?.trim()) {
+    lines.push(`💬 *Observação:* ${customNote.trim()}`);
+  }
+
+  return lines.filter((line) => line !== null).join("\n");
+}
+
+export function formatMultiProductMessage(products: CatalogProduct[], customNote?: string): string {
+  if (products.length === 1) {
+    return formatProductMessage(products[0], customNote);
+  }
+
+  const lines: (string | null)[] = [
+    `📦 *[CATÁLOGO WHATSAPP]*`,
+    `━━━━━━━━━━━━━━━━━━━━`,
+    `*Depósito Vista Alegre — Produtos Selecionados:*`,
+    ``,
+  ];
+
+  products.forEach((p, idx) => {
+    const priceVal = typeof p.price === "number" ? p.price : parseFloat(p.price) || 0;
+    const formattedPrice = priceVal > 0 ? priceVal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "";
+    lines.push(
+      `*${idx + 1}. ${p.name.trim()}*`,
+      p.code ? `🏷️ Código: ${p.code}` : null,
+      formattedPrice ? `💰 Valor: ${formattedPrice}` : null,
+      p.shipping ? `🚚 Entrega: ${p.shipping}` : null,
+      `────────────────────`
+    );
+  });
+
+  lines.push(
+    ``,
+    `🔗 *Ver Catálogo Completo no WhatsApp:* ${OFFICIAL_STORE_CATALOG_URL}`,
+    `━━━━━━━━━━━━━━━━━━━━`
+  );
 
   if (customNote?.trim()) {
     lines.push(`💬 *Observação:* ${customNote.trim()}`);
@@ -301,9 +354,11 @@ export function CatalogSelectorPopover({
   const [open, setOpen] = useState(false);
   const [products, setProducts] = useState<CatalogProduct[]>(FALLBACK_STORE_PRODUCTS);
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("TODOS");
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Fetch real products from backend repository on mount / open
   useEffect(() => {
@@ -313,7 +368,6 @@ export function CatalogSelectorPopover({
         setLoading(true);
         const res = await apiService.getProducts();
         if (mounted && res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          // Merge images and fallback fields safely
           const mapped: CatalogProduct[] = res.data.map((item: any) => ({
             id: item.id || `prod_${Math.random()}`,
             code: item.code || "",
@@ -374,7 +428,17 @@ export function CatalogSelectorPopover({
     });
   }, [products, search, selectedCategory]);
 
-  const handleSend = async (product: CatalogProduct) => {
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSendSingle = async (product: CatalogProduct) => {
     if (disabled || sendingId || !canSendToChat) {
       if (!canSendToChat) {
         toast.warning("Selecione uma conversa ativa para disparar o produto.");
@@ -398,6 +462,110 @@ export function CatalogSelectorPopover({
     }
   };
 
+  const handleSendSelected = async () => {
+    if (disabled || selectedIds.size === 0 || !canSendToChat) {
+      if (!canSendToChat) toast.warning("Selecione uma conversa ativa.");
+      return;
+    }
+    const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+    if (selectedProducts.length === 0) return;
+
+    try {
+      setSendingId("selected_batch");
+      if (selectedProducts.length === 1) {
+        const p = selectedProducts[0];
+        await onSendProduct(p, formatProductMessage(p));
+        toast.success(`"${p.name}" enviado no chat!`);
+      } else {
+        const formatted = formatMultiProductMessage(selectedProducts);
+        await onSendProduct(selectedProducts[0], formatted);
+        toast.success(`${selectedProducts.length} produtos enviados no chat!`);
+      }
+      setSelectedIds(new Set());
+      setOpen(false);
+    } catch (err: any) {
+      toast.error("Falha ao enviar produtos", { description: err?.message });
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const handleSendCatalogLink = async () => {
+    if (disabled || !canSendToChat) {
+      if (!canSendToChat) {
+        toast.warning("Selecione uma conversa ativa para disparar o catálogo.");
+      }
+      return;
+    }
+    const catalogMsg = [
+      `🏪 *[CATÁLOGO WHATSAPP]*`,
+      `━━━━━━━━━━━━━━━━━━━━`,
+      `*Catálogo Oficial — Depósito Vista Alegre*`,
+      `Acesse nossa loja completa no WhatsApp, veja todos os produtos e faça seu pedido direto:`,
+      `👉 ${OFFICIAL_STORE_CATALOG_URL}`,
+      `━━━━━━━━━━━━━━━━━━━━`,
+      `📱 Atendimento e entregas: (31) 9367-2075`,
+    ].join("\n");
+
+    try {
+      setSendingId("catalog_root");
+      await onSendProduct(
+        {
+          id: "catalog_root",
+          name: "Catálogo Completo - Depósito Vista Alegre",
+          description: "Catálogo oficial no WhatsApp",
+          price: 0,
+          category: "Catálogo",
+          whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+        },
+        catalogMsg
+      );
+      toast.success("Catálogo oficial do WhatsApp enviado no chat!");
+      setOpen(false);
+    } catch (err: any) {
+      toast.error("Falha ao enviar catálogo", { description: err?.message });
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const handleSyncWhatsApp = async () => {
+    try {
+      setSyncing(true);
+      const res = await apiService.syncWhatsAppCatalog();
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped: CatalogProduct[] = res.data.map((item: any) => ({
+          id: item.id || `prod_${Math.random()}`,
+          code: item.code || "",
+          name: item.name || "Produto Sem Nome",
+          description: item.description || "",
+          price: Number(item.price) || 0,
+          category: item.category || "Geral",
+          stock: item.stock ?? 10,
+          images: Array.isArray(item.images) ? item.images : item.images ? [item.images] : [],
+          whatsapp_url: item.whatsapp_url || OFFICIAL_STORE_CATALOG_URL,
+          promotions: item.promotions || "",
+          condition: item.condition || "Novo",
+          shipping: item.shipping || "Pronta Entrega",
+        }));
+        setProducts(mapped);
+        toast.success("Catálogo sincronizado com o WhatsApp!", {
+          description: res.message || `${mapped.length} produtos disponíveis.`,
+        });
+      } else {
+        toast.info("Catálogo atualizado", {
+          description: `${products.length} produtos disponíveis.`,
+        });
+      }
+    } catch (err: any) {
+      toast.error("Erro ao sincronizar catálogo do WhatsApp", {
+        description: err?.message || "Verifique a conexão da sessão.",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleInsertText = (product: CatalogProduct) => {
     if (!onInsertInComposer) return;
     const formatted = formatProductMessage(product);
@@ -409,27 +577,23 @@ export function CatalogSelectorPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
+        {/* Authentic WhatsApp style Catálogo button beside emojis */}
         <Button
           type="button"
           variant="ghost"
-          size="icon"
           disabled={disabled}
           className={cn(
-            "h-10 w-10 min-h-10 min-w-10 rounded-full flex items-center justify-center shrink-0 relative transition-all duration-200",
-            open
-              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm shadow-emerald-500/20"
-              : "text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10",
+            "h-9 px-3 rounded-lg flex items-center gap-2 transition-all font-normal text-sm shrink-0 select-none",
+            "bg-[#202c33] hover:bg-[#2a3942] text-[#e9edef] border border-[#2a3942] shadow-xs",
+            open && "ring-1 ring-emerald-500 bg-[#2a3942]",
             className
           )}
           aria-label="Abrir catálogo WhatsApp"
           data-catalog-trigger
-          title="📦 Catálogo WhatsApp (Depósito Vista Alegre)"
+          title="🏪 Catálogo WhatsApp (Depósito Vista Alegre)"
         >
-          <ShoppingBag className="h-5 w-5" weight={open ? "fill" : "regular"} />
-          <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-          </span>
+          <Storefront className="h-4 w-4 text-emerald-400 shrink-0" weight="fill" />
+          <span className="font-medium text-xs text-[#e9edef]">Catálogo</span>
         </Button>
       </PopoverTrigger>
 
@@ -438,71 +602,105 @@ export function CatalogSelectorPopover({
         side="top"
         sideOffset={10}
         data-catalog-popover
-        className="w-[430px] max-w-[calc(100vw-24px)] p-0 rounded-2xl border border-emerald-500/25 bg-background/95 backdrop-blur-md shadow-2xl shadow-emerald-950/40 overflow-hidden flex flex-col z-50 text-foreground"
+        className="w-[430px] max-w-[calc(100vw-24px)] p-0 rounded-2xl border border-emerald-500/30 bg-[#111b21] backdrop-blur-md shadow-2xl shadow-emerald-950/50 overflow-hidden flex flex-col z-50 text-[#e9edef]"
       >
-        {/* Header */}
-        <div className="px-4 py-3 bg-gradient-to-r from-emerald-950/40 via-background to-background border-b border-border/60 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-8 w-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-              <ShoppingBag className="h-4 w-4" weight="bold" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-sm text-foreground truncate">
-                  Catálogo WhatsApp
-                </span>
-                <Badge
-                  variant="outline"
-                  className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0 font-medium"
-                >
-                  Oficial
-                </Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground truncate">
-                Depósito Vista Alegre • (31) 9367-2075
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <a
-              href={OFFICIAL_STORE_CATALOG_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors border border-emerald-500/20"
-              title="Abrir catálogo original no WhatsApp"
-            >
-              <WhatsappLogo className="h-3.5 w-3.5" weight="fill" />
-              <span>Ver Link</span>
-              <ArrowSquareOut className="h-3 w-3" />
-            </a>
-
+        {/* Header - Identical to WhatsApp Web 'Enviar produtos' */}
+        <div className="px-4 py-3 bg-[#202c33] border-b border-[#2a3942] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setOpen(false)}
-              className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              className="h-7 w-7 rounded-lg flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] hover:bg-[#2a3942] transition-colors"
               aria-label="Fechar catálogo"
             >
               <X className="h-4 w-4" />
             </button>
+            <div className="min-w-0">
+              <span className="font-semibold text-sm text-[#e9edef] truncate block">
+                Enviar produtos
+              </span>
+              <p className="text-[11px] text-[#8696a0] truncate">
+                Catálogo WhatsApp • Depósito Vista Alegre
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleSyncWhatsApp}
+              disabled={syncing}
+              className="h-7 px-2 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors border border-emerald-500/20 rounded-md"
+              title="Sincronizar produtos criados no WhatsApp"
+            >
+              <ArrowsClockwise className={cn("h-3.5 w-3.5 mr-1", syncing && "animate-spin")} />
+              <span>{syncing ? "Sincronizando..." : "Sincronizar"}</span>
+            </Button>
+
+            <a
+              href={OFFICIAL_STORE_CATALOG_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-7 w-7 rounded-lg flex items-center justify-center text-[#8696a0] hover:text-emerald-400 hover:bg-[#2a3942] transition-colors"
+              title="Abrir catálogo original no WhatsApp"
+            >
+              <ArrowSquareOut className="h-4 w-4" />
+            </a>
           </div>
         </div>
 
-        {/* Search input */}
-        <div className="p-3 pb-2 border-b border-border/40 space-y-2">
+        {/* Top Action Row: 'Enviar catálogo' - Exact duplicate of WhatsApp Web */}
+        <div
+          onClick={handleSendCatalogLink}
+          className="px-4 py-3 bg-[#111b21] hover:bg-[#202c33] border-b border-[#2a3942]/60 flex items-center justify-between gap-3 cursor-pointer transition-colors group"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-10 w-10 rounded-full bg-[#202c33] border border-[#2a3942] group-hover:border-emerald-500/50 flex items-center justify-center text-[#8696a0] group-hover:text-emerald-400 transition-colors shrink-0">
+              <Storefront className="h-5 w-5" weight="regular" />
+            </div>
+            <div className="min-w-0">
+              <span className="font-medium text-sm text-[#e9edef] group-hover:text-emerald-400 transition-colors block">
+                Enviar catálogo
+              </span>
+              <p className="text-[11px] text-[#8696a0] truncate">
+                Disparar link com todos os produtos da loja
+              </p>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            data-send-catalog-trigger
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSendCatalogLink();
+            }}
+            disabled={disabled || !canSendToChat || sendingId === "catalog_root"}
+            className="h-7 px-2.5 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/15 rounded-md"
+          >
+            {sendingId === "catalog_root" ? "Enviando..." : "Enviar link"}
+          </Button>
+        </div>
+
+        {/* Search input & Category chips */}
+        <div className="p-3 pb-2 border-b border-[#2a3942]/60 space-y-2 bg-[#111b21]">
           <div className="relative">
-            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8696a0]" />
             <Input
               type="text"
-              placeholder="Buscar tijolos, cimento, telha, churrasqueira..."
+              placeholder="Buscar produtos cadastrados no WhatsApp..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-8 h-9 text-xs bg-muted/40 border-border/60 rounded-xl focus-visible:ring-1 focus-visible:ring-emerald-500"
+              className="pl-9 pr-8 h-9 text-xs bg-[#202c33] border-[#2a3942] text-[#e9edef] rounded-xl focus-visible:ring-1 focus-visible:ring-emerald-500 placeholder:text-[#8696a0]"
               autoFocus
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8696a0] hover:text-[#e9edef]"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -518,10 +716,10 @@ export function CatalogSelectorPopover({
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    "px-2.5 py-1 rounded-lg shrink-0 transition-all font-medium border",
+                    "px-2.5 py-1 rounded-lg shrink-0 transition-all font-medium border text-[11px]",
                     active
-                      ? "bg-emerald-500 text-white border-emerald-600 shadow-xs"
-                      : "bg-muted/30 text-muted-foreground border-border/50 hover:bg-muted/60 hover:text-foreground"
+                      ? "bg-emerald-600 text-white border-emerald-500 shadow-xs"
+                      : "bg-[#202c33] text-[#8696a0] border-[#2a3942] hover:bg-[#2a3942] hover:text-[#e9edef]"
                   )}
                 >
                   {cat}
@@ -531,15 +729,15 @@ export function CatalogSelectorPopover({
           </div>
         </div>
 
-        {/* Product list */}
-        <ScrollArea className="h-[360px] p-3">
+        {/* Product list with checkboxes */}
+        <ScrollArea className="h-[340px] p-2 bg-[#111b21]">
           {loading && products.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-muted-foreground space-y-2">
+            <div className="py-12 flex flex-col items-center justify-center text-[#8696a0] space-y-2">
               <Package className="h-8 w-8 animate-pulse text-emerald-400" />
               <p className="text-xs">Carregando catálogo do WhatsApp...</p>
             </div>
           ) : filteredProducts.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground space-y-2">
+            <div className="py-12 text-center text-[#8696a0] space-y-2">
               <Package className="h-8 w-8 mx-auto opacity-40" />
               <p className="text-xs">Nenhum produto encontrado para &quot;{search}&quot;</p>
               <Button
@@ -555,91 +753,89 @@ export function CatalogSelectorPopover({
               </Button>
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-1.5">
               {filteredProducts.map((item) => {
+                const isSelected = selectedIds.has(item.id);
                 const isSending = sendingId === item.id;
                 const priceNum = typeof item.price === "number" ? item.price : parseFloat(item.price) || 0;
-                const formattedPrice = priceNum.toLocaleString("pt-BR", {
+                const formattedPrice = priceNum > 0 ? priceNum.toLocaleString("pt-BR", {
                   style: "currency",
                   currency: "BRL",
-                });
+                }) : "";
 
                 return (
                   <div
                     key={item.id}
-                    className="p-3 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 hover:border-emerald-500/30 transition-all duration-150 flex flex-col gap-2 relative group"
+                    onClick={() => toggleSelect(item.id)}
+                    className={cn(
+                      "p-2.5 rounded-xl border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer group select-none",
+                      isSelected
+                        ? "bg-[#202c33] border-emerald-500/50 shadow-xs"
+                        : "bg-[#111b21] hover:bg-[#202c33]/70 border-[#2a3942]/50 hover:border-[#2a3942]"
+                    )}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      {item.images && item.images.length > 0 && item.images[0] && (
-                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted/40 border border-border/50 shrink-0 relative flex items-center justify-center">
-                          <img
-                            src={item.images[0]}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLElement).style.display = "none";
-                            }}
-                          />
-                        </div>
+                    {/* Left: Checkbox */}
+                    <div
+                      onClick={(e) => toggleSelect(item.id, e)}
+                      className={cn(
+                        "w-5 h-5 rounded border flex items-center justify-center transition-all shrink-0 cursor-pointer",
+                        isSelected
+                          ? "bg-emerald-500 border-emerald-500 text-white"
+                          : "border-[#8696a0] hover:border-[#e9edef] bg-transparent"
                       )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-semibold text-xs text-foreground group-hover:text-emerald-400 transition-colors">
-                            {item.name}
-                          </span>
-                          {item.code && (
-                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/40">
-                              {item.code}
-                            </span>
-                          )}
-                        </div>
+                    >
+                      {isSelected && <Check className="h-3.5 w-3.5" weight="bold" />}
+                    </div>
 
-                        <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                          {item.description}
-                        </p>
+                    {/* Thumbnail Image */}
+                    {item.images && item.images.length > 0 && item.images[0] ? (
+                      <div className="w-14 h-14 rounded-lg overflow-hidden bg-[#202c33] border border-[#2a3942] shrink-0 relative flex items-center justify-center">
+                        <img
+                          src={item.images[0]}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = "none";
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-lg bg-[#202c33] border border-[#2a3942] flex items-center justify-center text-muted-foreground shrink-0">
+                        <Package className="h-6 w-6 opacity-40" />
+                      </div>
+                    )}
+
+                    {/* Middle: Name & Price */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-xs text-[#e9edef] group-hover:text-emerald-400 transition-colors">
+                          {item.name}
+                        </span>
                       </div>
 
-                      {/* Price badge */}
-                      <div className="text-right shrink-0">
-                        <div className="text-sm font-bold text-emerald-400">
+                      {formattedPrice && (
+                        <div className="text-xs font-semibold text-emerald-400 mt-0.5">
                           {formattedPrice}
                         </div>
-                        {item.stock !== undefined && (
-                          <div className="text-[10px] text-muted-foreground flex items-center justify-end gap-1">
-                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            {item.stock} em estoque
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Metadata tags */}
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground pt-1 border-t border-border/30 flex-wrap">
-                      <span className="inline-flex items-center gap-1 text-emerald-400/90">
-                        <Tag className="h-3 w-3" />
-                        {item.category}
-                      </span>
-                      {item.shipping && (
-                        <span className="inline-flex items-center gap-1 truncate max-w-[200px]">
-                          <Truck className="h-3 w-3" />
-                          {item.shipping}
-                        </span>
                       )}
+
+                      <p className="text-[11px] text-[#8696a0] line-clamp-1 mt-0.5">
+                        {item.description}
+                      </p>
                     </div>
 
-                    {/* Actions row */}
-                    <div className="flex items-center justify-end gap-2 pt-1">
+                    {/* Right: Quick send actions */}
+                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                       {onInsertInComposer && (
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => handleInsertText(item)}
-                          className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                          title="Inserir texto do produto no campo de mensagem"
+                          className="h-7 w-7 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#2a3942]"
+                          title="Copiar texto para o campo de mensagem"
                         >
-                          <TextT className="h-3.5 w-3.5 mr-1" />
-                          Copiar p/ campo
+                          <TextT className="h-3.5 w-3.5" />
                         </Button>
                       )}
 
@@ -647,19 +843,16 @@ export function CatalogSelectorPopover({
                         type="button"
                         size="sm"
                         disabled={disabled || isSending || !canSendToChat}
-                        title={!canSendToChat ? "Selecione uma conversa ativa para disparar o produto" : "Enviar no chat"}
-                        onClick={() => handleSend(item)}
-                        className="h-7 px-3 text-[11px] font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-xs hover:shadow-emerald-950/40 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                        title={!canSendToChat ? "Selecione uma conversa ativa" : "Enviar no chat"}
+                        onClick={() => handleSendSingle(item)}
+                        className="h-7 px-2.5 text-[11px] font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all flex items-center gap-1"
                       >
                         {isSending ? (
-                          <>
-                            <span className="animate-spin text-xs">🌀</span>
-                            <span>Enviando...</span>
-                          </>
+                          <span className="animate-spin text-xs">🌀</span>
                         ) : (
                           <>
-                            <PaperPlaneTilt className="h-3.5 w-3.5" weight="fill" />
-                            <span>Enviar no Chat</span>
+                            <PaperPlaneTilt className="h-3 w-3" weight="fill" />
+                            <span className="hidden sm:inline">Enviar no Chat</span>
                           </>
                         )}
                       </Button>
@@ -671,14 +864,47 @@ export function CatalogSelectorPopover({
           )}
         </ScrollArea>
 
-        {/* Footer info */}
-        <div className="px-4 py-2 bg-muted/40 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>{filteredProducts.length} itens disponíveis</span>
-          <span className="text-[10px] text-emerald-400 flex items-center gap-1">
-            <Sparkle className="h-3 w-3" weight="fill" />
-            Sincronizado com WhatsApp Business
-          </span>
-        </div>
+        {/* Sticky bottom bar when products are checked OR footer info */}
+        {selectedIds.size > 0 ? (
+          <div className="px-4 py-2.5 bg-[#202c33] border-t border-[#2a3942] flex items-center justify-between gap-3 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#e9edef] font-medium">
+                {selectedIds.size} {selectedIds.size === 1 ? "produto selecionado" : "produtos selecionados"}
+              </span>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-[11px] text-[#8696a0] hover:text-[#e9edef] underline"
+              >
+                Limpar
+              </button>
+            </div>
+
+            <Button
+              type="button"
+              size="sm"
+              disabled={disabled || sendingId !== null || !canSendToChat}
+              onClick={handleSendSelected}
+              className="h-8 px-4 text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-[#111b21] rounded-lg shadow-sm transition-all flex items-center gap-1.5"
+            >
+              {sendingId === "selected_batch" ? (
+                <span>Enviando...</span>
+              ) : (
+                <>
+                  <PaperPlaneTilt className="h-3.5 w-3.5" weight="fill" />
+                  <span>Enviar produtos ({selectedIds.size})</span>
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="px-4 py-2 bg-[#202c33] border-t border-[#2a3942] flex items-center justify-between text-[11px] text-[#8696a0]">
+            <span>{filteredProducts.length} itens disponíveis</span>
+            <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+              <Sparkle className="h-3 w-3" weight="fill" />
+              Catálogo Oficial Depósito Vista Alegre
+            </span>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

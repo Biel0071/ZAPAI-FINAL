@@ -7,5 +7,7 @@ router.get('/products', fastCacheMiddleware(5000), productsController.getProduct
 router.get('/products/:id', fastCacheMiddleware(5000), productsController.getProductById);
 router.get('/catalog/products', fastCacheMiddleware(5000), productsController.getProducts);
 router.get('/catalog/products/:id', fastCacheMiddleware(5000), productsController.getProductById);
+router.post('/catalog/sync', productsController.syncWhatsAppCatalog);
+router.post('/products/sync', productsController.syncWhatsAppCatalog);
 
 module.exports = router;

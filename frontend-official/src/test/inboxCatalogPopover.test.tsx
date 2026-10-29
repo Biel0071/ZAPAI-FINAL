@@ -95,9 +95,39 @@ describe("WhatsApp Catalog Integration & Inbox Dispatch", () => {
 
     const popover = document.querySelector("[data-catalog-popover]");
     expect(popover).not.toBeNull();
-    expect(popover?.textContent).toContain("Catálogo WhatsApp");
+    expect(popover?.textContent).toContain("Enviar produtos");
     expect(popover?.textContent).toContain("Depósito Vista Alegre");
-    expect(popover?.textContent).toContain("Tijolo Cerâmico 8 Furos");
+    expect(popover?.textContent).toContain("TIJOLO 8 FUROS");
+    expect(popover?.textContent).toContain("BETONEIRA - CSM - 400L");
+  });
+
+  it("sends store catalog link when 'Enviar catálogo' is clicked", async () => {
+    const handleSend = vi.fn().mockResolvedValue(undefined);
+
+    await renderComponent(
+      <CatalogSelectorPopover
+        disabled={false}
+        onSendProduct={handleSend}
+      />
+    );
+
+    const triggerBtn = document.querySelector<HTMLButtonElement>("[data-catalog-trigger]");
+    await act(async () => {
+      triggerBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const sendCatalogBtn = document.querySelector<HTMLButtonElement>("[data-send-catalog-trigger]");
+    expect(sendCatalogBtn).not.toBeNull();
+
+    await act(async () => {
+      sendCatalogBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(handleSend).toHaveBeenCalledTimes(1);
+    expect(handleSend).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "catalog_root" }),
+      expect.stringContaining("https://wa.me/c/553193672075")
+    );
   });
 
   it("executes product dispatch callback when 'Enviar no Chat' is clicked", async () => {
@@ -127,6 +157,47 @@ describe("WhatsApp Catalog Integration & Inbox Dispatch", () => {
     expect(handleSend).toHaveBeenCalledTimes(1);
     expect(handleSend).toHaveBeenCalledWith(
       expect.objectContaining({ name: expect.any(String), price: expect.anything() }),
+      expect.stringContaining("[CATÁLOGO WHATSAPP]")
+    );
+  });
+
+  it("allows selecting multiple products via checkboxes and dispatches batch message", async () => {
+    const handleSend = vi.fn().mockResolvedValue(undefined);
+
+    await renderComponent(
+      <CatalogSelectorPopover
+        disabled={false}
+        onSendProduct={handleSend}
+      />
+    );
+
+    const triggerBtn = document.querySelector<HTMLButtonElement>("[data-catalog-trigger]");
+    await act(async () => {
+      triggerBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const rows = [...document.querySelectorAll<HTMLElement>("[data-catalog-popover] .cursor-pointer")].filter(
+      (el) => el.textContent?.includes("BETONEIRA") || el.textContent?.includes("TIJOLO 12")
+    );
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+
+    await act(async () => {
+      rows[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const batchSendBtn = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+      (b) => b.textContent?.includes("Enviar produtos (2)")
+    );
+    expect(batchSendBtn).toBeDefined();
+
+    await act(async () => {
+      batchSendBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(handleSend).toHaveBeenCalledTimes(1);
+    expect(handleSend).toHaveBeenCalledWith(
+      expect.anything(),
       expect.stringContaining("[CATÁLOGO WHATSAPP]")
     );
   });

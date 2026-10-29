@@ -2630,6 +2630,13 @@ export const apiService = {
       method: "GET",
     });
   },
+  async syncWhatsAppCatalog(sessionId?: string) {
+    return request<{ success: boolean; synced: number; waFetched?: number; total: number; data: any[]; message?: string }>({
+      endpoint: "/api/catalog/sync",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
   async getWhatsAppLabels(sessionId?: string) {
     const query = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
     return request<{ success: boolean; labels: Array<{ id: string; name: string; color: number; color_hex: string; deleted?: boolean }> }>({

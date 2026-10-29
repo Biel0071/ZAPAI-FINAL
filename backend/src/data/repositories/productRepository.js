@@ -90,7 +90,69 @@ async function getProductById(id, companyId = 'default') {
   }
 }
 
+async function upsertProduct(product) {
+  const {
+    id,
+    name,
+    code = '',
+    description = '',
+    price = 0,
+    category = 'Geral',
+    stock = 10,
+    images = [],
+    whatsapp_url = 'https://wa.me/c/553193672075',
+    promotions = '',
+    condition = 'Novo',
+    shipping = 'Pronta Entrega',
+    companyId = 'default',
+  } = product;
+
+  const imagesJson = JSON.stringify(Array.isArray(images) ? images : [images]);
+  const sql = `
+    INSERT INTO products (
+      id, company_id, code, name, description, price, category, stock, images, whatsapp_url, promotions, condition, shipping, updated_at
+    ) VALUES (
+      COALESCE($1, 'prod_' || floor(random() * 1000000)::text),
+      $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name,
+      code = COALESCE(NULLIF(EXCLUDED.code, ''), products.code),
+      description = EXCLUDED.description,
+      price = EXCLUDED.price,
+      category = EXCLUDED.category,
+      stock = EXCLUDED.stock,
+      images = CASE WHEN jsonb_array_length(EXCLUDED.images) > 0 THEN EXCLUDED.images ELSE products.images END,
+      whatsapp_url = COALESCE(EXCLUDED.whatsapp_url, products.whatsapp_url),
+      updated_at = NOW()
+    RETURNING *;
+  `;
+
+  try {
+    const res = await query(sql, [
+      id || null,
+      companyId,
+      code,
+      name,
+      description,
+      price,
+      category,
+      stock,
+      imagesJson,
+      whatsapp_url,
+      promotions,
+      condition,
+      shipping,
+    ]);
+    return res.rows[0];
+  } catch (err) {
+    console.error('[productRepository] upsertProduct error:', err.message);
+    throw err;
+  }
+}
+
 module.exports = {
   listProducts,
   getProductById,
+  upsertProduct,
 };

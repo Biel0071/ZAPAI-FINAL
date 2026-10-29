@@ -30,30 +30,43 @@ async function run() {
   }
 
   await page.goto(`${URL}/inbox`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(5000);
 
-  // Crop 1: Message composer action bar showing Emoji & Catalog button beside each other
-  const composerArea = page.locator('div.border-t.border-border\\/40, form').first();
-  if (await composerArea.count() > 0) {
-    await composerArea.screenshot({
-      path: path.join(ARTIFACT_DIR, '06_crop_composer_emoji_and_catalog.png')
-    });
+  const convCount = await page.locator('[data-conversation-id]').count();
+  console.log(`[PLAYWRIGHT] Found ${convCount} conversations.`);
+
+  if (convCount > 0) {
+    const firstConv = page.locator('[data-conversation-id]').first();
+    await firstConv.click();
+    console.log('[PLAYWRIGHT] Clicked first conversation.');
+    await page.waitForTimeout(2500);
+
+    // Open Catalog Popover
+    const catalogBtn = page.locator('[data-catalog-trigger]').first();
+    if (await catalogBtn.isVisible()) {
+      await catalogBtn.click();
+      console.log('[PLAYWRIGHT] Clicked catalog trigger.');
+      await page.waitForTimeout(1500);
+
+      // Click Enviar no Chat
+      const sendBtn = page.locator('button:has-text("Enviar no Chat")').first();
+      if (await sendBtn.isVisible()) {
+        console.log('[PLAYWRIGHT] Clicking Enviar no Chat...');
+        await sendBtn.click();
+        await page.waitForTimeout(3000);
+
+        // Capture full screen showing the product card bubble in chat
+        await page.screenshot({
+          path: path.join(ARTIFACT_DIR, '08_inbox_whatsapp_product_card_sent.png'),
+          fullPage: false
+        });
+        console.log('[PLAYWRIGHT] Screenshot 08 saved successfully.');
+      }
+    }
+  } else {
+    console.log('[PLAYWRIGHT] No conversations loaded in Inbox.');
   }
 
-  // Open Popover
-  const catalogBtn = page.locator('[data-catalog-trigger]').first();
-  await catalogBtn.click();
-  await page.waitForTimeout(1000);
-
-  // Crop 2: The open catalog popover card
-  const popover = page.locator('[data-catalog-popover]').first();
-  if (await popover.count() > 0) {
-    await popover.screenshot({
-      path: path.join(ARTIFACT_DIR, '07_crop_whatsapp_catalog_popover.png')
-    });
-  }
-
-  console.log('[PLAYWRIGHT] High-res crops saved successfully.');
   await browser.close();
 }
 
