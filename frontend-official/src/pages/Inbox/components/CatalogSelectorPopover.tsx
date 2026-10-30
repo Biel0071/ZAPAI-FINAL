@@ -386,6 +386,9 @@ interface CatalogSelectorPopoverProps {
   onSendMultipleProducts?: (products: CatalogProduct[]) => Promise<void> | void;
   onInsertInComposer?: (text: string) => void;
   className?: string;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 export function CatalogSelectorPopover({
@@ -395,8 +398,19 @@ export function CatalogSelectorPopover({
   onSendMultipleProducts,
   onInsertInComposer,
   className,
+  isOpen: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
 }: CatalogSelectorPopoverProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = typeof controlledOpen === "boolean";
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (val: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(val);
+    }
+    onOpenChange?.(val);
+  };
   const [products, setProducts] = useState<CatalogProduct[]>(FALLBACK_STORE_PRODUCTS);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -542,7 +556,8 @@ export function CatalogSelectorPopover({
     }
     try {
       setSendingId(product.id);
-      await onSendProduct(product, "");
+      const formatted = formatProductMessage(product);
+      await onSendProduct(product, formatted);
       toast.success(`"${product.name}" enviado no chat!`, {
         description: "Produto do catálogo WhatsApp disparado com sucesso.",
       });
@@ -570,12 +585,14 @@ export function CatalogSelectorPopover({
         await onSendMultipleProducts(selectedProducts);
       } else if (selectedProducts.length === 1) {
         const p = selectedProducts[0];
-        await onSendProduct(p, "");
+        const formatted = formatProductMessage(p);
+        await onSendProduct(p, formatted);
         toast.success(`"${p.name}" enviado no chat!`);
       } else {
         for (let i = 0; i < selectedProducts.length; i++) {
           const p = selectedProducts[i];
-          await onSendProduct(p, "");
+          const formatted = formatProductMessage(p);
+          await onSendProduct(p, formatted);
           if (i < selectedProducts.length - 1) {
             await new Promise((r) => setTimeout(r, 400));
           }
@@ -601,6 +618,7 @@ export function CatalogSelectorPopover({
 
     try {
       setSendingId("catalog_root");
+      const formattedCatalog = `📦 *[CATÁLOGO WHATSAPP]*\n${OFFICIAL_STORE_CATALOG_URL}`;
       await onSendProduct(
         {
           id: "catalog_root",
@@ -610,7 +628,7 @@ export function CatalogSelectorPopover({
           category: "Catálogo",
           whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
         },
-        ""
+        formattedCatalog
       );
       toast.success("Catálogo oficial do WhatsApp enviado no chat!");
       setOpen(false);
@@ -669,23 +687,26 @@ export function CatalogSelectorPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        {/* Authentic WhatsApp style Catálogo button beside emojis (compact monochrome icon-only) */}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          disabled={disabled}
-          className={cn(
-            "h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none",
-            open && "text-[#e9edef] bg-[#202c33]",
-            className
-          )}
-          aria-label="Abrir catálogo WhatsApp"
-          data-catalog-trigger
-          title="Catálogo de Produtos WhatsApp"
-        >
-          <Storefront className="h-5 w-5" />
-        </Button>
+        {hideTrigger ? (
+          <span className="hidden" data-catalog-trigger aria-label="Abrir catálogo WhatsApp" />
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={disabled}
+            className={cn(
+              "h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none",
+              open && "text-[#e9edef] bg-[#202c33]",
+              className
+            )}
+            aria-label="Abrir catálogo WhatsApp"
+            data-catalog-trigger
+            title="Catálogo de Produtos WhatsApp"
+          >
+            <Storefront className="h-5 w-5" />
+          </Button>
+        )}
       </PopoverTrigger>
 
       <PopoverContent
@@ -885,6 +906,24 @@ export function CatalogSelectorPopover({
                         </div>
                       )}
                     </div>
+
+                    {/* Action button: Enviar no Chat */}
+                    <div className="shrink-0 flex items-center">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSendSingle(item);
+                        }}
+                        className="h-7 px-2 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors rounded-md flex items-center gap-1"
+                        title="Enviar no Chat"
+                      >
+                        <PaperPlaneTilt className="h-3.5 w-3.5" />
+                        <span>Enviar no Chat</span>
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
@@ -910,11 +949,11 @@ export function CatalogSelectorPopover({
               </button>
             </div>
 
-            <button
+            <Button
               type="button"
               disabled={disabled || sendingId !== null || !canSendToChat}
               onClick={handleSendSelected}
-              className="h-11 w-11 rounded-full bg-white hover:bg-gray-100 text-[#111b21] flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 shrink-0 disabled:opacity-50"
+              className="h-9 px-3.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105 active:scale-95 shrink-0 disabled:opacity-50"
               title={`Enviar produtos (${selectedIds.size})`}
               aria-label={`Enviar produtos (${selectedIds.size})`}
               data-testid="batch-send-catalog-btn"
@@ -922,10 +961,10 @@ export function CatalogSelectorPopover({
               {sendingId === "selected_batch" ? (
                 <span className="animate-spin text-sm">🌀</span>
               ) : (
-                <PaperPlaneTilt className="h-5 w-5 ml-0.5 text-black" weight="fill" />
+                <PaperPlaneTilt className="h-4 w-4" weight="fill" />
               )}
-              <span className="sr-only">Enviar produtos ({selectedIds.size})</span>
-            </button>
+              <span>Enviar produtos ({selectedIds.size})</span>
+            </Button>
           </div>
         ) : (
           <div className="px-4 py-2 bg-[#202c33] border-t border-[#2a3942] flex items-center justify-between text-[11px] text-[#8696a0]">

@@ -671,23 +671,20 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const [isCustomerOrdersOpen, setIsCustomerOrdersOpen] = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const { pinnedIds, togglePin } = usePinnedActions();
 
   const handleAttachmentAction = useCallback((actionId: string) => {
     switch (actionId) {
       case "catalogo": {
-        const catalogBtn = document.querySelector("[data-catalog-trigger]") as HTMLButtonElement | null;
-        if (catalogBtn) {
-          catalogBtn.click();
-        }
+        setIsCatalogOpen(true);
         break;
       }
       case "cobrar":
         setIsCreateOrderOpen(true);
         break;
       case "quick_replies":
-        setMessageInput((prev) => (prev.startsWith("/") ? prev : `/${prev}`));
-        messageInputRef.current?.focus();
+        setIsQuickReplyModalOpen(true);
         break;
       case "pix": {
         const pixMsg = `💳 *CHAVE PIX PARA PAGAMENTO*\n━━━━━━━━━━━━━━━━━━━━━━\nDepósito Vista Alegre\nChave CNPJ / Celular: 3193672075\nFavorecido: Depósito Vista Alegre Materiais\n━━━━━━━━━━━━━━━━━━━━━━\n_Por favor, envie o comprovante após a transferência._`;
@@ -1893,6 +1890,15 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       </div>
                     )}
 
+                    {/* 1. Menu de Anexo WhatsApp Web (📎 Paperclip) — À esquerda como WhatsApp Web */}
+                    <AttachmentActionMenu
+                      disabled={!selectedConversation || !canSendMessages}
+                      onAction={handleAttachmentAction}
+                      pinnedIds={pinnedIds}
+                      onTogglePin={togglePin}
+                    />
+
+                    {/* 2. Emojis (😀 Smiley) */}
                     <PopoverTrigger asChild>
                     <Button
                       type="button"
@@ -1908,30 +1914,50 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                     </Button>
                     </PopoverTrigger>
 
-                    {/* Botões de Ação Fixados (PIN / HIDE no Rodapé) */}
-                    {pinnedIds.includes("catalogo") && (
-                      <div
-                        className="relative"
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          togglePin("catalogo");
+                    {/* 3. Catálogo WhatsApp Popover (Controlado pelo isCatalogOpen, abre tanto pelo PIN quanto pelo Menu de Anexo) */}
+                    <div
+                      className={cn("relative", !pinnedIds.includes("catalogo") && "hidden")}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        togglePin("catalogo");
+                      }}
+                    >
+                      <CatalogSelectorPopover
+                        disabled={false}
+                        canSendToChat={Boolean(selectedConversation && canSendMessages)}
+                        isOpen={isCatalogOpen}
+                        onOpenChange={setIsCatalogOpen}
+                        hideTrigger={!pinnedIds.includes("catalogo")}
+                        onSendProduct={handleSendProductMessage}
+                        onSendMultipleProducts={handleSendMultipleProducts}
+                        onInsertInComposer={(text) => {
+                          setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
+                          if (messageInputRef.current) {
+                            messageInputRef.current.focus();
+                          }
                         }}
-                      >
-                        <CatalogSelectorPopover
-                          disabled={false}
-                          canSendToChat={Boolean(selectedConversation && canSendMessages)}
-                          onSendProduct={handleSendProductMessage}
-                          onSendMultipleProducts={handleSendMultipleProducts}
-                          onInsertInComposer={(text) => {
-                            setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
-                            if (messageInputRef.current) {
-                              messageInputRef.current.focus();
-                            }
-                          }}
-                        />
-                      </div>
+                      />
+                    </div>
+
+                    {!pinnedIds.includes("catalogo") && (
+                      <CatalogSelectorPopover
+                        disabled={false}
+                        canSendToChat={Boolean(selectedConversation && canSendMessages)}
+                        isOpen={isCatalogOpen}
+                        onOpenChange={setIsCatalogOpen}
+                        hideTrigger={true}
+                        onSendProduct={handleSendProductMessage}
+                        onSendMultipleProducts={handleSendMultipleProducts}
+                        onInsertInComposer={(text) => {
+                          setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
+                          if (messageInputRef.current) {
+                            messageInputRef.current.focus();
+                          }
+                        }}
+                      />
                     )}
 
+                    {/* 4. Botões de Ação Fixados (PIN / HIDE no Rodapé ao lado do Emoji e Catálogo) */}
                     {ACTION_MENU_ITEMS.filter((it) => it.id !== "catalogo" && pinnedIds.includes(it.id)).map((item) => {
                       const Icon = item.icon;
                       return (
@@ -1940,7 +1966,9 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none"
+                          className={cn(
+                            "h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none"
+                          )}
                           aria-label={item.label}
                           title={`${item.label} — Clique com botão direito para ocultar / desafixar`}
                           onClick={() => handleAttachmentAction(item.id)}
@@ -1954,14 +1982,6 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         </Button>
                       );
                     })}
-
-                    {/* Menu de Anexo WhatsApp Web (com opções e PIN / HIDE) */}
-                    <AttachmentActionMenu
-                      disabled={!selectedConversation || !canSendMessages}
-                      onAction={handleAttachmentAction}
-                      pinnedIds={pinnedIds}
-                      onTogglePin={togglePin}
-                    />
 
                     <Button
                       type="button"

@@ -1384,6 +1384,17 @@ async function createStableSession({
       });
       session.hasEmittedQr = false;
       session.phone = sessionPhoneFromSock(sock);
+
+      // Register session with ZAI Communication Engine / Orchestrator
+      try {
+        const { orchestrator } = require('../../orchestrator');
+        orchestrator.registerConnection(normalizedSessionName, sock, {
+          phone: session.phone,
+          companyId: session.companyId || 'default',
+        });
+      } catch (orchErr) {
+        console.warn('[ORCHESTRATOR-INTEGRATION] Failed to register connection:', orchErr.message);
+      }
       session.qrCode = null;
       session.lastError = null;
       session.reconnecting = false;
