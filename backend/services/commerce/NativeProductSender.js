@@ -11,7 +11,12 @@ class NativeProductSender {
    */
   async send(sock, { phone, remoteJid, productId, product, companyId = 'default', conversationId, caption, options = {} }) {
     if (!sock) throw new Error('WhatsApp socket is not connected or initialized.');
-    const targetJid = remoteJid || (phone ? (phone.includes('@') ? phone : `${phone.replace(/\D/g, '')}@s.whatsapp.net`) : null);
+    let targetJid = remoteJid;
+    if (!targetJid && phone) {
+      if (phone.includes('@')) targetJid = phone;
+      else if (phone.length >= 14) targetJid = `${phone}@lid`;
+      else targetJid = `${phone.replace(/\D/g, '')}@s.whatsapp.net`;
+    }
     if (!targetJid) throw new Error('Recipient JID or phone is required.');
 
     let resolvedProduct = product;
@@ -50,8 +55,10 @@ class NativeProductSender {
           timestamp: new Date().toISOString(),
           createdAt: new Date().toISOString(),
           sender: 'human',
-          direction: 'outbound',
+          direction: 'outgoing',
           whatsappMessageId,
+          remoteJid: targetJid,
+          type: 'product',
         });
 
         // Broadcast to Inbox via socket.io if available

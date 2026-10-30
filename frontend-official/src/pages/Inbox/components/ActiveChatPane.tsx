@@ -29,6 +29,12 @@ import {
   WhatsappLogo,
   ArrowsClockwise,
   Megaphone,
+  Receipt,
+  Lightning,
+  QrCode,
+  PushPin,
+  FileText,
+  Image as ImageIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -59,6 +65,8 @@ import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
 import { QuickCampaignDispatchModal } from "@/components/campaigns/QuickCampaignDispatchModal";
 import { OrderSheetModal } from "./OrderSheetModal";
+import { CreateOrderModal } from "./CreateOrderModal";
+import { AttachmentActionMenu, usePinnedActions } from "./AttachmentActionMenu";
 import { CustomerOrdersDrawer } from "./CustomerOrdersDrawer";
 import { CatalogSelectorPopover, formatProductMessage, type CatalogProduct } from "./CatalogSelectorPopover";
 import { ProductDetailDrawer, type CartItem } from "./ProductDetailDrawer";
@@ -583,10 +591,21 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const handleSendProductMessage = async (product: any, formattedMessage?: string) => {
     if (!selectedConversation) return;
 
+    if (product.id === 'catalog_root') {
+      try {
+        await handleSendMessage(formattedMessage || `https://wa.me/c/553193672075`);
+        toast.success('Catálogo enviado no chat!');
+      } catch (e: any) {
+        toast.error('Erro ao enviar catálogo');
+      }
+      return;
+    }
+
     // 1. Direct native WhatsApp commerce dispatch (productMessage via Baileys)
     try {
       const res = await apiService.sendNativeCommerceProduct({
         phone: selectedConversation.phone,
+        remoteJid: (selectedConversation as any).remoteJid || (selectedConversation.phone.includes('@') ? selectedConversation.phone : undefined),
         productId: product.id || product.productId,
         product: {
           id: product.id || product.productId,
@@ -606,77 +625,16 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       });
 
       if (res?.success) {
-        toast.success(`"${product.name || 'Produto'}" enviado no chat!`);
+        toast.success(`"${product.name || 'Produto'}" enviado como produto oficial no WhatsApp!`);
         return;
+      } else {
+        throw new Error(res?.error || 'Erro ao processar produto');
       }
     } catch (commerceErr: any) {
-      console.warn('[handleSendProductMessage] Direct native commerce dispatch failed, trying media fallback:', commerceErr?.message);
-    }
-
-    // 2. High-fidelity rich media send fallback
-    const imageUrl = Array.isArray(product?.images) && product.images.length > 0 ? product.images[0] : null;
-
-    if (imageUrl) {
-      try {
-        let base64data: string | null = null;
-        let mimeType = 'image/png';
-        const cleanCode = (product.code || product.name || 'produto').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-        const ext = imageUrl.split('.').pop()?.toLowerCase() || 'png';
-        const fileName = `${cleanCode}.${ext}`;
-        mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : (ext === 'webp' ? 'image/webp' : 'image/png');
-
-        if (imageUrl.startsWith('data:')) {
-          base64data = imageUrl.includes(',') ? imageUrl.split(',')[1] : imageUrl;
-        } else {
-          try {
-            const fetchUrl = imageUrl.startsWith('http') ? imageUrl : `${window.location.origin}${imageUrl}`;
-            const response = await fetch(fetchUrl);
-            if (response.ok) {
-              const blob = await response.blob();
-              base64data = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  const res = reader.result as string;
-                  resolve(res.includes(',') ? res.split(',')[1] : res);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
-            }
-          } catch (fetchErr) {
-            console.warn('[handleSendProductMessage] client fetch failed, relying on server mediaPath:', fetchErr);
-          }
-        }
-
-        const res = await apiService.sendMediaMessage({
-          phone: selectedConversation.phone,
-          fileName,
-          mimeType,
-          mediaType: 'product',
-          mediaPath: imageUrl,
-          dataBase64: base64data || undefined,
-          caption: formattedMessage,
-          title: product.name || product.title,
-          price: product.price,
-          productId: product.id || product.productId,
-          description: product.description,
-          conversationId: selectedConversation.id,
-          contactId: selectedConversation.contactId,
-          sessionId: selectedConversation.sessionId || undefined,
-          requestId: `inbox-product-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-        });
-
-        if (res?.success) {
-          return;
-        }
-      } catch (err) {
-        console.warn('[handleSendProductMessage] Rich media send failed, falling back to text:', err);
-      }
-    }
-
-    // 3. Fallback to text message if no image or error
-    if (formattedMessage) {
-      await handleSendMessage(formattedMessage);
+      console.error('[handleSendProductMessage] Direct native commerce dispatch failed:', commerceErr);
+      toast.error('Erro ao enviar produto comercial', {
+        description: commerceErr?.message || 'Verifique a conexão do WhatsApp.',
+      });
     }
   };
 
@@ -703,6 +661,80 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCustomerOrdersOpen, setIsCustomerOrdersOpen] = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+  const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
+  const { pinnedIds, togglePin } = usePinnedActions();
+
+  const handleAttachmentAction = useCallback((actionId: string) => {
+    switch (actionId) {
+      case "catalogo": {
+        const catalogBtn = document.querySelector("[data-catalog-trigger]") as HTMLButtonElement | null;
+        if (catalogBtn) {
+          catalogBtn.click();
+        }
+        break;
+      }
+      case "cobrar":
+        setIsCreateOrderOpen(true);
+        break;
+      case "quick_replies":
+        setMessageInput((prev) => (prev.startsWith("/") ? prev : `/${prev}`));
+        messageInputRef.current?.focus();
+        break;
+      case "pix": {
+        const pixMsg = `💳 *CHAVE PIX PARA PAGAMENTO*\n━━━━━━━━━━━━━━━━━━━━━━\nDepósito Vista Alegre\nChave CNPJ / Celular: 3193672075\nFavorecido: Depósito Vista Alegre Materiais\n━━━━━━━━━━━━━━━━━━━━━━\n_Por favor, envie o comprovante após a transferência._`;
+        setMessageInput((prev) => (prev ? `${prev}\n\n${pixMsg}` : pixMsg));
+        messageInputRef.current?.focus();
+        break;
+      }
+      case "documento":
+        if (fileInputRef.current) {
+          fileInputRef.current.accept = ".pdf,.doc,.docx,.xls,.xlsx,.txt";
+          fileInputRef.current.click();
+        }
+        break;
+      case "fotos_videos":
+        if (fileInputRef.current) {
+          fileInputRef.current.accept = "image/*,video/*";
+          fileInputRef.current.click();
+        }
+        break;
+      case "audio":
+        if (fileInputRef.current) {
+          fileInputRef.current.accept = "audio/*";
+          fileInputRef.current.click();
+        }
+        break;
+      case "camera":
+        if (fileInputRef.current) {
+          fileInputRef.current.accept = "image/*";
+          fileInputRef.current.capture = "environment";
+          fileInputRef.current.click();
+        }
+        break;
+      case "contato": {
+        const contactCard = `👤 *CONTATO COMERCIAL*\n━━━━━━━━━━━━━━━━━━━━━━\nDepósito Vista Alegre\nWhatsApp: (31) 9367-2075\nAtendimento e Entregas em toda Grande BH`;
+        setMessageInput((prev) => (prev ? `${prev}\n\n${contactCard}` : contactCard));
+        messageInputRef.current?.focus();
+        break;
+      }
+      case "enquete":
+        setMessageInput((prev) => (prev ? `${prev}\n\n📊 *Enquete:* ` : `📊 *Enquete:* `));
+        messageInputRef.current?.focus();
+        break;
+      case "evento":
+        setMessageInput((prev) => (prev ? `${prev}\n\n📅 *Agendamento:* ` : `📅 *Agendamento:* `));
+        messageInputRef.current?.focus();
+        break;
+      case "nova_figurinha":
+        if (fileInputRef.current) {
+          fileInputRef.current.accept = "image/png,image/webp,image/jpeg";
+          fileInputRef.current.click();
+        }
+        break;
+      default:
+        break;
+    }
+  }, []);
 
   useEffect(() => {
     if (!selectedConversation?.id) return;
@@ -1867,18 +1899,131 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                     </Button>
                     </PopoverTrigger>
 
-                    {/* Catálogo de Produtos WhatsApp (ao lado de emojis) */}
-                    <CatalogSelectorPopover
-                      disabled={false}
-                      canSendToChat={Boolean(selectedConversation && canSendMessages)}
-                      onSendProduct={handleSendProductMessage}
-                      onSendMultipleProducts={handleSendMultipleProducts}
-                      onInsertInComposer={(text) => {
-                        setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
-                        if (messageInputRef.current) {
-                          messageInputRef.current.focus();
-                        }
-                      }}
+                    {/* Botões de Ação Fixados (PIN / HIDE no Rodapé) */}
+                    {pinnedIds.includes("catalogo") && (
+                      <div
+                        className="relative"
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          togglePin("catalogo");
+                        }}
+                      >
+                        <CatalogSelectorPopover
+                          disabled={false}
+                          canSendToChat={Boolean(selectedConversation && canSendMessages)}
+                          onSendProduct={handleSendProductMessage}
+                          onSendMultipleProducts={handleSendMultipleProducts}
+                          onInsertInComposer={(text) => {
+                            setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
+                            if (messageInputRef.current) {
+                              messageInputRef.current.focus();
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {pinnedIds.includes("cobrar") && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
+                        aria-label="Cobrar / Criar Pedido (Clique direito para ocultar)"
+                        title="Cobrar / Criar Pedido (Catálogo WhatsApp) — Clique direito para ocultar"
+                        onClick={() => setIsCreateOrderOpen(true)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          togglePin("cobrar");
+                        }}
+                        disabled={!selectedConversation || !canSendMessages}
+                      >
+                        <Receipt className="h-5 w-5" />
+                      </Button>
+                    )}
+
+                    {pinnedIds.includes("quick_replies") && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
+                        aria-label="Respostas Rápidas"
+                        title="Respostas Rápidas (/) — Clique direito para ocultar"
+                        onClick={() => handleAttachmentAction("quick_replies")}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          togglePin("quick_replies");
+                        }}
+                        disabled={!selectedConversation || !canSendMessages}
+                      >
+                        <Lightning className="h-5 w-5" />
+                      </Button>
+                    )}
+
+                    {pinnedIds.includes("pix") && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
+                        aria-label="Cobrar via Pix"
+                        title="Cobrar via Pix — Clique direito para ocultar"
+                        onClick={() => handleAttachmentAction("pix")}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          togglePin("pix");
+                        }}
+                        disabled={!selectedConversation || !canSendMessages}
+                      >
+                        <QrCode className="h-5 w-5" />
+                      </Button>
+                    )}
+
+                    {pinnedIds.includes("documento") && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
+                        aria-label="Anexar Documento"
+                        title="Anexar Documento — Clique direito para ocultar"
+                        onClick={() => handleAttachmentAction("documento")}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          togglePin("documento");
+                        }}
+                        disabled={!selectedConversation || !canSendMessages}
+                      >
+                        <FileText className="h-5 w-5" />
+                      </Button>
+                    )}
+
+                    {pinnedIds.includes("fotos_videos") && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
+                        aria-label="Fotos e Vídeos"
+                        title="Fotos e Vídeos — Clique direito para ocultar"
+                        onClick={() => handleAttachmentAction("fotos_videos")}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          togglePin("fotos_videos");
+                        }}
+                        disabled={!selectedConversation || !canSendMessages}
+                      >
+                        <ImageIcon className="h-5 w-5" />
+                      </Button>
+                    )}
+
+                    {/* Menu de Anexo WhatsApp Web (com opções e PIN / HIDE) */}
+                    <AttachmentActionMenu
+                      disabled={!selectedConversation || !canSendMessages}
+                      onAction={handleAttachmentAction}
+                      pinnedIds={pinnedIds}
+                      onTogglePin={togglePin}
                     />
 
                     <Button
@@ -1897,18 +2042,6 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       <Sparkle className="h-5 w-5" />
                     </Button>
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
-                      onClick={() => fileInputRef.current?.click()}
-                      aria-label="Anexar mídia"
-                      title="Anexar mídia"
-                      disabled={!selectedConversation || !canSendMessages}
-                    >
-                      <Paperclip className="h-5 w-5" />
-                    </Button>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -2227,6 +2360,21 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           customerName={selectedConversation.contactName || selectedConversation.name}
           onOrderConfirmed={() => {
             setPendingOrdersCount((prev) => Math.max(0, prev - 1));
+          }}
+        />
+      )}
+
+      {/* WhatsApp Native Commerce Order Creator ("Cobrar / Criar Pedido") */}
+      {selectedConversation && (
+        <CreateOrderModal
+          isOpen={isCreateOrderOpen}
+          onClose={() => setIsCreateOrderOpen(false)}
+          conversationId={selectedConversation.id}
+          customerPhone={selectedConversation.phone}
+          customerName={selectedConversation.contactName || selectedConversation.name}
+          sessionId={selectedConversation.sessionId || "main"}
+          onOrderCreated={() => {
+            setPendingOrdersCount((prev) => prev + 1);
           }}
         />
       )}

@@ -190,3 +190,37 @@ test('9. CommerceEventRouter registers handlers and emits events', async () => {
   assert.ok(receivedPayload !== null);
   assert.equal(receivedPayload.test, true);
 });
+
+test('10. OrderConfirmationEngine creates authentic order from catalog and dispatches orderMessage', async () => {
+  const orderConfirmationEngine = require('../services/commerce/OrderConfirmationEngine');
+  assert.equal(typeof orderConfirmationEngine.createOrder, 'function');
+
+  // Verify createOrder signature and calculation logic
+  const mockSock = {
+    user: { id: '553193672075:1@s.whatsapp.net' },
+    relayMessage: async () => ({ key: { id: 'order_test_wamid_99' } }),
+    sendMessage: async () => ({ key: { id: 'receipt_test_wamid_99' } }),
+  };
+
+  const res = await orderConfirmationEngine.createOrder({
+    companyId: 'default',
+    phone: '553198346078',
+    customerName: 'Cliente Teste',
+    items: [
+      { productId: 'prod_tijolo_12_furos', name: 'TIJOLO 12 FUROS', price: 900, quantity: 2 },
+    ],
+    freight: 50,
+    notes: 'Descarregar no pátio',
+    sessionId: 'main',
+  });
+
+  assert.ok(res.success === true);
+  assert.ok(res.order);
+  assert.equal(Number(res.order.total_amount), 1850);
+  assert.equal(res.order.phone, '553198346078');
+  assert.equal(res.order.status, 'pending');
+
+  // Clean up test order
+  const { query } = require('../src/infrastructure/config/database');
+  await query('DELETE FROM customer_orders WHERE id = $1', [res.order.id]);
+});

@@ -2703,6 +2703,30 @@ export const apiService = {
       body: { reason, sessionId },
     });
   },
+  async createCommerceOrder(payload: {
+    conversationId?: string;
+    phone?: string;
+    customerName?: string;
+    items: Array<{
+      productId?: string;
+      id?: string;
+      name?: string;
+      title?: string;
+      price: number;
+      quantity: number;
+      image?: string;
+    }>;
+    freight?: number;
+    discount?: number;
+    notes?: string;
+    sessionId?: string;
+  }) {
+    return request<{ success: boolean; order?: any; whatsappResult?: any; error?: string }>({
+      endpoint: "/api/commerce/orders/create",
+      method: "POST",
+      body: payload,
+    });
+  },
   async sendNativeCommerceProduct(payload: {
     phone?: string;
     remoteJid?: string;

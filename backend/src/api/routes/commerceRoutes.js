@@ -16,6 +16,7 @@ router.post('/send-product', (req, res) => commerceController.sendProduct(req, r
 
 // Order management routes
 router.get('/orders', (req, res) => commerceController.listOrders(req, res));
+router.post('/orders/create', (req, res) => commerceController.createOrder(req, res));
 router.get('/orders/:id', (req, res) => commerceController.getOrder(req, res));
 router.post('/orders/:id/confirm', (req, res) => commerceController.confirmOrder(req, res));
 router.post('/orders/:id/reject', (req, res) => commerceController.rejectOrder(req, res));

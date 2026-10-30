@@ -47,6 +47,8 @@ class BaileysCommerceAdapter extends WhatsAppCommerceAdapter {
         path.resolve(process.cwd(), '..', src.replace(/^\/+/, '')),
         path.join('/www/zapai', src.replace(/^\/+/, '')),
         path.join('/opt/zapai/backend', src.replace(/^\/+/, '')),
+        path.join('/opt/zapai/backend/assets', src.replace(/^\/?assets\/?/, '')),
+        path.join('/opt/zapai/backend/assets/catalog', src.replace(/^.*[\/\\]/, '')),
         path.join('c:/projetos/ZAPAI-FINAL', src.replace(/^\/+/, '')),
         path.join('c:/projetos/ZAPAI-FINAL/backend', src.replace(/^\/+/, '')),
       ];
@@ -160,6 +162,86 @@ class BaileysCommerceAdapter extends WhatsAppCommerceAdapter {
       console.error(`[COMMERCE-ADAPTER] Failed to fetch order details via IQ for order #${orderId}:`, err.message);
       return null;
     }
+  }
+
+  /**
+   * Send authentic native WhatsApp order created from catalog
+   */
+  async sendOrder(sock, targetJid, orderData, options = {}) {
+    if (!sock) throw new Error('WhatsApp socket is not available.');
+    if (!targetJid) throw new Error('Target JID is required.');
+
+    const { phone: bizPhone, jid: bizJid } = this.resolveBusinessOwnerJid(sock, options);
+    const { proto, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
+
+    const orderId = String(orderData.orderId || `ORD_${Date.now().toString().slice(-6)}`);
+    const orderTitle = String(orderData.orderTitle || `Pedido #${orderId} - Depósito Vista Alegre`);
+    const items = Array.isArray(orderData.items) ? orderData.items : [];
+    const totalAmount = Number(orderData.totalAmount || 0);
+    const totalAmount1000 = Math.round(totalAmount * 1000);
+    const notes = orderData.notes || '';
+    const subtotal = Number(orderData.subtotal || totalAmount);
+    const freight = Number(orderData.freight || 0);
+    const discount = Number(orderData.discount || 0);
+
+    // 1. Dispatch native orderMessage protobuf
+    let orderMsgKey = null;
+    try {
+      const orderContent = {
+        orderMessage: {
+          orderId,
+          orderTitle,
+          itemCount: items.length,
+          status: proto?.Message?.OrderMessage?.OrderStatus?.INQUIRY || 1,
+          surface: proto?.Message?.OrderMessage?.OrderSurface?.CATALOG || 1,
+          message: notes || 'Pedido criado a partir do catálogo',
+          totalAmount1000,
+          totalCurrencyCode: 'BRL',
+          sellerJid: bizJid,
+          token: `tok_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        },
+      };
+
+      const msg = generateWAMessageFromContent(targetJid, orderContent, { userJid: bizJid });
+      await sock.relayMessage(targetJid, msg.message, { messageId: msg.key.id });
+      orderMsgKey = msg.key;
+      console.log(`[COMMERCE-ADAPTER] Successfully dispatched native orderMessage: orderId=${orderId} to ${targetJid}`);
+    } catch (orderErr) {
+      console.warn('[COMMERCE-ADAPTER] relayMessage orderMessage fallback:', orderErr.message);
+    }
+
+    // 2. Dispatch official itemized receipt
+    const itemsList = items.map((it) => {
+      const p = Number(it.price || 0);
+      const q = Number(it.quantity || 1);
+      return `• *${it.name || it.title}* (${q}x) — R$ ${(p * q).toFixed(2)}`;
+    }).join('\n');
+
+    const receiptLines = [
+      `🛒 *PEDIDO GERADO — #${orderId}*`,
+      `━━━━━━━━━━━━━━━━━━━━━━`,
+      `Olá! Seu pedido foi montado a partir do nosso catálogo:`,
+      ``,
+      itemsList,
+      ``,
+      `💰 *Subtotal:* R$ ${subtotal.toFixed(2)}`,
+      freight > 0 ? `🚚 *Frete / Entrega:* R$ ${freight.toFixed(2)}` : `🚚 *Frete:* A combinar / Grátis`,
+      discount > 0 ? `🏷️ *Desconto:* -R$ ${discount.toFixed(2)}` : null,
+      `💵 *TOTAL DO PEDIDO:* R$ ${totalAmount.toFixed(2)}`,
+      notes ? `📝 *Observações:* ${notes}` : null,
+      ``,
+      `💳 *Formas de Pagamento:* PIX, Cartão ou Boleto`,
+      `━━━━━━━━━━━━━━━━━━━━━━`,
+      `*Depósito Vista Alegre* — Agradecemos a preferência!`,
+    ].filter(Boolean).join('\n');
+
+    const receiptMsg = await sock.sendMessage(targetJid, { text: receiptLines });
+
+    return {
+      key: orderMsgKey || receiptMsg?.key,
+      orderId,
+      totalAmount,
+    };
   }
 
   /**

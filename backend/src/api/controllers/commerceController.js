@@ -53,7 +53,10 @@ class CommerceController {
       const { phone, remoteJid, productId, productIds, caption, conversationId, sessionId = 'main' } = req.body;
       const companyId = req.user?.companyId || req.body?.companyId || 'default';
 
-      const session = sessionManager.getSession(sessionId);
+      const session = sessionManager.getSession(sessionId)
+        || (sessionManager.getConnectedSessionOrNull ? sessionManager.getConnectedSessionOrNull() : null)
+        || sessionManager.getSession('main')
+        || sessionManager.getSession('default');
       if (!session || !session.sock) {
         return res.status(409).json({ success: false, error: 'WhatsApp session is not connected.' });
       }
@@ -117,6 +120,43 @@ class CommerceController {
       }
       return res.status(200).json({ success: true, order });
     } catch (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
+   * POST /api/commerce/orders/create
+   */
+  async createOrder(req, res) {
+    try {
+      const companyId = req.user?.companyId || req.body?.companyId || 'default';
+      const {
+        phone,
+        remoteJid,
+        conversationId,
+        items,
+        freight,
+        discount,
+        notes,
+        customerName,
+        sessionId = 'main',
+      } = req.body || {};
+
+      const result = await orderConfirmationEngine.createOrder({
+        companyId,
+        conversationId,
+        phone: phone || remoteJid,
+        customerName,
+        items,
+        freight,
+        discount,
+        notes,
+        sessionId,
+      });
+
+      return res.status(201).json(result);
+    } catch (err) {
+      console.error('[COMMERCE-CONTROLLER] createOrder failed:', err);
       return res.status(500).json({ success: false, error: err.message });
     }
   }

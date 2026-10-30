@@ -843,7 +843,7 @@ export function CatalogSelectorPopover({
                     data-catalog-product-row={item.id}
                     onClick={() => toggleSelect(item.id)}
                     className={cn(
-                      "p-2.5 rounded-xl border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer group select-none",
+                      "p-2.5 rounded-xl border transition-all duration-150 flex items-center gap-3 cursor-pointer group select-none",
                       isSelected
                         ? "bg-[#202c33] border-emerald-500/50 shadow-xs"
                         : "bg-[#111b21] hover:bg-[#202c33]/70 border-[#2a3942]/50 hover:border-[#2a3942]"
@@ -864,7 +864,7 @@ export function CatalogSelectorPopover({
 
                     {/* Thumbnail Image */}
                     {item.images && item.images.length > 0 && item.images[0] ? (
-                      <div className="w-14 h-14 rounded-lg overflow-hidden bg-[#202c33] border border-[#2a3942] shrink-0 relative flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-[#202c33] border border-[#2a3942] shrink-0 relative flex items-center justify-center">
                         <img
                           src={item.images[0]}
                           alt={item.name}
@@ -875,8 +875,8 @@ export function CatalogSelectorPopover({
                         />
                       </div>
                     ) : (
-                      <div className="w-14 h-14 rounded-lg bg-[#202c33] border border-[#2a3942] flex items-center justify-center text-muted-foreground shrink-0">
-                        <Package className="h-6 w-6 opacity-40" />
+                      <div className="w-12 h-12 rounded-lg bg-[#202c33] border border-[#2a3942] flex items-center justify-center text-muted-foreground shrink-0">
+                        <Package className="h-5 w-5 opacity-40" />
                       </div>
                     )}
 
@@ -894,37 +894,6 @@ export function CatalogSelectorPopover({
                         </div>
                       )}
                     </div>
-
-                    {/* Right: Quick send actions */}
-                    <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      {onInsertInComposer && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleInsertText(item)}
-                          className="h-7 w-7 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#2a3942]"
-                          title="Copiar texto para o campo de mensagem"
-                        >
-                          <TextT className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-
-                      <Button
-                        type="button"
-                        size="icon"
-                        disabled={disabled || isSending || !canSendToChat}
-                        title={!canSendToChat ? "Selecione uma conversa ativa" : "Enviar produto no WhatsApp"}
-                        onClick={() => handleSendSingle(item)}
-                        className="h-8 w-8 text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-all flex items-center justify-center shrink-0 shadow-sm"
-                      >
-                        {isSending ? (
-                          <span className="animate-spin text-xs">🌀</span>
-                        ) : (
-                          <PaperPlaneTilt className="h-4 w-4" weight="fill" />
-                        )}
-                      </Button>
-                    </div>
                   </div>
                 );
               })}
@@ -932,7 +901,7 @@ export function CatalogSelectorPopover({
           )}
         </ScrollArea>
 
-        {/* Sticky bottom bar when products are checked OR footer info */}
+        {/* Sticky bottom bar when products are checked OR footer info - Identical to WhatsApp Web (Image 7) */}
         {selectedIds.size > 0 ? (
           <div className="px-4 py-3 bg-[#202c33] border-t border-[#2a3942] flex items-center justify-between gap-3 animate-in fade-in duration-200">
             <div className="min-w-0 flex-1">
@@ -954,7 +923,7 @@ export function CatalogSelectorPopover({
               type="button"
               disabled={disabled || sendingId !== null || !canSendToChat}
               onClick={handleSendSelected}
-              className="h-10 w-10 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 shrink-0 disabled:opacity-50"
+              className="h-11 w-11 rounded-full bg-white hover:bg-gray-100 text-[#111b21] flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 shrink-0 disabled:opacity-50"
               title={`Enviar produtos (${selectedIds.size})`}
               aria-label={`Enviar produtos (${selectedIds.size})`}
               data-testid="batch-send-catalog-btn"
@@ -962,7 +931,7 @@ export function CatalogSelectorPopover({
               {sendingId === "selected_batch" ? (
                 <span className="animate-spin text-sm">🌀</span>
               ) : (
-                <PaperPlaneTilt className="h-5 w-5 ml-0.5" weight="fill" />
+                <PaperPlaneTilt className="h-5 w-5 ml-0.5 text-black" weight="fill" />
               )}
               <span className="sr-only">Enviar produtos ({selectedIds.size})</span>
             </button>
