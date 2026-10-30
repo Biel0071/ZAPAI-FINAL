@@ -5,6 +5,7 @@ const nativeProductSender = require('../../../services/commerce/NativeProductSen
 const orderConfirmationEngine = require('../../../services/commerce/OrderConfirmationEngine');
 const commerceCapabilityRegistry = require('../../../services/commerce/CommerceCapabilityRegistry');
 const sessionManager = require('../../../services/sessionManager');
+const { orchestrator } = require('../../../services/orchestrator');
 
 class CommerceController {
   /**
@@ -52,6 +53,42 @@ class CommerceController {
     try {
       const { phone, remoteJid, productId, productIds, caption, conversationId, sessionId = 'main' } = req.body;
       const companyId = req.user?.companyId || req.body?.companyId || 'default';
+
+      if (orchestrator.isEnabled) {
+        if (Array.isArray(productIds) && productIds.length > 0) {
+          const results = [];
+          for (const prodId of productIds) {
+            const result = await orchestrator.execute('SEND_PRODUCT', {
+              phone,
+              remoteJid,
+              productId: prodId,
+              caption,
+            }, {
+              companyId,
+              conversationId,
+              sessionId,
+            });
+            results.push(result.data || result);
+            if (productIds.length > 1) {
+              await new Promise(r => setTimeout(r, 600));
+            }
+          }
+          return res.status(200).json({ success: true, results });
+        }
+
+        const result = await orchestrator.execute('SEND_PRODUCT', {
+          phone,
+          remoteJid,
+          productId,
+          product: req.body.product,
+          caption,
+        }, {
+          companyId,
+          conversationId,
+          sessionId,
+        });
+        return res.status(200).json(result.data || result);
+      }
 
       const session = sessionManager.getSession(sessionId)
         || (sessionManager.getConnectedSessionOrNull ? sessionManager.getConnectedSessionOrNull() : null)
@@ -141,6 +178,21 @@ class CommerceController {
         customerName,
         sessionId = 'main',
       } = req.body || {};
+
+      if (orchestrator.isEnabled) {
+        const result = await orchestrator.commerceEngine.createOrder({
+          companyId,
+          conversationId,
+          phone: phone || remoteJid,
+          customerName,
+          items,
+          freight,
+          discount,
+          notes,
+          sessionId,
+        });
+        return res.status(201).json(result);
+      }
 
       const result = await orderConfirmationEngine.createOrder({
         companyId,

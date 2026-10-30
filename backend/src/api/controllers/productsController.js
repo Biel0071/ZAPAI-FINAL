@@ -373,7 +373,7 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
           console.log('[ProductsController] Calling activeSock.getCatalog with options:', JSON.stringify(options));
           const queryPromise = activeSock.getCatalog(options);
           const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('getCatalog timeout after 2.5s')), 2500)
+            setTimeout(() => reject(new Error('getCatalog timeout after 12s')), 12000)
           );
           return await Promise.race([queryPromise, timeoutPromise]);
         } catch (err) {
@@ -429,7 +429,7 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
               }
             ]
           };
-          const rawRes = await activeSock.query(queryNode, 3000);
+          const rawRes = await activeSock.query(queryNode, 12000);
           console.log('[ProductsController] Raw IQ response received!');
           if (rawRes) {
             catalogResult = parseCatalogNode(rawRes);

@@ -121,7 +121,7 @@ export const ACTION_MENU_ITEMS: ActionMenuItem[] = [
 ];
 
 const STORAGE_KEY = "zapai_inbox_pinned_actions";
-const DEFAULT_PINNED = ["catalogo", "cobrar", "quick_replies"];
+const DEFAULT_PINNED = ["catalogo", "cobrar", "quick_replies", "pix"];
 
 interface AttachmentActionMenuProps {
   disabled?: boolean;
@@ -137,7 +137,7 @@ export function usePinnedActions() {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch (_) {}
     return DEFAULT_PINNED;

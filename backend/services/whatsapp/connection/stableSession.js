@@ -1482,6 +1482,16 @@ async function createStableSession({
         console.log(`[WHATSAPP] Connected: ${normalizedSessionName}, phone: ${session.phone}, zapName: ${resolvedWhatsAppName}`);
       }
 
+      try {
+        const { orchestrator } = require('../../orchestrator');
+        orchestrator.registerConnection(normalizedSessionName, sock, {
+          phone: session.phone,
+          companyId: session.companyId || 'default',
+        });
+      } catch (orchErr) {
+        console.warn('[ORCHESTRATOR] Failed to register Baileys connection:', orchErr.message);
+      }
+
       (io || global.io)?.emit('session_connected', {
         eventAt: Date.now(),
         name: session.sessionName,
@@ -1613,6 +1623,10 @@ async function createStableSession({
 
     if (connection === 'close') {
       session.status = 'disconnected';
+      try {
+        const { orchestrator } = require('../../orchestrator');
+        orchestrator.handleDisconnection(normalizedSessionName, lastDisconnectReason || 'closed');
+      } catch (_) {}
       await require('../../sessionManager').pauseSessionAutomations(session);
       try {
         const companyId = session.companyId || process.env.DEFAULT_COMPANY_ID || 'default';

@@ -66,7 +66,7 @@ import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal
 import { QuickCampaignDispatchModal } from "@/components/campaigns/QuickCampaignDispatchModal";
 import { OrderSheetModal } from "./OrderSheetModal";
 import { CreateOrderModal } from "./CreateOrderModal";
-import { AttachmentActionMenu, usePinnedActions } from "./AttachmentActionMenu";
+import { AttachmentActionMenu, usePinnedActions, ACTION_MENU_ITEMS } from "./AttachmentActionMenu";
 import { CustomerOrdersDrawer } from "./CustomerOrdersDrawer";
 import { CatalogSelectorPopover, formatProductMessage, type CatalogProduct } from "./CatalogSelectorPopover";
 import { ProductDetailDrawer, type CartItem } from "./ProductDetailDrawer";
@@ -643,6 +643,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     try {
       const res = await apiService.sendNativeCommerceProduct({
         phone: selectedConversation.phone,
+        remoteJid: (selectedConversation as any).remoteJid || (selectedConversation.phone.includes('@') ? selectedConversation.phone : undefined),
         productIds: products.map((p) => p.id),
         conversationId: selectedConversation.id,
         sessionId: selectedConversation.sessionId || 'main',
@@ -1923,100 +1924,28 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       </div>
                     )}
 
-                    {pinnedIds.includes("cobrar") && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
-                        aria-label="Cobrar / Criar Pedido (Clique direito para ocultar)"
-                        title="Cobrar / Criar Pedido (Catálogo WhatsApp) — Clique direito para ocultar"
-                        onClick={() => setIsCreateOrderOpen(true)}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          togglePin("cobrar");
-                        }}
-                        disabled={!selectedConversation || !canSendMessages}
-                      >
-                        <Receipt className="h-5 w-5" />
-                      </Button>
-                    )}
-
-                    {pinnedIds.includes("quick_replies") && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
-                        aria-label="Respostas Rápidas"
-                        title="Respostas Rápidas (/) — Clique direito para ocultar"
-                        onClick={() => handleAttachmentAction("quick_replies")}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          togglePin("quick_replies");
-                        }}
-                        disabled={!selectedConversation || !canSendMessages}
-                      >
-                        <Lightning className="h-5 w-5" />
-                      </Button>
-                    )}
-
-                    {pinnedIds.includes("pix") && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
-                        aria-label="Cobrar via Pix"
-                        title="Cobrar via Pix — Clique direito para ocultar"
-                        onClick={() => handleAttachmentAction("pix")}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          togglePin("pix");
-                        }}
-                        disabled={!selectedConversation || !canSendMessages}
-                      >
-                        <QrCode className="h-5 w-5" />
-                      </Button>
-                    )}
-
-                    {pinnedIds.includes("documento") && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
-                        aria-label="Anexar Documento"
-                        title="Anexar Documento — Clique direito para ocultar"
-                        onClick={() => handleAttachmentAction("documento")}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          togglePin("documento");
-                        }}
-                        disabled={!selectedConversation || !canSendMessages}
-                      >
-                        <FileText className="h-5 w-5" />
-                      </Button>
-                    )}
-
-                    {pinnedIds.includes("fotos_videos") && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
-                        aria-label="Fotos e Vídeos"
-                        title="Fotos e Vídeos — Clique direito para ocultar"
-                        onClick={() => handleAttachmentAction("fotos_videos")}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          togglePin("fotos_videos");
-                        }}
-                        disabled={!selectedConversation || !canSendMessages}
-                      >
-                        <ImageIcon className="h-5 w-5" />
-                      </Button>
-                    )}
+                    {ACTION_MENU_ITEMS.filter((it) => it.id !== "catalogo" && pinnedIds.includes(it.id)).map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Button
+                          key={item.id}
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
+                          aria-label={item.label}
+                          title={`${item.label} — Clique direito para ocultar / desafixar`}
+                          onClick={() => handleAttachmentAction(item.id)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            togglePin(item.id);
+                          }}
+                          disabled={!selectedConversation || !canSendMessages}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </Button>
+                      );
+                    })}
 
                     {/* Menu de Anexo WhatsApp Web (com opções e PIN / HIDE) */}
                     <AttachmentActionMenu
