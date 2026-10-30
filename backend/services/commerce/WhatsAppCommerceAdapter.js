@@ -13,9 +13,6 @@ class WhatsAppCommerceAdapter {
 
   /**
    * Sync catalog products from WhatsApp Business account
-   * @param {Object} sock - Connection socket
-   * @param {Object} options - Sync options (companyId, sessionId, limit)
-   * @returns {Promise<{ products: Array, total: number }>}
    */
   async syncCatalog(sock, options = {}) {
     throw new Error(`${this.name}: syncCatalog() must be implemented.`);
@@ -23,67 +20,71 @@ class WhatsAppCommerceAdapter {
 
   /**
    * Fetch mirrored or direct catalog products
-   * @param {string} companyId
-   * @param {Object} query - Search and filtering parameters
-   * @returns {Promise<{ products: Array, total: number }>}
    */
   async getCatalog(companyId, query = {}) {
     throw new Error(`${this.name}: getCatalog() must be implemented.`);
   }
 
   /**
+   * Fetch products list
+   */
+  async getProducts(companyId, query = {}) {
+    throw new Error(`${this.name}: getProducts() must be implemented.`);
+  }
+
+  /**
+   * Fetch single product by ID
+   */
+  async getProductById(id, companyId = 'default') {
+    throw new Error(`${this.name}: getProductById() must be implemented.`);
+  }
+
+  /**
    * Send authentic native product message to target WhatsApp contact
-   * @param {Object} sock - Connection socket
-   * @param {string} targetJid - Recipient JID (e.g. 5511999999999@s.whatsapp.net)
-   * @param {Object} product - Product data (productId, title, description, price, image, etc.)
-   * @param {Object} options - Additional options (businessOwnerJid, caption, etc.)
-   * @returns {Promise<Object>} WhatsApp message result
    */
   async sendProduct(sock, targetJid, product, options = {}) {
     throw new Error(`${this.name}: sendProduct() must be implemented.`);
   }
 
   /**
-   * Parse incoming order/cart message from customer
-   * @param {Object} sock - Connection socket
-   * @param {Object} rawMessage - Raw WhatsApp upsert message
-   * @param {Object} context - Metadata (companyId, sessionId)
-   * @returns {Promise<Object|null>} Normalized order object
+   * Send multiple products sequentially
    */
-  async handleIncomingOrder(sock, rawMessage, context = {}) {
-    throw new Error(`${this.name}: handleIncomingOrder() must be implemented.`);
+  async sendProductList(sock, targetJid, products = [], options = {}) {
+    throw new Error(`${this.name}: sendProductList() must be implemented.`);
   }
 
   /**
-   * Fetch itemized details for an order
-   * @param {Object} sock - Connection socket
-   * @param {string} orderId - Meta Order ID
-   * @param {string} token - Meta Order Token
-   * @returns {Promise<Object>} Order details with item list
+   * Fetch cart details
    */
-  async getOrderDetails(sock, orderId, token) {
-    throw new Error(`${this.name}: getOrderDetails() must be implemented.`);
+  async getCart(sock, orderId, token) {
+    throw new Error(`${this.name}: getCart() must be implemented.`);
   }
 
   /**
-   * Confirm customer order and send status message
-   * @param {Object} sock - Connection socket
-   * @param {string} orderId - Order identifier
-   * @param {Object} options - Confirmation parameters
-   * @returns {Promise<Object>}
+   * Receive and parse incoming cart order
    */
-  async confirmOrder(sock, orderId, options = {}) {
-    throw new Error(`${this.name}: confirmOrder() must be implemented.`);
+  async receiveCart(sock, rawMessage, context = {}) {
+    throw new Error(`${this.name}: receiveCart() must be implemented.`);
+  }
+
+  /**
+   * Fetch stored order by ID
+   */
+  async getOrder(orderId, companyId = 'default') {
+    throw new Error(`${this.name}: getOrder() must be implemented.`);
+  }
+
+  /**
+   * Accept / confirm customer order
+   */
+  async acceptOrder(sock, orderId, options = {}) {
+    throw new Error(`${this.name}: acceptOrder() must be implemented.`);
   }
 
   /**
    * Reject customer order
-   * @param {Object} sock - Connection socket
-   * @param {string} orderId - Order identifier
-   * @param {string} reason - Rejection reason
-   * @returns {Promise<Object>}
    */
-  async rejectOrder(sock, orderId, reason) {
+  async rejectOrder(sock, orderId, reason, options = {}) {
     throw new Error(`${this.name}: rejectOrder() must be implemented.`);
   }
 }

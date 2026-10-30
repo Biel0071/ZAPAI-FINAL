@@ -580,8 +580,40 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     }
   };
 
-  const handleSendProductMessage = async (product: any, formattedMessage: string) => {
+  const handleSendProductMessage = async (product: any, formattedMessage?: string) => {
     if (!selectedConversation) return;
+
+    // 1. Direct native WhatsApp commerce dispatch (productMessage via Baileys)
+    try {
+      const res = await apiService.sendNativeCommerceProduct({
+        phone: selectedConversation.phone,
+        productId: product.id || product.productId,
+        product: {
+          id: product.id || product.productId,
+          productId: product.id || product.productId,
+          name: product.name || product.title,
+          title: product.name || product.title,
+          description: product.description || '',
+          price: product.price,
+          currency: 'BRL',
+          images: Array.isArray(product.images) ? product.images : (product.image ? [product.image] : []),
+          productImage: (Array.isArray(product.images) && product.images[0]) || product.image,
+          code: product.code,
+        },
+        caption: formattedMessage,
+        conversationId: selectedConversation.id,
+        sessionId: selectedConversation.sessionId || 'main',
+      });
+
+      if (res?.success) {
+        toast.success(`"${product.name || 'Produto'}" enviado no chat!`);
+        return;
+      }
+    } catch (commerceErr: any) {
+      console.warn('[handleSendProductMessage] Direct native commerce dispatch failed, trying media fallback:', commerceErr?.message);
+    }
+
+    // 2. High-fidelity rich media send fallback
     const imageUrl = Array.isArray(product?.images) && product.images.length > 0 ? product.images[0] : null;
 
     if (imageUrl) {
@@ -642,8 +674,27 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       }
     }
 
-    // Fallback to text message if no image or error
-    await handleSendMessage(formattedMessage);
+    // 3. Fallback to text message if no image or error
+    if (formattedMessage) {
+      await handleSendMessage(formattedMessage);
+    }
+  };
+
+  const handleSendMultipleProducts = async (products: CatalogProduct[]) => {
+    if (!selectedConversation || products.length === 0) return;
+    try {
+      const res = await apiService.sendNativeCommerceProduct({
+        phone: selectedConversation.phone,
+        productIds: products.map((p) => p.id),
+        conversationId: selectedConversation.id,
+        sessionId: selectedConversation.sessionId || 'main',
+      });
+      if (res?.success) {
+        toast.success(`${products.length} produtos enviados no chat!`);
+      }
+    } catch (err: any) {
+      toast.error('Falha ao enviar produtos', { description: err?.message });
+    }
   };
 
   // WhatsApp Native Commerce / Product Details & Cart state
@@ -1821,6 +1872,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       disabled={false}
                       canSendToChat={Boolean(selectedConversation && canSendMessages)}
                       onSendProduct={handleSendProductMessage}
+                      onSendMultipleProducts={handleSendMultipleProducts}
                       onInsertInComposer={(text) => {
                         setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
                         if (messageInputRef.current) {

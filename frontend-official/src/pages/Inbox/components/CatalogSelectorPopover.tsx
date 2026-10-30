@@ -383,6 +383,7 @@ interface CatalogSelectorPopoverProps {
   disabled?: boolean;
   canSendToChat?: boolean;
   onSendProduct: (product: CatalogProduct, formattedMessage: string) => Promise<void> | void;
+  onSendMultipleProducts?: (products: CatalogProduct[]) => Promise<void> | void;
   onInsertInComposer?: (text: string) => void;
   className?: string;
 }
@@ -391,6 +392,7 @@ export function CatalogSelectorPopover({
   disabled = false,
   canSendToChat = true,
   onSendProduct,
+  onSendMultipleProducts,
   onInsertInComposer,
   className,
 }: CatalogSelectorPopoverProps) {
@@ -564,7 +566,9 @@ export function CatalogSelectorPopover({
 
     try {
       setSendingId("selected_batch");
-      if (selectedProducts.length === 1) {
+      if (onSendMultipleProducts) {
+        await onSendMultipleProducts(selectedProducts);
+      } else if (selectedProducts.length === 1) {
         const p = selectedProducts[0];
         await onSendProduct(p, formatProductMessage(p));
         toast.success(`"${p.name}" enviado no chat!`);
@@ -573,7 +577,7 @@ export function CatalogSelectorPopover({
           const p = selectedProducts[i];
           await onSendProduct(p, formatProductMessage(p));
           if (i < selectedProducts.length - 1) {
-            await new Promise((r) => setTimeout(r, 350));
+            await new Promise((r) => setTimeout(r, 400));
           }
         }
         toast.success(`${selectedProducts.length} produtos enviados no chat!`);
@@ -908,19 +912,16 @@ export function CatalogSelectorPopover({
 
                       <Button
                         type="button"
-                        size="sm"
+                        size="icon"
                         disabled={disabled || isSending || !canSendToChat}
-                        title={!canSendToChat ? "Selecione uma conversa ativa" : "Enviar no chat"}
+                        title={!canSendToChat ? "Selecione uma conversa ativa" : "Enviar produto no WhatsApp"}
                         onClick={() => handleSendSingle(item)}
-                        className="h-7 px-2.5 text-[11px] font-medium bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all flex items-center gap-1"
+                        className="h-8 w-8 text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-all flex items-center justify-center shrink-0 shadow-sm"
                       >
                         {isSending ? (
                           <span className="animate-spin text-xs">🌀</span>
                         ) : (
-                          <>
-                            <PaperPlaneTilt className="h-3 w-3" weight="fill" />
-                            <span className="hidden sm:inline">Enviar no Chat</span>
-                          </>
+                          <PaperPlaneTilt className="h-4 w-4" weight="fill" />
                         )}
                       </Button>
                     </div>

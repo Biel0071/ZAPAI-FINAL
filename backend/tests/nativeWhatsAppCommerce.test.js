@@ -163,3 +163,30 @@ test('7. CartOrderListener correctly processes incoming cart and emits normalize
   assert.equal(result.items.length, 1);
   assert.equal(result.items[0].name, 'TIJOLO 12 FUROS');
 });
+
+test('8. WhatsAppCommerceAdapter interface compliance across standard methods', async () => {
+  const adapter = baileysCommerceAdapter;
+  assert.equal(typeof adapter.getCatalog, 'function');
+  assert.equal(typeof adapter.getProducts, 'function');
+  assert.equal(typeof adapter.getProductById, 'function');
+  assert.equal(typeof adapter.sendProduct, 'function');
+  assert.equal(typeof adapter.sendProductList, 'function');
+  assert.equal(typeof adapter.getCart, 'function');
+  assert.equal(typeof adapter.receiveCart, 'function');
+  assert.equal(typeof adapter.getOrder, 'function');
+  assert.equal(typeof adapter.acceptOrder, 'function');
+  assert.equal(typeof adapter.rejectOrder, 'function');
+});
+
+test('9. CommerceEventRouter registers handlers and emits events', async () => {
+  const router = require('../services/commerce/CommerceEventRouter');
+  let receivedPayload = null;
+
+  router.on('test:commerce_event', (payload) => {
+    receivedPayload = payload;
+  });
+
+  await router.emit('test:commerce_event', { companyId: 'default', test: true });
+  assert.ok(receivedPayload !== null);
+  assert.equal(receivedPayload.test, true);
+});

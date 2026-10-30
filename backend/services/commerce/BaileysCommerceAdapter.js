@@ -216,6 +216,52 @@ class BaileysCommerceAdapter extends WhatsAppCommerceAdapter {
 
     return await sock.sendMessage(targetJid, { text: rejectText });
   }
+
+  /**
+   * Section 7 Interface compliance methods & aliases
+   */
+  async getCatalog(companyId = 'default', query = {}) {
+    const catalogSyncEngine = require('./CatalogSyncEngine');
+    return await catalogSyncEngine.listProducts(companyId, query);
+  }
+
+  async getProducts(companyId = 'default', query = {}) {
+    const catalogSyncEngine = require('./CatalogSyncEngine');
+    return await catalogSyncEngine.listProducts(companyId, query);
+  }
+
+  async getProductById(id, companyId = 'default') {
+    const catalogSyncEngine = require('./CatalogSyncEngine');
+    return await catalogSyncEngine.getProductById(id, companyId);
+  }
+
+  async sendProductList(sock, targetJid, products = [], options = {}) {
+    const nativeProductSender = require('./NativeProductSender');
+    const productIds = products.map(p => (typeof p === 'string' ? p : p.id || p.productId));
+    return await nativeProductSender.sendMultiple(sock, {
+      remoteJid: targetJid,
+      productIds,
+      options,
+    });
+  }
+
+  async getCart(sock, orderId, token) {
+    return await this.getOrderDetails(sock, orderId, token);
+  }
+
+  async receiveCart(sock, rawMessage, context = {}) {
+    const cartOrderListener = require('./CartOrderListener');
+    return await cartOrderListener.handleIncomingOrder(sock, rawMessage, context);
+  }
+
+  async getOrder(orderId, companyId = 'default') {
+    const orderConfirmationEngine = require('./OrderConfirmationEngine');
+    return await orderConfirmationEngine.getOrder(orderId, companyId);
+  }
+
+  async acceptOrder(sock, targetJid, order, options = {}) {
+    return await this.confirmOrder(sock, targetJid, order, options);
+  }
 }
 
 module.exports = new BaileysCommerceAdapter();
