@@ -446,6 +446,11 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
       onMessageUpdate: async () => {},
       onQrGenerated: (qr) => {
         setLatestQr(qr);
+        const s = getSession(normalizedName);
+        if (s) {
+          s.qrCode = qr;
+          s.status = 'qr';
+        }
       },
       onReconnectRequested: async (targetSessionName, metadata = {}) => {
         const normalizedTarget = normalizeSessionName(targetSessionName);
@@ -994,6 +999,7 @@ module.exports = {
   getConnectedSessionOrNull,
   getDefaultSession,
   getLatestQr,
+  getSessionQr: (sessionId) => getLatestQr(),
   getSession,
   hasSession,
   isSessionCreating,

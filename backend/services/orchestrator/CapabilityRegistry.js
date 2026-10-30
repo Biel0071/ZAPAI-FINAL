@@ -102,6 +102,9 @@ class CapabilityRegistry {
    * Get all capabilities for an engine
    */
   getCapabilities(engineName, context = {}) {
+    if (!engineName) {
+      return this.getFullMatrix(context);
+    }
     const base = ENGINE_CAPABILITIES[engineName] || {};
     const result = { ...base };
 

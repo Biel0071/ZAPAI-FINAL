@@ -412,7 +412,9 @@ async function getConnectionQr(sessionId = DEFAULT_SESSION) {
     return { status: 'connected', qr: null };
   }
 
-  const qr = session?.qrCode || (typeof sessionManager.getSessionQr === 'function' ? sessionManager.getSessionQr(sessionId) : null);
+  const qr = session?.qrCode
+    || (typeof sessionManager.getLatestQr === 'function' ? sessionManager.getLatestQr() : null)
+    || (typeof sessionManager.getSessionQr === 'function' ? sessionManager.getSessionQr(sessionId) : null);
 
   if (!qr) {
     if (creating) {

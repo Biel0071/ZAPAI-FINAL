@@ -133,6 +133,11 @@ function registerRoutes(app, options = {}) {
   // /api/operations — operações e filas em tempo real
   const operationsRouter = require('./operations');
   app.use('/api', operationsRouter);
+
+  // /zai & /api/zai — ZAI Communication Engine API
+  const zaiRouter = require('./zaiRoutes');
+  app.use('/zai', zaiRouter);
+  app.use('/api/zai', zaiRouter);
 }
 
 module.exports = {
