@@ -576,6 +576,56 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     }
   };
 
+  const handleSendProductMessage = async (product: any, formattedMessage: string) => {
+    if (!selectedConversation) return;
+    const imageUrl = Array.isArray(product?.images) && product.images.length > 0 ? product.images[0] : null;
+
+    if (imageUrl && !imageUrl.startsWith('data:')) {
+      try {
+        const response = await fetch(imageUrl);
+        if (response.ok) {
+          const blob = await response.blob();
+          const base64data = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const res = reader.result as string;
+              resolve(res.includes(',') ? res.split(',')[1] : res);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          const ext = imageUrl.split('.').pop()?.toLowerCase() || 'png';
+          const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : (ext === 'webp' ? 'image/webp' : 'image/png');
+          const cleanCode = (product.code || product.name || 'produto').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+          const fileName = `${cleanCode}.${ext}`;
+
+          const res = await apiService.sendMediaMessage({
+            phone: selectedConversation.phone,
+            fileName,
+            mimeType,
+            mediaType: 'image',
+            dataBase64: base64data,
+            caption: formattedMessage,
+            conversationId: selectedConversation.id,
+            contactId: selectedConversation.contactId,
+            sessionId: selectedConversation.sessionId || undefined,
+            requestId: `inbox-product-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          });
+
+          if (res?.success) {
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('[handleSendProductMessage] Rich media send failed, falling back to text:', err);
+      }
+    }
+
+    // Fallback to text message if no image or error
+    await handleSendMessage(formattedMessage);
+  };
+
   const handleOpenMediaPreview = useCallback(
     (media: PreviewMediaState) => {
       setPreviewZoom(1);
@@ -1592,9 +1642,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                     <CatalogSelectorPopover
                       disabled={false}
                       canSendToChat={Boolean(selectedConversation && canSendMessages)}
-                      onSendProduct={async (_product, formattedMessage) => {
-                        await handleSendMessage(formattedMessage);
-                      }}
+                      onSendProduct={handleSendProductMessage}
                       onInsertInComposer={(text) => {
                         setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
                         if (messageInputRef.current) {

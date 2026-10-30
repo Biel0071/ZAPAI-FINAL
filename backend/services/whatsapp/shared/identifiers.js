@@ -177,6 +177,9 @@ function normalizeWhatsappJid(phone = '') {
   if (clean.includes('@')) {
     clean = clean.split('@')[0];
   }
+  if (clean.includes(':')) {
+    clean = clean.split(':')[0];
+  }
 
   // Remove + spaces ( ) -
   clean = clean.replace(/[+\s().-]/g, '');

@@ -128,6 +128,90 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     condition: "Novo",
     shipping: "Frete especial com guincho/descarga apropriada",
   },
+  {
+    id: "prod_caixa_5000l",
+    code: "CXA-5000L",
+    name: "CAIXA - 5000L",
+    description: "Caixa d'água Fortlev 5.000 Litros em polietileno reforçado com tampa de encaixe rápido. Fechamento seguro anti-insetos e proteção UV total.",
+    price: 1699.85,
+    category: "Caixas d'Água",
+    stock: 12,
+    images: ["/assets/catalog/caixa_5000l.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Parcelamento em até 10x ou desconto especial no PIX",
+    condition: "Novo",
+    shipping: "Entrega rápida com caminhão do depósito",
+  },
+  {
+    id: "prod_caixa_2000l",
+    code: "CXA-2000L",
+    name: "CAIXA - 2000L",
+    description: "Caixa d'água Fortlev 2.000 Litros azul resistente. Ideal para residências médias e comércios. Superfície interna lisa de fácil higienização.",
+    price: 499.87,
+    category: "Caixas d'Água",
+    stock: 18,
+    images: ["/assets/catalog/caixa_2000l.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Entrega imediata em toda a Grande BH",
+    condition: "Novo",
+    shipping: "Frete facilitado",
+  },
+  {
+    id: "prod_caixa_1000l",
+    code: "CXA-1000L",
+    name: "CAIXA - 1000L",
+    description: "Caixa d'água Fortlev 1.000 Litros padrão residencial. Campeã de vendas, super reforçada, instalação prática e vedação 100% segura.",
+    price: 250.0,
+    category: "Caixas d'Água",
+    stock: 25,
+    images: ["/assets/catalog/caixa_1000l.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Preço promocional à vista",
+    condition: "Novo",
+    shipping: "Pronta entrega",
+  },
+  {
+    id: "prod_cimento_liz_cp4",
+    code: "CIM-LIZ-CP4",
+    name: "CIMENTO LIZ - CP4",
+    description: "Cimento Liz CP IV-32 RS de secagem rápida (Saco 50kg). Máxima resistência a sulfatos e agentes agressivos, acabamento perfeito para lajes e fundações.",
+    price: 21.9,
+    category: "Cimento & Argamassa",
+    stock: 400,
+    images: ["/assets/catalog/cimento_liz.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Desconto especial para cargas fechadas e paletes",
+    condition: "Novo",
+    shipping: "Entrega paletizada rápida no canteiro",
+  },
+  {
+    id: "prod_churrasqueira_premoldada",
+    code: "CHU-PRE-65",
+    name: "CHURRASQUEIRA - PRÉ-MOLDADA",
+    description: "Churrasqueira pré-moldada em concreto refratário e acabamento tijolinho. Acompanha coifa, gaveta cinzeiro e suporte para espetos.",
+    price: 990.0,
+    category: "Churrasqueiras & Lazer",
+    stock: 7,
+    images: ["/assets/catalog/churrasqueira_premoldada.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Montagem facilitada em módulos encaixáveis",
+    condition: "Novo",
+    shipping: "Entrega segura no local",
+  },
+  {
+    id: "prod_caminhao_brita",
+    code: "CAM-BRI-8M3",
+    name: "CAMINHÃO BRITA - 8M³",
+    description: "Carga fechada de brita graduada limpa (8 metros cúbicos) em caminhão basculante próprio. Ideal para concreto estrutural, calçadas e drenagem.",
+    price: 850.0,
+    category: "Agregados & Areia",
+    stock: 20,
+    images: ["/assets/catalog/caminhao_brita.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Preço fechado da carga com entrega na região",
+    condition: "Novo",
+    shipping: "Descarga direta basculante",
+  },
 ];
 
 export function formatProductMessage(product: CatalogProduct, customNote?: string): string {
@@ -387,8 +471,13 @@ export function CatalogSelectorPopover({
         await onSendProduct(p, formatProductMessage(p));
         toast.success(`"${p.name}" enviado no chat!`);
       } else {
-        const formatted = formatMultiProductMessage(selectedProducts);
-        await onSendProduct(selectedProducts[0], formatted);
+        for (let i = 0; i < selectedProducts.length; i++) {
+          const p = selectedProducts[i];
+          await onSendProduct(p, formatProductMessage(p));
+          if (i < selectedProducts.length - 1) {
+            await new Promise((r) => setTimeout(r, 350));
+          }
+        }
         toast.success(`${selectedProducts.length} produtos enviados no chat!`);
       }
       setSelectedIds(new Set());
@@ -487,23 +576,22 @@ export function CatalogSelectorPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        {/* Authentic WhatsApp style Catálogo button beside emojis */}
+        {/* Authentic WhatsApp style Catálogo button beside emojis (compact icon-only) */}
         <Button
           type="button"
           variant="ghost"
+          size="icon"
           disabled={disabled}
           className={cn(
-            "h-9 px-3 rounded-lg flex items-center gap-2 transition-all font-normal text-sm shrink-0 select-none",
-            "bg-[#202c33] hover:bg-[#2a3942] text-[#e9edef] border border-[#2a3942] shadow-xs",
-            open && "ring-1 ring-emerald-500 bg-[#2a3942]",
+            "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none",
+            open && "ring-1 ring-emerald-500 bg-muted/60 text-emerald-400",
             className
           )}
           aria-label="Abrir catálogo WhatsApp"
           data-catalog-trigger
-          title="🏪 Catálogo WhatsApp (Depósito Vista Alegre)"
+          title="🏪 Catálogo de Produtos WhatsApp (Depósito Vista Alegre)"
         >
-          <Storefront className="h-4 w-4 text-emerald-400 shrink-0" weight="fill" />
-          <span className="font-medium text-xs text-[#e9edef]">Catálogo</span>
+          <Storefront className="h-5 w-5 text-emerald-400 shrink-0" weight="fill" />
         </Button>
       </PopoverTrigger>
 

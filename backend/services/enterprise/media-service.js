@@ -33,6 +33,12 @@ const MEDIA_ROOTS = {
   media: [MEDIA_ROOT, path.join(PROJECT_ROOT, '..', 'data', 'storage', 'media'), path.join(PROJECT_ROOT, 'media'), path.join(PROJECT_ROOT, 'src', 'api', 'upload')],
   upload: [path.join(PROJECT_ROOT, 'upload'), path.join(PROJECT_ROOT, 'src', 'api', 'upload')],
   uploads: [path.join(PROJECT_ROOT, 'uploads'), path.join(PROJECT_ROOT, '..', 'data', 'uploads'), path.join(PROJECT_ROOT, 'src', 'api', 'uploads')],
+  assets: [
+    path.join(PROJECT_ROOT, 'frontend-official', 'public', 'assets'),
+    path.join(PROJECT_ROOT, '..', 'frontend-official', 'public', 'assets'),
+    path.join('/www', 'zapai', 'assets'),
+    path.join(process.cwd(), 'frontend-official', 'public', 'assets'),
+  ],
 };
 const MEDIA_TYPE_DIRECTORY = {
   audio: 'audios',
@@ -446,7 +452,7 @@ function normalizeMediaReference(input) {
   }
   if (/%(?:2e|2f|5c|25)/i.test(value)) throw mediaAccessError('Invalid media encoding.');
   value = value.split(/[?#]/, 1)[0];
-  const match = value.match(/\/(?:api\/)?(media|upload|uploads)\/(.+)$/i) || value.match(/^(media|upload|uploads)\/(.+)$/i);
+  const match = value.match(/\/(?:api\/)?(media|upload|uploads|assets)\/(.+)$/i) || value.match(/^(media|upload|uploads|assets)\/(.+)$/i);
   if (!match) throw mediaAccessError('Unsupported media path.');
   const segments = match[2].split('/');
   if (segments.some(segment => !segment || segment.startsWith('.') || segment.includes(':'))) {
@@ -493,6 +499,9 @@ async function canAccessMedia(reference, tenantId, dependencies = {}) {
   if (!tenantId) return false;
   const mediaPath = normalizeMediaReference(reference);
   const parts = mediaPath.split('/');
+  if (parts[1] === 'assets' || mediaPath.startsWith('/assets/')) {
+    return true;
+  }
   if ((parts[1] === 'upload' || parts[1] === 'uploads') && (parts[2] === 'quick-replies' || parts[2] === 'quick_replies')) {
     if (parts.length >= 5) {
       const companyFolder = crypto.createHash('sha256').update(String(tenantId)).digest('hex').slice(0, 24);

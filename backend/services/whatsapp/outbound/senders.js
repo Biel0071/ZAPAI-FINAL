@@ -467,20 +467,55 @@ async function sendMediaMessage(
     case 'sticker':
       return sendSticker(sock, phone, mediaPath, { beforeSend });
     case 'product':
-    case 'catalog':
-      // If a valid image URL or path is present, send as real product image with the description card as caption
-      if (mediaPath && typeof mediaPath === 'string' && (mediaPath.startsWith('http') || mediaPath.startsWith('/') || /\.(png|jpe?g|webp)$/i.test(mediaPath))) {
+    case 'catalog': {
+      // 1. Try sending native WhatsApp product card if sock supports it
+      if (mediaPath && typeof mediaPath === 'string') {
+        try {
+          const authUser = sock.user?.id || sock.authState?.creds?.me?.id;
+          if (authUser) {
+            const bizOwnerJid = ensureWhatsAppJid(authUser);
+            const imgPayload = toMediaPayload(mediaPath);
+            if (imgPayload && bizOwnerJid) {
+              const jid = ensureWhatsAppJid(phone);
+              const resolvedJid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+              await checkBeforeSend(beforeSend);
+              const productPayload = {
+                product: {
+                  productImage: imgPayload,
+                  productId: String(fileName || 'prod').replace(/\.[^.]+$/, ''),
+                  title: caption?.split('\n')?.[1]?.replace(/\*/g, '') || caption?.split('\n')?.[0]?.replace(/\*/g, '') || 'Produto WhatsApp',
+                  description: caption || '',
+                  currencyCode: 'BRL',
+                  priceAmount1000: 0,
+                  retailerId: String(fileName || 'prod').replace(/\.[^.]+$/, ''),
+                  url: `https://wa.me/c/${bizOwnerJid.split('@')[0]}`,
+                },
+                businessOwnerJid: bizOwnerJid,
+                caption: caption || undefined,
+              };
+              const nativeRes = await sock.sendMessage(resolvedJid, productPayload);
+              if (nativeRes?.key?.id) {
+                registerSystemOutbound(nativeRes, resolvedJid, phone);
+                return nativeRes;
+              }
+            }
+          }
+        } catch (nativeErr) {
+          console.warn('[WHATSAPP-SEND] Native product card query failed, using image dispatch:', nativeErr.message);
+        }
+
+        // 2. High-fidelity image message with complete caption
         try {
           return await sendImage(sock, phone, mediaPath, caption || '', { beforeSend });
-        } catch {
-          const fallbackText = caption && mediaPath ? `${caption}\n${mediaPath}` : (caption || String(mediaPath || ''));
-          return sendMessage(sock, phone, fallbackText, { beforeSend });
+        } catch (imgErr) {
+          console.warn('[WHATSAPP-SEND] sendImage for product failed:', imgErr.message);
         }
       }
-      {
-        const textContent = caption && mediaPath ? `${caption}\n${mediaPath}` : (caption || String(mediaPath || ''));
-        return sendMessage(sock, phone, textContent, { beforeSend });
-      }
+
+      // 3. Fallback to text
+      const fallbackText = caption && mediaPath ? `${caption}\n${mediaPath}` : (caption || String(mediaPath || ''));
+      return sendMessage(sock, phone, fallbackText, { beforeSend });
+    }
     default:
       throw new Error('Unsupported mediaType. Use image, video, audio, document, sticker, product, or catalog.');
   }

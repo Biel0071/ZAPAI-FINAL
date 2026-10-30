@@ -44,6 +44,7 @@ test('WhatsApp Catalog Auto-Sync: queries sock.getCatalog({ limit: 50 }) and imp
   ];
 
   const mockSock = {
+    user: { id: '553193672075:0@s.whatsapp.net' },
     getCatalog: async (opts) => {
       catalogRequestedWith = opts;
       return { products: mockProducts };
@@ -56,7 +57,8 @@ test('WhatsApp Catalog Auto-Sync: queries sock.getCatalog({ limit: 50 }) and imp
     sock: mockSock,
   });
 
-  assert.deepStrictEqual(catalogRequestedWith, { limit: 50 });
+  assert.strictEqual(catalogRequestedWith.limit, 50);
+  assert.strictEqual(catalogRequestedWith.jid, '553193672075@s.whatsapp.net');
   assert.strictEqual(result.success, true);
   assert.ok(result.synced >= 1, `Expected at least 1 item synced, got ${result.synced}`);
 
