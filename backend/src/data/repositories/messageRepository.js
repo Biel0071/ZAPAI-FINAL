@@ -102,6 +102,7 @@ async function createMessage(data) {
       conversation_id,
       phone,
       text,
+      content,
       media_type,
       media_path,
       from_me,
@@ -118,7 +119,7 @@ async function createMessage(data) {
       analysis_json,
       type
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
     RETURNING *
   `;
 
@@ -126,6 +127,7 @@ async function createMessage(data) {
     data.companyId || 'default',
     data.conversationId || null,
     data.phone || null,
+    storedText,
     storedText,
     data.mediaType || null,
     data.mediaPath || null,

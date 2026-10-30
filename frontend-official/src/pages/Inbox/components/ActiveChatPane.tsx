@@ -14,6 +14,7 @@ import {
   X,
   Smiley,
   Paperclip,
+  Sparkle,
   Microphone,
   ChatCircleDots,
   Robot,
@@ -1672,8 +1673,9 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className={MOBILE_TOUCH_TARGET_CLASS}
+                      className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
                       aria-label="Abrir emojis"
+                      title="Emojis"
                       data-emoji-trigger
                       disabled={!selectedConversation || !canSendMessages}
                     >
@@ -1699,25 +1701,25 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        MOBILE_TOUCH_TARGET_CLASS,
-                        "hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors",
-                        isAiSuggestionOpen && "text-emerald-400 bg-emerald-500/15"
+                        "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none",
+                        isAiSuggestionOpen && "text-emerald-400 bg-muted/60"
                       )}
                       aria-label="Resposta IA disponível"
-                      title="✨ Resposta IA disponível"
+                      title="Sugestão de resposta IA"
                       onClick={() => setIsAiSuggestionOpen((prev) => !prev)}
                       disabled={!selectedConversation || !canSendMessages}
                     >
-                      <span className="text-base leading-none select-none">✨</span>
+                      <Sparkle className="h-5 w-5" />
                     </Button>
 
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className={MOBILE_TOUCH_TARGET_CLASS}
+                      className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
                       onClick={() => fileInputRef.current?.click()}
                       aria-label="Anexar mídia"
+                      title="Anexar mídia"
                       disabled={!selectedConversation || !canSendMessages}
                     >
                       <Paperclip className="h-5 w-5" />

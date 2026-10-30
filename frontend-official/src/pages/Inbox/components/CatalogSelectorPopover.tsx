@@ -682,14 +682,14 @@ export function CatalogSelectorPopover({
           disabled={disabled}
           className={cn(
             "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none",
-            open && "ring-1 ring-emerald-500 bg-muted/60 text-emerald-400",
+            open && "text-emerald-400 bg-muted/60",
             className
           )}
           aria-label="Abrir catálogo WhatsApp"
           data-catalog-trigger
-          title="🏪 Catálogo de Produtos WhatsApp (Depósito Vista Alegre)"
+          title="Catálogo de Produtos WhatsApp"
         >
-          <span className="text-lg leading-none select-none" role="img" aria-label="Catálogo">🏪</span>
+          <Storefront className="h-5 w-5" />
         </Button>
       </PopoverTrigger>
 
