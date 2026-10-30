@@ -59,8 +59,10 @@ import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
 import { QuickCampaignDispatchModal } from "@/components/campaigns/QuickCampaignDispatchModal";
 import { OrderSheetModal } from "./OrderSheetModal";
+import { CustomerOrdersDrawer } from "./CustomerOrdersDrawer";
 import { CatalogSelectorPopover, formatProductMessage, type CatalogProduct } from "./CatalogSelectorPopover";
 import { ProductDetailDrawer, type CartItem } from "./ProductDetailDrawer";
+import { ShoppingBag } from "lucide-react";
 import { FlowExecutionBanner, matchesConversationFlow, type FlowExecutionData } from "./FlowExecutionBanner";
 import { buildSlashOptions, needsFlowPreview, type SlashOption } from "../quickReplySlash";
 import { ZaiAssistantComposer } from "./ZaiAssistantComposer";
@@ -648,6 +650,40 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const [selectedProductForDetails, setSelectedProductForDetails] = useState<CatalogProduct | null>(null);
   const [isProductDetailOpen, setIsProductDetailOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isCustomerOrdersOpen, setIsCustomerOrdersOpen] = useState(false);
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+
+  useEffect(() => {
+    if (!selectedConversation?.id) return;
+    apiService.getCommerceOrders({
+      conversationId: selectedConversation.id,
+      phone: selectedConversation.phone,
+      status: "pending",
+    }).then(res => {
+      if (res?.success && typeof res.total === "number") {
+        setPendingOrdersCount(res.total);
+      }
+    }).catch(() => {});
+
+    const socket = getSharedSocket();
+    if (!socket || typeof socket.on !== "function") return;
+
+    const handleOrderNotify = (order: any) => {
+      if (!order) return;
+      if (order.phone === selectedConversation?.phone || order.conversationId === selectedConversation?.id) {
+        setPendingOrdersCount(prev => prev + 1);
+        toast({
+          title: "Novo Pedido no WhatsApp!",
+          description: `${order.orderTitle || "Pedido do Catálogo"} - R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
+        });
+      }
+    };
+
+    socket.on("commerce:order_received", handleOrderNotify);
+    return () => {
+      socket.off("commerce:order_received", handleOrderNotify);
+    };
+  }, [selectedConversation?.id, selectedConversation?.phone, toast]);
 
   const handleOpenProductDetails = useCallback((product: any) => {
     setSelectedProductForDetails(product);
@@ -958,6 +994,25 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                 >
                   <FileIcon className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="bold" />
                   <span className="hidden xl:inline">{generatingSheet ? "Gerando..." : "Gerar Ficha"}</span>
+                </Button>
+
+                {/* 2.5 Pedidos WhatsApp Commerce */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/30 shrink-0 relative"
+                  onClick={() => setIsCustomerOrdersOpen(true)}
+                  title="Abrir pedidos recebidos do catálogo WhatsApp"
+                  aria-label="Pedidos WhatsApp"
+                >
+                  <ShoppingBag className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <span className="hidden xl:inline">Pedidos</span>
+                  {pendingOrdersCount > 0 && (
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-black ml-0.5">
+                      {pendingOrdersCount}
+                    </span>
+                  )}
                 </Button>
 
                 {/* 3. Transferir */}
@@ -2109,6 +2164,20 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         onRemoveFromCart={handleRemoveFromCart}
         onClearCart={handleClearCart}
       />
+
+      {/* WhatsApp Customer Orders Drawer */}
+      {selectedConversation && (
+        <CustomerOrdersDrawer
+          isOpen={isCustomerOrdersOpen}
+          onClose={() => setIsCustomerOrdersOpen(false)}
+          conversationId={selectedConversation.id}
+          customerPhone={selectedConversation.phone}
+          customerName={selectedConversation.contactName || selectedConversation.name}
+          onOrderConfirmed={() => {
+            setPendingOrdersCount((prev) => Math.max(0, prev - 1));
+          }}
+        />
+      )}
     </div>
     </Popover>
   );

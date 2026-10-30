@@ -1996,6 +1996,19 @@ async function createStableSession({
         console.error('[WHATSAPP] Failed to push message connection log:', logErr);
       }
 
+      // Intercept incoming WhatsApp Commerce cart/order messages
+      if (!fromMe && normalizedIncomingContent?.orderMessage) {
+        try {
+          const cartOrderListener = require('../../commerce/CartOrderListener');
+          cartOrderListener.handleIncomingOrder(sock, incomingMessage, {
+            companyId: session.companyId || process.env.DEFAULT_COMPANY_ID || 'default',
+            sessionId: normalizedSessionName,
+          }).catch(err => console.error('[COMMERCE] CartOrderListener error:', err.message));
+        } catch (commerceErr) {
+          console.error('[COMMERCE] Failed to load CartOrderListener:', commerceErr.message);
+        }
+      }
+
       if (type === 'notify') {
         await enterpriseQueueService.enqueue(
           queueName,

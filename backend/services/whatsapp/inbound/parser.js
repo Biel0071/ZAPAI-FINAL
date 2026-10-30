@@ -58,6 +58,12 @@ function extractMessageText(msg = {}) {
       message.listResponseMessage?.singleSelectReply?.selectedRowId ||
       message.templateButtonReplyMessage?.selectedDisplayText ||
       message.pollCreationMessage?.name ||
+      (message.orderMessage
+        ? `[PEDIDO WHATSAPP] #${message.orderMessage.orderId || ''} - ${message.orderMessage.orderTitle || 'Pedido do Catálogo'} (${message.orderMessage.itemCount || 1} itens) - Total: ${message.orderMessage.totalCurrencyCode || 'BRL'} ${(Number(message.orderMessage.totalAmount1000 || 0) / 1000).toFixed(2)}${message.orderMessage.message ? ' - Obs: ' + message.orderMessage.message : ''}`
+        : '') ||
+      (message.productMessage?.product
+        ? `[PRODUTO WHATSAPP] ${message.productMessage.product.title || 'Produto'} - ${message.productMessage.product.currencyCode || 'BRL'} ${(Number(message.productMessage.product.priceAmount1000 || 0) / 1000).toFixed(2)}${message.productMessage.product.description ? ' - ' + message.productMessage.product.description : ''}`
+        : '') ||
       ''
   );
 
@@ -106,6 +112,14 @@ function getMediaDescriptor(message = {}) {
 
   if (normalizedMessage.stickerMessage) {
     return { mediaMessage: normalizedMessage.stickerMessage, mediaType: 'sticker' };
+  }
+
+  if (normalizedMessage.orderMessage) {
+    return { mediaMessage: normalizedMessage.orderMessage, mediaType: 'order' };
+  }
+
+  if (normalizedMessage.productMessage) {
+    return { mediaMessage: normalizedMessage.productMessage, mediaType: 'product' };
   }
 
   return { mediaMessage: null, mediaType: null };

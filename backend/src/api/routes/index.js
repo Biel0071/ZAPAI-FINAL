@@ -19,6 +19,7 @@ const nodeRouter = require('./nodeMaster');
 const clusterRouter = require('./cluster');
 const campaignDispatchRouter = require('./campaignDispatch');
 const productsRouter = require('./products');
+const commerceRouter = require('./commerceRoutes');
 const storesRouter = require('./stores');
 
 // ── NEW: Frontend-compatibility routers ──────────────────────────────────────
@@ -111,6 +112,10 @@ function registerRoutes(app, options = {}) {
   // /api/products — gestão real de produtos e estoque
   app.use('/api', productsRouter);
   app.use('/', productsRouter);
+
+  // /api/commerce — WhatsApp Native Commerce (Catálogo Oficial, Produtos Nativos, Carrinho & Pedidos)
+  app.use('/api/commerce', commerceRouter);
+  app.use('/commerce', commerceRouter);
 
   // /api/operations — operações e filas em tempo real
   const operationsRouter = require('./operations');

@@ -198,8 +198,16 @@ async function sendMessage(req, res) {
       if (!await mediaService.canAccessMedia(reference, companyId)) return res.status(403).json({ success: false, error: 'Arquivo não pertence à empresa autenticada.' });
       ownedMediaReference = reference;
       mediaTransportPath = await mediaService.findMediaFile(reference);
-      if (!mediaTransportPath) return res.status(404).json({ success: false, error: 'Arquivo de mídia indisponível.' });
-      await messageService.assertLocalMediaPathExists(mediaTransportPath);
+      if (!mediaTransportPath) {
+        const { resolveLocalMediaDiskPath } = require('../../../services/whatsapp/media/payload');
+        mediaTransportPath = resolveLocalMediaDiskPath(reference);
+      }
+      if (!mediaTransportPath && mediaType !== 'product' && mediaType !== 'catalog') {
+        return res.status(404).json({ success: false, error: 'Arquivo de mídia indisponível.' });
+      }
+      if (mediaTransportPath) {
+        await messageService.assertLocalMediaPathExists(mediaTransportPath);
+      }
     }
   } catch (error) {
     return res.status(error.code === 'MEDIA_PATH_FORBIDDEN' ? 403 : 400).json({ success: false, error: 'Falha ao processar arquivo de mídia.' });

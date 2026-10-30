@@ -469,69 +469,55 @@ async function sendMediaMessage(
       return sendSticker(sock, phone, mediaPath, { beforeSend });
     case 'product':
     case 'catalog': {
-      // 1. Try sending native WhatsApp product card (Baileys productMessage)
-      if (mediaPath) {
-        try {
-          const authUser = sock.user?.id || sock.authState?.creds?.me?.id;
-          if (authUser) {
-            let bizOwnerPhone = String(authUser).split('@')[0].split(':')[0].replace(/\D/g, '') || '553193672075';
-            if (bizOwnerPhone.length >= 14 && global.lidToPhoneMap && global.lidToPhoneMap.has(bizOwnerPhone)) {
-              bizOwnerPhone = global.lidToPhoneMap.get(bizOwnerPhone).replace(/\D/g, '');
-            }
-            const bizOwnerJid = `${bizOwnerPhone}@s.whatsapp.net`;
-            const imgPayload = toMediaPayload(mediaPath);
-            if (imgPayload && bizOwnerJid) {
-              const jid = ensureWhatsAppJid(phone);
-              const resolvedJid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
-              await checkBeforeSend(beforeSend);
+      // 1. Try sending authentic native WhatsApp product card (Baileys productMessage)
+      try {
+        const baileysCommerceAdapter = require('../../commerce/BaileysCommerceAdapter');
+        const jid = ensureWhatsAppJid(phone);
+        const resolvedJid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
+        await checkBeforeSend(beforeSend);
 
-              const lines = (caption || '').split('\n').map((l) => l.trim()).filter(Boolean);
-              const productTitle = (
-                options?.title ||
-                lines.find((l) => l.startsWith('*') && !l.includes('[CATÁLOGO') && !l.includes('━━━━'))?.replace(/\*/g, '') ||
-                String(fileName || 'Produto WhatsApp').replace(/\.[^.]+$/, '')
-              ).trim();
+        const lines = (caption || '').split('\n').map((l) => l.trim()).filter(Boolean);
+        const productTitle = (
+          options?.title ||
+          lines.find((l) => l.startsWith('*') && !l.includes('[CATÁLOGO') && !l.includes('━━━━'))?.replace(/\*/g, '') ||
+          String(fileName || 'Produto WhatsApp').replace(/\.[^.]+$/, '')
+        ).trim();
 
-              let parsedPrice = options?.price;
-              if (!parsedPrice && caption) {
-                const match = caption.match(/Valor:\*?\s*R\$\s*([0-9.,]+)/i);
-                if (match) {
-                  parsedPrice = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
-                }
-              }
-              const priceAmount1000 = parsedPrice ? Math.round(parsedPrice * 1000) : 0;
-              const prodId = String(options?.productId || options?.code || fileName || 'prod').replace(/\.[^.]+$/, '');
-              const productDescription = options?.description || caption || '';
-
-              // Native WhatsApp product payload (Solução 2 Baileys ProductMessage)
-              const productPayload = {
-                product: {
-                  productImage: imgPayload,
-                  productId: prodId,
-                  title: productTitle,
-                  description: productDescription,
-                  currencyCode: 'BRL',
-                  priceAmount1000: String(priceAmount1000),
-                  retailerId: options?.retailerId || prodId,
-                  productImageCount: 1,
-                  url: `https://wa.me/c/${bizOwnerPhone}`,
-                },
-                businessOwnerJid: bizOwnerJid,
-                caption: caption || undefined,
-              };
-
-              const nativeRes = await sock.sendMessage(resolvedJid, productPayload);
-              if (nativeRes?.key?.id) {
-                registerSystemOutbound(nativeRes, resolvedJid, phone);
-                return nativeRes;
-              }
-            }
+        let parsedPrice = options?.price;
+        if (!parsedPrice && caption) {
+          const match = caption.match(/Valor:\*?\s*R\$\s*([0-9.,]+)/i);
+          if (match) {
+            parsedPrice = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
           }
-        } catch (nativeErr) {
-          console.warn('[WHATSAPP-SEND] Native product card query failed, using image dispatch:', nativeErr.message);
         }
 
-        // 2. High-fidelity image message with complete caption
+        const prodId = String(options?.productId || options?.code || fileName || 'prod').replace(/\.[^.]+$/, '');
+        const productData = {
+          productId: prodId,
+          name: productTitle,
+          title: productTitle,
+          description: options?.description || caption || '',
+          price: parsedPrice || 0,
+          currency: options?.currency || 'BRL',
+          images: mediaPath ? [mediaPath] : [],
+          productImage: mediaPath,
+          code: options?.code || prodId,
+        };
+
+        const nativeRes = await baileysCommerceAdapter.sendProduct(sock, resolvedJid, productData, {
+          caption: caption || undefined,
+        });
+
+        if (nativeRes?.key?.id) {
+          registerSystemOutbound(nativeRes, resolvedJid, phone);
+          return nativeRes;
+        }
+      } catch (nativeErr) {
+        console.warn('[WHATSAPP-SEND] Native product card dispatch error:', nativeErr.message);
+      }
+
+      // 2. High-fidelity image message with complete caption
+      if (mediaPath) {
         try {
           return await sendImage(sock, phone, mediaPath, caption || '', { beforeSend });
         } catch (imgErr) {

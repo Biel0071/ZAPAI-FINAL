@@ -2666,6 +2666,59 @@ export const apiService = {
       body: payload,
     });
   },
+  async getCommerceCapabilities() {
+    return request<{ success: boolean; data: any }>({
+      endpoint: "/api/commerce/capabilities",
+      method: "GET",
+    });
+  },
+  async getCommerceOrders(params?: { conversationId?: string; phone?: string; status?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.conversationId) searchParams.set("conversationId", params.conversationId);
+    if (params?.phone) searchParams.set("phone", params.phone);
+    if (params?.status) searchParams.set("status", params.status);
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
+    return request<{ success: boolean; orders: any[]; total: number }>({
+      endpoint: `/api/commerce/orders${query}`,
+      method: "GET",
+    });
+  },
+  async getCommerceOrder(id: string) {
+    return request<{ success: boolean; order: any }>({
+      endpoint: `/api/commerce/orders/${id}`,
+      method: "GET",
+    });
+  },
+  async confirmCommerceOrder(id: string, notes?: string, sessionId?: string) {
+    return request<{ success: boolean; order: any; message?: any }>({
+      endpoint: `/api/commerce/orders/${id}/confirm`,
+      method: "POST",
+      body: { notes, sessionId },
+    });
+  },
+  async rejectCommerceOrder(id: string, reason?: string, sessionId?: string) {
+    return request<{ success: boolean; order: any; message?: any }>({
+      endpoint: `/api/commerce/orders/${id}/reject`,
+      method: "POST",
+      body: { reason, sessionId },
+    });
+  },
+  async sendNativeCommerceProduct(payload: {
+    phone?: string;
+    remoteJid?: string;
+    productId?: string;
+    productIds?: string[];
+    product?: any;
+    caption?: string;
+    conversationId?: string;
+    sessionId?: string;
+  }) {
+    return request<{ success: boolean; whatsappMessageId?: string; product?: any; results?: any[] }>({
+      endpoint: "/api/commerce/send-product",
+      method: "POST",
+      body: payload,
+    });
+  },
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {

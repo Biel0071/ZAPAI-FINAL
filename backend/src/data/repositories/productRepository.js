@@ -231,6 +231,8 @@ async function deleteProductsByCompany(companyId = 'default') {
 module.exports = {
   listProducts,
   getProductById,
+  findById: getProductById,
+  findByCompanyId: (companyId = 'default', options = {}) => listProducts({ companyId, ...options }),
   upsertProduct,
   deleteProductsByCompany,
 };
