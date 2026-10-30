@@ -404,6 +404,7 @@ export function CatalogSelectorPopover({
   const [selectedCategory, setSelectedCategory] = useState<string>("TODOS");
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   // Fetch real products from backend repository on mount, on open, and whenever WhatsApp connects/syncs
   useEffect(() => {
@@ -541,10 +542,9 @@ export function CatalogSelectorPopover({
     }
     try {
       setSendingId(product.id);
-      const formatted = formatProductMessage(product);
-      await onSendProduct(product, formatted);
+      await onSendProduct(product, "");
       toast.success(`"${product.name}" enviado no chat!`, {
-        description: "Mensagem do catálogo WhatsApp disparada com sucesso.",
+        description: "Produto do catálogo WhatsApp disparado com sucesso.",
       });
       setOpen(false);
     } catch (err: any) {
@@ -570,12 +570,12 @@ export function CatalogSelectorPopover({
         await onSendMultipleProducts(selectedProducts);
       } else if (selectedProducts.length === 1) {
         const p = selectedProducts[0];
-        await onSendProduct(p, formatProductMessage(p));
+        await onSendProduct(p, "");
         toast.success(`"${p.name}" enviado no chat!`);
       } else {
         for (let i = 0; i < selectedProducts.length; i++) {
           const p = selectedProducts[i];
-          await onSendProduct(p, formatProductMessage(p));
+          await onSendProduct(p, "");
           if (i < selectedProducts.length - 1) {
             await new Promise((r) => setTimeout(r, 400));
           }
@@ -598,15 +598,6 @@ export function CatalogSelectorPopover({
       }
       return;
     }
-    const catalogMsg = [
-      `🏪 *[CATÁLOGO WHATSAPP]*`,
-      `━━━━━━━━━━━━━━━━━━━━`,
-      `*Catálogo Oficial — Depósito Vista Alegre*`,
-      `Acesse nossa loja completa no WhatsApp, veja todos os produtos e faça seu pedido direto:`,
-      `👉 ${OFFICIAL_STORE_CATALOG_URL}`,
-      `━━━━━━━━━━━━━━━━━━━━`,
-      `📱 Atendimento e entregas: (31) 9367-2075`,
-    ].join("\n");
 
     try {
       setSendingId("catalog_root");
@@ -619,7 +610,7 @@ export function CatalogSelectorPopover({
           category: "Catálogo",
           whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
         },
-        catalogMsg
+        ""
       );
       toast.success("Catálogo oficial do WhatsApp enviado no chat!");
       setOpen(false);
@@ -678,15 +669,15 @@ export function CatalogSelectorPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        {/* Authentic WhatsApp style Catálogo button beside emojis (compact icon-only) */}
+        {/* Authentic WhatsApp style Catálogo button beside emojis (compact monochrome icon-only) */}
         <Button
           type="button"
           variant="ghost"
           size="icon"
           disabled={disabled}
           className={cn(
-            "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none",
-            open && "text-emerald-400 bg-muted/60",
+            "h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none",
+            open && "text-[#e9edef] bg-[#202c33]",
             className
           )}
           aria-label="Abrir catálogo WhatsApp"
@@ -863,20 +854,20 @@ export function CatalogSelectorPopover({
                     </div>
 
                     {/* Thumbnail Image */}
-                    {item.images && item.images.length > 0 && item.images[0] ? (
+                    {item.images && item.images.length > 0 && item.images[0] && !failedImages.has(item.id) ? (
                       <div className="w-12 h-12 rounded-lg overflow-hidden bg-[#202c33] border border-[#2a3942] shrink-0 relative flex items-center justify-center">
                         <img
                           src={item.images[0]}
                           alt={item.name}
                           className="w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLElement).style.display = "none";
+                          onError={() => {
+                            setFailedImages((prev) => new Set(prev).add(item.id));
                           }}
                         />
                       </div>
                     ) : (
                       <div className="w-12 h-12 rounded-lg bg-[#202c33] border border-[#2a3942] flex items-center justify-center text-muted-foreground shrink-0">
-                        <Package className="h-5 w-5 opacity-40" />
+                        <Package className="h-5 w-5 opacity-40 text-[#8696a0]" />
                       </div>
                     )}
 

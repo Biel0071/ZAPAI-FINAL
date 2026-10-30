@@ -593,10 +593,19 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
     if (product.id === 'catalog_root') {
       try {
-        await handleSendMessage(formattedMessage || `https://wa.me/c/553193672075`);
-        toast.success('Catálogo enviado no chat!');
+        const res = await apiService.sendNativeCatalog({
+          phone: selectedConversation.phone,
+          remoteJid: (selectedConversation as any).remoteJid || (selectedConversation.phone.includes('@') ? selectedConversation.phone : undefined),
+          conversationId: selectedConversation.id,
+          sessionId: selectedConversation.sessionId || 'main',
+        });
+        if (res?.success) {
+          toast.success('Catálogo oficial do WhatsApp enviado!');
+        } else {
+          throw new Error(res?.error || 'Erro ao enviar catálogo');
+        }
       } catch (e: any) {
-        toast.error('Erro ao enviar catálogo');
+        toast.error('Erro ao enviar catálogo: ' + (e.message || ''));
       }
       return;
     }
@@ -619,7 +628,6 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           productImage: (Array.isArray(product.images) && product.images[0]) || product.image,
           code: product.code,
         },
-        caption: formattedMessage,
         conversationId: selectedConversation.id,
         sessionId: selectedConversation.sessionId || 'main',
       });
@@ -1890,7 +1898,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
+                      className="h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none"
                       aria-label="Abrir emojis"
                       title="Emojis"
                       data-emoji-trigger
@@ -1932,9 +1940,9 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
+                          className="h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none"
                           aria-label={item.label}
-                          title={`${item.label} — Clique direito para ocultar / desafixar`}
+                          title={`${item.label} — Clique com botão direito para ocultar / desafixar`}
                           onClick={() => handleAttachmentAction(item.id)}
                           onContextMenu={(e) => {
                             e.preventDefault();
@@ -1960,8 +1968,8 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none",
-                        isAiSuggestionOpen && "text-emerald-400 bg-muted/60"
+                        "h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none",
+                        isAiSuggestionOpen && "text-[#e9edef] bg-[#202c33]"
                       )}
                       aria-label="Resposta IA disponível"
                       title="Sugestão de resposta IA"

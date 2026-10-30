@@ -12,10 +12,17 @@ class WhatsAppWebAdapter {
     this.name = 'WHATSAPP_WEB_BRIDGE';
   }
 
+  _assertAuthenticated(sessionId) {
+    const state = webBridgeManager.getSessionState(sessionId);
+    if (!state.authenticated) {
+      throw new Error(`WHATSAPP_WEB_BRIDGE session "${sessionId}" is not authenticated. Pair via WhatsApp Web QR code to use this engine.`);
+    }
+  }
+
   async sendText(payload, context = {}) {
     const sessionId = context.sessionId || 'main';
+    this._assertAuthenticated(sessionId);
     return await webBridgeManager.executeOnPage(sessionId, async (page) => {
-      // High-level safe interaction or throw if not authenticated
       const targetPhone = (payload.phone || payload.remoteJid || '').replace(/\D/g, '');
       const text = payload.text || payload.message;
       return {
@@ -28,6 +35,7 @@ class WhatsAppWebAdapter {
 
   async sendProduct(payload, context = {}) {
     const sessionId = context.sessionId || 'main';
+    this._assertAuthenticated(sessionId);
     return await webBridgeManager.executeOnPage(sessionId, async (page) => {
       return {
         success: true,
@@ -40,6 +48,7 @@ class WhatsAppWebAdapter {
 
   async sendOrder(payload, context = {}) {
     const sessionId = context.sessionId || 'main';
+    this._assertAuthenticated(sessionId);
     return await webBridgeManager.executeOnPage(sessionId, async (page) => {
       return {
         success: true,
@@ -52,6 +61,7 @@ class WhatsAppWebAdapter {
 
   async sendCatalog(payload, context = {}) {
     const sessionId = context.sessionId || 'main';
+    this._assertAuthenticated(sessionId);
     return await webBridgeManager.executeOnPage(sessionId, async (page) => {
       return {
         success: true,

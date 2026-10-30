@@ -35,6 +35,44 @@ class WebBridgeManager {
     }
   }
 
+  _resolveChromiumPath() {
+    const candidates = [
+      process.env.CHROMIUM_PATH,
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+      '/usr/bin/google-chrome',
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Users\\Dell\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
+    ].filter(Boolean);
+
+    for (const c of candidates) {
+      try {
+        if (fs.existsSync(c)) return c;
+      } catch (_) {}
+    }
+    return undefined;
+  }
+
+  async checkAuthentication(page) {
+    if (!page) return { authenticated: false, qr: null };
+    try {
+      const isChatListVisible = await page.$('#pane-side, [data-testid="chat-list"], header [data-testid="menu-bar"]');
+      if (isChatListVisible) {
+        return { authenticated: true, qr: null };
+      }
+
+      const qrCanvas = await page.$('canvas, div[data-ref]');
+      if (qrCanvas) {
+        return { authenticated: false, qr: 'qr_visible' };
+      }
+
+      return { authenticated: false, qr: null };
+    } catch (_) {
+      return { authenticated: false, qr: null };
+    }
+  }
+
   _startIdleWatchdog() {
     if (this.idleTimer) clearInterval(this.idleTimer);
     this.idleTimer = setInterval(() => {
@@ -90,8 +128,12 @@ class WebBridgeManager {
 
     console.log(`[WEB-BRIDGE] Launching on-demand Chromium for session "${sId}" (tenant: ${companyId})`);
 
-    const playwright = require('playwright');
-    const context = await playwright.chromium.launchPersistentContext(sessionDataDir, {
+    const executablePath = this._resolveChromiumPath();
+    const playwright = (() => {
+      try { return require('playwright'); } catch (_) { return require('playwright-core'); }
+    })();
+
+    const launchOptions = {
       headless: true,
       args: [
         '--no-sandbox',
@@ -103,8 +145,12 @@ class WebBridgeManager {
       ],
       viewport: { width: 1280, height: 800 },
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    });
+    };
+    if (executablePath) {
+      launchOptions.executablePath = executablePath;
+    }
 
+    const context = await playwright.chromium.launchPersistentContext(sessionDataDir, launchOptions);
     const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
     const sessionRecord = {
@@ -120,14 +166,19 @@ class WebBridgeManager {
 
     this.sessions.set(sId, sessionRecord);
 
-    // Navigate to WhatsApp Web
+    // Navigate to WhatsApp Web and check REAL authentication
     try {
       await page.goto('https://web.whatsapp.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      // Wait for page initial render
+      await page.waitForTimeout(3000);
+      const auth = await this.checkAuthentication(page);
       sessionRecord.status = 'ready';
-      sessionRecord.authenticated = true;
+      sessionRecord.authenticated = auth.authenticated;
+      sessionRecord.qrCode = auth.qr;
     } catch (e) {
       console.warn(`[WEB-BRIDGE] Navigation error for session "${sId}":`, e.message);
       sessionRecord.status = 'error';
+      sessionRecord.authenticated = false;
     }
 
     return sessionRecord;

@@ -165,6 +165,70 @@ class BaileysCommerceAdapter extends WhatsAppCommerceAdapter {
   }
 
   /**
+   * Send authentic native WhatsApp catalog message or rich interactive preview
+   */
+  async sendCatalog(sock, targetJid, catalogData = {}, options = {}) {
+    if (!sock) throw new Error('WhatsApp socket is not available.');
+    if (!targetJid) throw new Error('Target JID is required.');
+
+    const { phone: bizPhone, jid: bizJid } = this.resolveBusinessOwnerJid(sock, options);
+    const storeUrl = catalogData.url || `https://wa.me/c/${bizPhone}`;
+
+    // Resolve an authentic product image for the catalog snapshot thumbnail
+    const thumbObj = await this.resolveImageBuffer(catalogData.image || '/assets/catalog/caixa_dagua.png')
+      || await this.resolveImageBuffer('/assets/catalog/tijolo_12_furos.png');
+
+    // Attempt native protobuf ProductMessage with catalog snapshot
+    try {
+      const { proto, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
+      const waMsg = generateWAMessageFromContent(targetJid, {
+        productMessage: {
+          businessOwnerJid: bizJid,
+          catalog: {
+            catalogImage: thumbObj?.image,
+            title: catalogData.title || 'Depósito Vista Alegre — Catálogo Oficial',
+            description: catalogData.description || 'Materiais de Construção com Entrega Rápida em BH e Região',
+          },
+          contextInfo: {
+            externalAdReply: {
+              title: catalogData.title || 'Depósito Vista Alegre — Catálogo Completo',
+              body: 'Tijolos, Cimento, Telhas, Caixas d’Água e Agregados',
+              mediaType: 1,
+              sourceUrl: storeUrl,
+              thumbnail: thumbObj?.image,
+              renderLargerThumbnail: true,
+            }
+          }
+        }
+      }, { userJid: sock.user?.id });
+
+      await sock.relayMessage(targetJid, waMsg.message, { messageId: waMsg.key.id });
+      return { success: true, whatsappMessageId: waMsg.key.id, key: waMsg.key };
+    } catch (relayErr) {
+      console.warn('[COMMERCE-ADAPTER] Native catalog protobuf relay failed, using rich preview card:', relayErr.message);
+      // High-fidelity fallback: rich interactive link preview card
+      const sendResult = await sock.sendMessage(targetJid, {
+        text: `🏪 *Depósito Vista Alegre — Catálogo Completo*\n\nAcesse nosso catálogo oficial no WhatsApp, consulte produtos e faça seu pedido direto:\n👉 ${storeUrl}`,
+        contextInfo: {
+          externalAdReply: {
+            title: 'Catálogo de Produtos — Depósito Vista Alegre',
+            body: 'Tijolos, Cimento, Telhas, Caixas d’Água e Agregados',
+            mediaType: 1,
+            sourceUrl: storeUrl,
+            thumbnail: thumbObj?.image,
+            renderLargerThumbnail: true,
+          }
+        }
+      });
+      return {
+        success: true,
+        whatsappMessageId: sendResult?.key?.id,
+        key: sendResult?.key,
+      };
+    }
+  }
+
+  /**
    * Send authentic native WhatsApp order created from catalog
    */
   async sendOrder(sock, targetJid, orderData, options = {}) {

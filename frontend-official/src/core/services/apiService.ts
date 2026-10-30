@@ -2743,6 +2743,19 @@ export const apiService = {
       body: payload,
     });
   },
+  async sendNativeCatalog(payload: {
+    phone?: string;
+    remoteJid?: string;
+    conversationId?: string;
+    sessionId?: string;
+    caption?: string;
+  }) {
+    return request<{ success: boolean; whatsappMessageId?: string; error?: string }>({
+      endpoint: "/api/commerce/send-catalog",
+      method: "POST",
+      body: payload,
+    });
+  },
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {

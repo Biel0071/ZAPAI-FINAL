@@ -2,27 +2,32 @@ const db = require('../src/infrastructure/config/database');
 const memoryService = require('./aiConversationMemoryService');
 
 function requireScope(companyId, sessionId) {
-  if (typeof companyId !== 'string' || !companyId.trim() || typeof sessionId !== 'string' || !sessionId.trim()) throw new Error('Empresa e conexão são obrigatórias para memória.');
+  if (typeof companyId !== 'string' || !companyId.trim() || typeof sessionId !== 'string' || !sessionId.trim()) {
+    return { companyId: companyId || 'default', sessionId: sessionId || 'main' };
+  }
+  return { companyId, sessionId };
 }
 async function assertSession(companyId, sessionId, client = db) {
-  requireScope(companyId, sessionId);
-  const row = (await client.query('SELECT session_id FROM sessions WHERE company_id=$1 AND session_id=$2', [companyId,sessionId])).rows[0];
+  const scope = requireScope(companyId, sessionId);
+  const row = (await client.query('SELECT session_id FROM sessions WHERE company_id=$1 AND session_id=$2', [scope.companyId, scope.sessionId])).rows[0];
   if (!row) throw new Error('Conexão não encontrada.');
 }
 async function loadEntry(companyId, sessionId, contactId, client = db) {
-  requireScope(companyId, sessionId);
-  return (await client.query('SELECT * FROM ai_conversation_memory WHERE company_id=$1 AND session_id=$2 AND contact_id=$3', [companyId,sessionId,String(contactId)])).rows[0] || null;
+  const scope = requireScope(companyId, sessionId);
+  return (await client.query('SELECT * FROM ai_conversation_memory WHERE company_id=$1 AND session_id=$2 AND contact_id=$3', [scope.companyId, scope.sessionId, String(contactId)])).rows[0] || null;
 }
 async function persistMemoryEntry(entry, companyId = entry?.company_id, client = db) {
-  requireScope(companyId,entry?.session_id);
+  const scope = requireScope(companyId, entry?.session_id);
+  const targetCompany = scope.companyId;
+  const targetSession = scope.sessionId;
   await client.query(`INSERT INTO ai_conversation_memory
     (company_id,session_id,contact_id,phone,name,intent,sentiment,tags,summary,metrics,messages,last_updated)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12)
     ON CONFLICT(company_id,session_id,contact_id) DO UPDATE SET phone=EXCLUDED.phone,name=EXCLUDED.name,
     intent=EXCLUDED.intent,sentiment=EXCLUDED.sentiment,tags=EXCLUDED.tags,summary=EXCLUDED.summary,
     metrics=EXCLUDED.metrics,messages=EXCLUDED.messages,last_updated=EXCLUDED.last_updated,updated_at=NOW()`,
-    [companyId,entry.session_id,entry.contact_id,entry.phone,entry.name,entry.intent,entry.sentiment,entry.tags,
-      entry.summary,JSON.stringify(entry.metrics),JSON.stringify(entry.messages),entry.last_updated]);
+    [targetCompany,targetSession,entry.contact_id || 'unknown',entry.phone || '',entry.name || 'Contato',entry.intent || '',entry.sentiment || '',entry.tags || [],
+      entry.summary || '',JSON.stringify(entry.metrics || {}),JSON.stringify(entry.messages || []),entry.last_updated || new Date().toISOString()]);
   return true;
 }
 // The message table is the durable queue. Receipt + projection + acknowledgement commit together.

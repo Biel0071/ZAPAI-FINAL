@@ -187,8 +187,8 @@ export function AttachmentActionMenu({
           size="icon"
           disabled={disabled}
           className={cn(
-            "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none",
-            open && "text-emerald-400 bg-muted/60",
+            "h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none",
+            open && "text-[#e9edef] bg-[#202c33]",
             className
           )}
           aria-label="Anexar e opções"
