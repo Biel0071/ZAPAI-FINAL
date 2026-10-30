@@ -55,21 +55,40 @@ class WebBridgeManager {
   }
 
   async checkAuthentication(page) {
-    if (!page) return { authenticated: false, qr: null };
+    if (!page) return { authenticated: false, qr: null, qrImage: null, ref: null };
     try {
       const isChatListVisible = await page.$('#pane-side, [data-testid="chat-list"], header [data-testid="menu-bar"]');
       if (isChatListVisible) {
-        return { authenticated: true, qr: null };
+        return { authenticated: true, qr: null, qrImage: null, ref: null };
       }
 
-      const qrCanvas = await page.$('canvas, div[data-ref]');
+      const qrCanvas = await page.$('canvas');
       if (qrCanvas) {
-        return { authenticated: false, qr: 'qr_visible' };
+        const qrImage = await page.evaluate(() => {
+          const c = document.querySelector('canvas');
+          return c ? c.toDataURL('image/png') : null;
+        }).catch(() => null);
+
+        const ref = await page.evaluate(() => {
+          const el = document.querySelector('[data-ref]');
+          return el ? el.getAttribute('data-ref') : null;
+        }).catch(() => null);
+
+        return { authenticated: false, qr: 'qr_visible', qrImage, ref };
       }
 
-      return { authenticated: false, qr: null };
+      const dataRef = await page.$('[data-ref]');
+      if (dataRef) {
+        const ref = await page.evaluate(() => {
+          const el = document.querySelector('[data-ref]');
+          return el ? el.getAttribute('data-ref') : null;
+        }).catch(() => null);
+        return { authenticated: false, qr: 'qr_visible', qrImage: null, ref };
+      }
+
+      return { authenticated: false, qr: null, qrImage: null, ref: null };
     } catch (_) {
-      return { authenticated: false, qr: null };
+      return { authenticated: false, qr: null, qrImage: null, ref: null };
     }
   }
 
@@ -144,7 +163,7 @@ class WebBridgeManager {
         '--no-zygote',
       ],
       viewport: { width: 1280, height: 800 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
     };
     if (executablePath) {
       launchOptions.executablePath = executablePath;
@@ -162,19 +181,23 @@ class WebBridgeManager {
       authenticated: false,
       lastActive: Date.now(),
       qrCode: null,
+      qrImage: null,
+      ref: null,
     };
 
     this.sessions.set(sId, sessionRecord);
 
     // Navigate to WhatsApp Web and check REAL authentication
     try {
-      await page.goto('https://web.whatsapp.com', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.goto('https://web.whatsapp.com', { waitUntil: 'domcontentloaded', timeout: 35000 });
       // Wait for page initial render
       await page.waitForTimeout(3000);
       const auth = await this.checkAuthentication(page);
       sessionRecord.status = 'ready';
       sessionRecord.authenticated = auth.authenticated;
       sessionRecord.qrCode = auth.qr;
+      sessionRecord.qrImage = auth.qrImage;
+      sessionRecord.ref = auth.ref;
     } catch (e) {
       console.warn(`[WEB-BRIDGE] Navigation error for session "${sId}":`, e.message);
       sessionRecord.status = 'error';
@@ -182,6 +205,119 @@ class WebBridgeManager {
     }
 
     return sessionRecord;
+  }
+
+  /**
+   * Capture or retrieve live QR Code for scanning WhatsApp Web
+   */
+  async getOrCaptureQR(sessionId, companyId = 'default') {
+    const sId = String(sessionId || 'default').trim().toLowerCase();
+    const session = await this.launchSession(sId, companyId);
+    if (!session || !session.page) {
+      throw new Error(`WebBridge session "${sId}" is not accessible.`);
+    }
+
+    session.lastActive = Date.now();
+    let auth = await this.checkAuthentication(session.page);
+
+    if (!auth.authenticated && !auth.qrImage) {
+      try {
+        await session.page.waitForSelector('canvas, #pane-side, [data-ref]', { timeout: 12000 });
+        const retryAuth = await this.checkAuthentication(session.page);
+        auth = retryAuth;
+      } catch (_) {}
+    }
+
+    session.authenticated = auth.authenticated;
+    session.qrCode = auth.qr;
+    session.qrImage = auth.qrImage;
+    session.ref = auth.ref;
+
+    if (auth.authenticated) {
+      // Register into TransportRegistry
+      try {
+        const transportRegistry = require('./TransportRegistry');
+        transportRegistry.registerTransport(sId, 'WHATSAPP_WEB_BRIDGE', {
+          status: 'connected',
+          companyId,
+        });
+      } catch (_) {}
+
+      return {
+        sessionId: sId,
+        authenticated: true,
+        status: 'connected',
+        qrImage: null,
+      };
+    }
+
+    // Start background watcher to detect when user scans
+    this._watchForScan(sId, session);
+
+    return {
+      sessionId: sId,
+      authenticated: false,
+      status: 'waiting_scan',
+      qrImage: auth.qrImage || session.qrImage || null,
+      ref: auth.ref || session.ref || null,
+    };
+  }
+
+  /**
+   * Monitor page for scan completion
+   */
+  _watchForScan(sessionId, session) {
+    if (session._watching) return;
+    session._watching = true;
+
+    const interval = setInterval(async () => {
+      try {
+        if (!session.page || session.authenticated) {
+          clearInterval(interval);
+          session._watching = false;
+          return;
+        }
+
+        const isChatListVisible = await session.page.$('#pane-side, [data-testid="chat-list"], header [data-testid="menu-bar"]');
+        if (isChatListVisible) {
+          session.authenticated = true;
+          session.status = 'ready';
+          session.qrCode = null;
+          session.qrImage = null;
+          clearInterval(interval);
+          session._watching = false;
+          console.log(`[WEB-BRIDGE] Session "${sessionId}" successfully authenticated via QR scan!`);
+
+          try {
+            const transportRegistry = require('./TransportRegistry');
+            transportRegistry.registerTransport(sessionId, 'WHATSAPP_WEB_BRIDGE', {
+              status: 'connected',
+              companyId: session.companyId || 'default',
+            });
+          } catch (_) {}
+
+          if (global.io) {
+            global.io.emit('web_bridge_connected', {
+              sessionId,
+              authenticated: true,
+              timestamp: new Date().toISOString(),
+            });
+            global.io.emit('session_updated', {
+              sessionId,
+              webBridgeAuthenticated: true,
+            });
+          }
+        }
+      } catch (err) {
+        clearInterval(interval);
+        session._watching = false;
+      }
+    }, 2000);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      session._watching = false;
+    }, 120000);
   }
 
   /**

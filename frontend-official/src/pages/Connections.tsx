@@ -982,6 +982,19 @@ export default function Connections() {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="h-8 rounded-xl px-2.5 gap-1.5 text-[11px] border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(`/api/orchestrator/bridge/view/${session.id}`, 'webbridge', 'width=520,height=720,menubar=no,toolbar=no');
+                              }}
+                              title="Conectar WhatsApp Web Bridge (Chromium) em paralelo com Baileys"
+                            >
+                              <WhatsappLogo className="h-3.5 w-3.5 text-emerald-400" />
+                              <span>Web Bridge (QR)</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="h-8 rounded-xl px-2.5 gap-1.5 text-[11px] border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
                               onClick={(e) => {
                                 e.stopPropagation();

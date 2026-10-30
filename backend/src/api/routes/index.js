@@ -44,6 +44,14 @@ function registerRoutes(app, options = {}) {
   }
   app.use('/', authRouter);
   app.use('/api', authRouter);
+
+  // Web Bridge QR Code & Status accessible for device pairing
+  const orchestratorController = require('../controllers/orchestratorController');
+  app.get('/api/orchestrator/bridge/view/:sessionId?', (req, res) => orchestratorController.renderBridgeView(req, res));
+  app.get('/orchestrator/bridge/view/:sessionId?', (req, res) => orchestratorController.renderBridgeView(req, res));
+  app.get('/api/orchestrator/bridge/qr/:sessionId?', (req, res) => orchestratorController.getBridgeQR(req, res));
+  app.get('/api/orchestrator/bridge/status/:sessionId?', (req, res) => orchestratorController.getBridgeStatus(req, res));
+
   app.use(requireJwtAuth);
   app.use('/api/ai/history', require('../../ai/evolutionary/historyRoutes').createHistoryRouter());
 
