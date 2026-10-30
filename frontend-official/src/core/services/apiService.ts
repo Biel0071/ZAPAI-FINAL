@@ -1507,8 +1507,13 @@ export const apiService = {
     caption?: string;
     fileName: string;
     mimeType: string;
-    mediaType: "image" | "video" | "audio" | "file" | "sticker";
-    dataBase64: string;
+    mediaType: "image" | "video" | "audio" | "file" | "sticker" | "product" | "catalog";
+    dataBase64?: string;
+    mediaPath?: string;
+    title?: string;
+    price?: number | string;
+    productId?: string;
+    description?: string;
     conversationId?: string;
     contactId?: string;
     sessionId?: string;
@@ -1519,7 +1524,7 @@ export const apiService = {
     const normalizedPhone = extractChatIdentifier(payload.phone) ?? "";
     const normalizedChatId = extractChatIdentifier(payload.chatId ?? payload.phone) ?? normalizedPhone;
 
-    if (!normalizedBase64) {
+    if (!normalizedBase64 && !payload.mediaPath) {
       throw new Error("Arquivo de mídia inválido. Tente selecionar o arquivo novamente.");
     }
 
@@ -1527,23 +1532,29 @@ export const apiService = {
       throw new Error("Telefone inválido para envio de mídia.");
     }
 
-    const mediaTypeMap: Record<string, "image" | "video" | "audio" | "document" | "sticker"> = {
+    const mediaTypeMap: Record<string, "image" | "video" | "audio" | "document" | "sticker" | "product"> = {
       image: "image",
       video: "video",
       audio: "audio",
       file: "document",
       sticker: "sticker",
+      product: "product",
+      catalog: "product",
     };
-    const mappedType = mediaTypeMap[payload.mediaType] ?? "document";
+    const mappedType = mediaTypeMap[payload.mediaType] ?? (payload.mediaType === "product" ? "product" : "document");
 
     const requestBody: Record<string, unknown> = {
       chatId: normalizedChatId.includes("@") ? normalizedChatId : `${normalizedChatId}@s.whatsapp.net`,
       type: mappedType,
-      file: normalizedBase64,
-      mediaPath: `upload://${payload.fileName}`,
+      file: normalizedBase64 || undefined,
+      mediaPath: payload.mediaPath || `upload://${payload.fileName}`,
       caption: normalizedCaption,
       fileName: payload.fileName,
       mimeType: payload.mimeType,
+      title: payload.title,
+      price: payload.price,
+      productId: payload.productId,
+      description: payload.description,
       conversationId: payload.conversationId,
       contactId: payload.contactId,
       sessionId: payload.sessionId,

@@ -84,16 +84,25 @@ function parseCatalogCard(text: string): ParsedCatalogItem | null {
   const urlMatch = text.match(/https?:\/\/[^\s*]+/i);
 
   const lowerTitle = (title || "").toLowerCase();
-  let image = "/assets/catalog/tijolo_8f.jpg";
-  if (lowerTitle.includes("maciço") || lowerTitle.includes("macico")) image = "/assets/catalog/tijolo_macico.jpg";
-  else if (lowerTitle.includes("cimento") || lowerTitle.includes("argamassa")) image = "/assets/catalog/cimento_cp2.png";
+  let image = "/assets/catalog/tijolo_12_furos.png";
+  if (lowerTitle.includes("12 furos") || lowerTitle.includes("12f")) image = "/assets/catalog/tijolo_12_furos.png";
+  else if (lowerTitle.includes("9 furos") || lowerTitle.includes("9f")) image = "/assets/catalog/tijolo_9_furos.png";
+  else if (lowerTitle.includes("8 furos") || lowerTitle.includes("8f")) image = "/assets/catalog/tijolo_8_furos.png";
+  else if (lowerTitle.includes("maciço") || lowerTitle.includes("macico")) image = "/assets/catalog/tijolo_macico.jpg";
+  else if (lowerTitle.includes("liz") || lowerTitle.includes("cp4") || lowerTitle.includes("cp iv")) image = "/assets/catalog/cimento_liz.png";
+  else if (lowerTitle.includes("cimento") || lowerTitle.includes("argamassa")) image = "/assets/catalog/cimento_liz.png";
   else if (lowerTitle.includes("churrasqueira") && (lowerTitle.includes("75") || lowerTitle.includes("prem"))) image = "/assets/catalog/churras_75.jpg";
-  else if (lowerTitle.includes("churrasqueira")) image = "/assets/catalog/churras_65.png";
+  else if (lowerTitle.includes("churrasqueira")) image = "/assets/catalog/churrasqueira_premoldada.png";
+  else if (lowerTitle.includes("telha") && (lowerTitle.includes("ceram") || lowerTitle.includes("cerâm"))) image = "/assets/catalog/telhas_ceramica.png";
   else if (lowerTitle.includes("telha")) image = "/assets/catalog/telha_fibro.jpg";
-  else if (lowerTitle.includes("caixa") || lowerTitle.includes("água") || lowerTitle.includes("agua")) image = "/assets/catalog/caixa_dagua.png";
-  else if (lowerTitle.includes("betoneira")) image = "/assets/catalog/betoneira.png";
+  else if (lowerTitle.includes("10.000") || lowerTitle.includes("10000")) image = "/assets/catalog/caixa_dagua.png";
+  else if (lowerTitle.includes("5000") || lowerTitle.includes("5.000")) image = "/assets/catalog/caixa_5000l.png";
+  else if (lowerTitle.includes("2000") || lowerTitle.includes("2.000")) image = "/assets/catalog/caixa_2000l.png";
+  else if (lowerTitle.includes("1000") || lowerTitle.includes("1.000")) image = "/assets/catalog/caixa_1000l.png";
+  else if (lowerTitle.includes("brita")) image = "/assets/catalog/caminhao_brita.png";
+  else if (lowerTitle.includes("betoneira")) image = "/assets/catalog/betoneira_csm_400l.png";
   else if (lowerTitle.includes("tinta")) image = "/assets/catalog/tinta.png";
-  else if (lowerTitle.includes("bloco") || lowerTitle.includes("areia") || lowerTitle.includes("brita")) image = "/assets/catalog/blocos.png";
+  else if (lowerTitle.includes("bloco") || lowerTitle.includes("areia")) image = "/assets/catalog/blocos.png";
 
   return {
     title: title || "Produto do Catálogo",
@@ -226,11 +235,13 @@ export const MessageRow = memo(function MessageRow({
   backendOnline,
   searchQuery,
   isActiveSearchMatch,
+  onOpenProductDetails,
 }: {
   message: ChatMessage;
   reaction?: string;
   onReact: (messageId: string, emoji: string) => void;
   onOpenMediaPreview: (media: PreviewMediaState) => void;
+  onOpenProductDetails?: (product: any) => void;
   isMenuOpen: boolean;
   isReactionPickerOpen: boolean;
   onToggleMenu: (messageId: string) => void;
@@ -627,108 +638,123 @@ export const MessageRow = memo(function MessageRow({
                   </div>
                 </div>
               )}
-
-              {(resolvedMediaType === "product" || resolvedMediaType === "catalog") && (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="flex flex-col gap-2 rounded-lg bg-card/90 dark:bg-[#202c33] border border-border/40 p-3 text-xs font-medium text-foreground hover:bg-card/80 dark:hover:bg-[#202c33]/80 transition-all select-none w-64 shadow-sm text-left"
-                  onClick={() => onOpenMediaPreview({ url: mediaUrl, type: "image", fileName: "Produto/Catálogo", messageId: message.id })}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#00a884] text-white">
-                      <Storefront className="h-5 w-5" weight="fill" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground leading-tight mb-0.5">Item do Catálogo</p>
-                      <p className="truncate text-xs text-muted-foreground opacity-80 uppercase tracking-wide">Produto</p>
-                    </div>
-                  </div>
-                  {mediaUrl && (
-                    <div className="relative w-full aspect-square bg-muted dark:bg-[#111b21] rounded-md overflow-hidden mt-1 border border-white/5">
-                       <img src={mediaUrl} alt="Produto" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                  {displayText && (
-                    <p className="text-foreground text-sm whitespace-pre-wrap mt-1 opacity-90 line-clamp-3">
-                      {displayText}
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
           {parsedCatalog ? (
-            <div className="rounded-2xl overflow-hidden bg-card/95 dark:bg-[#1f2c34] border border-emerald-500/35 max-w-[320px] shadow-lg my-1 select-none text-left" data-testid="whatsapp-product-card">
-              {/* Product Image Banner */}
-              <div className="relative w-full h-44 bg-muted/60 overflow-hidden">
+            <div
+              className="rounded-2xl overflow-hidden bg-[#005c4b] border border-emerald-500/40 w-[290px] max-w-full shadow-lg my-1 select-none text-left"
+              data-testid="whatsapp-product-card"
+            >
+              {/* Product Photo */}
+              <div
+                className="relative w-full aspect-square max-h-[260px] bg-black/20 overflow-hidden cursor-pointer group"
+                onClick={() => onOpenProductDetails ? onOpenProductDetails({
+                  id: parsedCatalog.code || "prod",
+                  name: parsedCatalog.title,
+                  price: parsedCatalog.price,
+                  description: parsedCatalog.description,
+                  images: [mediaUrl || parsedCatalog.image],
+                  shipping: parsedCatalog.shipping,
+                  code: parsedCatalog.code,
+                }) : onOpenMediaPreview({ url: mediaUrl || parsedCatalog.image, type: "image", fileName: parsedCatalog.title, messageId: message.id })}
+              >
                 <img
                   src={mediaUrl || parsedCatalog.image}
                   alt={parsedCatalog.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
                   onError={(e) => {
                     (e.currentTarget as HTMLElement).style.display = "none";
                   }}
                 />
-                <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600/90 text-white text-[11px] font-semibold backdrop-blur-xs shadow-xs">
-                  <Storefront className="h-3.5 w-3.5" weight="bold" />
-                  <span>Catálogo WhatsApp</span>
-                </div>
-                {parsedCatalog.code && (
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/70 text-white font-mono text-[10px] backdrop-blur-xs border border-white/10">
-                    {parsedCatalog.code}
-                  </div>
-                )}
               </div>
 
-              {/* Card Body */}
-              <div className="p-3.5 space-y-2">
-                <h4 className="font-bold text-sm text-foreground leading-snug">
-                  {parsedCatalog.title}
-                </h4>
+              {/* Product Meta */}
+              <div className="p-3 bg-[#005c4b] text-white">
+                <div className="flex items-start justify-between gap-2">
+                  <h4 className="font-bold text-sm text-white leading-tight">
+                    {parsedCatalog.title}
+                  </h4>
+                </div>
 
-                {parsedCatalog.price && (
-                  <div className="text-base font-extrabold text-emerald-500 dark:text-emerald-400">
-                    {parsedCatalog.price}
+                <div className="flex items-baseline justify-between gap-2 mt-1">
+                  <span className="text-sm font-semibold text-white/90">
+                    {parsedCatalog.price || "Consulte"}
+                  </span>
+                  <div className="flex items-center gap-1 text-[11px] text-white/70">
+                    <span>{formatTime(message.timestamp || message.createdAt)}</span>
+                    <Check className="h-3.5 w-3.5 text-white/70" />
                   </div>
-                )}
+                </div>
 
-                {parsedCatalog.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
-                    {parsedCatalog.description}
-                  </p>
-                )}
-
-                {(parsedCatalog.shipping || parsedCatalog.stock) && (
-                  <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-border/40 text-[11px] text-muted-foreground flex-wrap">
-                    {parsedCatalog.shipping && (
-                      <span className="flex items-center gap-1">
-                        <Truck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                        <span className="truncate max-w-[190px]">{parsedCatalog.shipping}</span>
-                      </span>
-                    )}
-                    {parsedCatalog.stock && (
-                      <span className="flex items-center gap-1 ml-auto font-medium text-emerald-500">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        <span>{parsedCatalog.stock}</span>
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* WhatsApp Link CTA */}
-                <a
-                  href={parsedCatalog.catalogUrl || "https://wa.me/c/553193672075"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full mt-2 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors"
-                  onClick={(e) => e.stopPropagation()}
+                {/* WhatsApp Official 'Ver' Action Button */}
+                <div className="mt-2.5 pt-2 border-t border-white/15">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenProductDetails) {
+                        onOpenProductDetails({
+                          id: parsedCatalog.code || "prod",
+                          name: parsedCatalog.title,
+                          price: parsedCatalog.price,
+                          description: parsedCatalog.description,
+                          images: [mediaUrl || parsedCatalog.image],
+                          shipping: parsedCatalog.shipping,
+                          code: parsedCatalog.code,
+                        });
+                      }
+                    }}
+                    className="w-full py-1 text-center text-sm font-bold text-emerald-300 hover:text-emerald-200 transition-colors cursor-pointer"
+                  >
+                    Ver
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (resolvedMediaType === "product" || resolvedMediaType === "catalog") ? (
+            <div
+              className="rounded-2xl overflow-hidden bg-[#005c4b] border border-emerald-500/40 w-[290px] max-w-full shadow-lg my-1 select-none text-left"
+              data-testid="whatsapp-product-card"
+            >
+              {mediaUrl && (
+                <div
+                  className="relative w-full aspect-square max-h-[260px] bg-black/20 overflow-hidden cursor-pointer group"
+                  onClick={() => onOpenProductDetails ? onOpenProductDetails({
+                    id: "prod",
+                    name: displayText || "Produto do Catálogo",
+                    images: [mediaUrl],
+                  }) : onOpenMediaPreview({ url: mediaUrl, type: "image", fileName: "Produto", messageId: message.id })}
                 >
-                  <WhatsappLogo className="h-4 w-4" weight="fill" />
-                  <span>Ver no WhatsApp</span>
-                  <ArrowSquareOut className="h-3.5 w-3.5" />
-                </a>
+                  <img src={mediaUrl} alt="Produto" className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200" />
+                </div>
+              )}
+              <div className="p-3 bg-[#005c4b] text-white">
+                <h4 className="font-bold text-sm text-white leading-tight">
+                  {displayText || "Produto do Catálogo"}
+                </h4>
+                <div className="flex items-center justify-end gap-1 text-[11px] text-white/70 mt-1">
+                  <span>{formatTime(message.timestamp || message.createdAt)}</span>
+                  <Check className="h-3.5 w-3.5 text-white/70" />
+                </div>
+                <div className="mt-2 pt-2 border-t border-white/15">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenProductDetails) {
+                        onOpenProductDetails({
+                          id: "prod",
+                          name: displayText || "Produto do Catálogo",
+                          images: mediaUrl ? [mediaUrl] : [],
+                        });
+                      }
+                    }}
+                    className="w-full py-1 text-center text-sm font-bold text-emerald-300 hover:text-emerald-200 transition-colors cursor-pointer"
+                  >
+                    Ver
+                  </button>
+                </div>
               </div>
             </div>
           ) : parsedDisparo ? (

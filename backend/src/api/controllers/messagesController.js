@@ -369,6 +369,10 @@ async function sendMessage(req, res) {
         publicMediaPath: persistedMediaPath,
         mimetype,
         ptt,
+        title: req.body?.title,
+        price: req.body?.price,
+        productId: req.body?.productId || req.body?.code,
+        description: req.body?.description,
         ...(store.databaseEnabled ? {} : { memoryMessageId: apiMessage.id }),
       },
     });
@@ -547,16 +551,21 @@ async function sendMedia(req, res) {
       if (!buffer.length || buffer.length > 50 * 1024 * 1024) return res.status(400).json({ success: false, error: 'Arquivo vazio ou maior que 50 MB.' });
       uploaded = await mediaService.saveBuffer({ tenantId: req.authTenantId, type: resolvedMediaType, mimeType: mimetype || header.match(/^data:([^;]+)/)?.[1], sourceFileName: fileName, buffer });
     }
-    const ownedReference = mediaService.normalizeMediaReference(uploaded?.url || resolvedMediaPath);
-    if (!await mediaService.canAccessMedia(ownedReference, req.authTenantId)) return res.status(403).json({ success: false, error: 'Arquivo não pertence à empresa autenticada.' });
-    const ownedFile = await mediaService.findMediaFile(ownedReference);
-    if (!ownedFile) return res.status(404).json({ success: false, error: 'Arquivo de mídia indisponível.' });
-    const resolvedTransportPath = await messageService.resolveOutboundMediaPath(
-      ownedFile
-    );
-    const persistedMediaPath =
-      ownedReference;
-    const transportMediaPath = resolvedTransportPath || resolvedMediaPath;
+    const isCatalogProduct = resolvedMediaType === 'product' || resolvedMediaType === 'catalog' || String(resolvedMediaPath).includes('assets/catalog');
+    let transportMediaPath = resolvedMediaPath;
+    let persistedMediaPath = resolvedMediaPath;
+
+    if (!isCatalogProduct) {
+      const ownedReference = mediaService.normalizeMediaReference(uploaded?.url || resolvedMediaPath);
+      if (!await mediaService.canAccessMedia(ownedReference, req.authTenantId)) return res.status(403).json({ success: false, error: 'Arquivo não pertence à empresa autenticada.' });
+      const ownedFile = await mediaService.findMediaFile(ownedReference);
+      if (!ownedFile) return res.status(404).json({ success: false, error: 'Arquivo de mídia indisponível.' });
+      const resolvedTransportPath = await messageService.resolveOutboundMediaPath(
+        ownedFile
+      );
+      persistedMediaPath = ownedReference;
+      transportMediaPath = resolvedTransportPath || resolvedMediaPath;
+    }
 
     req.body = {
       ...req.body,

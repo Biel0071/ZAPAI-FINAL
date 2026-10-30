@@ -228,11 +228,14 @@ describe("WhatsApp Catalog Integration & Inbox Dispatch", () => {
       sender: "user",
     };
 
+    const handleOpenDetails = vi.fn();
+
     await renderComponent(
       <MessageRow
         message={testMessage}
         onReact={vi.fn()}
         onOpenMediaPreview={vi.fn()}
+        onOpenProductDetails={handleOpenDetails}
         isMenuOpen={false}
         isReactionPickerOpen={false}
         onToggleMenu={vi.fn()}
@@ -251,11 +254,18 @@ describe("WhatsApp Catalog Integration & Inbox Dispatch", () => {
     expect(productCard?.textContent).toContain("Tijolo Cerâmico 8 Furos");
     expect(productCard?.textContent).toContain("R$");
     expect(productCard?.textContent).toContain("980,00");
-    expect(productCard?.textContent).toContain("Catálogo WhatsApp");
-    expect(productCard?.textContent).toContain("Ver no WhatsApp");
+    expect(productCard?.textContent).toContain("Ver");
 
-    const link = productCard?.querySelector<HTMLAnchorElement>("a[href*='wa.me']");
-    expect(link).not.toBeNull();
-    expect(link?.getAttribute("href")).toContain("553193672075");
+    const verBtn = productCard?.querySelector<HTMLButtonElement>("button");
+    expect(verBtn).not.toBeNull();
+    await act(async () => {
+      verBtn?.click();
+    });
+    expect(handleOpenDetails).toHaveBeenCalledTimes(1);
+    expect(handleOpenDetails).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: expect.stringContaining("Tijolo Cerâmico 8 Furos"),
+      })
+    );
   });
 });

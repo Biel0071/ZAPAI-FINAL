@@ -45,20 +45,6 @@ export const OFFICIAL_STORE_CATALOG_URL = "https://wa.me/c/553193672075";
 
 export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
   {
-    id: "prod_betoneira_csm_400l",
-    code: "BET-CSM-400L",
-    name: "BETONEIRA - CSM - 400L",
-    description: "Betoneira 400L CSM com motor profissional de alto torque. Estrutura reforçada, descarga rápida e máxima durabilidade para obras pesadas.",
-    price: 3499.0,
-    category: "Máquinas & Equipamentos",
-    stock: 8,
-    images: ["/assets/catalog/betoneira_csm_400l.png"],
-    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
-    promotions: "Frete especial na Grande BH ou parcelamento facilitado no cartão",
-    condition: "Novo",
-    shipping: "Entrega rápida com caminhão próprio",
-  },
-  {
     id: "prod_tijolo_12_furos",
     code: "TIJ-12F",
     name: "TIJOLO 12 FUROS",
@@ -211,6 +197,20 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     promotions: "Preço fechado da carga com entrega na região",
     condition: "Novo",
     shipping: "Descarga direta basculante",
+  },
+  {
+    id: "prod_betoneira_csm_400l",
+    code: "BET-CSM-400L",
+    name: "BETONEIRA - CSM - 400L",
+    description: "Betoneira 400L CSM com motor profissional de alto torque. Estrutura reforçada, descarga rápida e máxima durabilidade para obras pesadas.",
+    price: 3499.0,
+    category: "Máquinas & Equipamentos",
+    stock: 8,
+    images: ["/assets/catalog/betoneira_csm_400l.png"],
+    whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
+    promotions: "Frete especial na Grande BH ou parcelamento facilitado no cartão",
+    condition: "Novo",
+    shipping: "Entrega rápida com caminhão próprio",
   },
   {
     id: "prod_tijolo_macico_mil",
@@ -836,6 +836,7 @@ export function CatalogSelectorPopover({
                 return (
                   <div
                     key={item.id}
+                    data-catalog-product-row={item.id}
                     onClick={() => toggleSelect(item.id)}
                     className={cn(
                       "p-2.5 rounded-xl border transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer group select-none",
@@ -932,35 +933,38 @@ export function CatalogSelectorPopover({
 
         {/* Sticky bottom bar when products are checked OR footer info */}
         {selectedIds.size > 0 ? (
-          <div className="px-4 py-2.5 bg-[#202c33] border-t border-[#2a3942] flex items-center justify-between gap-3 animate-in fade-in duration-200">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#e9edef] font-medium">
-                {selectedIds.size} {selectedIds.size === 1 ? "produto selecionado" : "produtos selecionados"}
+          <div className="px-4 py-3 bg-[#202c33] border-t border-[#2a3942] flex items-center justify-between gap-3 animate-in fade-in duration-200">
+            <div className="min-w-0 flex-1">
+              <span className="text-xs text-[#e9edef] font-bold tracking-wide uppercase truncate block">
+                {selectedIds.size === 1
+                  ? products.find((p) => selectedIds.has(p.id))?.name || "1 PRODUTO SELECIONADO"
+                  : `${selectedIds.size} PRODUTOS SELECIONADOS`}
               </span>
               <button
+                type="button"
                 onClick={() => setSelectedIds(new Set())}
-                className="text-[11px] text-[#8696a0] hover:text-[#e9edef] underline"
+                className="text-[11px] text-[#8696a0] hover:text-emerald-400 underline mt-0.5 inline-block"
               >
-                Limpar
+                Desmarcar todos
               </button>
             </div>
 
-            <Button
+            <button
               type="button"
-              size="sm"
               disabled={disabled || sendingId !== null || !canSendToChat}
               onClick={handleSendSelected}
-              className="h-8 px-4 text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-[#111b21] rounded-lg shadow-sm transition-all flex items-center gap-1.5"
+              className="h-10 w-10 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 shrink-0 disabled:opacity-50"
+              title={`Enviar produtos (${selectedIds.size})`}
+              aria-label={`Enviar produtos (${selectedIds.size})`}
+              data-testid="batch-send-catalog-btn"
             >
               {sendingId === "selected_batch" ? (
-                <span>Enviando...</span>
+                <span className="animate-spin text-sm">🌀</span>
               ) : (
-                <>
-                  <PaperPlaneTilt className="h-3.5 w-3.5" weight="fill" />
-                  <span>Enviar produtos ({selectedIds.size})</span>
-                </>
+                <PaperPlaneTilt className="h-5 w-5 ml-0.5" weight="fill" />
               )}
-            </Button>
+              <span className="sr-only">Enviar produtos ({selectedIds.size})</span>
+            </button>
           </div>
         ) : (
           <div className="px-4 py-2 bg-[#202c33] border-t border-[#2a3942] flex items-center justify-between text-[11px] text-[#8696a0]">

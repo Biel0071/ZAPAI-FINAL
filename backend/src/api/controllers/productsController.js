@@ -5,20 +5,6 @@ const { clearFastCache } = require('../middleware/fastCache');
 // Authentic store catalog items from Depósito Vista Alegre (+55 31 9367-2075)
 const CORE_STORE_PRODUCTS = [
   {
-    id: 'prod_betoneira_csm_400l',
-    code: 'BET-CSM-400L',
-    name: 'BETONEIRA - CSM - 400L',
-    description: 'Betoneira 400L CSM com motor profissional de alto torque. Estrutura reforçada, descarga rápida e máxima durabilidade para obras pesadas.',
-    price: 3499.00,
-    category: 'Máquinas & Equipamentos',
-    stock: 8,
-    images: ['/assets/catalog/betoneira_csm_400l.png'],
-    whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Frete especial na Grande BH ou parcelamento facilitado no cartão',
-    condition: 'Novo',
-    shipping: 'Entrega rápida com caminhão próprio',
-  },
-  {
     id: 'prod_tijolo_12_furos',
     code: 'TIJ-12F',
     name: 'TIJOLO 12 FUROS',
@@ -171,6 +157,20 @@ const CORE_STORE_PRODUCTS = [
     promotions: 'Preço fechado da carga com entrega na região',
     condition: 'Novo',
     shipping: 'Descarga direta basculante',
+  },
+  {
+    id: 'prod_betoneira_csm_400l',
+    code: 'BET-CSM-400L',
+    name: 'BETONEIRA - CSM - 400L',
+    description: 'Betoneira 400L CSM com motor profissional de alto torque. Estrutura reforçada, descarga rápida e máxima durabilidade para obras pesadas.',
+    price: 3499.00,
+    category: 'Máquinas & Equipamentos',
+    stock: 8,
+    images: ['/assets/catalog/betoneira_csm_400l.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    promotions: 'Frete especial na Grande BH ou parcelamento facilitado no cartão',
+    condition: 'Novo',
+    shipping: 'Entrega rápida com caminhão próprio',
   },
   {
     id: 'prod_tijolo_macico_mil',
@@ -373,7 +373,7 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
           console.log('[ProductsController] Calling activeSock.getCatalog with options:', JSON.stringify(options));
           const queryPromise = activeSock.getCatalog(options);
           const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('getCatalog timeout after 35s')), 35000)
+            setTimeout(() => reject(new Error('getCatalog timeout after 2.5s')), 2500)
           );
           return await Promise.race([queryPromise, timeoutPromise]);
         } catch (err) {
@@ -429,7 +429,7 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
               }
             ]
           };
-          const rawRes = await activeSock.query(queryNode, 35000);
+          const rawRes = await activeSock.query(queryNode, 3000);
           console.log('[ProductsController] Raw IQ response received!');
           if (rawRes) {
             catalogResult = parseCatalogNode(rawRes);

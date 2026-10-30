@@ -474,6 +474,10 @@ async function executeOutbound(item) {
         mimetype: item.metadata?.mimetype,
         ptt: item.metadata?.ptt,
         beforeSend,
+        title: item.metadata?.title,
+        price: item.metadata?.price,
+        productId: item.metadata?.productId,
+        description: item.metadata?.description,
       });
     } else {
       console.log(`[OUTBOUND_QUEUE] transport_send correlationId=${item.correlationId || 'n/a'} queueId=${item.id} kind=text phone=${item.phone}`);

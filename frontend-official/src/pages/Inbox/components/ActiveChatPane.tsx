@@ -59,7 +59,8 @@ import { MessageRow } from "./MessageRow";
 import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal";
 import { QuickCampaignDispatchModal } from "@/components/campaigns/QuickCampaignDispatchModal";
 import { OrderSheetModal } from "./OrderSheetModal";
-import { CatalogSelectorPopover } from "./CatalogSelectorPopover";
+import { CatalogSelectorPopover, formatProductMessage, type CatalogProduct } from "./CatalogSelectorPopover";
+import { ProductDetailDrawer, type CartItem } from "./ProductDetailDrawer";
 import { FlowExecutionBanner, matchesConversationFlow, type FlowExecutionData } from "./FlowExecutionBanner";
 import { buildSlashOptions, needsFlowPreview, type SlashOption } from "../quickReplySlash";
 import { ZaiAssistantComposer } from "./ZaiAssistantComposer";
@@ -621,6 +622,10 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           mediaPath: imageUrl,
           dataBase64: base64data || undefined,
           caption: formattedMessage,
+          title: product.name || product.title,
+          price: product.price,
+          productId: product.id || product.productId,
+          description: product.description,
           conversationId: selectedConversation.id,
           contactId: selectedConversation.contactId,
           sessionId: selectedConversation.sessionId || undefined,
@@ -638,6 +643,78 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     // Fallback to text message if no image or error
     await handleSendMessage(formattedMessage);
   };
+
+  // WhatsApp Native Commerce / Product Details & Cart state
+  const [selectedProductForDetails, setSelectedProductForDetails] = useState<CatalogProduct | null>(null);
+  const [isProductDetailOpen, setIsProductDetailOpen] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  const handleOpenProductDetails = useCallback((product: any) => {
+    setSelectedProductForDetails(product);
+    setIsProductDetailOpen(true);
+  }, []);
+
+  const handleCloseProductDetails = useCallback(() => {
+    setIsProductDetailOpen(false);
+  }, []);
+
+  const handleAddToCart = useCallback((product: CatalogProduct) => {
+    setCartItems((prev) => {
+      const idx = prev.findIndex((item) => item.product.id === product.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+        return next;
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+    toast({
+      title: "Adicionado ao carrinho!",
+      description: product.name,
+    });
+  }, [toast]);
+
+  const handleUpdateCartQuantity = useCallback((productId: string, delta: number) => {
+    setCartItems((prev) => {
+      return prev
+        .map((item) => {
+          if (item.product.id === productId) {
+            const newQty = item.quantity + delta;
+            return newQty > 0 ? { ...item, quantity: newQty } : null;
+          }
+          return item;
+        })
+        .filter(Boolean) as CartItem[];
+    });
+  }, []);
+
+  const handleRemoveFromCart = useCallback((productId: string) => {
+    setCartItems((prev) => prev.filter((item) => item.product.id !== productId));
+  }, []);
+
+  const handleClearCart = useCallback(() => {
+    setCartItems([]);
+  }, []);
+
+  const handleSendProductFromDrawer = useCallback((product: CatalogProduct) => {
+    const formatted = formatProductMessage(product);
+    void handleSendProductMessage(product, formatted);
+    setIsProductDetailOpen(false);
+  }, [handleSendProductMessage]);
+
+  const handleSendCartOrderToChat = useCallback(async (items: CartItem[], total: number) => {
+    if (items.length === 0) return;
+    const formattedTotal = total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const itemsList = items.map((item) => {
+      const p = typeof item.product.price === "number" ? item.product.price : parseFloat(String(item.product.price)) || 0;
+      const subtotal = (p * item.quantity).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      return `• ${item.product.name} × ${item.quantity} (${subtotal})`;
+    }).join("\n");
+
+    const orderText = `🛒 *PEDIDO / CARRINHO - DEPÓSITO VISTA ALEGRE*\n━━━━━━━━━━━━━━━━━━━━━━\n${itemsList}\n━━━━━━━━━━━━━━━━━━━━━━\n💰 *Total Estimado:* ${formattedTotal}\n\n📦 *Entrega:* A combinar com o atendente\n💳 *Pagamento:* PIX, Dinheiro ou Cartão na entrega\n━━━━━━━━━━━━━━━━━━━━━━\n💬 _Deseja confirmar a entrega deste pedido?_`;
+
+    await handleSendMessage(orderText);
+  }, [handleSendMessage]);
 
   const handleDisparoExecuted = useCallback(
     (disparoInfo: any) => {
@@ -1425,6 +1502,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                           backendOnline={inboxRuntimeState !== "OFFLINE"}
                           searchQuery={conversationSearchQuery}
                           isActiveSearchMatch={activeConversationSearchMessageId === message.id}
+                          onOpenProductDetails={handleOpenProductDetails}
                         />
                       ))}
                     </div>
@@ -2017,6 +2095,20 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           }}
         />
       )}
+
+      {/* WhatsApp Official Product Details & Shopping Cart Drawer */}
+      <ProductDetailDrawer
+        product={selectedProductForDetails}
+        isOpen={isProductDetailOpen}
+        onClose={handleCloseProductDetails}
+        onSendProductToChat={handleSendProductFromDrawer}
+        onSendCartOrderToChat={handleSendCartOrderToChat}
+        cartItems={cartItems}
+        onAddToCart={handleAddToCart}
+        onUpdateCartQuantity={handleUpdateCartQuantity}
+        onRemoveFromCart={handleRemoveFromCart}
+        onClearCart={handleClearCart}
+      />
     </div>
     </Popover>
   );

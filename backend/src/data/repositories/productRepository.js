@@ -19,7 +19,29 @@ async function listProducts({ companyId = 'default', limit = 50, offset = 0, cat
     sql += ` AND (name ILIKE $${pIdx} OR description ILIKE $${pIdx} OR code ILIKE $${pIdx})`;
   }
 
-  sql += ` ORDER BY name ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  sql += ` ORDER BY 
+    CASE id
+      WHEN 'prod_tijolo_12_furos' THEN 1
+      WHEN 'prod_tijolo_9_furos' THEN 2
+      WHEN 'prod_tijolo_8f_mil' THEN 3
+      WHEN 'prod_telhas_ceramica' THEN 4
+      WHEN 'prod_caixa_dagua_10000l' THEN 5
+      WHEN 'prod_caixa_5000l' THEN 6
+      WHEN 'prod_caixa_2000l' THEN 7
+      WHEN 'prod_caixa_1000l' THEN 8
+      WHEN 'prod_cimento_liz_cp4' THEN 9
+      WHEN 'prod_churrasqueira_premoldada' THEN 10
+      WHEN 'prod_caminhao_brita' THEN 11
+      WHEN 'prod_betoneira_csm_400l' THEN 12
+      WHEN 'prod_tijolo_macico_mil' THEN 13
+      WHEN 'prod_telha_fibro_244' THEN 14
+      WHEN 'prod_cimento_cp2_50kg' THEN 15
+      WHEN 'prod_cimento_cp3_50kg' THEN 16
+      WHEN 'prod_churrasqueira_75cm_prem' THEN 17
+      WHEN 'prod_areia_media_m3' THEN 18
+      WHEN 'prod_argamassa_ac3_20kg' THEN 19
+      ELSE 999
+    END ASC, name ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   params.push(limit, offset);
 
   try {
