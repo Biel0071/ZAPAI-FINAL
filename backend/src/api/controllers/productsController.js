@@ -77,9 +77,9 @@ const CORE_STORE_PRODUCTS = [
   {
     id: 'prod_caixa_dagua_10000l',
     code: 'CXA-10000L',
-    name: "CAIXA D'ÁGUA 10.000L",
+    name: "CAIXA - 10.000L",
     description: "Reservatório de grande capacidade 10.000 Litros em polietileno virgem estrutural. Alta resistência contra intempéries e raios UV.",
-    price: 4290.00,
+    price: 2999.77,
     category: "Caixas d'Água",
     stock: 5,
     images: ['/assets/catalog/caixa_dagua.png'],
@@ -172,6 +172,104 @@ const CORE_STORE_PRODUCTS = [
     condition: 'Novo',
     shipping: 'Descarga direta basculante',
   },
+  {
+    id: 'prod_tijolo_macico_mil',
+    code: 'TIJ-MAC-MIL',
+    name: 'TIJOLO MACIÇO COMUM',
+    description: 'Tijolo de barro cozido maciço para alvenaria aparente, fornos a lenha, fogões a lenha e churrasqueiras rústicas. Alta durabilidade e acabamento colonial.',
+    price: 650.00,
+    category: 'Tijolos & Blocos',
+    stock: 30,
+    images: ['/assets/catalog/tijolo_macico.jpg'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    promotions: 'Desconto especial para cargas fechadas',
+    condition: 'Novo',
+    shipping: 'Entrega imediata na Grande BH e região',
+  },
+  {
+    id: 'prod_telha_fibro_244',
+    code: 'TEL-FIB-244',
+    name: 'TELHA FIBROCIMENTO 2,44 x 1,10m',
+    description: 'Telha ondulada sem amianto (tecnologia CRFS de alta resistência). Dimensões 2,44m comprimento x 1,10m largura e 6mm de espessura. Alta durabilidade.',
+    price: 58.00,
+    category: 'Coberturas & Telhas',
+    stock: 200,
+    images: ['/assets/catalog/telha_fibro.jpg'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    promotions: 'Desconto para quantidade de obra fechada',
+    condition: 'Novo',
+    shipping: 'Pronta entrega',
+  },
+  {
+    id: 'prod_cimento_cp2_50kg',
+    code: 'CIM-CPII-50',
+    name: 'CIMENTO CP-II 50KG',
+    description: 'Cimento Portland Composto CP-II E-32 50kg Nacional. Indicado para concreto armado, lajes, vigas, pilares, contrapisos e assentamento de alvenaria.',
+    price: 34.90,
+    category: 'Cimento & Argamassa',
+    stock: 250,
+    images: ['/assets/catalog/cimento_cp2.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    promotions: 'Preço promocional para compras acima de 50 sacos',
+    condition: 'Novo',
+    shipping: 'Descarga no térreo inclusa na entrega',
+  },
+  {
+    id: 'prod_cimento_cp3_50kg',
+    code: 'CIM-CPIII-50',
+    name: 'CIMENTO CP-III 50KG (RS)',
+    description: 'Cimento CP-III 40 RS Resistente a Sulfatos (50kg). Máxima impermeabilidade e alta resistência em fundações, subsolos e locais sujeitos à umidade.',
+    price: 37.50,
+    category: 'Cimento & Argamassa',
+    stock: 120,
+    images: ['/assets/catalog/cimento_cp2.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    promotions: 'Condição facilitada no cartão de crédito',
+    condition: 'Novo',
+    shipping: 'Pronta entrega',
+  },
+  {
+    id: 'prod_churrasqueira_75cm_prem',
+    code: 'CHUR-75-PREM',
+    name: 'CHURRASQUEIRA PREDIAL 75CM PREMIUM',
+    description: 'Churrasqueira pré-moldada de porte grande 75cm para áreas gourmet amplas. Coifa prolongada, refratários duplos de alta retenção térmica e acabamento liso moderno.',
+    price: 1290.00,
+    category: 'Churrasqueiras & Lazer',
+    stock: 9,
+    images: ['/assets/catalog/churras_75.jpg'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    promotions: 'Parcelamento em até 10x sem juros',
+    condition: 'Novo',
+    shipping: 'Montagem rápida por encaixe modulado',
+  },
+  {
+    id: 'prod_areia_media_m3',
+    code: 'AGR-AREIA-M3',
+    name: 'AREIA MÉDIA LAVADA (M³)',
+    description: 'Areia média pura, limpa e lavada, isenta de terra ou matéria orgânica. Granulometria perfeita para preparo de concreto e argamassa de reboco.',
+    price: 110.00,
+    category: 'Agregados & Areia',
+    stock: 80,
+    images: ['/assets/catalog/blocos.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    promotions: 'Preço por metro cúbico (m³). Consulte frete para sua rua',
+    condition: 'Novo',
+    shipping: 'Entrega em caminhão basculante',
+  },
+  {
+    id: 'prod_argamassa_ac3_20kg',
+    code: 'ARG-AC3-20',
+    name: 'ARGAMASSA AC-III 20KG',
+    description: 'Argamassa flexível tipo AC-III para assentamento de porcelanatos, placas grandes, piscinas e sobreposição piso sobre piso. Secagem uniforme e máxima aderência.',
+    price: 32.90,
+    category: 'Cimento & Argamassa',
+    stock: 180,
+    images: ['/assets/catalog/cimento_cp2.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    promotions: 'Desconto progressivo por palete fechado',
+    condition: 'Novo',
+    shipping: 'Pronta entrega',
+  },
 ];
 
 async function getProducts(req, res) {
@@ -216,7 +314,7 @@ async function getProductById(req, res) {
   }
 }
 
-async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 'main', sock = null, forceClean = false } = {}) {
+async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 'main', sock = null, forceClean = false, limit = 50 } = {}) {
   let syncedCount = 0;
   let waFetched = 0;
 
@@ -267,60 +365,80 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
 
     if (isReady) {
       const bizJid = sessionPhone ? `${sessionPhone}@s.whatsapp.net` : undefined;
-      console.log(`[ProductsController] Testing catalog queries for bizJid=${bizJid}...`);
+      console.log(`[ProductsController] Querying live WhatsApp catalog for bizJid=${bizJid}, user=${JSON.stringify(activeSock?.user)}...`);
 
-      // Try 1: getCollections
-      if (typeof activeSock.getCollections === 'function') {
+      // Attempt live catalog fetch using Baileys getCatalog with proper 35s timeout
+      const tryFetchCatalog = async (options) => {
         try {
-          console.log('[ProductsController] Attempting getCollections...');
-          const collPromise = activeSock.getCollections(bizJid, 50);
-          const collTimeout = new Promise((_, r) => setTimeout(() => r(new Error('getCollections timeout')), 8000));
-          const collRes = await Promise.race([collPromise, collTimeout]);
-          console.log('[ProductsController] getCollections result:', JSON.stringify(collRes));
-          if (collRes && Array.isArray(collRes.collections)) {
-            for (const col of collRes.collections) {
-              if (Array.isArray(col.products) && col.products.length > 0) {
-                console.log(`[ProductsController] Found ${col.products.length} products in collection "${col.name}"`);
-              }
-            }
-          }
-        } catch (colErr) {
-          console.warn('[ProductsController] getCollections error:', colErr.message);
+          console.log('[ProductsController] Calling activeSock.getCatalog with options:', JSON.stringify(options));
+          const queryPromise = activeSock.getCatalog(options);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('getCatalog timeout after 35s')), 35000)
+          );
+          return await Promise.race([queryPromise, timeoutPromise]);
+        } catch (err) {
+          console.warn('[ProductsController] getCatalog attempt failed:', err?.message || err);
+          return null;
         }
+      };
+
+      let catalogResult = null;
+
+      // Strategy 1: getCatalog with explicit target bizJid and limit
+      if (bizJid) {
+        catalogResult = await tryFetchCatalog({ jid: bizJid, limit });
       }
 
-      // Try 2: getCatalog with short timeout to log raw response
-      const fetchPromise = (async () => {
-        let allProducts = [];
-        let cursor = undefined;
-        let pages = 0;
-        
-        while (pages < 5) {
-          pages++;
-          console.log(`[ProductsController] Calling activeSock.getCatalog page ${pages}...`);
-          const catalogResult = await activeSock.getCatalog({
-            jid: bizJid,
-            limit: 50,
-            cursor,
-          });
-          console.log('[ProductsController] getCatalog returned:', catalogResult ? `${catalogResult.products?.length} products` : 'null');
-          
-          if (catalogResult && Array.isArray(catalogResult.products) && catalogResult.products.length > 0) {
-            allProducts.push(...catalogResult.products);
-            cursor = catalogResult.nextPageCursor;
-            if (!cursor) break;
-          } else {
-            break;
-          }
-        }
-        return { products: allProducts };
-      })();
+      // Strategy 2: getCatalog without jid (queries authenticated account directly)
+      if (!catalogResult || !Array.isArray(catalogResult.products) || catalogResult.products.length === 0) {
+        console.log('[ProductsController] Strategy 2: calling getCatalog without explicit jid...');
+        catalogResult = await tryFetchCatalog({ limit });
+      }
 
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('WhatsApp getCatalog timeout after 10s')), 10000));
-      const catalogResult = await Promise.race([fetchPromise, timeoutPromise]).catch(err => {
-        console.warn('[ProductsController] getCatalog warning/timeout:', err?.message || err);
-        return null;
-      });
+      // Strategy 3: getCatalog using LID if available
+      if ((!catalogResult || !Array.isArray(catalogResult.products) || catalogResult.products.length === 0) && activeSock?.user?.lid) {
+        const lidJid = activeSock.user.lid.split(':')[0] + '@lid';
+        console.log('[ProductsController] Strategy 3: calling getCatalog with LID jid:', lidJid);
+        catalogResult = await tryFetchCatalog({ jid: lidJid, limit });
+      }
+
+      // Strategy 4: Raw IQ query if getCatalog wrapper failed
+      if (!catalogResult || !Array.isArray(catalogResult.products) || catalogResult.products.length === 0) {
+        try {
+          console.log('[ProductsController] Strategy 4: sending direct binary IQ query for product_catalog...');
+          const { parseCatalogNode } = require('@whiskeysockets/baileys/lib/Utils/business');
+          const queryNode = {
+            tag: 'iq',
+            attrs: {
+              to: 's.whatsapp.net',
+              type: 'get',
+              xmlns: 'w:biz:catalog'
+            },
+            content: [
+              {
+                tag: 'product_catalog',
+                attrs: {
+                  jid: bizJid || activeSock?.user?.id?.split(':')[0] + '@s.whatsapp.net',
+                  allow_shop_source: 'true'
+                },
+                content: [
+                  { tag: 'limit', attrs: {}, content: Buffer.from('100') },
+                  { tag: 'width', attrs: {}, content: Buffer.from('500') },
+                  { tag: 'height', attrs: {}, content: Buffer.from('500') }
+                ]
+              }
+            ]
+          };
+          const rawRes = await activeSock.query(queryNode, 35000);
+          console.log('[ProductsController] Raw IQ response received!');
+          if (rawRes) {
+            catalogResult = parseCatalogNode(rawRes);
+            console.log('[ProductsController] Parsed products from raw IQ:', catalogResult?.products?.length);
+          }
+        } catch (rawErr) {
+          console.warn('[ProductsController] Strategy 4 raw IQ failed:', rawErr?.message || rawErr);
+        }
+      }
 
       if (catalogResult && Array.isArray(catalogResult.products) && catalogResult.products.length > 0) {
         waFetched = catalogResult.products.length;
