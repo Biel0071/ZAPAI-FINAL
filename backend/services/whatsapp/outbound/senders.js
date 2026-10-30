@@ -469,12 +469,16 @@ async function sendMediaMessage(
       return sendSticker(sock, phone, mediaPath, { beforeSend });
     case 'product':
     case 'catalog': {
-      // 1. Try sending native WhatsApp product card if sock supports it
+      // 1. Try sending native WhatsApp product card (Baileys productMessage)
       if (mediaPath) {
         try {
           const authUser = sock.user?.id || sock.authState?.creds?.me?.id;
           if (authUser) {
-            const bizOwnerJid = ensureWhatsAppJid(authUser);
+            let bizOwnerPhone = String(authUser).split('@')[0].split(':')[0].replace(/\D/g, '') || '553193672075';
+            if (bizOwnerPhone.length >= 14 && global.lidToPhoneMap && global.lidToPhoneMap.has(bizOwnerPhone)) {
+              bizOwnerPhone = global.lidToPhoneMap.get(bizOwnerPhone).replace(/\D/g, '');
+            }
+            const bizOwnerJid = `${bizOwnerPhone}@s.whatsapp.net`;
             const imgPayload = toMediaPayload(mediaPath);
             if (imgPayload && bizOwnerJid) {
               const jid = ensureWhatsAppJid(phone);
@@ -496,22 +500,26 @@ async function sendMediaMessage(
                 }
               }
               const priceAmount1000 = parsedPrice ? Math.round(parsedPrice * 1000) : 0;
-              const prodId = String(options?.productId || fileName || 'prod').replace(/\.[^.]+$/, '');
+              const prodId = String(options?.productId || options?.code || fileName || 'prod').replace(/\.[^.]+$/, '');
+              const productDescription = options?.description || caption || '';
 
+              // Native WhatsApp product payload (Solução 2 Baileys ProductMessage)
               const productPayload = {
                 product: {
                   productImage: imgPayload,
                   productId: prodId,
                   title: productTitle,
-                  description: caption || '',
+                  description: productDescription,
                   currencyCode: 'BRL',
-                  priceAmount1000,
+                  priceAmount1000: String(priceAmount1000),
                   retailerId: options?.retailerId || prodId,
-                  url: `https://wa.me/c/${bizOwnerJid.split('@')[0]}`,
+                  productImageCount: 1,
+                  url: `https://wa.me/c/${bizOwnerPhone}`,
                 },
                 businessOwnerJid: bizOwnerJid,
                 caption: caption || undefined,
               };
+
               const nativeRes = await sock.sendMessage(resolvedJid, productPayload);
               if (nativeRes?.key?.id) {
                 registerSystemOutbound(nativeRes, resolvedJid, phone);

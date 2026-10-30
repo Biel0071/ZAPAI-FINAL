@@ -77,6 +77,8 @@ function mapMessage(row) {
     sender: row.sender || ((typeof row.from_me === 'boolean' ? row.from_me : row.fromMe) ? 'agent' : 'client'),
     origin: row.message_origin || row.origin || null,
     message_origin: row.message_origin || row.origin || null,
+    analysis_json: row.analysis_json || parsedMetadata || null,
+    metadata: parsedMetadata || row.analysis_json || null,
     isAI,
   };
 }
@@ -112,9 +114,11 @@ async function createMessage(data) {
       whatsapp_message_id,
       remote_jid,
       participant_jid,
-      message_origin
+      message_origin,
+      analysis_json,
+      type
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
     RETURNING *
   `;
 
@@ -135,7 +139,9 @@ async function createMessage(data) {
     data.whatsappMessageId || null,
     data.remoteJid || null,
     data.participantJid || null,
-    ['human', 'ai', 'automation', 'campaign', 'whatsapp_device', 'quick_reply'].includes(data.origin) ? data.origin : 'unknown',
+    ['human', 'ai', 'automation', 'campaign', 'whatsapp_device', 'quick_reply'].includes(data.origin) ? data.origin : (data.sender === 'campaign' ? 'campaign' : 'unknown'),
+    data.analysis_json || data.metadata || {},
+    data.type || data.mediaType || 'text',
   ];
 
   const result = await db.query(query, values);

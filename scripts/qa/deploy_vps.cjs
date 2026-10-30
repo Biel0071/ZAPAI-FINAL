@@ -1,6 +1,10 @@
 const { execSync } = require('child_process');
+const fs = require('fs');
 
 console.log('1. Deploying backend files to VPS...');
+execSync(`scp backend/services/whatsapp/outbound/senders.js root@209.50.241.22:/opt/zapai/backend/services/whatsapp/outbound/senders.js`, { stdio: 'inherit' });
+execSync(`scp backend/src/api/controllers/messages/shared.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/messages/shared.js`, { stdio: 'inherit' });
+execSync(`scp backend/src/data/repositories/messageRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/messageRepository.js`, { stdio: 'inherit' });
 execSync(`scp backend/src/api/controllers/productsController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/productsController.js`, { stdio: 'inherit' });
 
 console.log('2. Restarting PM2 zapflow-api...');
@@ -19,7 +23,10 @@ run().catch(e => { console.error(e); process.exit(1); });
 const b64 = Buffer.from(syncScript).toString('base64');
 execSync(`ssh -o StrictHostKeyChecking=no root@209.50.241.22 "NODE_PATH=/opt/zapai/backend/node_modules node -e \\"eval(Buffer.from('${b64}', 'base64').toString('utf8'))\\""`, { stdio: 'inherit' });
 
-console.log('4. Deploying frontend dist to /www/zapai/ on VPS...');
-execSync(`scp -r frontend-official/dist/* root@209.50.241.22:/www/zapai/`, { stdio: 'inherit' });
+console.log('4. Archiving frontend dist and extracting to /www/zapai/ on VPS...');
+execSync(`tar -czf dist.tar.gz -C frontend-official/dist .`, { stdio: 'inherit' });
+execSync(`scp dist.tar.gz root@209.50.241.22:/tmp/dist.tar.gz`, { stdio: 'inherit' });
+execSync(`ssh -o StrictHostKeyChecking=no root@209.50.241.22 "tar -xzf /tmp/dist.tar.gz -C /www/zapai/ && rm /tmp/dist.tar.gz"`, { stdio: 'inherit' });
+if (fs.existsSync('dist.tar.gz')) fs.unlinkSync('dist.tar.gz');
 
 console.log('DEPLOY TO VPS COMPLETED SUCCESSFULLY!');

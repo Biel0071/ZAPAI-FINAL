@@ -239,6 +239,9 @@ function formatApiMessage(message) {
     sender: message.sender || null,
     source: message.source || (message.metadata && message.metadata.source) || (message.metadata && message.metadata.ai_response ? 'ai' : null) || null,
     agentName: message.agentName || message.aiAgentName || (message.metadata && message.metadata.agentName) || null,
+    type: message.type || mediaType || 'text',
+    metadata: message.metadata || message.analysis_json || null,
+    analysis_json: message.analysis_json || message.metadata || null,
   };
 }
 

@@ -22,6 +22,7 @@ import {
   WhatsappLogo,
   ArrowSquareOut,
   Truck,
+  Megaphone,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -104,6 +105,102 @@ function parseCatalogCard(text: string): ParsedCatalogItem | null {
     description: descMatch ? descMatch[1].replace(/\*+/g, "").trim() : undefined,
     catalogUrl: urlMatch ? urlMatch[0].trim() : "https://wa.me/c/553193672075",
     image,
+  };
+}
+
+interface ParsedDisparoItem {
+  title: string;
+  flowName: string;
+  cadence?: string;
+  contactName?: string;
+  phone?: string;
+  sessionId?: string;
+  totalSteps?: number;
+  currentStep?: number;
+  status?: string;
+  previewText?: string;
+  dispatchedAt?: string;
+}
+
+function parseDisparoCard(text: string, message: ChatMessage): ParsedDisparoItem | null {
+  const meta = (message as any).analysis_json || (message as any).metadata || {};
+  const isExplicitDisparo =
+    message.type === "disparo" ||
+    message.type === "campaign" ||
+    (message as any).sender === "campaign" ||
+    (message as any).message_origin === "campaign" ||
+    (message as any).origin === "campaign" ||
+    meta.isDisparo === true ||
+    Boolean(meta.campaignId) ||
+    Boolean(meta.flowRunId) ||
+    meta.source === "quick_reply" ||
+    meta.source === "campaign_flow" ||
+    (text && (
+      text.includes("[DISPARO REALIZADO]") ||
+      text.includes("[DISPARO DE CAMPANHA]") ||
+      text.includes("[FLUXO DE DISPARO]") ||
+      text.startsWith("[DISPARO]") ||
+      text.startsWith("📢 [DISPARO]")
+    ));
+
+  if (!isExplicitDisparo) {
+    return null;
+  }
+
+  let flowName = meta.flowName || meta.flowId || "";
+  let cadence = meta.cadence || (meta.stepDelayMs ? `${Math.round(meta.stepDelayMs / 1000)}s delay` : "");
+  let contactName = meta.contactName || "";
+  let phone = meta.phone || message.phone || "";
+  let totalSteps = meta.totalSteps || 1;
+  let currentStep = meta.currentStep || 1;
+  let previewText = meta.previewText || "";
+
+  if (text) {
+    const flowMatch = text.match(/(?:Fluxo|Campanha|Script):\s*([^\n]+)/i);
+    if (flowMatch && !flowName) flowName = flowMatch[1].replace(/\*+/g, "").trim();
+
+    const cadenceMatch = text.match(/(?:Modo|Cadência|Cadencia|Proteção|Protecao):\s*([^\n]+)/i);
+    if (cadenceMatch && !cadence) cadence = cadenceMatch[1].replace(/\*+/g, "").trim();
+
+    const contactMatch = text.match(/(?:Destinatário|Destinatario|Destino|Contato):\s*([^\n]+)/i);
+    if (contactMatch && !contactName) contactName = contactMatch[1].replace(/\*+/g, "").trim();
+
+    const stepsMatch = text.match(/(?:Etapas|Passos):\s*([^\n]+)/i);
+    if (stepsMatch) {
+      const matchNum = stepsMatch[1].match(/(\d+)/);
+      if (matchNum && !meta.totalSteps) totalSteps = parseInt(matchNum[1], 10);
+    }
+
+    if (!previewText) {
+      if (text.includes("━━━━")) {
+        const parts = text.split(/━+/);
+        if (parts.length > 1) {
+          previewText = parts.slice(1).join("").trim();
+        }
+      } else if (text.includes("[DISPARO")) {
+        previewText = text.replace(/\[DISPARO[^\]]*\]/gi, "").trim();
+      } else {
+        previewText = text;
+      }
+    }
+  }
+
+  if (!previewText) {
+    previewText = message.content || message.text || "";
+  }
+
+  return {
+    title: "Disparo Realizado",
+    flowName: flowName || "Disparo Comercial WhatsApp",
+    cadence: cadence || "Anti-Ban Humanizado",
+    contactName: contactName,
+    phone: phone,
+    sessionId: message.sessionId || meta.sessionId || "main",
+    totalSteps: Number(totalSteps) || 1,
+    currentStep: Number(currentStep) || 1,
+    status: "Enviado no WhatsApp",
+    previewText: previewText.replace(/\[DISPARO[^\]]*\]/gi, "").trim(),
+    dispatchedAt: message.timestamp || message.createdAt,
   };
 }
 
@@ -260,6 +357,7 @@ export const MessageRow = memo(function MessageRow({
   const safeTextContent = getMessageDisplayContent(message);
   const displayText = hasRenderableMedia && safeTextContent === getMediaTypeLabel(resolvedMediaType) ? "" : safeTextContent;
   const parsedCatalog = useMemo(() => parseCatalogCard(displayText), [displayText]);
+  const parsedDisparo = useMemo(() => parseDisparoCard(displayText, message), [displayText, message]);
 
   const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
 
@@ -631,6 +729,66 @@ export const MessageRow = memo(function MessageRow({
                   <span>Ver no WhatsApp</span>
                   <ArrowSquareOut className="h-3.5 w-3.5" />
                 </a>
+              </div>
+            </div>
+          ) : parsedDisparo ? (
+            <div
+              className="rounded-2xl overflow-hidden bg-gradient-to-b from-card/95 via-card/90 to-emerald-950/20 dark:from-[#1a252c] dark:via-[#152026] dark:to-emerald-950/30 border border-emerald-500/50 max-w-[360px] shadow-xl my-1 select-none text-left"
+              data-testid="disparo-data-card"
+            >
+              {/* Header com gradiente e badge oficial */}
+              <div className="bg-gradient-to-r from-emerald-600/30 via-teal-600/20 to-transparent p-3 border-b border-emerald-500/30 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="h-8 w-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 shadow-xs">
+                    <Megaphone className="h-4 w-4" weight="fill" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-foreground truncate">Disparo Realizado</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                    </div>
+                    <span className="text-[10px] text-emerald-400 font-semibold truncate block">
+                      {parsedDisparo.flowName}
+                    </span>
+                  </div>
+                </div>
+                <div className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-medium shrink-0">
+                  {parsedDisparo.cadence || "Anti-Ban"}
+                </div>
+              </div>
+
+              {/* Corpo com Grid de Dados do Disparo */}
+              <div className="p-3 space-y-2.5">
+                <div className="grid grid-cols-2 gap-1.5 text-[11px] bg-muted/40 dark:bg-black/20 rounded-xl p-2.5 border border-border/40">
+                  <div>
+                    <span className="text-muted-foreground block text-[9px] uppercase tracking-wider">Destinatário</span>
+                    <span className="font-semibold text-foreground truncate block">
+                      {parsedDisparo.contactName || formatPhoneNumber(parsedDisparo.phone || message.phone || "")}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[9px] uppercase tracking-wider">Conexão WhatsApp</span>
+                    <span className="font-semibold text-foreground truncate block font-mono">
+                      {parsedDisparo.sessionId || message.sessionId || "main"}
+                    </span>
+                  </div>
+                  <div className="col-span-2 pt-1.5 border-t border-border/30 flex items-center justify-between">
+                    <span className="text-muted-foreground text-[10px]">
+                      {parsedDisparo.totalSteps > 1 ? `Etapa ${parsedDisparo.currentStep} de ${parsedDisparo.totalSteps}` : "Disparo individual"}
+                    </span>
+                    <span className="text-emerald-400 text-[10px] font-medium flex items-center gap-1">
+                      <Checks className="h-3.5 w-3.5 text-emerald-400" weight="bold" />
+                      {parsedDisparo.status || "Enviado no WhatsApp"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Conteúdo / Mensagem enviada no disparo */}
+                {parsedDisparo.previewText && (
+                  <div className="bg-card/80 dark:bg-[#111b21] rounded-xl p-2.5 border border-border/50 text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto">
+                    {parsedDisparo.previewText}
+                  </div>
+                )}
               </div>
             </div>
           ) : displayText ? (

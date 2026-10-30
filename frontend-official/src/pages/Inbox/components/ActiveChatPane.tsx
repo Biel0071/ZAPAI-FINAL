@@ -638,6 +638,37 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     await handleSendMessage(formattedMessage);
   };
 
+  const handleDisparoExecuted = useCallback(
+    (disparoInfo: any) => {
+      if (!selectedConversation || !disparoInfo) return;
+      const targetPhone = (selectedConversation as any).mapped_phone || selectedConversation.phone || "";
+      const text = `[DISPARO REALIZADO]\n📢 Fluxo: ${disparoInfo.flowName}\n🛡️ Modo: ${disparoInfo.cadence}\n📱 Destinatário: ${selectedConversation.contactName || "Contato"} (${formatPhoneNumber(targetPhone)})\n⏱️ Etapas: ${disparoInfo.totalSteps || 1} etapa(s)\n━━━━━━━━━━━━━━━━━━━━\n${disparoInfo.previewText || ""}`;
+      const newDisparoMsg: ChatMessage = {
+        id: `disparo_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        conversationId: selectedConversation.id,
+        phone: targetPhone,
+        text,
+        content: text,
+        fromMe: true,
+        direction: "outgoing",
+        status: "sent",
+        sender: "campaign",
+        type: "disparo",
+        timestamp: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        sessionId: selectedConversation.sessionId || "main",
+        analysis_json: disparoInfo,
+        metadata: disparoInfo,
+      } as any;
+
+      useAppStore.getState().addMessage(selectedConversation.id, newDisparoMsg);
+      setTimeout(() => {
+        scrollToLatestMessage();
+      }, 50);
+    },
+    [selectedConversation, scrollToLatestMessage],
+  );
+
   const handleOpenMediaPreview = useCallback(
     (media: PreviewMediaState) => {
       setPreviewZoom(1);
@@ -1960,6 +1991,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         <QuickCampaignDispatchModal
           open={isDisparoModalOpen}
           onClose={() => setIsDisparoModalOpen(false)}
+          onDispatched={handleDisparoExecuted}
           contact={{
             id: selectedConversation.id,
             name: selectedConversation.contactName || selectedConversation.name || "Contato",

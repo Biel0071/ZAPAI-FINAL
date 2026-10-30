@@ -41,7 +41,7 @@ interface QuickCampaignDispatchModalProps {
   open: boolean;
   onClose: () => void;
   contact: QuickCampaignContact | null;
-  onDispatched?: () => void;
+  onDispatched?: (disparoData?: any) => void;
 }
 
 export function QuickCampaignDispatchModal({
@@ -146,6 +146,21 @@ export function QuickCampaignDispatchModal({
       const targetPhone = contact.phone.replace(/@.*$/, "").replace(/\D/g, "");
       const session = contact.sessionId || "main";
       const overrideDelayMs = cadence === "human" ? 8000 : 4000;
+      const flowName = selectedReply ? selectedReply.title : "Disparo Rápido / Personalizado";
+      const cadenceLabel = cadence === "human" ? "Anti-Ban Humanizado (8s delay)" : "Disparo Turbo (4s delay)";
+      const previewText = resolvedSteps[0]?.value || resolvedSteps[0]?.caption || customText.trim();
+      const disparoData = {
+        isDisparo: true,
+        flowName,
+        cadence: cadenceLabel,
+        contactName: contact.name,
+        phone: targetPhone,
+        sessionId: session,
+        totalSteps: resolvedSteps.length,
+        currentStep: 1,
+        previewText,
+        dispatchedAt: new Date().toISOString(),
+      };
 
       if (selectedReply) {
         // Disparar fluxo cadastrado no sistema
@@ -166,8 +181,28 @@ export function QuickCampaignDispatchModal({
         });
       }
 
+      // Save formatted disparo card message to conversation database
+      try {
+        await apiService.createMessage({
+          conversationId: contact.id,
+          phone: targetPhone,
+          text: `[DISPARO REALIZADO]\n📢 Fluxo: ${flowName}\n🛡️ Modo: ${cadenceLabel}\n📱 Destinatário: ${contact.name} (${formatPhoneNumber(targetPhone)})\n⏱️ Etapas: ${resolvedSteps.length} etapa(s)\n━━━━━━━━━━━━━━━━━━━━\n${previewText}`,
+          content: `[DISPARO REALIZADO]\n📢 Fluxo: ${flowName}\n🛡️ Modo: ${cadenceLabel}\n📱 Destinatário: ${contact.name} (${formatPhoneNumber(targetPhone)})\n⏱️ Etapas: ${resolvedSteps.length} etapa(s)\n━━━━━━━━━━━━━━━━━━━━\n${previewText}`,
+          direction: "outgoing",
+          fromMe: true,
+          sender: "campaign",
+          type: "disparo",
+          status: "sent",
+          sessionId: session,
+          analysis_json: disparoData,
+          metadata: disparoData,
+        } as any);
+      } catch (saveErr) {
+        console.warn("[QuickCampaignDispatchModal] Failed to persist message record:", saveErr);
+      }
+
       notify.success(`Disparo iniciado com sucesso para ${contact.name}!`);
-      onDispatched?.();
+      onDispatched?.(disparoData);
       onClose();
     } catch (err: any) {
       notify.error(err?.message || "Erro ao iniciar disparo para o contato.");
