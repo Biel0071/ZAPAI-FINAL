@@ -6,10 +6,12 @@
 const { formatApiMessage } = require('../shared');
 
 function sortMessagesAsc(messages = []) {
-  return [...messages].sort(
-    (a, b) =>
-      new Date(a?.createdAt || a?.timestamp || 0) - new Date(b?.createdAt || b?.timestamp || 0)
-  );
+  return [...messages].sort((a, b) => {
+    const timeA = new Date(a?.timestamp || a?.createdAt || 0).getTime();
+    const timeB = new Date(b?.timestamp || b?.createdAt || 0).getTime();
+    if (timeA !== timeB) return timeA - timeB;
+    return (Number(a?.id) || 0) - (Number(b?.id) || 0);
+  });
 }
 
 function dedupeMessages(messages = []) {

@@ -580,42 +580,54 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     if (!selectedConversation) return;
     const imageUrl = Array.isArray(product?.images) && product.images.length > 0 ? product.images[0] : null;
 
-    if (imageUrl && !imageUrl.startsWith('data:')) {
+    if (imageUrl) {
       try {
-        const response = await fetch(imageUrl);
-        if (response.ok) {
-          const blob = await response.blob();
-          const base64data = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const res = reader.result as string;
-              resolve(res.includes(',') ? res.split(',')[1] : res);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
+        let base64data: string | null = null;
+        let mimeType = 'image/png';
+        const cleanCode = (product.code || product.name || 'produto').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+        const ext = imageUrl.split('.').pop()?.toLowerCase() || 'png';
+        const fileName = `${cleanCode}.${ext}`;
+        mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : (ext === 'webp' ? 'image/webp' : 'image/png');
 
-          const ext = imageUrl.split('.').pop()?.toLowerCase() || 'png';
-          const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : (ext === 'webp' ? 'image/webp' : 'image/png');
-          const cleanCode = (product.code || product.name || 'produto').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-          const fileName = `${cleanCode}.${ext}`;
-
-          const res = await apiService.sendMediaMessage({
-            phone: selectedConversation.phone,
-            fileName,
-            mimeType,
-            mediaType: 'image',
-            dataBase64: base64data,
-            caption: formattedMessage,
-            conversationId: selectedConversation.id,
-            contactId: selectedConversation.contactId,
-            sessionId: selectedConversation.sessionId || undefined,
-            requestId: `inbox-product-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-          });
-
-          if (res?.success) {
-            return;
+        if (imageUrl.startsWith('data:')) {
+          base64data = imageUrl.includes(',') ? imageUrl.split(',')[1] : imageUrl;
+        } else {
+          try {
+            const fetchUrl = imageUrl.startsWith('http') ? imageUrl : `${window.location.origin}${imageUrl}`;
+            const response = await fetch(fetchUrl);
+            if (response.ok) {
+              const blob = await response.blob();
+              base64data = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const res = reader.result as string;
+                  resolve(res.includes(',') ? res.split(',')[1] : res);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+            }
+          } catch (fetchErr) {
+            console.warn('[handleSendProductMessage] client fetch failed, relying on server mediaPath:', fetchErr);
           }
+        }
+
+        const res = await apiService.sendMediaMessage({
+          phone: selectedConversation.phone,
+          fileName,
+          mimeType,
+          mediaType: 'product',
+          mediaPath: imageUrl,
+          dataBase64: base64data || undefined,
+          caption: formattedMessage,
+          conversationId: selectedConversation.id,
+          contactId: selectedConversation.contactId,
+          sessionId: selectedConversation.sessionId || undefined,
+          requestId: `inbox-product-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        });
+
+        if (res?.success) {
+          return;
         }
       } catch (err) {
         console.warn('[handleSendProductMessage] Rich media send failed, falling back to text:', err);

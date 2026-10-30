@@ -453,8 +453,9 @@ async function sendMediaMessage(
   phone,
   mediaType,
   mediaPath,
-  { caption = '', fileName, mimetype, ptt = false, beforeSend } = {}
+  options = {}
 ) {
+  const { caption = '', fileName, mimetype, ptt = false, beforeSend } = options;
   switch (mediaType) {
     case 'image':
       return sendImage(sock, phone, mediaPath, caption, { beforeSend });
@@ -469,7 +470,7 @@ async function sendMediaMessage(
     case 'product':
     case 'catalog': {
       // 1. Try sending native WhatsApp product card if sock supports it
-      if (mediaPath && typeof mediaPath === 'string') {
+      if (mediaPath) {
         try {
           const authUser = sock.user?.id || sock.authState?.creds?.me?.id;
           if (authUser) {
@@ -479,15 +480,33 @@ async function sendMediaMessage(
               const jid = ensureWhatsAppJid(phone);
               const resolvedJid = await resolveRegisteredJid(sock, jid, { requireRegistered: true });
               await checkBeforeSend(beforeSend);
+
+              const lines = (caption || '').split('\n').map((l) => l.trim()).filter(Boolean);
+              const productTitle = (
+                options?.title ||
+                lines.find((l) => l.startsWith('*') && !l.includes('[CATÁLOGO') && !l.includes('━━━━'))?.replace(/\*/g, '') ||
+                String(fileName || 'Produto WhatsApp').replace(/\.[^.]+$/, '')
+              ).trim();
+
+              let parsedPrice = options?.price;
+              if (!parsedPrice && caption) {
+                const match = caption.match(/Valor:\*?\s*R\$\s*([0-9.,]+)/i);
+                if (match) {
+                  parsedPrice = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
+                }
+              }
+              const priceAmount1000 = parsedPrice ? Math.round(parsedPrice * 1000) : 0;
+              const prodId = String(options?.productId || fileName || 'prod').replace(/\.[^.]+$/, '');
+
               const productPayload = {
                 product: {
                   productImage: imgPayload,
-                  productId: String(fileName || 'prod').replace(/\.[^.]+$/, ''),
-                  title: caption?.split('\n')?.[1]?.replace(/\*/g, '') || caption?.split('\n')?.[0]?.replace(/\*/g, '') || 'Produto WhatsApp',
+                  productId: prodId,
+                  title: productTitle,
                   description: caption || '',
                   currencyCode: 'BRL',
-                  priceAmount1000: 0,
-                  retailerId: String(fileName || 'prod').replace(/\.[^.]+$/, ''),
+                  priceAmount1000,
+                  retailerId: options?.retailerId || prodId,
                   url: `https://wa.me/c/${bizOwnerJid.split('@')[0]}`,
                 },
                 businessOwnerJid: bizOwnerJid,

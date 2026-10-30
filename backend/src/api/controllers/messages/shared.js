@@ -211,10 +211,14 @@ function formatApiMessage(message) {
     console.log(`[MEDIA_URL_GENERATED] Generated mediaUrl:`, normalizedMediaUrl);
   }
 
+  const resolvedTime = message.timestamp || message.createdAt || new Date().toISOString();
+  const isoTime = resolvedTime instanceof Date ? resolvedTime.toISOString() : String(resolvedTime);
+
   return {
     content: message.content || message.text || '',
     conversationId: message.conversationId || message.conversation_id || null,
-    createdAt: message.createdAt || message.timestamp || new Date().toISOString(),
+    createdAt: isoTime,
+    timestamp: isoTime,
     fromMe:
       typeof message.fromMe === 'boolean'
         ? message.fromMe

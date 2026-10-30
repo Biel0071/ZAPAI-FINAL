@@ -591,7 +591,7 @@ export function CatalogSelectorPopover({
           data-catalog-trigger
           title="🏪 Catálogo de Produtos WhatsApp (Depósito Vista Alegre)"
         >
-          <Storefront className="h-5 w-5 text-emerald-400 shrink-0" weight="fill" />
+          <span className="text-lg leading-none select-none" role="img" aria-label="Catálogo">🏪</span>
         </Button>
       </PopoverTrigger>
 

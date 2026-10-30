@@ -1203,6 +1203,7 @@ export function normalizeLoadedMessage(message: ChatMessage, conversationId: str
     content: getMessageDisplayContent({ ...(message as ChatMessage & { text?: string; body?: string; message?: string; caption?: string }), mediaType: resolvedMediaType }),
     conversationId: normalizeId(message.conversationId) || normalizeId(conversationId),
     createdAt,
+    timestamp: normalizeId(message.timestamp) || createdAt,
     mediaType: resolvedMediaType,
     mediaUrl: typeof resolvedUrl === "string" ? resolvedUrl : message.mediaUrl,
     status: hasStalePendingStatus ? "failed" : message.status,

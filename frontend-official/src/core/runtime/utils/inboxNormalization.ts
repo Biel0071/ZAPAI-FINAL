@@ -12,8 +12,16 @@ export function getMessageTime(message: Pick<ChatMessage, "timestamp" | "created
   return Number.isFinite(time) ? time : 0;
 }
 
-export function compareMessageTimes(a: Pick<ChatMessage, "timestamp" | "createdAt">, b: Pick<ChatMessage, "timestamp" | "createdAt">): number {
-  return getMessageTime(a) - getMessageTime(b);
+export function compareMessageTimes(
+  a: Pick<ChatMessage, "id" | "timestamp" | "createdAt">,
+  b: Pick<ChatMessage, "id" | "timestamp" | "createdAt">
+): number {
+  const diff = getMessageTime(a) - getMessageTime(b);
+  if (diff !== 0) return diff;
+  const aId = Number(a.id);
+  const bId = Number(b.id);
+  if (!Number.isNaN(aId) && !Number.isNaN(bId)) return aId - bId;
+  return String(a.id || "").localeCompare(String(b.id || ""));
 }
 
 export function normalizeId(id: unknown): string {

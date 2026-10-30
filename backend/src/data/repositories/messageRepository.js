@@ -33,10 +33,13 @@ function mapMessage(row) {
     (parsedMetadata && (parsedMetadata.source === 'ai' || parsedMetadata.ai_response || parsedMetadata.campaignId || parsedMetadata.campaign_id))
   );
 
+  const resolvedMessageTime = row.timestamp || row.created_at || new Date().toISOString();
+  const isoMessageTime = resolvedMessageTime instanceof Date ? resolvedMessageTime.toISOString() : String(resolvedMessageTime);
+
   return {
     content: cleanContent,
     conversationId: row.conversation_id,
-    createdAt: row.created_at || row.timestamp,
+    createdAt: isoMessageTime,
     direction:
       row.direction ||
       ((typeof row.from_me === 'boolean' ? row.from_me : row.fromMe) ? 'outgoing' : 'incoming'),
@@ -69,7 +72,7 @@ function mapMessage(row) {
       row.status ||
       ((typeof row.from_me === 'boolean' ? row.from_me : row.fromMe) ? 'sent' : 'received'),
     text: cleanContent,
-    timestamp: row.timestamp || row.created_at,
+    timestamp: isoMessageTime,
     type: row.media_type || row.type || 'text',
     sender: row.sender || ((typeof row.from_me === 'boolean' ? row.from_me : row.fromMe) ? 'agent' : 'client'),
     origin: row.message_origin || row.origin || null,
@@ -321,10 +324,10 @@ async function getMessagesByConversation(conversationId, options = {}) {
         WHERE m.company_id = $1
           AND ${matchClause}
         ${beforeClause}
-        ORDER BY m.timestamp DESC, m.id DESC
+        ORDER BY COALESCE(m.timestamp, m.created_at) DESC, m.id DESC
         LIMIT $${limitIdx}
       ) recent
-      ORDER BY recent.timestamp ASC, recent.id ASC
+      ORDER BY COALESCE(recent.timestamp, recent.created_at) ASC, recent.id ASC
     `,
     values
   );
