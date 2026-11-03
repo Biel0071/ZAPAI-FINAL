@@ -530,11 +530,13 @@ export default function Connections() {
 
     try {
       // createSession points to /session/start, bypassing the forceNew: true destruction of /reconnect
+      setActiveModalSessionId(normalizedId);
+      setIsActivationDialogOpen(true);
+      setShowQRModal(true);
       const response = await apiService.createSession(sessionId);
       const qr = extractQrPayload(response as SessionEventPayload);
       if (qr) {
         useAppStore.getState().setLastQr(sessionId, qr);
-        setShowQRModal(true);
       }
       useAppStore.getState().upsertSession(
         backendNormalizeSession({ id: sessionId, status: qr ? "qr" : "connecting" })
@@ -1242,12 +1244,22 @@ export default function Connections() {
               isQrModalVisible && (
                 <div className="space-y-4 rounded-2xl border border-border/70 bg-background/50 p-4 text-center">
                   {showQrImage ? (
-                    <div className="qr-container mx-auto w-fit">
+                    <div className="qr-container mx-auto w-fit relative inline-flex items-center justify-center p-3 bg-white rounded-2xl shadow-xl border border-border">
                       <img
                         src={currentQrImage ?? undefined}
                         alt="QR Code da sessão WhatsApp"
-                        className="mx-auto block h-[260px] w-[260px] rounded-xl border border-border"
+                        className="mx-auto block h-[260px] w-[260px] rounded-xl object-contain"
                       />
+                      {/* Logo ZAI centralizado no meio do QR Code */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="h-14 w-14 rounded-2xl bg-white shadow-xl border-2 border-emerald-500/60 p-1.5 flex items-center justify-center">
+                          <img
+                            src="/brand/logo-dark.svg"
+                            alt="ZAI"
+                            className="h-10 w-10 object-contain drop-shadow"
+                          />
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground flex flex-col items-center justify-center min-h-[260px] gap-3">

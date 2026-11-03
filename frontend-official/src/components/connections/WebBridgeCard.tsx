@@ -17,6 +17,14 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { apiService } from "@/core/services/apiService";
 import { notify } from "@/core/services/notifyService";
 import { cn } from "@/core/lib/utils";
@@ -34,6 +42,7 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
   const [syncing, setSyncing] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ms: number; ok: boolean } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [bridgeState, setBridgeState] = useState<{
     status: string;
@@ -94,6 +103,37 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
       setLoading(false);
     }
   }, [sessionId]);
+
+  const handleOpenQRModal = useCallback(async () => {
+    setIsModalOpen(true);
+    await loadQR();
+  }, [loadQR]);
+
+  // Polling em tempo real enquanto o modal estiver aberto e aguardando leitura
+  useEffect(() => {
+    if (!isModalOpen || isConnected) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await apiService.getWebBridgeStatus(sessionId);
+        if (res?.success) {
+          setBridgeState((prev) => ({
+            ...prev,
+            status: res.status,
+            authenticated: res.authenticated,
+            phone: res.phone || prev.phone,
+            pid: res.pid,
+            memoryMb: res.memoryMb,
+            lastSyncAt: res.lastSyncAt,
+            productCount: res.productCount || prev.productCount,
+          }));
+          if (res.authenticated) {
+            notify.success("WhatsApp Web Conectado com Sucesso!");
+          }
+        }
+      } catch (_) {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isModalOpen, isConnected, sessionId]);
 
   useEffect(() => {
     void loadStatus();
@@ -258,23 +298,43 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
           </div>
         </div>
 
-        {/* QR Code Container (Se desconectado ou aguardando leitura) */}
+        {/* QR Code Container Inline (Se desconectado ou aguardando leitura) */}
         {!isConnected && bridgeState.qrImage && (
           <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 flex flex-col items-center justify-center text-center space-y-3">
             <div className="flex items-center gap-2 text-xs font-semibold text-amber-400">
               <QrIcon className="h-4 w-4" />
               <span>Escaneie para conectar o WebBridge (Aparelho Adicional)</span>
             </div>
-            <div className="p-3 bg-white rounded-xl shadow-lg border border-border">
+            <div className="relative inline-flex items-center justify-center p-3 bg-white rounded-xl shadow-lg border border-border">
               <img
                 src={bridgeState.qrImage}
                 alt="QR Code WebBridge"
                 className="h-44 w-44 object-contain"
               />
+              {/* Logo ZAI centralizado no meio do QR Code */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="h-11 w-11 rounded-xl bg-white shadow-md border-2 border-emerald-500/60 p-1 flex items-center justify-center">
+                  <img
+                    src="/brand/logo-dark.svg"
+                    alt="ZAI"
+                    className="h-7 w-7 object-contain drop-shadow"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenQRModal}
+                className="text-xs rounded-xl h-7 px-3 border-amber-500/40 text-amber-400 hover:bg-amber-500/10 gap-1.5 font-medium"
+              >
+                <Browsers className="h-3.5 w-3.5" />
+                <span>Expandir em Pop-up</span>
+              </Button>
             </div>
             <p className="text-[11px] text-muted-foreground max-w-sm">
               No WhatsApp do celular: <strong>Configurações &gt; Aparelhos Conectados &gt; Conectar um aparelho</strong>.
-              Essa é a conexão complementar para gerenciar o catálogo.
             </p>
           </div>
         )}
@@ -317,10 +377,10 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={loadQR}
+              onClick={handleOpenQRModal}
               disabled={loading}
               className="h-8 text-xs rounded-xl px-3 gap-1.5 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
-              title="Gera novo QR Code para o WhatsApp Web"
+              title="Abre a tela pop-up com QR Code para o WhatsApp Web"
             >
               {loading ? <Spinner className="h-3.5 w-3.5 animate-spin" /> : <QrIcon className="h-3.5 w-3.5" />}
               <span>Gerar QR Code Web</span>
@@ -340,6 +400,121 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
           )}
         </div>
       </CardContent>
+
+      {/* ============================================================== */}
+      {/* POP-UP MODAL REAL FUNCIONAL WEBBRIDGE COM LOGO ZAI NO CENTRO   */}
+      {/* ============================================================== */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-md border-border/80 bg-card/95 backdrop-blur-xl text-center">
+          <DialogHeader className="text-center sm:text-center pr-0">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+              <Browsers className="h-6 w-6" />
+            </div>
+            <DialogTitle className="font-display text-lg text-foreground">
+              Conectar WhatsApp Web Bridge
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Conexão 2 (Commerce) — WhatsApp Web Companion para sincronização do catálogo oficial
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-4">
+            {isConnected ? (
+              <div className="p-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 space-y-3">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                  <CheckCircle className="h-8 w-8" />
+                </div>
+                <h4 className="font-bold text-base text-foreground">
+                  WhatsApp Web Conectado!
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  O navegador Chromium na VPS está autenticado e operando em conjunto com o Baileys. O catálogo oficial já pode ser sincronizado em tempo real.
+                </p>
+                <div className="pt-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium gap-2 px-4 shadow-emerald-900/30"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      void handleSyncCatalog();
+                    }}
+                  >
+                    <ArrowClockwise className="h-4 w-4" />
+                    <span>Sincronizar Catálogo Agora</span>
+                  </Button>
+                </div>
+              </div>
+            ) : loading || (!bridgeState.qrImage && bridgeState.status !== "waiting_scan") ? (
+              <div className="rounded-2xl border border-border/70 bg-background/50 p-8 flex flex-col items-center justify-center min-h-[280px] gap-3">
+                <Spinner className="h-10 w-10 animate-spin text-emerald-500" />
+                <p className="font-medium text-sm text-foreground">Iniciando Chromium na VPS...</p>
+                <p className="text-xs text-muted-foreground max-w-xs text-center">
+                  Aguardando geração do QR Code pelo WhatsApp Web. Isso pode levar alguns segundos.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="relative inline-flex items-center justify-center p-3.5 bg-white rounded-2xl shadow-2xl border border-border mx-auto">
+                  <img
+                    src={bridgeState.qrImage || undefined}
+                    alt="QR Code WhatsApp Web Bridge"
+                    className="h-[256px] w-[256px] object-contain rounded-xl"
+                  />
+                  {/* Logo ZAI centralizado no meio do QR Code */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="h-14 w-14 rounded-2xl bg-white shadow-xl border-2 border-emerald-500/60 p-1.5 flex items-center justify-center">
+                      <img
+                        src="/brand/logo-dark.svg"
+                        alt="ZAI"
+                        className="h-10 w-10 object-contain drop-shadow"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-left bg-background/60 p-3.5 rounded-xl border border-border/60 text-xs">
+                  <p className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[10px]">1</span>
+                    Abra o WhatsApp no celular do número conectado
+                  </p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[10px]">2</span>
+                    Toque em Aparelhos Conectados &gt; Conectar um aparelho
+                  </p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[10px]">3</span>
+                    Aponte a câmera para este QR Code com o logo ZAI
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex items-center justify-between sm:justify-between gap-2 pt-2 border-t border-border/40">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsModalOpen(false)}
+              className="rounded-xl text-xs"
+            >
+              Fechar
+            </Button>
+            {!isConnected && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={loadQR}
+                disabled={loading}
+                className="rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 font-medium"
+              >
+                {loading ? <Spinner className="h-3.5 w-3.5 animate-spin" /> : <ArrowClockwise className="h-3.5 w-3.5" />}
+                <span>Atualizar QR Code</span>
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

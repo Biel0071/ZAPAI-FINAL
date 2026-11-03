@@ -290,8 +290,22 @@ class WebBridgeSessionManager {
     session.authenticated = auth.authenticated;
     session.phone = auth.phone || session.phone;
     session.qrCode = auth.qr;
-    session.qrImage = auth.qrImage;
     session.ref = auth.ref;
+
+    let qrImage = auth.qrImage || session.qrImage;
+    if (!qrImage && (auth.ref || session.ref)) {
+      try {
+        const QRCode = require('qrcode');
+        qrImage = await QRCode.toDataURL(auth.ref || session.ref, {
+          errorCorrectionLevel: 'M',
+          margin: 2,
+          width: 320,
+        });
+      } catch (qrErr) {
+        console.warn('[WEB-BRIDGE] Falha ao gerar QR Code a partir de ref:', qrErr.message);
+      }
+    }
+    session.qrImage = qrImage;
 
     if (auth.authenticated) {
       this._onAuthenticated(sId, session);
@@ -311,8 +325,8 @@ class WebBridgeSessionManager {
       authenticated: false,
       phone: null,
       status: 'waiting_scan',
-      qrImage: auth.qrImage || session.qrImage || null,
-      ref: auth.ref || session.ref || null,
+      qrImage: session.qrImage || null,
+      ref: session.ref || null,
     };
   }
 
