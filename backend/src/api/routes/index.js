@@ -50,6 +50,7 @@ function registerRoutes(app, options = {}) {
   // Web Bridge QR Code & Status accessible for device pairing
   const orchestratorController = require('../controllers/orchestratorController');
   const webBridgeController = require('../controllers/webBridgeController');
+  const productsController = require('../controllers/productsController');
   app.get('/api/orchestrator/bridge/view/:sessionId?', (req, res) => orchestratorController.renderBridgeView(req, res));
   app.get('/orchestrator/bridge/view/:sessionId?', (req, res) => orchestratorController.renderBridgeView(req, res));
   app.get('/api/orchestrator/bridge/qr/:sessionId?', (req, res) => orchestratorController.getBridgeQR(req, res));
@@ -66,6 +67,17 @@ function registerRoutes(app, options = {}) {
   app.post('/webbridge/test-connection', (req, res) => webBridgeController.testConnection(req, res));
   app.post('/api/webbridge/disconnect', (req, res) => webBridgeController.disconnect(req, res));
   app.post('/webbridge/disconnect', (req, res) => webBridgeController.disconnect(req, res));
+
+  // Catálogo comercial público e sincronização automática
+  app.get('/api/products', (req, res) => productsController.getProducts(req, res));
+  app.get('/products', (req, res) => productsController.getProducts(req, res));
+  app.get('/api/catalog/products', (req, res) => productsController.getProducts(req, res));
+  app.get('/catalog/products', (req, res) => productsController.getProducts(req, res));
+  app.get('/api/catalog/products/:id', (req, res) => productsController.getProductById(req, res));
+  app.get('/catalog/products/:id', (req, res) => productsController.getProductById(req, res));
+  app.post('/api/catalog/sync', (req, res) => productsController.syncWhatsAppCatalog(req, res));
+  app.post('/catalog/sync', (req, res) => productsController.syncWhatsAppCatalog(req, res));
+  app.post('/api/products/sync', (req, res) => productsController.syncWhatsAppCatalog(req, res));
 
   app.use(requireJwtAuth);
   app.use('/api/ai/history', require('../../ai/evolutionary/historyRoutes').createHistoryRouter());
