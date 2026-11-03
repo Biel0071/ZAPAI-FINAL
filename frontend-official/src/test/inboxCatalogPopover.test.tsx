@@ -96,9 +96,8 @@ describe("WhatsApp Catalog Integration & Inbox Dispatch", () => {
     const popover = document.querySelector("[data-catalog-popover]");
     expect(popover).not.toBeNull();
     expect(popover?.textContent).toContain("Enviar produtos");
-    expect(popover?.textContent).toContain("Depósito Vista Alegre");
-    expect(popover?.textContent).toContain("TIJOLO 8 FUROS");
-    expect(popover?.textContent).toContain("BETONEIRA - CSM - 400L");
+    expect(popover?.textContent).toContain("BLOCO 10 - 100 UN");
+    expect(popover?.textContent).toContain("ARGAMASSA - AC3");
   });
 
   it("sends store catalog link when 'Enviar catálogo' is clicked", async () => {
@@ -177,7 +176,7 @@ describe("WhatsApp Catalog Integration & Inbox Dispatch", () => {
     });
 
     const rows = [...document.querySelectorAll<HTMLElement>("[data-catalog-popover] .cursor-pointer")].filter(
-      (el) => el.textContent?.includes("BETONEIRA") || el.textContent?.includes("TIJOLO 12")
+      (el) => el.textContent?.includes("BLOCO 10") || el.textContent?.includes("ARGAMASSA - AC3")
     );
     expect(rows.length).toBeGreaterThanOrEqual(2);
 

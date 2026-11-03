@@ -481,15 +481,9 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
     console.warn('[ProductsController] WhatsApp getCatalog query returned:', waErr.message);
   }
 
-  // Upsert authentic core store catalog products if no live items were fetched from Meta
+  // If live items were not returned from Meta, do NOT invent mock data. Preserve existing real catalog.
   if (waFetched === 0) {
-    for (const coreProd of CORE_STORE_PRODUCTS) {
-      await productRepository.upsertProduct({
-        ...coreProd,
-        companyId,
-      });
-      syncedCount++;
-    }
+    console.warn('[ProductsController] WhatsApp Business live getCatalog query timed out or returned 0 items. Preserving existing verified products without injecting mock data.');
   }
 
   // Clear fast cache so fresh products are served immediately
