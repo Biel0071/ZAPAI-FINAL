@@ -80,12 +80,13 @@ class WebBridgeSessionManager {
       } catch (_) {}
     }
 
+    const isAuth = session ? Boolean(session.authenticated) : false;
     return {
       sessionId: sId,
       companyId: session ? session.companyId : companyId,
       available: this.isPlaywrightAvailable,
-      status: session ? session.status : 'disconnected',
-      authenticated: session ? Boolean(session.authenticated) : false,
+      status: session ? (isAuth ? 'connected' : (session.status === 'connected' ? 'connected' : 'waiting_scan')) : 'disconnected',
+      authenticated: isAuth,
       phone: session ? session.phone || null : null,
       lastActive: session ? session.lastActive : null,
       pid,
@@ -165,8 +166,8 @@ class WebBridgeSessionManager {
       await page.waitForTimeout(3500);
 
       const auth = await this.checkAuthentication(page);
-      sessionRecord.status = 'ready';
-      sessionRecord.authenticated = auth.authenticated;
+      sessionRecord.authenticated = Boolean(auth.authenticated);
+      sessionRecord.status = sessionRecord.authenticated ? 'connected' : 'waiting_scan';
       sessionRecord.phone = auth.phone || null;
       sessionRecord.qrCode = auth.qr;
       sessionRecord.qrImage = auth.qrImage;
@@ -345,10 +346,10 @@ class WebBridgeSessionManager {
           return;
         }
 
-        const isChatListVisible = await session.page.$('#pane-side, [data-testid="chat-list"], header [data-testid="menu-bar"]');
+        const isChatListVisible = await session.page.$('#pane-side, [data-testid="chat-list"]');
         if (isChatListVisible) {
           session.authenticated = true;
-          session.status = 'ready';
+          session.status = 'connected';
           session.qrCode = null;
           session.qrImage = null;
           clearInterval(interval);

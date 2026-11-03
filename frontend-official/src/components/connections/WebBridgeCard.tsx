@@ -64,7 +64,7 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
     qrImage: null,
   });
 
-  const isConnected = bridgeState.authenticated || bridgeState.status === "ready" || bridgeState.status === "connected";
+  const isConnected = Boolean(bridgeState.authenticated || bridgeState.status === "connected");
 
   const loadStatus = useCallback(async () => {
     try {

@@ -275,10 +275,10 @@ class OrchestratorController {
         const data = (json && json.data) ? json.data : json;
         spinner.style.display = 'none';
 
-        if (data.authenticated || data.status === 'connected') {
+        if (data.authenticated === true || data.status === 'connected') {
           badge.className = 'badge badge-connected';
           badge.innerText = 'Conectado com Sucesso';
-          container.innerHTML = '<div class="success-icon">✓</div><h3 style="color:#111b21;font-weight:700;">WhatsApp Web Conectado!</h3><p style="color:#667781;font-size:12px;margin-top:8px;">Ambos Baileys e Web Bridge estão operando em paralelo.</p>';
+          container.innerHTML = '<div class="success-icon">✓</div><h3 style="color:#111b21;font-weight:700;">WhatsApp Web Conectado!</h3><p style="color:#667781;font-size:12px;margin-top:8px;">Ambos Baileys e Web Bridge estão operando em paralelo.</p><button class="btn" style="margin-top:16px;" onclick="syncCatalog()">Sincronizar Catálogo Real Agora</button><div id="syncResult" style="margin-top:12px;font-size:12px;color:#10b981;"></div>';
           return;
         }
 
@@ -286,10 +286,33 @@ class OrchestratorController {
         if (qrSrc) {
           img.src = qrSrc;
           wrapper.style.display = 'block';
+          badge.className = 'badge badge-waiting';
+          badge.innerText = 'Aguardando Leitura';
         }
       } catch (err) {
         spinner.style.display = 'none';
         console.error('Fetch QR error:', err);
+      }
+    }
+
+    async function syncCatalog() {
+      const resultDiv = document.getElementById('syncResult');
+      if (resultDiv) resultDiv.innerText = 'Sincronizando produtos via DOM do WhatsApp Web...';
+      try {
+        const res = await fetch('/api/webbridge/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+        const json = await res.json();
+        const data = json.data || json;
+        if (data.success) {
+          if (resultDiv) resultDiv.innerHTML = '✓ ' + (data.total || data.upserted || 0) + ' produtos sincronizados no catálogo com sucesso!';
+        } else {
+          if (resultDiv) resultDiv.innerHTML = '<span style="color:#ef4444;">Falha: ' + (data.error || 'Erro') + '</span>';
+        }
+      } catch (e) {
+        if (resultDiv) resultDiv.innerHTML = '<span style="color:#ef4444;">Erro de rede ao sincronizar.</span>';
       }
     }
 
@@ -300,7 +323,7 @@ class OrchestratorController {
         const res = await fetch('/api/orchestrator/bridge/status/' + sessionId);
         const json = await res.json();
         const data = (json && json.data) ? json.data : json;
-        if (data.authenticated || data.status === 'ready' || data.status === 'connected') {
+        if (data.authenticated === true || data.status === 'connected') {
           const badge = document.getElementById('statusBadge');
           if (badge) {
             badge.className = 'badge badge-connected';
@@ -308,7 +331,13 @@ class OrchestratorController {
           }
           const container = document.getElementById('qrContainer');
           if (container && !container.querySelector('.success-icon')) {
-            container.innerHTML = '<div class="success-icon">✓</div><h3 style="color:#111b21;font-weight:700;">WhatsApp Web Conectado!</h3><p style="color:#667781;font-size:12px;margin-top:8px;">Ambos Baileys e Web Bridge estão operando em paralelo.</p>';
+            container.innerHTML = '<div class="success-icon">✓</div><h3 style="color:#111b21;font-weight:700;">WhatsApp Web Conectado!</h3><p style="color:#667781;font-size:12px;margin-top:8px;">Ambos Baileys e Web Bridge estão operando em paralelo.</p><button class="btn" style="margin-top:16px;" onclick="syncCatalog()">Sincronizar Catálogo Real Agora</button><div id="syncResult" style="margin-top:12px;font-size:12px;color:#10b981;"></div>';
+          }
+        } else if (data.status === 'waiting_scan' || data.status === 'launching') {
+          const badge = document.getElementById('statusBadge');
+          if (badge && !badge.classList.contains('badge-waiting')) {
+            badge.className = 'badge badge-waiting';
+            badge.innerText = 'Aguardando Leitura';
           }
         }
       } catch (_) {}
