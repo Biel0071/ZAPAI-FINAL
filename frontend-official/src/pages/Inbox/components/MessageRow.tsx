@@ -26,6 +26,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShoppingBag } from "lucide-react";
 import { cn } from "@/core/lib/utils";
 import type { ChatMessage } from "@/core/services/apiService";
 import { apiService } from "@/core/services/apiService";
@@ -213,6 +214,68 @@ function parseDisparoCard(text: string, message: ChatMessage): ParsedDisparoItem
   };
 }
 
+interface ParsedOrderItem {
+  orderId: string;
+  orderTitle: string;
+  items: Array<{ name: string; quantity: number; price?: string }>;
+  itemCount: number;
+  total: string;
+  notes?: string;
+  status: string;
+  fromMe: boolean;
+}
+
+function parseOrderCard(text: string, message: ChatMessage): ParsedOrderItem | null {
+  const isOrder =
+    message.mediaType === "order" ||
+    (message as any).type === "order" ||
+    (text && (
+      text.includes("[PEDIDO WHATSAPP]") ||
+      text.includes("PEDIDO RECEBIDO") ||
+      text.includes("PEDIDO GERADO") ||
+      text.includes("🛒 *NOVO PEDIDO") ||
+      text.includes("🛒 *PEDIDO GERADO")
+    ));
+
+  if (!isOrder) return null;
+
+  // Extract orderId
+  const idMatch = text.match(/#(ORD_[A-Za-z0-9_-]+|\d+|order_[A-Za-z0-9_-]+)/i);
+  const orderId = idMatch ? idMatch[1] : (message.whatsappMessageId || "PEDIDO");
+
+  // Extract total
+  const totalMatch = text.match(/(?:TOTAL(?: DO PEDIDO)?|Total):\s*(?:R\$\s*|BRL\s*)?([\d.,]+)/i);
+  const total = totalMatch ? `R$ ${totalMatch[1].trim()}` : "Consulte";
+
+  // Extract items
+  const items: Array<{ name: string; quantity: number; price?: string }> = [];
+  const lines = text.split("\n");
+  for (const line of lines) {
+    const itemMatch = line.match(/[•\-\*]\s*([^\(]+?)(?:\s*\((\d+)x?\))?(?:\s*[-—]\s*(?:R\$\s*)?([\d.,]+))?$/i);
+    if (itemMatch && !line.includes("Subtotal") && !line.includes("Total") && !line.includes("Frete") && !line.includes("Desconto")) {
+      items.push({
+        name: itemMatch[1].replace(/\*+/g, "").trim(),
+        quantity: itemMatch[2] ? parseInt(itemMatch[2], 10) : 1,
+        price: itemMatch[3] ? `R$ ${itemMatch[3].trim()}` : undefined,
+      });
+    }
+  }
+
+  // Extract notes
+  const notesMatch = text.match(/(?:Obs(?:ervação|ervacao)?|Mensagem):\s*([^\n]+)/i);
+
+  return {
+    orderId,
+    orderTitle: `Pedido #${orderId}`,
+    items,
+    itemCount: items.length || 1,
+    total,
+    notes: notesMatch ? notesMatch[1].trim() : undefined,
+    status: message.fromMe ? "Enviado pelo Atendente" : "Recebido do Cliente",
+    fromMe: Boolean(message.fromMe),
+  };
+}
+
 export const MessageRow = memo(function MessageRow({
   message,
   reaction,
@@ -236,12 +299,14 @@ export const MessageRow = memo(function MessageRow({
   searchQuery,
   isActiveSearchMatch,
   onOpenProductDetails,
+  onOpenOrdersDrawer,
 }: {
   message: ChatMessage;
   reaction?: string;
   onReact: (messageId: string, emoji: string) => void;
   onOpenMediaPreview: (media: PreviewMediaState) => void;
   onOpenProductDetails?: (product: any) => void;
+  onOpenOrdersDrawer?: () => void;
   isMenuOpen: boolean;
   isReactionPickerOpen: boolean;
   onToggleMenu: (messageId: string) => void;
@@ -269,7 +334,13 @@ export const MessageRow = memo(function MessageRow({
     explicitMessageType ??
     inferMediaTypeFromSource(String(extractMessageAssetUrl(message) ?? "")) ??
     inferMediaTypeFromSource(mediaUrl ?? undefined);
-  const hasRenderableMedia = Boolean(resolvedMediaType && resolvedMediaType !== "text");
+  const hasRenderableMedia = Boolean(
+    resolvedMediaType &&
+    resolvedMediaType !== "text" &&
+    resolvedMediaType !== "order" &&
+    resolvedMediaType !== "product" &&
+    resolvedMediaType !== "catalog"
+  );
   const shouldTrackMediaLoading = resolvedMediaType === "image" || resolvedMediaType === "video";
   const [mediaLoading, setMediaLoading] = useState(Boolean(mediaUrl && shouldTrackMediaLoading));
   const [mediaError, setMediaError] = useState(false);
@@ -367,6 +438,7 @@ export const MessageRow = memo(function MessageRow({
 
   const safeTextContent = getMessageDisplayContent(message);
   const displayText = hasRenderableMedia && safeTextContent === getMediaTypeLabel(resolvedMediaType) ? "" : safeTextContent;
+  const parsedOrder = useMemo(() => parseOrderCard(displayText, message), [displayText, message]);
   const parsedCatalog = useMemo(() => parseCatalogCard(displayText), [displayText]);
   const parsedDisparo = useMemo(() => parseDisparoCard(displayText, message), [displayText, message]);
 
@@ -641,7 +713,75 @@ export const MessageRow = memo(function MessageRow({
             </div>
           )}
 
-          {parsedCatalog ? (
+          {parsedOrder ? (
+            <div
+              className="rounded-2xl overflow-hidden bg-gradient-to-b from-card/95 via-card/90 to-emerald-950/20 dark:from-[#1a252c] dark:via-[#152026] dark:to-emerald-950/30 border border-emerald-500/50 w-[310px] max-w-full shadow-xl my-1 select-none text-left"
+              data-testid="whatsapp-order-card"
+            >
+              {/* Header com badge oficial do WhatsApp */}
+              <div className="bg-[#005c4b] p-3 border-b border-emerald-500/30 flex items-center justify-between gap-2 text-white">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="h-8 w-8 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
+                    <ShoppingBag className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold block truncate">Pedido WhatsApp</span>
+                    <span className="text-[10px] text-white/80 font-mono truncate block">#{parsedOrder.orderId}</span>
+                  </div>
+                </div>
+                <div className="px-2 py-0.5 rounded-full bg-emerald-400/20 border border-emerald-300/40 text-emerald-200 text-[10px] font-semibold shrink-0">
+                  {parsedOrder.status}
+                </div>
+              </div>
+
+              {/* Itens do Pedido */}
+              <div className="p-3 space-y-2">
+                {parsedOrder.items.length > 0 ? (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                    {parsedOrder.items.map((it, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs text-foreground/90 bg-muted/30 dark:bg-black/20 rounded-lg px-2.5 py-1.5 border border-border/30">
+                        <span className="font-medium truncate mr-2">{it.quantity}x {it.name}</span>
+                        {it.price && <span className="font-semibold text-emerald-500 dark:text-emerald-400 shrink-0">{it.price}</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground italic whitespace-pre-wrap max-h-36 overflow-y-auto">
+                    {displayText}
+                  </div>
+                )}
+
+                {/* Total */}
+                <div className="pt-2 border-t border-border/40 flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Total do Pedido:</span>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{parsedOrder.total}</span>
+                </div>
+
+                {parsedOrder.notes && (
+                  <p className="text-[11px] text-muted-foreground bg-muted/20 p-1.5 rounded-md italic">
+                    Obs: {parsedOrder.notes}
+                  </p>
+                )}
+
+                {/* Botão Ver Pedido no CRM */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenOrdersDrawer) {
+                        onOpenOrdersDrawer();
+                      }
+                    }}
+                    className="w-full py-2 text-center text-xs font-bold text-emerald-300 hover:text-white bg-[#005c4b] hover:bg-[#007a65] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <ShoppingBag className="h-3.5 w-3.5" />
+                    Ver Detalhes do Pedido
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : parsedCatalog ? (
             <div
               className="rounded-2xl overflow-hidden bg-[#005c4b] border border-emerald-500/40 w-[290px] max-w-full shadow-lg my-1 select-none text-left"
               data-testid="whatsapp-product-card"

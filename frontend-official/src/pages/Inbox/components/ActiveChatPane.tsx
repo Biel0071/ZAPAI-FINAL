@@ -1647,6 +1647,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                           searchQuery={conversationSearchQuery}
                           isActiveSearchMatch={activeConversationSearchMessageId === message.id}
                           onOpenProductDetails={handleOpenProductDetails}
+                          onOpenOrdersDrawer={() => setIsCustomerOrdersOpen(true)}
                         />
                       ))}
                     </div>

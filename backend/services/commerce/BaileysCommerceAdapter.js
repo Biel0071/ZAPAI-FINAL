@@ -251,6 +251,17 @@ class BaileysCommerceAdapter extends WhatsAppCommerceAdapter {
     // 1. Dispatch native orderMessage protobuf
     let orderMsgKey = null;
     try {
+      let thumbBuf = null;
+      const firstItemImage = items[0]?.image || items[0]?.productImage || items[0]?.imageUrl;
+      if (firstItemImage) {
+        const thumbMedia = await this.resolveImageBuffer(firstItemImage);
+        thumbBuf = thumbMedia?.image || null;
+      }
+      if (!thumbBuf) {
+        const defaultThumb = await this.resolveImageBuffer('/assets/catalog/caixa_dagua.png');
+        thumbBuf = defaultThumb?.image || null;
+      }
+
       const orderContent = {
         orderMessage: {
           orderId,
@@ -263,10 +274,11 @@ class BaileysCommerceAdapter extends WhatsAppCommerceAdapter {
           totalCurrencyCode: 'BRL',
           sellerJid: bizJid,
           token: `tok_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          ...(thumbBuf ? { thumbnail: thumbBuf } : {}),
         },
       };
 
-      const msg = generateWAMessageFromContent(targetJid, orderContent, { userJid: bizJid });
+      const msg = generateWAMessageFromContent(targetJid, orderContent, { userJid: sock.user?.id || bizJid });
       await sock.relayMessage(targetJid, msg.message, { messageId: msg.key.id });
       orderMsgKey = msg.key;
       console.log(`[COMMERCE-ADAPTER] Successfully dispatched native orderMessage: orderId=${orderId} to ${targetJid}`);

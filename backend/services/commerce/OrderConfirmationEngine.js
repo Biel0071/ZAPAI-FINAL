@@ -103,7 +103,10 @@ class OrderConfirmationEngine {
     const createdOrder = insertRes.rows[0];
 
     // 2. Dispatch to WhatsApp via Baileys
-    const session = sessionManager.getSession(sessionId);
+    const session = sessionManager.getSession(sessionId)
+      || (sessionManager.getConnectedSessionOrNull ? sessionManager.getConnectedSessionOrNull() : null)
+      || sessionManager.getSession('main')
+      || sessionManager.getSession('default');
     const sock = session?.sock;
     let whatsappResult = null;
     let persistedMsg = null;
@@ -177,7 +180,10 @@ class OrderConfirmationEngine {
       throw new Error(`Order not found: ${id || orderId}`);
     }
 
-    const session = sessionManager.getSession(sessionId);
+    const session = sessionManager.getSession(sessionId)
+      || (sessionManager.getConnectedSessionOrNull ? sessionManager.getConnectedSessionOrNull() : null)
+      || sessionManager.getSession('main')
+      || sessionManager.getSession('default');
     const sock = session?.sock;
 
     // Update status in DB
@@ -244,7 +250,10 @@ class OrderConfirmationEngine {
       throw new Error(`Order not found: ${id || orderId}`);
     }
 
-    const session = sessionManager.getSession(sessionId);
+    const session = sessionManager.getSession(sessionId)
+      || (sessionManager.getConnectedSessionOrNull ? sessionManager.getConnectedSessionOrNull() : null)
+      || sessionManager.getSession('main')
+      || sessionManager.getSession('default');
     const sock = session?.sock;
 
     // Update status in DB
