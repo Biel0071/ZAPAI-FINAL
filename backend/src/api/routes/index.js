@@ -58,6 +58,14 @@ function registerRoutes(app, options = {}) {
   app.get('/webbridge/qr', (req, res) => webBridgeController.getQR(req, res));
   app.get('/api/webbridge/status', (req, res) => webBridgeController.getStatus(req, res));
   app.get('/webbridge/status', (req, res) => webBridgeController.getStatus(req, res));
+  app.post('/api/webbridge/sync-catalog', (req, res) => webBridgeController.syncCatalog(req, res));
+  app.post('/webbridge/sync-catalog', (req, res) => webBridgeController.syncCatalog(req, res));
+  app.post('/api/webbridge/sync', (req, res) => webBridgeController.syncCatalog(req, res));
+  app.post('/webbridge/sync', (req, res) => webBridgeController.syncCatalog(req, res));
+  app.post('/api/webbridge/test-connection', (req, res) => webBridgeController.testConnection(req, res));
+  app.post('/webbridge/test-connection', (req, res) => webBridgeController.testConnection(req, res));
+  app.post('/api/webbridge/disconnect', (req, res) => webBridgeController.disconnect(req, res));
+  app.post('/webbridge/disconnect', (req, res) => webBridgeController.disconnect(req, res));
 
   app.use(requireJwtAuth);
   app.use('/api/ai/history', require('../../ai/evolutionary/historyRoutes').createHistoryRouter());

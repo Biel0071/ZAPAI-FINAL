@@ -204,7 +204,7 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
   };
 
   return (
-    <Card className="rounded-2xl border border-border/70 bg-card/60 backdrop-blur-md shadow-xl overflow-hidden relative group">
+    <Card id="webbridge-card-section" className="rounded-2xl border border-border/70 bg-card/60 backdrop-blur-md shadow-xl overflow-hidden relative group">
       {/* Indicador de borda superior */}
       <div
         className={cn(
@@ -330,8 +330,8 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
                 onClick={handleOpenQRModal}
                 className="text-xs rounded-xl h-7 px-3 border-amber-500/40 text-amber-400 hover:bg-amber-500/10 gap-1.5 font-medium"
               >
-                <Browsers className="h-3.5 w-3.5" />
-                <span>Expandir em Pop-up</span>
+                <QrIcon className="h-3.5 w-3.5" />
+                <span>Ampliar QR Code</span>
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground max-w-sm">
