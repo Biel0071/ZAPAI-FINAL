@@ -211,7 +211,7 @@ export function AttachmentActionMenu({
         sideOffset={12}
         className="w-[230px] p-1.5 rounded-2xl border border-[#2a3942] bg-[#202c33] backdrop-blur-md shadow-2xl shadow-black/80 flex flex-col z-50 text-[#e9edef] animate-in fade-in zoom-in-95 duration-150 overflow-hidden"
       >
-        <div className="py-1 space-y-0.5 max-h-[440px] overflow-y-auto pr-0.5">
+        <div className="py-1 space-y-0.5 max-h-[min(560px,82vh)] overflow-y-auto pr-0.5 scrollbar-thin">
           {ACTION_MENU_ITEMS.map((item) => {
             const Icon = item.icon;
             const isPinned = pinnedIds.includes(item.id);
