@@ -80,6 +80,7 @@ import { getSharedSocket } from "@/core/runtime/socket/socketManager";
 import { cn } from "@/core/lib/utils";
 import { apiService, requestApiEndpoint } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import type { ChatMessage, Conversation } from "@/core/services/apiService";
 import { useAppStore, type AIResponseProgress } from "@/state/stores/appStore";
 import type { ComposerAttachment, PreviewMediaState, QuickReplyItem } from "../types";
@@ -601,12 +602,12 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           sessionId: selectedConversation.sessionId || 'main',
         });
         if (res?.success) {
-          toast.success('Catálogo oficial do WhatsApp enviado!');
+          sonnerToast.success('Catálogo oficial do WhatsApp enviado!');
         } else {
           throw new Error(res?.error || 'Erro ao enviar catálogo');
         }
       } catch (e: any) {
-        toast.error('Erro ao enviar catálogo: ' + (e.message || ''));
+        sonnerToast.error('Erro ao enviar catálogo: ' + (e.message || ''));
       }
       return;
     }
@@ -634,16 +635,17 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       });
 
       if (res?.success) {
-        toast.success(`"${product.name || 'Produto'}" enviado como produto oficial no WhatsApp!`);
+        sonnerToast.success(`"${product.name || 'Produto'}" enviado como produto oficial no WhatsApp!`);
         return;
       } else {
         throw new Error(res?.error || 'Erro ao processar produto');
       }
     } catch (commerceErr: any) {
       console.error('[handleSendProductMessage] Direct native commerce dispatch failed:', commerceErr);
-      toast.error('Erro ao enviar produto comercial', {
+      sonnerToast.error('Erro ao enviar produto comercial', {
         description: commerceErr?.message || 'Verifique a conexão do WhatsApp.',
       });
+      throw commerceErr;
     }
   };
 
@@ -658,10 +660,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         sessionId: selectedConversation.sessionId || 'main',
       });
       if (res?.success) {
-        toast.success(`${products.length} produtos enviados no chat!`);
+        sonnerToast.success(`${products.length} produtos enviados no chat!`);
       }
     } catch (err: any) {
-      toast.error('Falha ao enviar produtos', { description: err?.message });
+      sonnerToast.error('Falha ao enviar produtos', { description: err?.message });
+      throw err;
     }
   };
 

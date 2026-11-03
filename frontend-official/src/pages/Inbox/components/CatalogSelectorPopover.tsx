@@ -94,7 +94,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 21.90,
     category: "Cimento & Argamassa",
     stock: 400,
-    images: ["/assets/catalog/real/cimento_liz.png", "/assets/catalog/cimento_cp2.png"],
+    images: ["/assets/catalog/cimento_liz.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Saco 50kg",
     condition: "Novo",
@@ -108,7 +108,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 990.00,
     category: "Churrasqueiras & Lazer",
     stock: 12,
-    images: ["/assets/catalog/real/churrasqueira_premoldada.png"],
+    images: ["/assets/catalog/churrasqueira_premoldada.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Entrega programada",
     condition: "Novo",
@@ -192,7 +192,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 2999.77,
     category: "Caixas d'Água",
     stock: 5,
-    images: ["/assets/catalog/caixa_dagua.png"],
+    images: ["/assets/catalog/caixa_10000l.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Super capacidade",
     condition: "Novo",
@@ -558,9 +558,6 @@ export function CatalogSelectorPopover({
       setSendingId(product.id);
       const formatted = formatProductMessage(product);
       await onSendProduct(product, formatted);
-      toast.success(`"${product.name}" enviado no chat!`, {
-        description: "Produto do catálogo WhatsApp disparado com sucesso.",
-      });
       setOpen(false);
     } catch (err: any) {
       toast.error("Falha ao enviar produto", {
