@@ -127,6 +127,7 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
             memoryMb: res.memoryMb,
             lastSyncAt: res.lastSyncAt,
             productCount: res.productCount || prev.productCount,
+            qrImage: res.qrImage || prev.qrImage,
           }));
           if (res.authenticated) {
             notify.success("WhatsApp Web Conectado com Sucesso!");
@@ -445,7 +446,7 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
                   </Button>
                 </div>
               </div>
-            ) : loading || (!bridgeState.qrImage && bridgeState.status !== "waiting_scan") ? (
+            ) : loading || !bridgeState.qrImage ? (
               <div className="rounded-2xl border border-border/70 bg-background/50 p-8 flex flex-col items-center justify-center min-h-[280px] gap-3">
                 <Spinner className="h-10 w-10 animate-spin text-emerald-500" />
                 <p className="font-medium text-sm text-foreground">Iniciando Chromium na VPS...</p>

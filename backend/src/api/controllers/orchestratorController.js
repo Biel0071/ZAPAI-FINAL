@@ -260,6 +260,8 @@ class OrchestratorController {
 
   <script>
     const sessionId = "${sessionId}";
+    let fetchAttempts = 0;
+
     async function fetchQR() {
       const container = document.getElementById('qrContainer');
       const spinner = document.getElementById('spinner');
@@ -268,14 +270,15 @@ class OrchestratorController {
       const badge = document.getElementById('statusBadge');
       spinner.style.display = 'block';
       wrapper.style.display = 'none';
+      fetchAttempts++;
 
       try {
         const res = await fetch('/api/orchestrator/bridge/qr/' + sessionId);
         const json = await res.json();
         const data = (json && json.data) ? json.data : json;
-        spinner.style.display = 'none';
 
         if (data.authenticated === true || data.status === 'connected') {
+          spinner.style.display = 'none';
           badge.className = 'badge badge-connected';
           badge.innerText = 'Conectado com Sucesso';
           container.innerHTML = '<div class="success-icon">✓</div><h3 style="color:#111b21;font-weight:700;">WhatsApp Web Conectado!</h3><p style="color:#667781;font-size:12px;margin-top:8px;">Ambos Baileys e Web Bridge estão operando em paralelo.</p><button class="btn" style="margin-top:16px;" onclick="syncCatalog()">Sincronizar Catálogo Real Agora</button><div id="syncResult" style="margin-top:12px;font-size:12px;color:#10b981;"></div>';
@@ -285,21 +288,36 @@ class OrchestratorController {
         const qrSrc = data.qrImage || (data.data && data.data.qrImage);
         if (qrSrc) {
           img.src = qrSrc;
+          spinner.style.display = 'none';
           wrapper.style.display = 'block';
           badge.className = 'badge badge-waiting';
           badge.innerText = 'Aguardando Leitura';
+          fetchAttempts = 0;
+        } else if (fetchAttempts < 10) {
+          // Navegador ainda está inicializando na VPS, tenta novamente em 2 segundos
+          badge.className = 'badge badge-waiting';
+          badge.innerText = 'Iniciando WhatsApp Web...';
+          setTimeout(fetchQR, 2000);
+        } else {
+          spinner.style.display = 'none';
+          container.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:20px;">Demorou para carregar o QR.<br><button class="btn" style="margin-top:12px;" onclick="fetchAttempts=0;fetchQR()">Tentar Novamente</button></div>';
         }
       } catch (err) {
-        spinner.style.display = 'none';
-        console.error('Fetch QR error:', err);
+        if (fetchAttempts < 5) {
+          setTimeout(fetchQR, 2000);
+        } else {
+          spinner.style.display = 'none';
+          console.error('Fetch QR error:', err);
+          container.innerHTML = '<div style="color:#ef4444;font-size:13px;padding:20px;">Falha ao comunicar com o WebBridge.<br><button class="btn" style="margin-top:12px;" onclick="fetchAttempts=0;fetchQR()">Tentar Novamente</button></div>';
+        }
       }
     }
 
     async function syncCatalog() {
       const resultDiv = document.getElementById('syncResult');
-      if (resultDiv) resultDiv.innerText = 'Sincronizando produtos via DOM do WhatsApp Web...';
+      if (resultDiv) resultDiv.innerText = 'Sincronizando produtos via interface do WhatsApp Web...';
       try {
-        const res = await fetch('/api/webbridge/sync', {
+        const res = await fetch('/api/webbridge/sync-catalog', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId })
@@ -317,7 +335,7 @@ class OrchestratorController {
     }
 
     fetchQR();
-    // Poll status every 4 seconds
+    // Poll status every 3 seconds
     setInterval(async () => {
       try {
         const res = await fetch('/api/orchestrator/bridge/status/' + sessionId);
@@ -339,9 +357,19 @@ class OrchestratorController {
             badge.className = 'badge badge-waiting';
             badge.innerText = 'Aguardando Leitura';
           }
+          if (data.qrImage) {
+            const img = document.getElementById('qrImage');
+            const wrapper = document.getElementById('qrWrapper');
+            const spinner = document.getElementById('spinner');
+            if (img && img.src !== data.qrImage) {
+              img.src = data.qrImage;
+            }
+            if (wrapper) wrapper.style.display = 'block';
+            if (spinner) spinner.style.display = 'none';
+          }
         }
       } catch (_) {}
-    }, 4000);
+    }, 3000);
   </script>
 </body>
 </html>`;

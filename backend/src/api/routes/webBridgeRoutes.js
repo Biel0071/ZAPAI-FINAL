@@ -9,6 +9,7 @@ router.get('/qr', (req, res) => webBridgeController.getQR(req, res));
 router.post('/connect', (req, res) => webBridgeController.connect(req, res));
 router.post('/disconnect', (req, res) => webBridgeController.disconnect(req, res));
 router.post('/sync-catalog', (req, res) => webBridgeController.syncCatalog(req, res));
+router.post('/sync', (req, res) => webBridgeController.syncCatalog(req, res));
 router.post('/test-connection', (req, res) => webBridgeController.testConnection(req, res));
 
 module.exports = router;

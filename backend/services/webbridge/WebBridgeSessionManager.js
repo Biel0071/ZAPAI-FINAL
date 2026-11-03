@@ -62,6 +62,29 @@ class WebBridgeSessionManager {
   }
 
   /**
+   * Remove locks residuais do Chromium (SingletonLock, etc.) e encerra processos órfãos
+   */
+  _cleanStaleLocks(sessionDataDir) {
+    try {
+      if (process.platform === 'linux') {
+        const { execSync } = require('child_process');
+        try {
+          execSync(`pkill -9 -f "${sessionDataDir}"`, { stdio: 'ignore' });
+        } catch (_) {}
+      }
+    } catch (_) {}
+    const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+    for (const f of lockFiles) {
+      const p = path.join(sessionDataDir, f);
+      try {
+        fs.lstatSync(p);
+        fs.unlinkSync(p);
+        console.log(`[WEB-BRIDGE] Removido lock residual do Chromium: ${p}`);
+      } catch (_) {}
+    }
+  }
+
+  /**
    * Status e métricas da sessão WebBridge
    */
   getSessionState(sessionId = 'main', companyId = 'default') {
@@ -109,13 +132,14 @@ class WebBridgeSessionManager {
 
     if (this.sessions.has(sId)) {
       const existing = this.sessions.get(sId);
-      if (existing.status === 'ready' && existing.page && !existing.page.isClosed()) {
+      if (existing && existing.context && existing.page && !existing.page.isClosed()) {
         existing.lastActive = Date.now();
         return existing;
       }
     }
 
     const sessionDataDir = this.getStorageDir(companyId, sId);
+    this._cleanStaleLocks(sessionDataDir);
     const executablePath = this._resolveChromiumPath();
 
     const playwright = (() => {
@@ -163,7 +187,10 @@ class WebBridgeSessionManager {
     // Navega para o WhatsApp Web
     try {
       await page.goto('https://web.whatsapp.com', { waitUntil: 'domcontentloaded', timeout: 45000 });
-      await page.waitForTimeout(3500);
+      try {
+        await page.waitForSelector('canvas, [data-ref], #pane-side, [data-testid="chat-list"]', { timeout: 20000 });
+      } catch (_) {}
+      await page.waitForTimeout(1000);
 
       const auth = await this.checkAuthentication(page);
       sessionRecord.authenticated = Boolean(auth.authenticated);
@@ -172,6 +199,17 @@ class WebBridgeSessionManager {
       sessionRecord.qrCode = auth.qr;
       sessionRecord.qrImage = auth.qrImage;
       sessionRecord.ref = auth.ref;
+
+      if (!sessionRecord.qrImage && (auth.ref || sessionRecord.ref)) {
+        try {
+          const QRCode = require('qrcode');
+          sessionRecord.qrImage = await QRCode.toDataURL(auth.ref || sessionRecord.ref, {
+            errorCorrectionLevel: 'M',
+            margin: 2,
+            width: 320,
+          });
+        } catch (_) {}
+      }
 
       if (auth.authenticated) {
         this._onAuthenticated(sId, sessionRecord);
@@ -432,23 +470,27 @@ class WebBridgeSessionManager {
   /**
    * Fecha uma sessão e libera recursos de memória
    */
-  async closeSession(sessionId = 'main') {
+  async closeSession(sessionId = 'main', companyId = 'default') {
     const sId = String(sessionId || 'main').trim().toLowerCase();
     const session = this.sessions.get(sId);
-    if (!session) return;
+    const sessionDir = this.getStorageDir(companyId, sId);
 
-    try {
-      if (session.context) {
-        await session.context.close();
+    if (session) {
+      try {
+        if (session.context) {
+          await session.context.close();
+        }
+      } catch (err) {
+        console.warn(`[WEB-BRIDGE] Erro ao fechar contexto da sessão "${sId}":`, err.message);
+      } finally {
+        this.sessions.delete(sId);
       }
-    } catch (err) {
-      console.warn(`[WEB-BRIDGE] Erro ao fechar contexto da sessão "${sId}":`, err.message);
-    } finally {
-      this.sessions.delete(sId);
-      console.log(`[WEB-BRIDGE] Sessão "${sId}" fechada com sucesso.`);
-      if (global.io) {
-        global.io.emit('webbridge:disconnected', { sessionId: sId });
-      }
+    }
+
+    this._cleanStaleLocks(sessionDir);
+    console.log(`[WEB-BRIDGE] Sessão "${sId}" fechada com sucesso.`);
+    if (global.io) {
+      global.io.emit('webbridge:disconnected', { sessionId: sId });
     }
   }
 
