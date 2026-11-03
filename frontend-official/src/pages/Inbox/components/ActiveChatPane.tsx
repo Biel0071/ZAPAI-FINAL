@@ -602,7 +602,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           sessionId: selectedConversation.sessionId || 'main',
         });
         if (res?.success) {
-          sonnerToast.success('Catálogo oficial do WhatsApp enviado!');
+          sonnerToast.success('Catálogo enviado!');
         } else {
           throw new Error(res?.error || 'Erro ao enviar catálogo');
         }

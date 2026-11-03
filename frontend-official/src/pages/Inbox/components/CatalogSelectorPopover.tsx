@@ -206,7 +206,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 134.99,
     category: "Tijolos & Blocos",
     stock: 150,
-    images: ["/assets/catalog/real/bloco_10_100un.png"],
+    images: ["/assets/catalog/bloco_10_100un.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Lote com 100 unidades",
     condition: "Novo",
@@ -220,7 +220,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 19.90,
     category: "Cimento & Argamassa",
     stock: 250,
-    images: ["/assets/catalog/real/argamassa_ac3.png"],
+    images: ["/assets/catalog/argamassa_ac3.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Saco 20kg",
     condition: "Novo",
@@ -234,7 +234,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 16.90,
     category: "Cimento & Argamassa",
     stock: 200,
-    images: ["/assets/catalog/real/argamassa_ac2.png"],
+    images: ["/assets/catalog/argamassa_ac2.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Saco 20kg",
     condition: "Novo",
@@ -248,7 +248,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 14.80,
     category: "Cimento & Argamassa",
     stock: 200,
-    images: ["/assets/catalog/real/argamassa_ac1.png"],
+    images: ["/assets/catalog/argamassa_ac1.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Saco 20kg",
     condition: "Novo",
@@ -262,7 +262,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 700.00,
     category: "Agregados & Areia",
     stock: 30,
-    images: ["/assets/catalog/real/caminhao_areia.png"],
+    images: ["/assets/catalog/caminhao_areia.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Carga completa 9m³",
     condition: "Novo",
@@ -276,7 +276,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 100.00,
     category: "Agregados & Areia",
     stock: 90,
-    images: ["/assets/catalog/real/areia_m3.png"],
+    images: ["/assets/catalog/areia_m3.png"],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Valor por m³",
     condition: "Novo",
@@ -311,6 +311,12 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     shipping: "Pronta entrega",
   },
 ];
+
+export const getCatalogImageUrl = (raw?: string) => {
+  if (!raw) return "";
+  const base = raw.replace("/assets/catalog/real/", "/assets/catalog/");
+  return base.includes("?") ? base : `${base}?v=real_v4`;
+};
 
 export function formatProductMessage(product: CatalogProduct, customNote?: string): string {
   const priceVal = typeof product.price === "number" ? product.price : parseFloat(product.price) || 0;
@@ -619,15 +625,15 @@ export function CatalogSelectorPopover({
       await onSendProduct(
         {
           id: "catalog_root",
-          name: "Catálogo Completo - Depósito Vista Alegre",
-          description: "Catálogo oficial no WhatsApp",
+          name: "Catálogo Completo",
+          description: "Catálogo de Produtos",
           price: 0,
           category: "Catálogo",
           whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
         },
         formattedCatalog
       );
-      toast.success("Catálogo oficial do WhatsApp enviado no chat!");
+      toast.success("Catálogo enviado no chat!");
       setOpen(false);
     } catch (err: any) {
       toast.error("Falha ao enviar catálogo", { description: err?.message });
@@ -728,31 +734,6 @@ export function CatalogSelectorPopover({
                 Enviar produtos
               </span>
             </div>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleSyncWhatsApp}
-              disabled={syncing}
-              className="h-7 px-2 text-[11px] font-medium text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors border border-emerald-500/20 rounded-md"
-              title="Sincronizar produtos criados no WhatsApp"
-            >
-              <ArrowsClockwise className={cn("h-3.5 w-3.5 mr-1", syncing && "animate-spin")} />
-              <span>{syncing ? "Sincronizando..." : "Sincronizar"}</span>
-            </Button>
-
-            <a
-              href={OFFICIAL_STORE_CATALOG_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="h-7 w-7 rounded-lg flex items-center justify-center text-[#8696a0] hover:text-emerald-400 hover:bg-[#2a3942] transition-colors"
-              title="Abrir catálogo original no WhatsApp"
-            >
-              <ArrowSquareOut className="h-4 w-4" />
-            </a>
           </div>
         </div>
 
@@ -875,7 +856,7 @@ export function CatalogSelectorPopover({
                     {item.images && item.images.length > 0 && item.images[0] && !failedImages.has(item.id) ? (
                       <div className="w-12 h-12 rounded-lg overflow-hidden bg-[#202c33] border border-[#2a3942] shrink-0 relative flex items-center justify-center">
                         <img
-                          src={item.images[0]}
+                          src={getCatalogImageUrl(item.images[0])}
                           alt={item.name}
                           className="w-full h-full object-cover"
                           onError={() => {
@@ -966,10 +947,6 @@ export function CatalogSelectorPopover({
         ) : (
           <div className="px-4 py-2 bg-[#202c33] border-t border-[#2a3942] flex items-center justify-between text-[11px] text-[#8696a0]">
             <span>{filteredProducts.length} itens disponíveis</span>
-            <span className="text-[10px] text-emerald-400 flex items-center gap-1">
-              <Sparkle className="h-3 w-3" weight="fill" />
-              Catálogo Oficial Depósito Vista Alegre
-            </span>
           </div>
         )}
       </PopoverContent>

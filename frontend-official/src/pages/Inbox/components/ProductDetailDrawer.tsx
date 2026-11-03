@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { cn } from "@/core/lib/utils";
-import type { CatalogProduct } from "./CatalogSelectorPopover";
+import { getCatalogImageUrl, type CatalogProduct } from "./CatalogSelectorPopover";
 
 export interface CartItem {
   product: CatalogProduct;
@@ -165,7 +165,7 @@ export function ProductDetailDrawer({
           <div className="w-full aspect-square max-h-[380px] rounded-2xl overflow-hidden bg-[#202c33] border border-[#2a3942] flex items-center justify-center relative shadow-lg">
             {product.images && product.images.length > 0 && product.images[0] ? (
               <img
-                src={product.images[0]}
+                src={getCatalogImageUrl(product.images[0])}
                 alt={product.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -238,7 +238,7 @@ export function ProductDetailDrawer({
                 <ShoppingCart className="h-12 w-12 mx-auto opacity-30 text-emerald-400" />
                 <p className="text-sm font-medium">Seu carrinho está vazio</p>
                 <p className="text-xs text-[#8696a0]">
-                  Adicione produtos do catálogo oficial para criar pedidos rápidos.
+                  Adicione produtos para criar pedidos rápidos.
                 </p>
                 {product && (
                   <Button
@@ -269,7 +269,7 @@ export function ProductDetailDrawer({
                       <div className="w-12 h-12 rounded-xl bg-[#111b21] border border-[#2a3942] shrink-0 overflow-hidden flex items-center justify-center">
                         {itemProd.images && itemProd.images[0] ? (
                           <img
-                            src={itemProd.images[0]}
+                            src={getCatalogImageUrl(itemProd.images[0])}
                             alt={itemProd.name}
                             className="w-full h-full object-cover"
                           />

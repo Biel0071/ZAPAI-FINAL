@@ -23,7 +23,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiService } from "@/core/services/apiService";
 import { toast } from "sonner";
 import { cn } from "@/core/lib/utils";
-import type { CatalogProduct } from "./CatalogSelectorPopover";
+import { getCatalogImageUrl, type CatalogProduct } from "./CatalogSelectorPopover";
 import { FALLBACK_STORE_PRODUCTS } from "./CatalogSelectorPopover";
 
 export interface CreateOrderItem {
@@ -217,7 +217,7 @@ export function CreateOrderModal({
             </div>
             <div className="min-w-0">
               <DialogTitle className="text-base font-bold text-[#e9edef] truncate">
-                Criar Pedido do Catálogo (WhatsApp Commerce)
+                Criar Pedido
               </DialogTitle>
               <DialogDescription className="text-xs text-[#8696a0] truncate flex items-center gap-2 mt-0.5">
                 <span>Cliente: <strong className="text-[#e9edef]">{customerName}</strong></span>
@@ -250,8 +250,7 @@ export function CreateOrderModal({
                 />
               </div>
               <div className="flex items-center justify-between text-[11px] text-[#8696a0] mt-2 px-1">
-                <span>{filteredProducts.length} produtos disponíveis na loja oficial</span>
-                <span className="text-emerald-400 font-medium">Depósito Vista Alegre</span>
+                <span>{filteredProducts.length} produtos disponíveis</span>
               </div>
             </div>
 
@@ -274,7 +273,7 @@ export function CreateOrderModal({
                         {p.images && p.images[0] ? (
                           <div className="w-12 h-12 rounded-lg overflow-hidden bg-[#202c33] border border-[#2a3942] shrink-0">
                             <img
-                              src={p.images[0]}
+                              src={getCatalogImageUrl(p.images[0])}
                               alt={p.name}
                               className="w-full h-full object-cover"
                               onError={(e) => {
