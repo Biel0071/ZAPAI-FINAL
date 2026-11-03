@@ -66,6 +66,7 @@ import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal
 import { QuickCampaignDispatchModal } from "@/components/campaigns/QuickCampaignDispatchModal";
 import { OrderSheetModal } from "./OrderSheetModal";
 import { CreateOrderModal } from "./CreateOrderModal";
+import { QuoteBuilderModal } from "@/components/commerce/QuoteBuilderModal";
 import { AttachmentActionMenu, usePinnedActions, ACTION_MENU_ITEMS } from "./AttachmentActionMenu";
 import { CustomerOrdersDrawer } from "./CustomerOrdersDrawer";
 import { CatalogSelectorPopover, formatProductMessage, type CatalogProduct } from "./CatalogSelectorPopover";
@@ -671,6 +672,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const [isCustomerOrdersOpen, setIsCustomerOrdersOpen] = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const { pinnedIds, togglePin } = usePinnedActions();
 
@@ -678,6 +680,10 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     switch (actionId) {
       case "catalogo": {
         setIsCatalogOpen(true);
+        break;
+      }
+      case "orcamento": {
+        setIsQuoteModalOpen(true);
         break;
       }
       case "cobrar":
@@ -2333,6 +2339,21 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           sessionId={selectedConversation.sessionId || "main"}
           onOrderCreated={() => {
             setPendingOrdersCount((prev) => prev + 1);
+          }}
+        />
+      )}
+
+      {/* WhatsApp Commercial Quote Builder ("Orçamento") */}
+      {selectedConversation && (
+        <QuoteBuilderModal
+          isOpen={isQuoteModalOpen}
+          onClose={() => setIsQuoteModalOpen(false)}
+          conversationId={selectedConversation.id}
+          clientPhone={selectedConversation.phone}
+          clientName={selectedConversation.contactName || selectedConversation.name}
+          sessionId={selectedConversation.sessionId || "main"}
+          onQuoteSent={() => {
+            // Callback após envio do orçamento
           }}
         />
       )}

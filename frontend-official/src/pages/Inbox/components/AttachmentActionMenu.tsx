@@ -104,6 +104,13 @@ export const ACTION_MENU_ITEMS: ActionMenuItem[] = [
     defaultPinned: true,
   },
   {
+    id: "orcamento",
+    label: "Orçamento",
+    icon: FileText,
+    iconColor: "text-[#10b981]",
+    defaultPinned: true,
+  },
+  {
     id: "quick_replies",
     label: "Resposta rápida",
     icon: Lightning,
@@ -120,7 +127,7 @@ export const ACTION_MENU_ITEMS: ActionMenuItem[] = [
 ];
 
 const STORAGE_KEY = "zapai_inbox_pinned_actions";
-const DEFAULT_PINNED = ["catalogo", "cobrar", "quick_replies", "pix"];
+const DEFAULT_PINNED = ["catalogo", "orcamento", "cobrar", "quick_replies", "pix"];
 
 interface AttachmentActionMenuProps {
   disabled?: boolean;

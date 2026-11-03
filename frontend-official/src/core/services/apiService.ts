@@ -2756,6 +2756,146 @@ export const apiService = {
       body: payload,
     });
   },
+
+  // ── WebBridge Commerce Companion ──────────────────────────────
+  async getWebBridgeStatus(sessionId = "main") {
+    return request<{
+      success: boolean;
+      sessionId: string;
+      available: boolean;
+      status: string;
+      authenticated: boolean;
+      phone: string | null;
+      lastActive: number | null;
+      pid: number | null;
+      memoryMb: number;
+      lastSyncAt: string | null;
+      productCount: number;
+      error?: string;
+    }>({
+      endpoint: `/api/webbridge/status?sessionId=${encodeURIComponent(sessionId)}`,
+      method: "GET",
+    });
+  },
+  async getWebBridgeQR(sessionId = "main") {
+    return request<{
+      success: boolean;
+      sessionId: string;
+      authenticated: boolean;
+      status: string;
+      qrImage: string | null;
+      ref: string | null;
+      error?: string;
+    }>({
+      endpoint: `/api/webbridge/qr?sessionId=${encodeURIComponent(sessionId)}`,
+      method: "GET",
+    });
+  },
+  async connectWebBridge(sessionId = "main") {
+    return request<{ success: boolean; message: string; authenticated: boolean; status: string; error?: string }>({
+      endpoint: "/api/webbridge/connect",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async disconnectWebBridge(sessionId = "main") {
+    return request<{ success: boolean; message: string; error?: string }>({
+      endpoint: "/api/webbridge/disconnect",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async syncWebBridgeCatalog(sessionId = "main") {
+    return request<{
+      success: boolean;
+      extracted?: number;
+      upserted?: number;
+      total?: number;
+      products?: any[];
+      error?: string;
+    }>({
+      endpoint: "/api/webbridge/sync-catalog",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async testWebBridgeConnection(sessionId = "main") {
+    return request<{
+      success: boolean;
+      responseTimeMs: number;
+      state: any;
+      playwrightAvailable: boolean;
+      chromiumPath: string;
+      error?: string;
+    }>({
+      endpoint: "/api/webbridge/test-connection",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+
+  // ── Commercial Quotes Engine ──────────────────────────────────
+  async createQuote(payload: {
+    clientPhone: string;
+    clientName?: string;
+    conversationId?: string;
+    items: Array<{
+      productId: string;
+      code?: string;
+      name: string;
+      unitPrice: number;
+      quantity: number;
+      imageUrl?: string;
+    }>;
+    discountType?: "fixed" | "percent";
+    discountValue?: number;
+    shippingAmount?: number;
+    notes?: string;
+    validDays?: number;
+  }) {
+    return request<{ success: boolean; quote: any; error?: string }>({
+      endpoint: "/api/quotes",
+      method: "POST",
+      body: payload,
+    });
+  },
+  async listQuotes(params?: { clientPhone?: string; conversationId?: string; status?: string; limit?: number }) {
+    const q = new URLSearchParams();
+    if (params?.clientPhone) q.append("clientPhone", params.clientPhone);
+    if (params?.conversationId) q.append("conversationId", params.conversationId);
+    if (params?.status) q.append("status", params.status);
+    if (params?.limit) q.append("limit", String(params.limit));
+    return request<{ success: boolean; quotes: any[]; error?: string }>({
+      endpoint: `/api/quotes?${q.toString()}`,
+      method: "GET",
+    });
+  },
+  async getQuote(id: string) {
+    return request<{ success: boolean; quote: any; error?: string }>({
+      endpoint: `/api/quotes/${id}`,
+      method: "GET",
+    });
+  },
+  async sendQuote(id: string, sessionId = "main") {
+    return request<{ success: boolean; quote: any; whatsappMessageId?: string; error?: string }>({
+      endpoint: `/api/quotes/${id}/send`,
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async acceptQuote(id: string) {
+    return request<{ success: boolean; quote: any; order?: any; error?: string }>({
+      endpoint: `/api/quotes/${id}/accept`,
+      method: "POST",
+    });
+  },
+  async rejectQuote(id: string, reason?: string) {
+    return request<{ success: boolean; quote: any; error?: string }>({
+      endpoint: `/api/quotes/${id}/reject`,
+      method: "POST",
+      body: { reason },
+    });
+  },
 };
 
 export async function requestApiEndpoint<T>(endpoint: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "GET", body?: unknown): Promise<T> {

@@ -45,6 +45,7 @@ import { useAppStore } from "@/state/stores/appStore";
 import { normalizeSession as backendNormalizeSession } from "@/core/services/normalizeSession";
 import { SafeRender } from "@/components/system/SafeRender";
 import { HistoryBootstrapPanel } from '@/components/evolution/HistoryBootstrapPanel';
+import { WebBridgeCard } from "@/components/connections/WebBridgeCard";
 
 type SessionAutomationItem = {
   id: string;
@@ -1071,6 +1072,9 @@ export default function Connections() {
                     </Card>
                   );
                 })}
+
+                {/* 2ª Conexão: WebBridge Companion para Catálogo e Comércio Oficial */}
+                <WebBridgeCard sessionId="main" />
               </div>
             }
           />

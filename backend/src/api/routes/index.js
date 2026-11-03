@@ -22,6 +22,8 @@ const productsRouter = require('./products');
 const commerceRouter = require('./commerceRoutes');
 const orchestratorRouter = require('./orchestratorRoutes');
 const storesRouter = require('./stores');
+const webBridgeRouter = require('./webBridgeRoutes');
+const quoteRouter = require('./quoteRoutes');
 
 // ── NEW: Frontend-compatibility routers ──────────────────────────────────────
 const logsRouter = require('./logs');
@@ -138,6 +140,14 @@ function registerRoutes(app, options = {}) {
   const zaiRouter = require('./zaiRoutes');
   app.use('/zai', zaiRouter);
   app.use('/api/zai', zaiRouter);
+
+  // /api/webbridge — WebBridge Commerce & Companion Browser Session
+  app.use('/api/webbridge', webBridgeRouter);
+  app.use('/webbridge', webBridgeRouter);
+
+  // /api/quotes — Commercial Quotes & Budgets Engine
+  app.use('/api/quotes', quoteRouter);
+  app.use('/quotes', quoteRouter);
 }
 
 module.exports = {

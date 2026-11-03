@@ -2235,6 +2235,20 @@ async function createStableSession({
               responseTimeSeconds: 30
             }).catch(() => {});
           } catch (_) {}
+
+          // Intercepta respostas comerciais de aprovação ou cancelamento de orçamentos (Quotes)
+          try {
+            const commerceQuoteEngine = require('../../commerce/CommerceQuoteEngine');
+            const inboundText = extractMessageText(incomingMessage);
+            if (inboundText) {
+              commerceQuoteEngine.handleInboundClientResponse({
+                phone: remotePhone || cleanedPhone,
+                text: inboundText,
+                companyId: result?.conversation?.company_id || 'default',
+                conversationId: result?.conversation?.id,
+              }).catch(() => {});
+            }
+          } catch (_) {}
         }
 
         if (!result?.message) {

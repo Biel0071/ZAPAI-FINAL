@@ -71,6 +71,13 @@ class WhatsAppWebAdapter {
     });
   }
 
+  async syncCatalog(payload, context = {}) {
+    const sessionId = context.sessionId || 'main';
+    const companyId = context.companyId || 'default';
+    const webCatalogExtractor = require('../../webbridge/WebCatalogExtractor');
+    return await webCatalogExtractor.extractCatalog(sessionId, companyId);
+  }
+
   getHealth(context = {}) {
     const state = webBridgeManager.getSessionState(context.sessionId || 'main');
     return {
