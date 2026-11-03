@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiService } from "@/core/services/apiService";
 import { notify } from "@/core/services/notifyService";
+import { getSharedSocket } from "@/core/runtime/socket/socketManager";
 import { cn } from "@/core/lib/utils";
 
 interface WebBridgeCardProps {
@@ -143,7 +144,33 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
     const timer = setInterval(() => {
       void loadStatus();
     }, 15000);
-    return () => clearInterval(timer);
+
+    const socket = getSharedSocket();
+    const handleRealtimeSync = (data: any) => {
+      void loadStatus();
+      if (data?.total !== undefined) {
+        setBridgeState((prev) => ({
+          ...prev,
+          productCount: data.total,
+          lastSyncAt: data.timestamp || new Date().toISOString(),
+        }));
+      }
+    };
+
+    if (socket && typeof socket.on === "function") {
+      socket.on("catalog:synced", handleRealtimeSync);
+      socket.on("webbridge:authenticated", handleRealtimeSync);
+      socket.on("webbridge:status", handleRealtimeSync);
+    }
+
+    return () => {
+      clearInterval(timer);
+      if (socket && typeof socket.off === "function") {
+        socket.off("catalog:synced", handleRealtimeSync);
+        socket.off("webbridge:authenticated", handleRealtimeSync);
+        socket.off("webbridge:status", handleRealtimeSync);
+      }
+    };
   }, [loadStatus]);
 
   const handleSyncCatalog = async () => {

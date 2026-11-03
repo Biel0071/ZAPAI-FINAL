@@ -481,9 +481,18 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
     console.warn('[ProductsController] WhatsApp getCatalog query returned:', waErr.message);
   }
 
-  // If live items were not returned from Meta, do NOT invent mock data. Preserve existing real catalog.
+  // If live items were not returned from Meta, automatically run WebCatalogExtractor
   if (waFetched === 0) {
-    console.warn('[ProductsController] WhatsApp Business live getCatalog query timed out or returned 0 items. Preserving existing verified products without injecting mock data.');
+    try {
+      const webCatalogExtractor = require('../../../services/webbridge/WebCatalogExtractor');
+      const bridgeRes = await webCatalogExtractor.extractCatalog(sessionId, companyId);
+      if (bridgeRes && bridgeRes.success) {
+        syncedCount = bridgeRes.upserted;
+        waFetched = bridgeRes.extracted;
+      }
+    } catch (bridgeErr) {
+      console.warn('[ProductsController] WebCatalogExtractor fallback notice:', bridgeErr.message);
+    }
   }
 
   // Clear fast cache so fresh products are served immediately

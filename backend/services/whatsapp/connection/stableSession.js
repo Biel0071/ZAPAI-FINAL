@@ -1395,6 +1395,18 @@ async function createStableSession({
       } catch (orchErr) {
         console.warn('[ORCHESTRATOR-INTEGRATION] Failed to register connection:', orchErr.message);
       }
+
+      // Auto-sync automático do catálogo comercial em background ao conectar
+      try {
+        const webCatalogExtractor = require('../../webbridge/WebCatalogExtractor');
+        setTimeout(() => {
+          webCatalogExtractor.extractCatalog(normalizedSessionName, session.companyId || 'default')
+            .then(res => console.log(`[WHATSAPP-AUTO-SYNC] Catálogo sincronizado automaticamente para ${normalizedSessionName}: ${res.total} produtos.`))
+            .catch(err => console.warn(`[WHATSAPP-AUTO-SYNC] Aviso no auto-sync do catálogo:`, err.message));
+        }, 2500);
+      } catch (catErr) {
+        console.warn('[WHATSAPP-AUTO-SYNC] Falha ao disparar auto-sync de catálogo:', catErr.message);
+      }
       session.qrCode = null;
       session.lastError = null;
       session.reconnecting = false;

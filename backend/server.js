@@ -1748,6 +1748,16 @@ async function bootstrap() {
     const lidMapper = require('./services/whatsapp/shared/lidMapper');
     await lidMapper.init();
 
+    // Auto-sync catálogo oficial no boot para garantir que os 18 produtos reais estejam sempre disponíveis
+    try {
+      const webCatalogExtractor = require('./services/webbridge/WebCatalogExtractor');
+      webCatalogExtractor.extractCatalog('main', process.env.DEFAULT_COMPANY_ID || 'default')
+        .then(res => console.log(`[BOOT-AUTO-SYNC] Catálogo oficial sincronizado no boot: ${res.total} produtos prontos.`))
+        .catch(err => console.warn('[BOOT-AUTO-SYNC] Aviso no auto-sync de catálogo no boot:', err.message));
+    } catch (bootSyncErr) {
+      console.warn('[BOOT-AUTO-SYNC] Falha ao disparar sincronização no boot:', bootSyncErr.message);
+    }
+
     if (dbInitResult?.mode === 'migration-runner') {
       console.log(`[DB] Migrations executed on boot: ${dbInitResult.executed?.length || 0}`);
     } else {

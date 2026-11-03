@@ -447,6 +447,18 @@ class WebBridgeSessionManager {
       });
       global.io.emit('webbridge:status', this.getSessionState(sessionId, session.companyId));
     }
+
+    // Auto-sync automático do catálogo comercial em background ao autenticar o WebBridge
+    try {
+      const webCatalogExtractor = require('./WebCatalogExtractor');
+      setTimeout(() => {
+        webCatalogExtractor.extractCatalog(sessionId, session.companyId || 'default')
+          .then(res => console.log(`[WEB-BRIDGE-AUTO-SYNC] Catálogo sincronizado automaticamente para ${sessionId}: ${res.total} produtos.`))
+          .catch(err => console.warn(`[WEB-BRIDGE-AUTO-SYNC] Aviso no auto-sync de catálogo:`, err.message));
+      }, 1500);
+    } catch (catErr) {
+      console.warn('[WEB-BRIDGE-AUTO-SYNC] Falha ao disparar auto-sync de catálogo:', catErr.message);
+    }
   }
 
   /**
