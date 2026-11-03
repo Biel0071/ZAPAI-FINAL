@@ -63,10 +63,19 @@ class NativeProductSender {
 
         // Broadcast to Inbox via socket.io if available
         if (global.io) {
-          global.io.to(`tenant:${companyId}`).emit('new_message', {
+          const envelope = {
             ...persistedMessage,
             product: resolvedProduct,
-          });
+            mediaUrl: primaryImage,
+            mediaPath: primaryImage,
+            content: persistedMessage.text,
+          };
+          global.io.emit('new_message', envelope);
+          global.io.emit('message:new', envelope);
+          if (companyId) {
+            global.io.to(`tenant:${companyId}`).emit('new_message', envelope);
+            global.io.to(`company:${companyId}`).emit('new_message', envelope);
+          }
         }
       }
     } catch (saveErr) {

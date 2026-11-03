@@ -163,7 +163,14 @@ export const CollapsedConversationRow = memo(function CollapsedConversationRow(p
 
   const typingState = getTypingState();
   const isTyping = typingState === "composing" || typingState === "recording" || typingState === true;
-  const isOnline = isTyping || conversation.status === "online";
+  const isOnline = Boolean(
+    isTyping ||
+    conversation.status === "online" ||
+    conversation.status === "available" ||
+    (conversation as any).presence === "online" ||
+    (conversation as any).presence === "available" ||
+    (conversation as any).isOnline === true
+  );
   const isAudio = inferConversationMessageType(conversation) === "audio" || typingState === "recording";
 
   const conversationAiAllowed = conversationControls[conversation.id]?.aiEnabled ?? conversation.aiEnabled ?? true;
@@ -235,20 +242,16 @@ export const CollapsedConversationRow = memo(function CollapsedConversationRow(p
                       </AvatarFallback>
                     </Avatar>
 
-                    {/* Presença do contato: Bolinha Verde para Online / Vermelha para Offline */}
-                    <span
-                      className="absolute bottom-0 right-0 z-20 flex h-3 w-3 items-center justify-center pointer-events-none"
-                      title={isOnline ? "Online agora" : "Offline"}
-                    >
-                      {isOnline ? (
-                        <>
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
-                        </>
-                      ) : (
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-background" />
-                      )}
-                    </span>
+                    {/* Presença do contato: Bolinha Verde para Online / Nada para Offline (vermelho off) */}
+                    {isOnline && (
+                      <span
+                        className="absolute bottom-0 right-0 z-20 flex h-3 w-3 items-center justify-center pointer-events-none"
+                        title="Online agora"
+                      >
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+                      </span>
+                    )}
 
                     {/* IA Activation mini button (top-left) */}
                     <span

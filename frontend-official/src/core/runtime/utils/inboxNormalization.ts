@@ -84,6 +84,9 @@ export function resolveMediaUrl(url?: string | null): string | null {
       normalized = normalized.replace(/^[a-zA-Z]:/i, "");
     }
     let cleanPath = normalized.replace(/^\/+/, "");
+    if (/^assets\//i.test(cleanPath)) {
+      return `/${cleanPath}`;
+    }
     if (!/^(uploads|media|upload|public|api)\//i.test(cleanPath)) cleanPath = `uploads/${cleanPath}`;
     finalUrl = `${BACKEND_BASE_URL}/${cleanPath}`;
   }
@@ -118,7 +121,8 @@ export async function authorizeMediaUrl(rawUrl?: string | null, force = false): 
   const resolved = resolveMediaUrl(rawUrl);
   if (!resolved) return null;
   if (/^(data:|blob:)/.test(resolved)) return { url: resolved, expiresAt: 0 };
-  const media = new URL(resolved);
+  if (/^\/assets\//i.test(resolved)) return { url: resolved, expiresAt: 0 };
+  const media = new URL(resolved, typeof window === "undefined" ? "http://localhost" : window.location.origin);
   if (!/^\/(?:api\/)?(?:media|upload|uploads)\//i.test(media.pathname)) return { url: resolved, expiresAt: 0 };
   const session = loadAdminAuthSession();
   if (!session?.token) return null;

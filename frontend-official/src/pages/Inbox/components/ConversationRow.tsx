@@ -199,6 +199,14 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
   
   const typingState = getTypingState();
   const isTyping = typingState === "composing" || typingState === "recording" || typingState === true;
+  const isOnline = Boolean(
+    isTyping ||
+    conversation.status === "online" ||
+    conversation.status === "available" ||
+    (conversation as any).presence === "online" ||
+    (conversation as any).presence === "available" ||
+    (conversation as any).isOnline === true
+  );
   const draftPreview = draftsByConversationId?.[conversation.id]?.draft?.trim() || "";
   const isSelected = selectedChatIds.includes(conversation.id);
   const { timeLeft, isWaiting: isAiCountdownActive } = useAiCountdown(conversation.ai_reactivate_at);
@@ -321,14 +329,12 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-80" />
                 <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-600 border-2 border-background shadow-[0_0_10px_rgba(37,99,235,0.9)]" />
               </span>
-            ) : (isTyping || conversation.status === "online") ? (
+            ) : isOnline ? (
               <span className="relative flex h-3 w-3" title="Contato online no momento">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-background shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
               </span>
-            ) : (
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-background shadow-xs" title="Contato offline" />
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -336,17 +342,14 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
           <div className="flex items-center justify-between gap-1.5">
             <h4 className="text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0 flex-1">
               <span className="truncate min-w-0">{cleanDisplayName}</span>
-              {/* Presence dot: green if online/typing, red when offline */}
-              <span
-                className={cn(
-                  "inline-flex h-2 w-2 rounded-full shrink-0",
-                  (isTyping || conversation.status === "online")
-                    ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-pulse"
-                    : "bg-rose-500/75"
-                )}
-                title={(isTyping || conversation.status === "online") ? "Contato online" : "Contato offline"}
-                aria-label={(isTyping || conversation.status === "online") ? "Online" : "Offline"}
-              />
+              {/* Presence dot: green if online/typing, NO red dot when offline */}
+              {isOnline && (
+                <span
+                  className="inline-flex h-2 w-2 rounded-full shrink-0 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-pulse"
+                  title="Contato online"
+                  aria-label="Online"
+                />
+              )}
               {leadStatus.state === "intervencao" && (
                 <span className="sr-only" title={leadStatus.tooltip}>INTERVENÇÃO</span>
               )}

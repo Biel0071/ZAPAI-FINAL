@@ -1123,20 +1123,16 @@ export const SidebarPanel = memo(function SidebarPanel({
                       {getInitials(cleanName)}
                     </AvatarFallback>
                   </Avatar>
-                  {/* Presença do contato: Bolinha Verde para Online / Vermelha para Offline */}
-                  <span
-                    className="absolute -bottom-0.5 -left-0.5 z-10 flex h-3.5 w-3.5 items-center justify-center pointer-events-none"
-                    title={(isCustomerOnline ?? (selectedConversation.status === "online")) ? "Cliente online no WhatsApp" : "Cliente offline"}
-                  >
-                    {(isCustomerOnline ?? (selectedConversation.status === "online")) ? (
-                      <>
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
-                      </>
-                    ) : (
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-background shadow-xs" />
-                    )}
-                  </span>
+                  {/* Presença do contato: Bolinha Verde para Online / Nada para Offline (vermelho off) */}
+                  {(isCustomerOnline ?? (selectedConversation.status === "online")) && (
+                    <span
+                      className="absolute -bottom-0.5 -left-0.5 z-10 flex h-3.5 w-3.5 items-center justify-center pointer-events-none"
+                      title="Cliente online no WhatsApp"
+                    >
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => void handleRefreshAvatar()}
@@ -1171,7 +1167,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                       <span
                         className={cn(
                           "h-1.5 w-1.5 rounded-full inline-block shrink-0",
-                          (isCustomerOnline ?? (selectedConversation.status === "online")) ? "bg-emerald-400 animate-pulse" : "bg-rose-500"
+                          (isCustomerOnline ?? (selectedConversation.status === "online")) ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground/40"
                         )}
                       />
                       <span>

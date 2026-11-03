@@ -614,6 +614,41 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
     // 1. Direct native WhatsApp commerce dispatch (productMessage via Baileys)
     try {
+      const optimisticId = `prod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const now = new Date().toISOString();
+      const productImageUrl = (Array.isArray(product.images) && product.images[0]) || product.image || product.productImage || `/assets/catalog/${product.code?.toLowerCase() || 'areia_m3'}.png`;
+      const formattedText = formattedMessage || `*${product.name || product.title}*\nR$ ${(Number(product.price) || 0).toFixed(2)}`;
+
+      const optimisticMessage: ChatMessage = {
+        id: optimisticId,
+        conversationId: selectedConversation.id,
+        content: formattedText,
+        fromMe: true,
+        createdAt: now,
+        timestamp: now,
+        status: "sending",
+        type: "product",
+        mediaType: "product",
+        mediaUrl: productImageUrl,
+        url: productImageUrl,
+        mediaPath: productImageUrl,
+        product: {
+          id: product.id || product.productId,
+          name: product.name || product.title,
+          price: product.price,
+          images: [productImageUrl],
+        },
+      };
+
+      // Add to UI immediately so the user sees the sent product instantly
+      useAppStore.getState().addMessage(selectedConversation.id, optimisticMessage);
+      useAppStore.getState().updateConversationRealtime({
+        id: selectedConversation.id,
+        lastMessage: formattedText,
+        lastMessageType: "product",
+        updatedAt: now,
+      });
+
       const res = await apiService.sendNativeCommerceProduct({
         phone: selectedConversation.phone,
         remoteJid: (selectedConversation as any).remoteJid || (selectedConversation.phone.includes('@') ? selectedConversation.phone : undefined),
@@ -635,6 +670,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       });
 
       if (res?.success) {
+        useAppStore.getState().addMessage(selectedConversation.id, {
+          ...optimisticMessage,
+          id: res.whatsappMessageId || res.persistedMessage?.id || optimisticId,
+          status: "sent",
+        });
         sonnerToast.success(`"${product.name || 'Produto'}" enviado como produto oficial no WhatsApp!`);
         return;
       } else {
@@ -652,6 +692,28 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const handleSendMultipleProducts = async (products: CatalogProduct[]) => {
     if (!selectedConversation || products.length === 0) return;
     try {
+      const now = new Date().toISOString();
+      for (const p of products) {
+        const optimisticId = `prod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const pImg = (Array.isArray(p.images) && p.images[0]) || (p as any).image || `/assets/catalog/${p.code?.toLowerCase() || 'areia_m3'}.png`;
+        const text = `*${p.name}*\nR$ ${(Number(p.price) || 0).toFixed(2)}`;
+        useAppStore.getState().addMessage(selectedConversation.id, {
+          id: optimisticId,
+          conversationId: selectedConversation.id,
+          content: text,
+          fromMe: true,
+          createdAt: now,
+          timestamp: now,
+          status: "sending",
+          type: "product",
+          mediaType: "product",
+          mediaUrl: pImg,
+          url: pImg,
+          mediaPath: pImg,
+          product: { id: p.id, name: p.name, price: p.price, images: [pImg] },
+        });
+      }
+
       const res = await apiService.sendNativeCommerceProduct({
         phone: selectedConversation.phone,
         remoteJid: (selectedConversation as any).remoteJid || (selectedConversation.phone.includes('@') ? selectedConversation.phone : undefined),

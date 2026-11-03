@@ -61,59 +61,145 @@ interface ParsedCatalogItem {
   image?: string;
 }
 
-function parseCatalogCard(text: string): ParsedCatalogItem | null {
-  if (!text || (!text.includes("[CATÁLOGO WHATSAPP]") && !text.includes("[CATÁLOGO DE PRODUTOS]"))) {
+function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string | null): ParsedCatalogItem | null {
+  const isExplicitProduct =
+    message?.type === "product" ||
+    (message as any)?.mediaType === "product" ||
+    (message as any)?.media_type === "product" ||
+    Boolean(text && (
+      text.includes("[CATÁLOGO WHATSAPP]") ||
+      text.includes("[CATÁLOGO DE PRODUTOS]") ||
+      text.includes("[PRODUTO WHATSAPP]") ||
+      text.includes("[PRODUTO]") ||
+      /^\*[A-Z0-9\s\-³]+(?:\s*-\s*[A-Z0-9]+)?\*\s*(?:\n|\r\n)\s*R\$\s*[\d\.,]+/i.test(text.trim())
+    ));
+
+  if (!isExplicitProduct) {
     return null;
   }
 
   let title = "";
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  for (const line of lines) {
-    if (line.includes("[CATÁLOGO") || line.includes("━━━━")) continue;
-    if (line.startsWith("*") && line.endsWith("*") && !line.includes(":")) {
-      title = line.replace(/^\*+|\*+$/g, "").trim();
-      break;
+  let code: string | undefined;
+  let price: string | undefined;
+  let shipping: string | undefined;
+  let condition: string | undefined;
+  let stock: string | undefined;
+  let description: string | undefined;
+  let catalogUrl = "https://wa.me/c/553193672075";
+
+  const cleanText = (text || "").trim();
+
+  // 1. Format: [PRODUTO WHATSAPP] NAME - BRL PRICE - Description
+  const prodMatch = cleanText.match(/\[PRODUTO(?:\s+WHATSAPP)?\]\s*([^-]+?)\s*-\s*(?:BRL|R\$)?\s*([\d\.,]+)(?:\s*-\s*([\s\S]+))?/i);
+  if (prodMatch) {
+    title = prodMatch[1].trim();
+    price = `R$ ${prodMatch[2].trim()}`;
+    description = prodMatch[3]?.trim();
+  } else {
+    // 2. Format: [CATÁLOGO WHATSAPP] or *NAME*\nR$ PRICE
+    const lines = cleanText.split("\n").map((l) => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      if (line.includes("[CATÁLOGO") || line.includes("[PRODUTO") || line.includes("━━━━")) continue;
+      if (line.startsWith("*") && line.endsWith("*") && !line.includes(":")) {
+        title = line.replace(/^\*+|\*+$/g, "").trim();
+        break;
+      }
+    }
+    if (!title && lines.length > 0) {
+      title = lines[0].replace(/^[*\[\]]+|[*\[\]]+$/g, "").trim();
+    }
+
+    const codeMatch = cleanText.match(/(?:Código|Codigo):\*?\s*([^\n]+)/i);
+    const priceMatch = cleanText.match(/(?:Valor|R\$|BRL):\*?\s*([^\n]+)/i) || cleanText.match(/R\$\s*([\d\.,]+)/i);
+    const shippingMatch = cleanText.match(/Entrega:\*?\s*([^\n]+)/i);
+    const promoMatch = cleanText.match(/(?:Condição|Condicao):\*?\s*([^\n]+)/i);
+    const stockMatch = cleanText.match(/Disponibilidade:\*?\s*([^\n]+)/i);
+    const descMatch = cleanText.match(/(?:Descrição|Descricao):\*?\s*([\s\S]*?)(?=(?:🔗|━━━━━━━━|💬|$))/i);
+    const urlMatch = cleanText.match(/https?:\/\/[^\s*]+/i);
+
+    if (codeMatch) code = codeMatch[1].replace(/\*+/g, "").trim();
+    if (priceMatch) {
+      const rawPrice = priceMatch[1].replace(/\*+/g, "").trim();
+      price = rawPrice.startsWith("R$") ? rawPrice : `R$ ${rawPrice}`;
+    }
+    if (shippingMatch) shipping = shippingMatch[1].replace(/\*+/g, "").trim();
+    if (promoMatch) condition = promoMatch[1].replace(/\*+/g, "").trim();
+    if (stockMatch) stock = stockMatch[1].replace(/\*+/g, "").trim();
+    if (descMatch) description = descMatch[1].replace(/\*+/g, "").trim();
+    if (urlMatch) catalogUrl = urlMatch[0].trim();
+  }
+
+  // Fallback title from message product object if empty
+  if (!title) {
+    title = (message as any)?.product?.name || (message as any)?.product?.title || "Produto do Catálogo";
+  }
+
+  const lowerTitle = (title || "").toLowerCase();
+
+  // Resolve authentic product image
+  let image = mediaUrl || (message as any)?.mediaPath || (message as any)?.media_path || (message as any)?.product?.image || (message as any)?.product?.images?.[0];
+
+  if (!image || image === "null" || image === "undefined" || !image.includes("/")) {
+    if (lowerTitle.includes("caminhao de areia") || lowerTitle.includes("caminhão de areia") || (lowerTitle.includes("areia") && lowerTitle.includes("9m"))) {
+      image = "/assets/catalog/caminhao_areia.png";
+    } else if (lowerTitle.includes("areia")) {
+      image = "/assets/catalog/areia_m3.png";
+    } else if (lowerTitle.includes("brita") || lowerTitle.includes("8m")) {
+      image = "/assets/catalog/caminhao_brita.png";
+    } else if (lowerTitle.includes("bloco")) {
+      image = "/assets/catalog/bloco_10_100un.png";
+    } else if (lowerTitle.includes("ac3") || lowerTitle.includes("ac-3") || lowerTitle.includes("ac 3")) {
+      image = "/assets/catalog/argamassa_ac3.png";
+    } else if (lowerTitle.includes("ac2") || lowerTitle.includes("ac-2") || lowerTitle.includes("ac 2")) {
+      image = "/assets/catalog/argamassa_ac2.png";
+    } else if (lowerTitle.includes("ac1") || lowerTitle.includes("ac-1") || lowerTitle.includes("ac 1")) {
+      image = "/assets/catalog/argamassa_ac1.png";
+    } else if (lowerTitle.includes("10.000") || lowerTitle.includes("10000")) {
+      image = "/assets/catalog/caixa_10000l.png";
+    } else if (lowerTitle.includes("5000") || lowerTitle.includes("5.000")) {
+      image = "/assets/catalog/caixa_5000l.png";
+    } else if (lowerTitle.includes("2000") || lowerTitle.includes("2.000")) {
+      image = "/assets/catalog/caixa_2000l.png";
+    } else if (lowerTitle.includes("1000") || lowerTitle.includes("1.000")) {
+      image = "/assets/catalog/caixa_1000l.png";
+    } else if (lowerTitle.includes("12 furos") || lowerTitle.includes("12f")) {
+      image = "/assets/catalog/tijolo_12_furos.png";
+    } else if (lowerTitle.includes("9 furos") || lowerTitle.includes("9f")) {
+      image = "/assets/catalog/tijolo_9_furos.png";
+    } else if (lowerTitle.includes("8 furos") || lowerTitle.includes("8f")) {
+      image = "/assets/catalog/tijolo_8_furos.png";
+    } else if (lowerTitle.includes("maciço") || lowerTitle.includes("macico")) {
+      image = "/assets/catalog/tijolo_macico.jpg";
+    } else if (lowerTitle.includes("liz") || lowerTitle.includes("cp4") || lowerTitle.includes("cp iv")) {
+      image = "/assets/catalog/cimento_liz.png";
+    } else if (lowerTitle.includes("cimento") || lowerTitle.includes("argamassa")) {
+      image = "/assets/catalog/cimento_cp2.png";
+    } else if (lowerTitle.includes("churrasqueira") && (lowerTitle.includes("75") || lowerTitle.includes("prem"))) {
+      image = "/assets/catalog/churras_75.jpg";
+    } else if (lowerTitle.includes("churrasqueira")) {
+      image = "/assets/catalog/churrasqueira_premoldada.png";
+    } else if (lowerTitle.includes("telha") && (lowerTitle.includes("ceram") || lowerTitle.includes("cerâm"))) {
+      image = "/assets/catalog/telhas_ceramica.png";
+    } else if (lowerTitle.includes("telha")) {
+      image = "/assets/catalog/telha_fibro.jpg";
+    } else if (lowerTitle.includes("betoneira")) {
+      image = "/assets/catalog/betoneira_csm_400l.png";
+    } else if (lowerTitle.includes("tinta")) {
+      image = "/assets/catalog/tinta.png";
+    } else {
+      image = "/assets/catalog/areia_m3.png";
     }
   }
 
-  const codeMatch = text.match(/(?:Código|Codigo):\*?\s*([^\n]+)/i);
-  const priceMatch = text.match(/Valor:\*?\s*([^\n]+)/i);
-  const shippingMatch = text.match(/Entrega:\*?\s*([^\n]+)/i);
-  const promoMatch = text.match(/(?:Condição|Condicao):\*?\s*([^\n]+)/i);
-  const stockMatch = text.match(/Disponibilidade:\*?\s*([^\n]+)/i);
-  const descMatch = text.match(/(?:Descrição|Descricao):\*?\s*([\s\S]*?)(?=(?:🔗|━━━━━━━━|💬|$))/i);
-  const urlMatch = text.match(/https?:\/\/[^\s*]+/i);
-
-  const lowerTitle = (title || "").toLowerCase();
-  let image = "/assets/catalog/tijolo_12_furos.png";
-  if (lowerTitle.includes("12 furos") || lowerTitle.includes("12f")) image = "/assets/catalog/tijolo_12_furos.png";
-  else if (lowerTitle.includes("9 furos") || lowerTitle.includes("9f")) image = "/assets/catalog/tijolo_9_furos.png";
-  else if (lowerTitle.includes("8 furos") || lowerTitle.includes("8f")) image = "/assets/catalog/tijolo_8_furos.png";
-  else if (lowerTitle.includes("maciço") || lowerTitle.includes("macico")) image = "/assets/catalog/tijolo_macico.jpg";
-  else if (lowerTitle.includes("liz") || lowerTitle.includes("cp4") || lowerTitle.includes("cp iv")) image = "/assets/catalog/cimento_liz.png";
-  else if (lowerTitle.includes("cimento") || lowerTitle.includes("argamassa")) image = "/assets/catalog/cimento_liz.png";
-  else if (lowerTitle.includes("churrasqueira") && (lowerTitle.includes("75") || lowerTitle.includes("prem"))) image = "/assets/catalog/churras_75.jpg";
-  else if (lowerTitle.includes("churrasqueira")) image = "/assets/catalog/churrasqueira_premoldada.png";
-  else if (lowerTitle.includes("telha") && (lowerTitle.includes("ceram") || lowerTitle.includes("cerâm"))) image = "/assets/catalog/telhas_ceramica.png";
-  else if (lowerTitle.includes("telha")) image = "/assets/catalog/telha_fibro.jpg";
-  else if (lowerTitle.includes("10.000") || lowerTitle.includes("10000")) image = "/assets/catalog/caixa_dagua.png";
-  else if (lowerTitle.includes("5000") || lowerTitle.includes("5.000")) image = "/assets/catalog/caixa_5000l.png";
-  else if (lowerTitle.includes("2000") || lowerTitle.includes("2.000")) image = "/assets/catalog/caixa_2000l.png";
-  else if (lowerTitle.includes("1000") || lowerTitle.includes("1.000")) image = "/assets/catalog/caixa_1000l.png";
-  else if (lowerTitle.includes("brita")) image = "/assets/catalog/caminhao_brita.png";
-  else if (lowerTitle.includes("betoneira")) image = "/assets/catalog/betoneira_csm_400l.png";
-  else if (lowerTitle.includes("tinta")) image = "/assets/catalog/tinta.png";
-  else if (lowerTitle.includes("bloco") || lowerTitle.includes("areia")) image = "/assets/catalog/blocos.png";
-
   return {
     title: title || "Produto do Catálogo",
-    code: codeMatch ? codeMatch[1].replace(/\*+/g, "").trim() : undefined,
-    price: priceMatch ? priceMatch[1].replace(/\*+/g, "").trim() : undefined,
-    shipping: shippingMatch ? shippingMatch[1].replace(/\*+/g, "").trim() : undefined,
-    condition: promoMatch ? promoMatch[1].replace(/\*+/g, "").trim() : undefined,
-    stock: stockMatch ? stockMatch[1].replace(/\*+/g, "").trim() : undefined,
-    description: descMatch ? descMatch[1].replace(/\*+/g, "").trim() : undefined,
-    catalogUrl: urlMatch ? urlMatch[0].trim() : "https://wa.me/c/553193672075",
+    code,
+    price,
+    shipping,
+    condition,
+    stock,
+    description,
+    catalogUrl,
     image,
   };
 }
@@ -439,7 +525,7 @@ export const MessageRow = memo(function MessageRow({
   const safeTextContent = getMessageDisplayContent(message);
   const displayText = hasRenderableMedia && safeTextContent === getMediaTypeLabel(resolvedMediaType) ? "" : safeTextContent;
   const parsedOrder = useMemo(() => parseOrderCard(displayText, message), [displayText, message]);
-  const parsedCatalog = useMemo(() => parseCatalogCard(displayText), [displayText]);
+  const parsedCatalog = useMemo(() => parseCatalogCard(displayText, message, mediaUrl), [displayText, message, mediaUrl]);
   const parsedDisparo = useMemo(() => parseDisparoCard(displayText, message), [displayText, message]);
 
   const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
@@ -783,7 +869,12 @@ export const MessageRow = memo(function MessageRow({
             </div>
           ) : parsedCatalog ? (
             <div
-              className="rounded-2xl overflow-hidden bg-[#005c4b] border border-emerald-500/40 w-[290px] max-w-full shadow-lg my-1 select-none text-left"
+              className={cn(
+                "rounded-2xl overflow-hidden border shadow-lg my-1 select-none text-left w-[290px] max-w-full",
+                message.fromMe
+                  ? "bg-[#005c4b] border-emerald-500/40 text-white"
+                  : "bg-[#202c33] border-slate-700 text-white"
+              )}
               data-testid="whatsapp-product-card"
             >
               {/* Product Photo */}
@@ -854,7 +945,12 @@ export const MessageRow = memo(function MessageRow({
             </div>
           ) : (resolvedMediaType === "product" || resolvedMediaType === "catalog") ? (
             <div
-              className="rounded-2xl overflow-hidden bg-[#005c4b] border border-emerald-500/40 w-[290px] max-w-full shadow-lg my-1 select-none text-left"
+              className={cn(
+                "rounded-2xl overflow-hidden border shadow-lg my-1 select-none text-left w-[290px] max-w-full",
+                message.fromMe
+                  ? "bg-[#005c4b] border-emerald-500/40 text-white"
+                  : "bg-[#202c33] border-slate-700 text-white"
+              )}
               data-testid="whatsapp-product-card"
             >
               {mediaUrl && (
