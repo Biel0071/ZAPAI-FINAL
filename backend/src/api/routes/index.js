@@ -49,10 +49,15 @@ function registerRoutes(app, options = {}) {
 
   // Web Bridge QR Code & Status accessible for device pairing
   const orchestratorController = require('../controllers/orchestratorController');
+  const webBridgeController = require('../controllers/webBridgeController');
   app.get('/api/orchestrator/bridge/view/:sessionId?', (req, res) => orchestratorController.renderBridgeView(req, res));
   app.get('/orchestrator/bridge/view/:sessionId?', (req, res) => orchestratorController.renderBridgeView(req, res));
   app.get('/api/orchestrator/bridge/qr/:sessionId?', (req, res) => orchestratorController.getBridgeQR(req, res));
   app.get('/api/orchestrator/bridge/status/:sessionId?', (req, res) => orchestratorController.getBridgeStatus(req, res));
+  app.get('/api/webbridge/qr', (req, res) => webBridgeController.getQR(req, res));
+  app.get('/webbridge/qr', (req, res) => webBridgeController.getQR(req, res));
+  app.get('/api/webbridge/status', (req, res) => webBridgeController.getStatus(req, res));
+  app.get('/webbridge/status', (req, res) => webBridgeController.getStatus(req, res));
 
   app.use(requireJwtAuth);
   app.use('/api/ai/history', require('../../ai/evolutionary/historyRoutes').createHistoryRouter());
