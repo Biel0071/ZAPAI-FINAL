@@ -64,6 +64,8 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
     qrImage: null,
   });
 
+  const isConnected = bridgeState.authenticated || bridgeState.status === "ready" || bridgeState.status === "connected";
+
   const loadStatus = useCallback(async () => {
     try {
       const res = await apiService.getWebBridgeStatus(sessionId);
@@ -199,8 +201,6 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
       setLoading(false);
     }
   };
-
-  const isConnected = bridgeState.authenticated || bridgeState.status === "ready" || bridgeState.status === "connected";
 
   return (
     <Card className="rounded-2xl border border-border/70 bg-card/60 backdrop-blur-md shadow-xl overflow-hidden relative group">
