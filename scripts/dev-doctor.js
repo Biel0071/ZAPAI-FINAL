@@ -88,3 +88,4 @@ console.log('\n\x1b[36m%s\x1b[0m', '--------------------------------------------
 const passed = checks.filter(c => c.status === 'PASS').length;
 console.log(`Diagnostic Summary: \x1b[32m${passed}/${checks.length} checks passed with 100% health.\x1b[0m\n`);
 process.exit(0);
+

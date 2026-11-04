@@ -90,6 +90,48 @@ class WebBridgeController {
       return res.status(500).json({ success: false, error: err.message });
     }
   }
+
+  async puppetSendText(req, res) {
+    try {
+      const companyId = req.user?.companyId || req.body?.companyId || 'default';
+      const sessionId = req.body?.sessionId || 'main';
+      const { jid, text } = req.body;
+      const puppetManipulator = require('../../../services/webbridge/PuppetManipulator');
+      const result = await puppetManipulator.sendTextMessage(sessionId, companyId, jid, text);
+      return res.status(200).json({ success: true, ...result });
+    } catch (err) {
+      console.error('[WEB-BRIDGE-CONTROLLER] Erro no puppetSendText:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async puppetSendProduct(req, res) {
+    try {
+      const companyId = req.user?.companyId || req.body?.companyId || 'default';
+      const sessionId = req.body?.sessionId || 'main';
+      const { jid, product } = req.body;
+      const puppetManipulator = require('../../../services/webbridge/PuppetManipulator');
+      const result = await puppetManipulator.sendProduct(sessionId, companyId, jid, product);
+      return res.status(200).json({ success: true, ...result });
+    } catch (err) {
+      console.error('[WEB-BRIDGE-CONTROLLER] Erro no puppetSendProduct:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async puppetOpenChat(req, res) {
+    try {
+      const companyId = req.user?.companyId || req.body?.companyId || 'default';
+      const sessionId = req.body?.sessionId || 'main';
+      const { jid } = req.body;
+      const puppetManipulator = require('../../../services/webbridge/PuppetManipulator');
+      const result = await puppetManipulator.openChat(sessionId, companyId, jid);
+      return res.status(200).json({ success: true, ...result });
+    } catch (err) {
+      console.error('[WEB-BRIDGE-CONTROLLER] Erro no puppetOpenChat:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
 }
 
 module.exports = new WebBridgeController();

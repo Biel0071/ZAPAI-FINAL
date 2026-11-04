@@ -2844,6 +2844,27 @@ export const apiService = {
       body: { sessionId },
     });
   },
+  async sendPuppetText(jid: string, text: string, sessionId = "main") {
+    return request<{ success: boolean; method?: string; error?: string }>({
+      endpoint: "/api/webbridge/puppet/send-text",
+      method: "POST",
+      body: { jid, text, sessionId },
+    });
+  },
+  async sendPuppetProduct(jid: string, product: Record<string, any>, sessionId = "main") {
+    return request<{ success: boolean; method?: string; error?: string }>({
+      endpoint: "/api/webbridge/puppet/send-product",
+      method: "POST",
+      body: { jid, product, sessionId },
+    });
+  },
+  async openPuppetChat(jid: string, sessionId = "main") {
+    return request<{ success: boolean; method?: string; error?: string }>({
+      endpoint: "/api/webbridge/puppet/open-chat",
+      method: "POST",
+      body: { jid, sessionId },
+    });
+  },
 
   // ── Commercial Quotes Engine ──────────────────────────────────
   async createQuote(payload: {

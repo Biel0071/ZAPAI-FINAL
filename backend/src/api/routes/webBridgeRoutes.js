@@ -11,5 +11,8 @@ router.post('/disconnect', (req, res) => webBridgeController.disconnect(req, res
 router.post('/sync-catalog', (req, res) => webBridgeController.syncCatalog(req, res));
 router.post('/sync', (req, res) => webBridgeController.syncCatalog(req, res));
 router.post('/test-connection', (req, res) => webBridgeController.testConnection(req, res));
+router.post('/puppet/send-text', (req, res) => webBridgeController.puppetSendText(req, res));
+router.post('/puppet/send-product', (req, res) => webBridgeController.puppetSendProduct(req, res));
+router.post('/puppet/open-chat', (req, res) => webBridgeController.puppetOpenChat(req, res));
 
 module.exports = router;
