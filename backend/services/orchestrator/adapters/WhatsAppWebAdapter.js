@@ -21,29 +21,35 @@ class WhatsAppWebAdapter {
 
   async sendText(payload, context = {}) {
     const sessionId = context.sessionId || 'main';
+    const companyId = context.companyId || 'default';
     this._assertAuthenticated(sessionId);
-    return await webBridgeManager.executeOnPage(sessionId, async (page) => {
-      const targetPhone = (payload.phone || payload.remoteJid || '').replace(/\D/g, '');
-      const text = payload.text || payload.message;
-      return {
-        success: true,
-        whatsappMessageId: `wb_${Date.now()}`,
-        engine: this.name,
-      };
-    });
+    const puppetManipulator = require('../../webbridge/PuppetManipulator');
+    const targetPhone = (payload.phone || payload.remoteJid || '').replace(/\D/g, '');
+    const text = payload.text || payload.message || payload.caption || '';
+    const res = await puppetManipulator.sendTextMessage(sessionId, companyId, targetPhone, text);
+    return {
+      success: Boolean(res?.success),
+      whatsappMessageId: `wb_${Date.now()}`,
+      engine: this.name,
+      result: res,
+    };
   }
 
   async sendProduct(payload, context = {}) {
     const sessionId = context.sessionId || 'main';
+    const companyId = context.companyId || 'default';
     this._assertAuthenticated(sessionId);
-    return await webBridgeManager.executeOnPage(sessionId, async (page) => {
-      return {
-        success: true,
-        whatsappMessageId: `wb_prod_${Date.now()}`,
-        engine: this.name,
-        product: payload.product,
-      };
-    });
+    const puppetManipulator = require('../../webbridge/PuppetManipulator');
+    const targetPhone = (payload.phone || payload.remoteJid || '').replace(/\D/g, '');
+    const productData = payload.product || payload;
+    const res = await puppetManipulator.sendProduct(sessionId, companyId, targetPhone, productData);
+    return {
+      success: Boolean(res?.success),
+      whatsappMessageId: `wb_prod_${Date.now()}`,
+      engine: this.name,
+      result: res,
+      product: productData,
+    };
   }
 
   async sendOrder(payload, context = {}) {

@@ -156,6 +156,8 @@ class WebBridgeSessionManager {
       '--no-first-run',
       '--no-zygote',
       '--disable-extensions',
+      '--disable-accelerated-2d-canvas',
+      '--js-flags=--max-old-space-size=256',
     ];
 
     const context = await playwright.chromium.launchPersistentContext(sessionDataDir, {
@@ -167,6 +169,25 @@ class WebBridgeSessionManager {
     });
 
     const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
+
+    // Otimização de RAM (< 100MB por sessão): bloqueia fontes externas e streaming de vídeo
+    try {
+      await page.route('**/*', (route) => {
+        const req = route.request();
+        const type = req.resourceType();
+        const url = req.url();
+        if (
+          type === 'media' ||
+          type === 'font' ||
+          url.includes('google-analytics') ||
+          url.includes('doubleclick') ||
+          url.includes('crashlytics')
+        ) {
+          return route.abort();
+        }
+        return route.continue();
+      });
+    } catch (_) {}
 
     const sessionRecord = {
       sessionId: sId,
@@ -466,6 +487,19 @@ class WebBridgeSessionManager {
       }, 1500);
     } catch (catErr) {
       console.warn('[WEB-BRIDGE-AUTO-SYNC] Falha ao disparar auto-sync de catálogo:', catErr.message);
+    }
+
+    // Auto-sync contínuo e escuta em tempo real diretamente do Store do WhatsApp Web
+    try {
+      const webBridgeStoreSync = require('./WebBridgeStoreSync');
+      if (session.page && !session.page.isClosed()) {
+        webBridgeStoreSync.attachRealtimeListener(session.page, sessionId, session.companyId || 'default');
+        webBridgeStoreSync.syncChatsAndContacts(session.page, sessionId, session.companyId || 'default')
+          .then(res => console.log(`[WEB-STORE-SYNC] Sincronização de conversas concluída para ${sessionId}:`, res))
+          .catch(err => console.warn(`[WEB-STORE-SYNC] Aviso no sync de conversas:`, err.message));
+      }
+    } catch (storeErr) {
+      console.warn('[WEB-STORE-SYNC] Falha ao conectar WebBridgeStoreSync:', storeErr.message);
     }
   }
 

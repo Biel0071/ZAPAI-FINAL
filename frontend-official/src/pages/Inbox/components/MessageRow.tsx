@@ -91,23 +91,31 @@ function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string
   const cleanText = (text || "").trim();
 
   // 1. Format: [PRODUTO WHATSAPP] NAME - BRL PRICE - Description
-  const prodMatch = cleanText.match(/\[PRODUTO(?:\s+WHATSAPP)?\]\s*([^-]+?)\s*-\s*(?:BRL|R\$)?\s*([\d\.,]+)(?:\s*-\s*([\s\S]+))?/i);
+  const prodMatch = cleanText.match(/\[PRODUTO(?:\s+WHATSAPP)?\]\s*(.+?)\s*-\s*(?:BRL|R\$)\s*([\d\.,]+)(?:\s*-\s*([\s\S]+))?/i);
   if (prodMatch) {
     title = prodMatch[1].trim();
     price = `R$ ${prodMatch[2].trim()}`;
     description = prodMatch[3]?.trim();
   } else {
-    // 2. Format: [CATÁLOGO WHATSAPP] or *NAME*\nR$ PRICE
-    const lines = cleanText.split("\n").map((l) => l.trim()).filter(Boolean);
-    for (const line of lines) {
-      if (line.includes("[CATÁLOGO") || line.includes("[PRODUTO") || line.includes("━━━━")) continue;
-      if (line.startsWith("*") && line.endsWith("*") && !line.includes(":")) {
-        title = line.replace(/^\*+|\*+$/g, "").trim();
-        break;
-      }
+    // 2. Format: *NAME* R$ PRICE (single-line or multi-line)
+    const boldMatch = cleanText.match(/\*([^*]+)\*\s*(?:\n|\r\n|\s)*(?:R\$|BRL)?\s*([\d\.,]+)?/i);
+    if (boldMatch) {
+      title = boldMatch[1].trim();
+      if (boldMatch[2]) price = `R$ ${boldMatch[2].trim()}`;
     }
-    if (!title && lines.length > 0) {
-      title = lines[0].replace(/^[*\[\]]+|[*\[\]]+$/g, "").trim();
+
+    if (!title) {
+      const lines = cleanText.split("\n").map((l) => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        if (line.includes("[CATÁLOGO") || line.includes("[PRODUTO") || line.includes("━━━━")) continue;
+        if (line.startsWith("*") && line.endsWith("*") && !line.includes(":")) {
+          title = line.replace(/^\*+|\*+$/g, "").trim();
+          break;
+        }
+      }
+      if (!title && lines.length > 0) {
+        title = lines[0].replace(/^[*\[\]]+|[*\[\]]+$/g, "").trim();
+      }
     }
 
     const codeMatch = cleanText.match(/(?:Código|Codigo):\*?\s*([^\n]+)/i);
@@ -945,55 +953,66 @@ export const MessageRow = memo(function MessageRow({
               </div>
             </div>
           ) : (resolvedMediaType === "product" || resolvedMediaType === "catalog") ? (
-            <div
-              className={cn(
-                "rounded-2xl overflow-hidden border shadow-lg my-1 select-none text-left w-[290px] max-w-full",
-                message.fromMe
-                  ? "bg-[#005c4b] border-emerald-500/40 text-white"
-                  : "bg-[#202c33] border-slate-700 text-white"
-              )}
-              data-testid="whatsapp-product-card"
-            >
-              {mediaUrl && (
+            (() => {
+              const fallbackProductImg =
+                (message as any)?.product?.images?.[0] ||
+                (message as any)?.product?.image ||
+                parsedCatalog?.image ||
+                ((displayText || "").toLowerCase().includes("areia") ? "/assets/catalog/areia_m3.png" : "/assets/catalog/caixa_5000l.png");
+              const cardImg = mediaUrl || fallbackProductImg;
+
+              return (
                 <div
-                  className="relative w-full aspect-square max-h-[260px] bg-black/20 overflow-hidden cursor-pointer group"
-                  onClick={() => onOpenProductDetails ? onOpenProductDetails({
-                    id: "prod",
-                    name: displayText || "Produto do Catálogo",
-                    images: [mediaUrl],
-                  }) : onOpenMediaPreview({ url: mediaUrl, type: "image", fileName: "Produto", messageId: message.id })}
+                  className={cn(
+                    "rounded-2xl overflow-hidden border shadow-lg my-1 select-none text-left w-[290px] max-w-full",
+                    message.fromMe
+                      ? "bg-[#005c4b] border-emerald-500/40 text-white"
+                      : "bg-[#202c33] border-slate-700 text-white"
+                  )}
+                  data-testid="whatsapp-product-card"
                 >
-                  <img src={mediaUrl} alt="Produto" className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200" />
+                  {cardImg && (
+                    <div
+                      className="relative w-full aspect-square max-h-[260px] bg-black/20 overflow-hidden cursor-pointer group"
+                      onClick={() => onOpenProductDetails ? onOpenProductDetails({
+                        id: "prod",
+                        name: displayText || "Produto do Catálogo",
+                        images: [cardImg],
+                      }) : onOpenMediaPreview({ url: cardImg, type: "image", fileName: "Produto", messageId: message.id })}
+                    >
+                      <img src={cardImg} alt="Produto" className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200" />
+                    </div>
+                  )}
+                  <div className="p-3 bg-[#005c4b] text-white">
+                    <h4 className="font-bold text-sm text-white leading-tight">
+                      {displayText || "Produto do Catálogo"}
+                    </h4>
+                    <div className="flex items-center justify-end gap-1 text-[11px] text-white/70 mt-1">
+                      <span>{formatTime(message.timestamp || message.createdAt)}</span>
+                      <Check className="h-3.5 w-3.5 text-white/70" />
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-white/15">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onOpenProductDetails) {
+                            onOpenProductDetails({
+                              id: "prod",
+                              name: displayText || "Produto do Catálogo",
+                              images: cardImg ? [cardImg] : [],
+                            });
+                          }
+                        }}
+                        className="w-full py-1 text-center text-sm font-bold text-emerald-300 hover:text-emerald-200 transition-colors cursor-pointer"
+                      >
+                        Ver
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
-              <div className="p-3 bg-[#005c4b] text-white">
-                <h4 className="font-bold text-sm text-white leading-tight">
-                  {displayText || "Produto do Catálogo"}
-                </h4>
-                <div className="flex items-center justify-end gap-1 text-[11px] text-white/70 mt-1">
-                  <span>{formatTime(message.timestamp || message.createdAt)}</span>
-                  <Check className="h-3.5 w-3.5 text-white/70" />
-                </div>
-                <div className="mt-2 pt-2 border-t border-white/15">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onOpenProductDetails) {
-                        onOpenProductDetails({
-                          id: "prod",
-                          name: displayText || "Produto do Catálogo",
-                          images: mediaUrl ? [mediaUrl] : [],
-                        });
-                      }
-                    }}
-                    className="w-full py-1 text-center text-sm font-bold text-emerald-300 hover:text-emerald-200 transition-colors cursor-pointer"
-                  >
-                    Ver
-                  </button>
-                </div>
-              </div>
-            </div>
+              );
+            })()
           ) : parsedDisparo ? (
             <div
               className="rounded-2xl overflow-hidden bg-gradient-to-b from-card/95 via-card/90 to-emerald-950/20 dark:from-[#1a252c] dark:via-[#152026] dark:to-emerald-950/30 border border-emerald-500/50 max-w-[360px] shadow-xl my-1 select-none text-left"

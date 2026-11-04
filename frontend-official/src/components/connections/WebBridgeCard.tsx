@@ -234,17 +234,17 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-base text-foreground flex items-center gap-1.5">
-                  Conexão 2 — WebBridge
+                  Conexão WhatsApp Web (Sessão Única Nativa)
                 </h3>
                 <Badge
                   variant="outline"
                   className="text-[9px] px-1.5 py-0 uppercase font-mono tracking-wider text-emerald-400 border-emerald-500/30 bg-emerald-500/5"
                 >
-                  Commerce
+                  Nativa Web
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                WhatsApp Web Companion em Chromium Headless (Catálogo & DOM)
+                WhatsApp Web Headless em Background (Sync Automático, Catálogo 19 Itens & Mensagens)
               </p>
             </div>
           </div>

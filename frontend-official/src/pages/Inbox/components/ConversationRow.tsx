@@ -140,6 +140,8 @@ export const ConversationRow = memo(function ConversationRow(props: Conversation
     if (name.includes("@s.whatsapp.net")) {
       name = name.replace(/@s\.whatsapp\.net.*/, "").trim();
     }
+    // Remove lead-status emoji noise like 🔴 or ⭕ if present in the contact name
+    name = name.replace(/[\u{1F534}\u{2B55}\u{26D4}\u{274C}]/gu, "").trim();
     const digitsOnly = name.replace(/\D/g, "");
     if (digitsOnly.length >= 10 && (digitsOnly === name || name.startsWith("+") || name.startsWith("55"))) {
       return formatPhoneNumber(name);

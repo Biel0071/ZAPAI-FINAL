@@ -292,10 +292,75 @@ async function listConnections(companyId) {
     });
   }
 
+  // Unificação com Conexão Nativa WhatsApp Web (WebBridge)
+  try {
+    const webBridgeManager = require('./webbridge/WebBridgeSessionManager');
+    for (const [wbId, wbSession] of webBridgeManager.sessions.entries()) {
+      const wbState = webBridgeManager.getSessionState(wbId, companyId);
+      if (wbState && (wbState.authenticated || wbState.status === 'connected')) {
+        merged.set(wbId, {
+          companyId: companyId || 'default',
+          sessionId: wbId,
+          sessionName: wbId === 'main' ? 'WhatsApp Principal (Web)' : `WhatsApp Web ${wbId}`,
+          status: 'connected',
+          phone: wbState.phone || '553193672075',
+          whatsAppName: 'WhatsApp Web Nativo',
+          systemConnected: true,
+          engine: 'WHATSAPP_WEB_BRIDGE',
+        });
+      }
+    }
+  } catch (_) {}
+
   return Array.from(merged.values()).map((session) => mapSession(session, session.sessionId));
 }
 
 async function getConnectionStatus(sessionId = DEFAULT_SESSION) {
+  // 1. Checa primeiro a Conexão Nativa WhatsApp Web (WebBridge)
+  try {
+    const webBridgeManager = require('./webbridge/WebBridgeSessionManager');
+    const wbState = webBridgeManager.getSessionState(sessionId);
+    if (wbState && (wbState.authenticated || wbState.status === 'connected')) {
+      return {
+        sessionId,
+        sessionName: sessionId === 'main' ? 'WhatsApp Principal (Web)' : `WhatsApp Web ${sessionId}`,
+        status: 'connected',
+        connected: true,
+        systemConnected: true,
+        phone: wbState.phone || '553193672075',
+        whatsAppName: 'WhatsApp Web Nativo',
+        health: 'healthy',
+        qrReady: false,
+        qrCode: null,
+        qrImage: null,
+        lastError: null,
+        logs: [],
+        engine: 'WHATSAPP_WEB_BRIDGE',
+        linkedAgent: {
+          key: 'camila',
+          name: 'Camila',
+          role: 'Consultora de Vendas',
+          status: 'active',
+          active: true,
+          avatar: '/assets/avatar_factory/catalog/sprite_r2_c1_clean.png',
+        },
+      };
+    } else if (wbState && wbState.status === 'waiting_scan' && wbState.qrImage) {
+      return {
+        sessionId,
+        sessionName: sessionId,
+        status: 'qr_ready',
+        connected: false,
+        systemConnected: true,
+        qrReady: true,
+        qrCode: wbState.ref,
+        qrImage: wbState.qrImage,
+        health: 'degraded',
+        engine: 'WHATSAPP_WEB_BRIDGE',
+      };
+    }
+  } catch (_) {}
+
   const session = getSessionCompat(sessionId);
   const creating = typeof sessionManager.isSessionCreating === 'function'
     ? sessionManager.isSessionCreating(sessionId)
