@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingBag, MagnifyingGlass, FilePdf, Tag, Truck, Plus, CheckCircle } from "@phosphor-icons/react";
+import { ShoppingBag, MagnifyingGlass, FilePdf, Tag, Truck, Plus, CheckCircle, PencilSimple } from "@phosphor-icons/react";
 import { apiService } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
+import { ProductFormModal, type EditableProduct } from "./ProductFormModal";
 
 interface Product {
   id: string;
@@ -28,24 +29,27 @@ export function ProductsView() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalProduct, setModalProduct] = useState<EditableProduct | null>(null);
+
+  const loadProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiService.getProducts({
+        category: selectedCategory || undefined,
+        search: search || undefined,
+      });
+      setProducts(res?.data || []);
+    } catch {
+      toast({ title: "Produtos", description: "Carregando catálogo de produtos da base..." });
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory, search, toast]);
 
   useEffect(() => {
-    async function loadProducts() {
-      setLoading(true);
-      try {
-        const res = await apiService.getProducts({
-          category: selectedCategory || undefined,
-          search: search || undefined,
-        });
-        setProducts(res?.data || []);
-      } catch {
-        toast({ title: "Produtos", description: "Carregando catálogo de produtos da base..." });
-      } finally {
-        setLoading(false);
-      }
-    }
     loadProducts();
-  }, [search, selectedCategory, toast]);
+  }, [loadProducts]);
 
   const categories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
 
@@ -73,7 +77,14 @@ export function ProductsView() {
             />
           </div>
 
-          <Button size="sm" className="rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex gap-1">
+          <Button
+            size="sm"
+            onClick={() => {
+              setModalProduct(null);
+              setIsModalOpen(true);
+            }}
+            className="rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex gap-1 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
             <Plus size={16} /> Novo Produto
           </Button>
         </div>
@@ -121,6 +132,20 @@ export function ProductsView() {
           {products.map((p) => (
             <Card key={p.id} className="rounded-2xl border-border/80 bg-card hover:border-primary/50 transition-all duration-200 flex flex-col justify-between">
               <CardContent className="p-5 space-y-4">
+                {/* Product Thumbnail if available */}
+                {p.images && p.images[0] && (
+                  <div className="w-full h-36 rounded-xl overflow-hidden bg-black/20 border border-border/40 relative">
+                    <img
+                      src={p.images[0]}
+                      alt={p.name}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Product Header */}
                 <div className="flex justify-between items-start gap-2">
                   <div>
@@ -173,11 +198,45 @@ export function ProductsView() {
                     ))}
                   </div>
                 )}
+                {/* Edit Button */}
+                <div className="pt-2 border-t border-border/40 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setModalProduct({
+                        id: p.id,
+                        name: p.name,
+                        code: p.code,
+                        price: p.price,
+                        description: p.description,
+                        category: p.category,
+                        stock: p.stock,
+                        images: p.images,
+                        shipping: p.shipping,
+                        condition: p.condition,
+                      });
+                      setIsModalOpen(true);
+                    }}
+                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 rounded-xl flex items-center gap-1.5"
+                  >
+                    <PencilSimple size={14} /> Editar Produto
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Product Form Modal */}
+      <ProductFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        product={modalProduct}
+        onSaved={() => loadProducts()}
+        onDeleted={() => loadProducts()}
+      />
     </div>
   );
 }

@@ -17,9 +17,11 @@ try {
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/services/connectionService.legacy.js root@209.50.241.22:/opt/zapai/backend/services/connectionService.legacy.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/controllers/webBridgeController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/webBridgeController.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/webBridgeRoutes.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/webBridgeRoutes.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/controllers/productsController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/productsController.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/products.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/products.js', { stdio: 'inherit' });
 
-  console.log('4. Restarting zapflow-api PM2 process on VPS...');
-  execSync('ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@209.50.241.22 "pm2 restart zapflow-api"', { stdio: 'inherit' });
+  console.log('4. Ensuring asset upload directories and restarting zapflow-api PM2 process on VPS...');
+  execSync('ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@209.50.241.22 "mkdir -p /www/zapai/assets/catalog/uploads /etc/icontainer/apps/openresty/openresty/www/zapai/assets/catalog/uploads && chmod -R 777 /www/zapai/assets/catalog/uploads && pm2 restart zapflow-api"', { stdio: 'inherit' });
 
   console.log('DEPLOY COMPLETED SUCCESSFULLY!');
   process.exit(0);

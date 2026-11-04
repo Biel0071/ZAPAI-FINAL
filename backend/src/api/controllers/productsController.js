@@ -528,9 +528,193 @@ async function syncWhatsAppCatalog(req, res) {
   }
 }
 
+async function createProduct(req, res) {
+  try {
+    const companyId = req.companyId || req.user?.companyId || 'default';
+    const {
+      name,
+      code,
+      description,
+      price,
+      category,
+      stock,
+      images,
+      whatsapp_url,
+      promotions,
+      condition,
+      shipping,
+    } = req.body;
+
+    if (!name || String(name).trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'O nome do produto é obrigatório.' });
+    }
+
+    const priceNum = Number(price);
+    if (isNaN(priceNum) || priceNum < 0) {
+      return res.status(400).json({ success: false, error: 'Preço inválido.' });
+    }
+
+    const customId = req.body.id || `prod_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+    const saved = await productRepository.upsertProduct({
+      id: customId,
+      companyId,
+      name: String(name).trim(),
+      code: String(code || '').trim(),
+      description: String(description || '').trim(),
+      price: priceNum,
+      category: String(category || 'Geral').trim(),
+      stock: Number(stock) || 10,
+      images: Array.isArray(images) && images.length > 0 ? images : ['/assets/catalog/areia_m3.png'],
+      whatsapp_url: whatsapp_url || 'https://wa.me/c/553193672075',
+      promotions: promotions || '',
+      condition: condition || 'Novo',
+      shipping: shipping || 'Pronta Entrega',
+    });
+
+    if (typeof clearFastCache === 'function') {
+      clearFastCache();
+    }
+
+    if (global.io) {
+      global.io.emit('catalog:updated', { action: 'create', product: saved, companyId });
+    }
+
+    return res.status(201).json({ success: true, data: saved });
+  } catch (error) {
+    console.error('[ProductsController] createProduct error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function updateProduct(req, res) {
+  try {
+    const companyId = req.companyId || req.user?.companyId || 'default';
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'ID do produto é obrigatório.' });
+    }
+
+    const existing = await productRepository.getProductById(id, companyId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Produto não encontrado.' });
+    }
+
+    const updated = await productRepository.upsertProduct({
+      ...existing,
+      ...req.body,
+      id,
+      companyId,
+      price: req.body.price !== undefined ? Number(req.body.price) : existing.price,
+      images: req.body.images || existing.images,
+    });
+
+    if (typeof clearFastCache === 'function') {
+      clearFastCache();
+    }
+
+    if (global.io) {
+      global.io.emit('catalog:updated', { action: 'update', product: updated, companyId });
+    }
+
+    return res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('[ProductsController] updateProduct error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function deleteProduct(req, res) {
+  try {
+    const companyId = req.companyId || req.user?.companyId || 'default';
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'ID do produto é obrigatório.' });
+    }
+
+    const deleted = await productRepository.deleteProduct(id, companyId);
+
+    if (typeof clearFastCache === 'function') {
+      clearFastCache();
+    }
+
+    if (global.io) {
+      global.io.emit('catalog:updated', { action: 'delete', id, companyId });
+    }
+
+    return res.json({ success: Boolean(deleted), id });
+  } catch (error) {
+    console.error('[ProductsController] deleteProduct error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function uploadProductImage(req, res) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+
+    let buffer = null;
+    let ext = '.png';
+
+    if (req.file && req.file.buffer) {
+      buffer = req.file.buffer;
+      ext = path.extname(req.file.originalname) || '.png';
+    } else if (req.body?.base64 || req.body?.dataUrl || req.body?.image) {
+      const raw = String(req.body.base64 || req.body.dataUrl || req.body.image);
+      const match = raw.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+      if (match) {
+        ext = `.${match[1] === 'jpeg' ? 'jpg' : match[1]}`;
+        buffer = Buffer.from(match[2], 'base64');
+      } else {
+        buffer = Buffer.from(raw.replace(/^data:[^;]+;base64,/, ''), 'base64');
+      }
+    }
+
+    if (!buffer || buffer.length === 0) {
+      return res.status(400).json({ success: false, error: 'Nenhuma imagem enviada.' });
+    }
+
+    const fileName = `prod_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
+    const relativeUrl = `/assets/catalog/uploads/${fileName}`;
+
+    // Lista de diretórios alvo (locais e de produção)
+    const targetDirs = [
+      path.join(process.cwd(), 'frontend-official', 'public', 'assets', 'catalog', 'uploads'),
+      path.join(process.cwd(), 'frontend-official', 'dist', 'assets', 'catalog', 'uploads'),
+      path.join(process.cwd(), 'public', 'assets', 'catalog', 'uploads'),
+      '/www/zapai/assets/catalog/uploads',
+      '/etc/icontainer/apps/openresty/openresty/www/zapai/assets/catalog/uploads',
+    ];
+
+    let written = 0;
+    for (const dir of targetDirs) {
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, fileName), buffer);
+        written++;
+      } catch (_) {}
+    }
+
+    return res.status(201).json({
+      success: true,
+      url: relativeUrl,
+      fileName,
+      size: buffer.length,
+    });
+  } catch (error) {
+    console.error('[ProductsController] uploadProductImage error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 module.exports = {
   getProducts,
   getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  uploadProductImage,
   syncWhatsAppCatalog,
   syncWhatsAppCatalogInternal,
   CORE_STORE_PRODUCTS,

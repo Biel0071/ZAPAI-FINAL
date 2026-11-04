@@ -14,7 +14,10 @@ import {
   Truck,
   TextT,
   ArrowsClockwise,
+  PencilSimple,
+  Plus,
 } from "@phosphor-icons/react";
+import { ProductFormModal, type EditableProduct } from "@/components/products/ProductFormModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -424,6 +427,8 @@ export function CatalogSelectorPopover({
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalProduct, setModalProduct] = useState<EditableProduct | null>(null);
   const isMountedRef = useRef(true);
   const batchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -438,43 +443,42 @@ export function CatalogSelectorPopover({
     };
   }, []);
 
+  const loadCatalog = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await apiService.getProducts();
+      if (isMountedRef.current && res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        const mapped: CatalogProduct[] = res.data.map((item: any) => ({
+          id: item.id || `prod_${Math.random()}`,
+          code: item.code || "",
+          name: item.name || "Produto Sem Nome",
+          description: item.description || "",
+          price: Number(item.price) || 0,
+          category: item.category || "Geral",
+          stock: item.stock ?? 10,
+          images: Array.isArray(item.images) ? item.images : item.images ? [item.images] : [],
+          whatsapp_url: item.whatsapp_url || OFFICIAL_STORE_CATALOG_URL,
+          promotions: item.promotions || "",
+          condition: item.condition || "Novo",
+          shipping: item.shipping || "Pronta Entrega",
+        }));
+        setProducts(mapped);
+      }
+    } catch (err) {
+      console.warn("[CatalogPopover] Failed to fetch backend products, using cached store items", err);
+    } finally {
+      if (isMountedRef.current) setLoading(false);
+    }
+  }, []);
+
   // Fetch real products from backend repository on mount, on open, and whenever WhatsApp connects/syncs
   useEffect(() => {
-    let mounted = true;
-    async function loadCatalog() {
-      try {
-        setLoading(true);
-        const res = await apiService.getProducts();
-        if (mounted && res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          const mapped: CatalogProduct[] = res.data.map((item: any) => ({
-            id: item.id || `prod_${Math.random()}`,
-            code: item.code || "",
-            name: item.name || "Produto Sem Nome",
-            description: item.description || "",
-            price: Number(item.price) || 0,
-            category: item.category || "Geral",
-            stock: item.stock ?? 10,
-            images: Array.isArray(item.images) ? item.images : item.images ? [item.images] : [],
-            whatsapp_url: item.whatsapp_url || OFFICIAL_STORE_CATALOG_URL,
-            promotions: item.promotions || "",
-            condition: item.condition || "Novo",
-            shipping: item.shipping || "Pronta Entrega",
-          }));
-          setProducts(mapped);
-        }
-      } catch (err) {
-        console.warn("[CatalogPopover] Failed to fetch backend products, using cached store items", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
     // Prefetch immediately so catalog is instant when opening
     loadCatalog();
 
     // Listen to realtime WhatsApp login / sync events to update items automatically
     const handleSyncEvent = () => {
-      if (mounted) {
+      if (isMountedRef.current) {
         loadCatalog();
       }
     };
@@ -482,6 +486,7 @@ export function CatalogSelectorPopover({
     const socket = getSharedSocket();
     if (socket && typeof socket.on === "function") {
       socket.on("catalog:synced", handleSyncEvent);
+      socket.on("catalog:updated", handleSyncEvent);
       socket.on("session_connected", handleSyncEvent);
       socket.on("whatsapp_connection", handleSyncEvent);
       socket.on("session.connected", handleSyncEvent);
@@ -490,9 +495,9 @@ export function CatalogSelectorPopover({
     }
 
     return () => {
-      mounted = false;
       if (socket && typeof socket.off === "function") {
         socket.off("catalog:synced", handleSyncEvent);
+        socket.off("catalog:updated", handleSyncEvent);
         socket.off("session_connected", handleSyncEvent);
         socket.off("whatsapp_connection", handleSyncEvent);
         socket.off("session.connected", handleSyncEvent);
@@ -782,6 +787,33 @@ export function CatalogSelectorPopover({
           </button>
         </div>
 
+        {/* Top Action Row: 'Adicionar novo item' - Identical to WhatsApp Web Catalog creation */}
+        <div
+          onClick={() => {
+            setModalProduct(null);
+            setIsModalOpen(true);
+          }}
+          data-add-product-trigger
+          className="px-4 py-2.5 bg-[#111b21] hover:bg-[#202c33] border-b border-[#2a3942]/60 flex items-center justify-between gap-3 cursor-pointer transition-colors group"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-full bg-emerald-500/10 border border-emerald-500/30 group-hover:border-emerald-500 flex items-center justify-center text-emerald-400 transition-colors shrink-0">
+              <Plus className="h-4 w-4" weight="bold" />
+            </div>
+            <div className="min-w-0">
+              <span className="font-semibold text-xs text-[#e9edef] group-hover:text-emerald-400 transition-colors block">
+                Adicionar novo item
+              </span>
+              <span className="text-[11px] text-[#8696a0] block truncate">
+                Criar produto com foto e preço oficial
+              </span>
+            </div>
+          </div>
+          <span className="text-[11px] font-medium text-emerald-400 group-hover:underline">
+            + Novo
+          </span>
+        </div>
+
         {/* Search input & Category chips */}
         <div className="p-3 pb-2 border-b border-[#2a3942]/60 space-y-2 bg-[#111b21]">
           <div className="relative">
@@ -899,8 +931,36 @@ export function CatalogSelectorPopover({
                       )}
                     </div>
 
-                    {/* Action button: Enviar no Chat */}
-                    <div className="shrink-0 flex items-center">
+                    {/* Action buttons: Edit & Enviar no Chat */}
+                    <div className="shrink-0 flex items-center gap-1">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalProduct({
+                            id: item.id,
+                            name: item.name,
+                            code: item.code,
+                            price: item.price,
+                            description: item.description,
+                            category: item.category,
+                            stock: item.stock,
+                            images: item.images,
+                            shipping: item.shipping,
+                            condition: item.condition,
+                            whatsapp_url: item.whatsapp_url,
+                          });
+                          setIsModalOpen(true);
+                        }}
+                        className="h-7 w-7 rounded-lg text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors"
+                        title="Editar produto"
+                        aria-label={`Editar ${item.name}`}
+                      >
+                        <PencilSimple className="h-3.5 w-3.5" />
+                      </Button>
+
                       <Button
                         type="button"
                         size="sm"
@@ -963,6 +1023,18 @@ export function CatalogSelectorPopover({
             <span>{filteredProducts.length} itens disponíveis</span>
           </div>
         )}
+        {/* Product Form Modal for creating & editing catalog items */}
+        <ProductFormModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          product={modalProduct}
+          onSaved={() => {
+            loadCatalog();
+          }}
+          onDeleted={() => {
+            loadCatalog();
+          }}
+        />
       </PopoverContent>
     </Popover>
   );

@@ -86,6 +86,22 @@ async function validateRealUse() {
       const productItems = await page.locator('[data-catalog-popover] div:has-text("R$"), div[role="listitem"]:has-text("R$")').count();
       report.productsVisible = productItems;
       console.log(`✔ Popover do catálogo aberto com ${productItems} produtos visíveis!`);
+
+      const addBtn = page.locator('[data-add-product-trigger]');
+      if (await addBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
+        console.log('✔ Botão "Adicionar novo item" presente no popover! Testando abertura do modal...');
+        await addBtn.click();
+        await page.waitForTimeout(1500);
+        const modalVisible = await page.locator('text=Adicionar novo item').isVisible({ timeout: 5000 }).catch(() => false);
+        if (modalVisible) {
+          console.log('✔ Modal de Criação de Produto aberto com sucesso!');
+          const modalShot = path.join(artifactDir, 'real_use_product_form_modal.png');
+          await page.screenshot({ path: modalShot });
+          report.screenshots.push(modalShot);
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(1000);
+        }
+      }
     }
 
     const inboxShot = path.join(artifactDir, 'real_use_inbox_live.png');

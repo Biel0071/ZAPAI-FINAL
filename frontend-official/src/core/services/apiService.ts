@@ -2652,6 +2652,47 @@ export const apiService = {
       method: "GET",
     });
   },
+  async createProduct(payload: any) {
+    return request<{ success: boolean; data: any; error?: string }>({
+      endpoint: "/api/products",
+      method: "POST",
+      body: payload,
+    });
+  },
+  async updateProduct(id: string, payload: any) {
+    return request<{ success: boolean; data: any; error?: string }>({
+      endpoint: `/api/products/${encodeURIComponent(id)}`,
+      method: "PUT",
+      body: payload,
+    });
+  },
+  async deleteProduct(id: string) {
+    return request<{ success: boolean; id: string; error?: string }>({
+      endpoint: `/api/products/${encodeURIComponent(id)}`,
+      method: "DELETE",
+    });
+  },
+  async uploadProductImage(fileOrBase64: File | string) {
+    if (typeof fileOrBase64 === "string") {
+      return request<{ success: boolean; url: string; fileName: string }>({
+        endpoint: "/api/products/upload-image",
+        method: "POST",
+        body: { image: fileOrBase64 },
+      });
+    }
+
+    const formData = new FormData();
+    formData.append("image", fileOrBase64);
+    const headers = await buildApiHeaders();
+
+    const res = await axios.post(`${API_BASE_URL}/api/products/upload-image`, formData, {
+      headers: {
+        ...headers,
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return res.data as { success: boolean; url: string; fileName: string };
+  },
   async syncWhatsAppCatalog(sessionId?: string) {
     return request<{ success: boolean; synced: number; waFetched?: number; total: number; data: any[]; message?: string }>({
       endpoint: "/api/catalog/sync",

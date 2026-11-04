@@ -34,6 +34,7 @@ import { useToast } from "@/state/hooks/use-toast";
 import { AIMessageFeedback } from "@/components/inbox/AIMessageFeedback";
 import { useProtectedMedia } from "@/core/runtime/hooks/useProtectedMediaUrl";
 import { bubbleClassFor, isWhatsappDeviceMessage } from "../messageOrigin";
+import { getCatalogImageUrl } from "./CatalogSelectorPopover";
 import type { PreviewMediaState } from "../types";
 import {
   getMessageStatusMeta,
@@ -99,12 +100,12 @@ function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string
   } else {
     // 2. Format: *NAME* R$ PRICE (single-line or multi-line)
     const boldMatch = cleanText.match(/\*([^*]+)\*\s*(?:\n|\r\n|\s)*(?:R\$|BRL)?\s*([\d\.,]+)?/i);
-    if (boldMatch) {
+    if (boldMatch && !boldMatch[1].includes("[CATÁLOGO") && !boldMatch[1].includes("[PRODUTO")) {
       title = boldMatch[1].trim();
       if (boldMatch[2]) price = `R$ ${boldMatch[2].trim()}`;
     }
 
-    if (!title) {
+    if (!title || title.includes("[CATÁLOGO") || title.includes("[PRODUTO")) {
       const lines = cleanText.split("\n").map((l) => l.trim()).filter(Boolean);
       for (const line of lines) {
         if (line.includes("[CATÁLOGO") || line.includes("[PRODUTO") || line.includes("━━━━")) continue;
@@ -113,8 +114,11 @@ function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string
           break;
         }
       }
-      if (!title && lines.length > 0) {
-        title = lines[0].replace(/^[*\[\]]+|[*\[\]]+$/g, "").trim();
+      if ((!title || title.includes("[CATÁLOGO")) && lines.length > 0) {
+        const candidate = lines.find((l) => !l.includes("[CATÁLOGO") && !l.includes("[PRODUTO") && !l.includes("━━━━"));
+        if (candidate) {
+          title = candidate.replace(/^[*\[\]]+|[*\[\]]+$/g, "").trim();
+        }
       }
     }
 
@@ -900,11 +904,14 @@ export const MessageRow = memo(function MessageRow({
                 }) : onOpenMediaPreview({ url: mediaUrl || parsedCatalog.image, type: "image", fileName: parsedCatalog.title, messageId: message.id })}
               >
                 <img
-                  src={mediaUrl || parsedCatalog.image}
+                  src={getCatalogImageUrl(mediaUrl || parsedCatalog.image)}
                   alt={parsedCatalog.title}
                   className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
                   onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = "none";
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (!img.src.includes('areia_m3.png')) {
+                      img.src = '/assets/catalog/areia_m3.png';
+                    }
                   }}
                 />
               </div>
@@ -980,7 +987,17 @@ export const MessageRow = memo(function MessageRow({
                         images: [cardImg],
                       }) : onOpenMediaPreview({ url: cardImg, type: "image", fileName: "Produto", messageId: message.id })}
                     >
-                      <img src={cardImg} alt="Produto" className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200" />
+                      <img
+                        src={getCatalogImageUrl(cardImg)}
+                        alt="Produto"
+                        className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement;
+                          if (!img.src.includes('areia_m3.png')) {
+                            img.src = '/assets/catalog/areia_m3.png';
+                          }
+                        }}
+                      />
                     </div>
                   )}
                   <div className="p-3 bg-[#005c4b] text-white">

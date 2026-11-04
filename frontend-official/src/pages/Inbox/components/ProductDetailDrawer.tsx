@@ -12,6 +12,7 @@ import {
   X,
   Truck,
   WhatsappLogo,
+  PencilSimple,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,6 +29,7 @@ interface ProductDetailDrawerProps {
   product: CatalogProduct | null;
   isOpen: boolean;
   onClose: () => void;
+  onEditProduct?: (product: CatalogProduct) => void;
   onSendProductToChat: (product: CatalogProduct) => void;
   onSendCartOrderToChat: (items: CartItem[], total: number) => void;
   cartItems: CartItem[];
@@ -41,6 +43,7 @@ export function ProductDetailDrawer({
   product,
   isOpen,
   onClose,
+  onEditProduct,
   onSendProductToChat,
   onSendCartOrderToChat,
   cartItems,
@@ -119,6 +122,18 @@ export function ProductDetailDrawer({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {view === "details" && onEditProduct && product && (
+            <button
+              type="button"
+              onClick={() => onEditProduct(product)}
+              className="h-9 w-9 rounded-full flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] hover:bg-[#2a3942] transition-colors"
+              title="Editar item"
+              aria-label="Editar item"
+            >
+              <PencilSimple className="h-5 w-5" />
+            </button>
+          )}
+
           {view === "details" && (
             <button
               type="button"
@@ -363,6 +378,19 @@ export function ProductDetailDrawer({
       {/* Sticky Bottom Actions in Details View */}
       {view === "details" && product && (
         <div className="p-4 bg-[#202c33] border-t border-[#2a3942] flex items-center gap-2.5 shrink-0">
+          {onEditProduct && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onEditProduct(product)}
+              className="h-11 px-3 border-[#2a3942] text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5"
+              title="Editar detalhes do produto"
+            >
+              <PencilSimple className="h-4 w-4" />
+              <span>Editar</span>
+            </Button>
+          )}
+
           <Button
             type="button"
             variant="outline"

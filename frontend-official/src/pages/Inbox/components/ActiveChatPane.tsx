@@ -71,6 +71,7 @@ import { AttachmentActionMenu, usePinnedActions, ACTION_MENU_ITEMS } from "./Att
 import { CustomerOrdersDrawer } from "./CustomerOrdersDrawer";
 import { CatalogSelectorPopover, formatProductMessage, type CatalogProduct } from "./CatalogSelectorPopover";
 import { ProductDetailDrawer, type CartItem } from "./ProductDetailDrawer";
+import { ProductFormModal, type EditableProduct } from "@/components/products/ProductFormModal";
 import { ShoppingBag } from "lucide-react";
 import { FlowExecutionBanner, matchesConversationFlow, type FlowExecutionData } from "./FlowExecutionBanner";
 import { buildSlashOptions, needsFlowPreview, type SlashOption } from "../quickReplySlash";
@@ -733,6 +734,8 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   // WhatsApp Native Commerce / Product Details & Cart state
   const [selectedProductForDetails, setSelectedProductForDetails] = useState<CatalogProduct | null>(null);
   const [isProductDetailOpen, setIsProductDetailOpen] = useState(false);
+  const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
+  const [editingProductForModal, setEditingProductForModal] = useState<EditableProduct | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCustomerOrdersOpen, setIsCustomerOrdersOpen] = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
@@ -852,6 +855,23 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
   const handleCloseProductDetails = useCallback(() => {
     setIsProductDetailOpen(false);
+  }, []);
+
+  const handleEditProductFromDrawer = useCallback((prod: CatalogProduct) => {
+    setEditingProductForModal({
+      id: prod.id,
+      name: prod.name,
+      code: prod.code,
+      price: prod.price,
+      description: prod.description,
+      category: prod.category,
+      stock: prod.stock,
+      images: prod.images,
+      shipping: prod.shipping,
+      condition: prod.condition,
+      whatsapp_url: prod.whatsapp_url,
+    });
+    setIsEditProductModalOpen(true);
   }, []);
 
   const handleAddToCart = useCallback((product: CatalogProduct) => {
@@ -2368,6 +2388,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         product={selectedProductForDetails}
         isOpen={isProductDetailOpen}
         onClose={handleCloseProductDetails}
+        onEditProduct={handleEditProductFromDrawer}
         onSendProductToChat={handleSendProductFromDrawer}
         onSendCartOrderToChat={handleSendCartOrderToChat}
         cartItems={cartItems}
@@ -2375,6 +2396,24 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         onUpdateCartQuantity={handleUpdateCartQuantity}
         onRemoveFromCart={handleRemoveFromCart}
         onClearCart={handleClearCart}
+      />
+
+      {/* WhatsApp Product Form Modal (for editing product from drawer) */}
+      <ProductFormModal
+        isOpen={isEditProductModalOpen}
+        onClose={() => setIsEditProductModalOpen(false)}
+        product={editingProductForModal}
+        onSaved={(updated) => {
+          if (selectedProductForDetails?.id === updated?.id) {
+            setSelectedProductForDetails(updated);
+          }
+        }}
+        onDeleted={(deletedId) => {
+          if (selectedProductForDetails?.id === deletedId) {
+            setIsProductDetailOpen(false);
+            setSelectedProductForDetails(null);
+          }
+        }}
       />
 
       {/* WhatsApp Customer Orders Drawer */}
