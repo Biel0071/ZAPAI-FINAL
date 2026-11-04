@@ -68,12 +68,13 @@ function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string
     message?.type === "product" ||
     (message as any)?.mediaType === "product" ||
     (message as any)?.media_type === "product" ||
+    Boolean((message as any)?.product) ||
     Boolean(text && (
       text.includes("[CATÁLOGO WHATSAPP]") ||
       text.includes("[CATÁLOGO DE PRODUTOS]") ||
       text.includes("[PRODUTO WHATSAPP]") ||
       text.includes("[PRODUTO]") ||
-      /^\*[A-Z0-9\s\-³]+(?:\s*-\s*[A-Z0-9]+)?\*\s*(?:\n|\r\n)\s*R\$\s*[\d\.,]+/i.test(text.trim())
+      /^\*[A-Z0-9\s\-³]+(?:\s*-\s*[A-Z0-9]+)?\*\s*(?:\n|\r\n|\s+)\s*R\$\s*[\d\.,]+/i.test(text.trim())
     ));
 
   if (!isExplicitProduct) {
@@ -961,12 +962,34 @@ export const MessageRow = memo(function MessageRow({
             </div>
           ) : (resolvedMediaType === "product" || resolvedMediaType === "catalog") ? (
             (() => {
-              const fallbackProductImg =
-                (message as any)?.product?.images?.[0] ||
-                (message as any)?.product?.image ||
-                parsedCatalog?.image ||
-                ((displayText || "").toLowerCase().includes("areia") ? "/assets/catalog/areia_m3.png" : "/assets/catalog/caixa_5000l.png");
-              const cardImg = mediaUrl || fallbackProductImg;
+              const rawTxt = displayText || "";
+              let cleanCardTitle = rawTxt;
+              let cleanCardPrice = "";
+              const matchProd = rawTxt.match(/\[PRODUTO(?:\s+WHATSAPP)?\]\s*(.+?)\s*-\s*(?:BRL|R\$)\s*([\d\.,]+)/i);
+              if (matchProd) {
+                cleanCardTitle = matchProd[1].trim();
+                cleanCardPrice = `R$ ${matchProd[2].trim()}`;
+              } else {
+                const matchBold = rawTxt.match(/\*([^*]+)\*\s*(?:R\$|BRL)?\s*([\d\.,]+)?/i);
+                if (matchBold) {
+                  cleanCardTitle = matchBold[1].trim();
+                  if (matchBold[2]) cleanCardPrice = `R$ ${matchBold[2].trim()}`;
+                }
+              }
+              cleanCardTitle = cleanCardTitle.replace(/^\*+|\*+$/g, "").trim();
+
+              const lower = cleanCardTitle.toLowerCase();
+              let fallbackImg = "/assets/catalog/areia_m3.png";
+              if (lower.includes("bloco")) fallbackImg = "/assets/catalog/bloco_10_100un.png";
+              else if (lower.includes("ac3") || lower.includes("ac-3")) fallbackImg = "/assets/catalog/argamassa_ac3.png";
+              else if (lower.includes("ac2") || lower.includes("ac-2")) fallbackImg = "/assets/catalog/argamassa_ac2.png";
+              else if (lower.includes("ac1") || lower.includes("ac-1")) fallbackImg = "/assets/catalog/argamassa_ac1.png";
+              else if (lower.includes("caminhao de areia") || lower.includes("caminhão de areia")) fallbackImg = "/assets/catalog/caminhao_areia.png";
+              else if (lower.includes("areia")) fallbackImg = "/assets/catalog/areia_m3.png";
+              else if (lower.includes("brita")) fallbackImg = "/assets/catalog/caminhao_brita.png";
+              else if (lower.includes("5000") || lower.includes("5.000")) fallbackImg = "/assets/catalog/caixa_5000l.png";
+
+              const cardImg = mediaUrl || (message as any)?.product?.images?.[0] || (message as any)?.product?.image || fallbackImg;
 
               return (
                 <div
@@ -983,13 +1006,14 @@ export const MessageRow = memo(function MessageRow({
                       className="relative w-full aspect-square max-h-[260px] bg-black/20 overflow-hidden cursor-pointer group"
                       onClick={() => onOpenProductDetails ? onOpenProductDetails({
                         id: "prod",
-                        name: displayText || "Produto do Catálogo",
+                        name: cleanCardTitle || "Produto do Catálogo",
+                        price: cleanCardPrice || undefined,
                         images: [cardImg],
-                      }) : onOpenMediaPreview({ url: cardImg, type: "image", fileName: "Produto", messageId: message.id })}
+                      }) : onOpenMediaPreview({ url: cardImg, type: "image", fileName: cleanCardTitle || "Produto", messageId: message.id })}
                     >
                       <img
                         src={getCatalogImageUrl(cardImg)}
-                        alt="Produto"
+                        alt={cleanCardTitle || "Produto"}
                         className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
                         onError={(e) => {
                           const img = e.currentTarget as HTMLImageElement;
@@ -1002,8 +1026,13 @@ export const MessageRow = memo(function MessageRow({
                   )}
                   <div className="p-3 bg-[#005c4b] text-white">
                     <h4 className="font-bold text-sm text-white leading-tight">
-                      {displayText || "Produto do Catálogo"}
+                      {cleanCardTitle || "Produto do Catálogo"}
                     </h4>
+                    {cleanCardPrice && (
+                      <span className="text-sm font-semibold text-white/90 mt-1 block">
+                        {cleanCardPrice}
+                      </span>
+                    )}
                     <div className="flex items-center justify-end gap-1 text-[11px] text-white/70 mt-1">
                       <span>{formatTime(message.timestamp || message.createdAt)}</span>
                       <Check className="h-3.5 w-3.5 text-white/70" />
@@ -1016,7 +1045,8 @@ export const MessageRow = memo(function MessageRow({
                           if (onOpenProductDetails) {
                             onOpenProductDetails({
                               id: "prod",
-                              name: displayText || "Produto do Catálogo",
+                              name: cleanCardTitle || "Produto do Catálogo",
+                              price: cleanCardPrice || undefined,
                               images: cardImg ? [cardImg] : [],
                             });
                           }

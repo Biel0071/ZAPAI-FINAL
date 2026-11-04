@@ -21,25 +21,25 @@ async function listProducts({ companyId = 'default', limit = 50, offset = 0, cat
 
   sql += ` ORDER BY 
     CASE id
-      WHEN 'prod_caixa_5000l' THEN 1
-      WHEN 'prod_caixa_2000l' THEN 2
-      WHEN 'prod_caixa_1000l' THEN 3
-      WHEN 'prod_cimento_liz_cp4' THEN 4
-      WHEN 'prod_churrasqueira_premoldada' THEN 5
-      WHEN 'prod_caminhao_brita_8m3' THEN 6
-      WHEN 'prod_tijolo_12_furos' THEN 7
-      WHEN 'prod_tijolo_9_furos' THEN 8
-      WHEN 'prod_tijolo_8_furos' THEN 9
-      WHEN 'prod_telhas_ceramica' THEN 10
-      WHEN 'prod_caixa_10000l' THEN 11
-      WHEN 'prod_bloco_10_100un' THEN 12
-      WHEN 'prod_argamassa_ac3' THEN 13
-      WHEN 'prod_argamassa_ac2' THEN 14
-      WHEN 'prod_argamassa_ac1' THEN 15
-      WHEN 'prod_caminhao_areia_9m3' THEN 16
-      WHEN 'prod_areia_m3' THEN 17
-      WHEN 'prod_telha_fibrocimento_244' THEN 18
-      WHEN 'prod_caixa_500l' THEN 19
+      WHEN 'prod_bloco_10_100un' THEN 1
+      WHEN 'prod_argamassa_ac3' THEN 2
+      WHEN 'prod_argamassa_ac2' THEN 3
+      WHEN 'prod_argamassa_ac1' THEN 4
+      WHEN 'prod_caminhao_areia_9m3' THEN 5
+      WHEN 'prod_areia_m3' THEN 6
+      WHEN 'prod_caminhao_brita_8m3' THEN 7
+      WHEN 'prod_tijolo_12_furos' THEN 8
+      WHEN 'prod_tijolo_9_furos' THEN 9
+      WHEN 'prod_tijolo_8_furos' THEN 10
+      WHEN 'prod_telha_fibrocimento_244' THEN 11
+      WHEN 'prod_telhas_ceramica' THEN 12
+      WHEN 'prod_caixa_10000l' THEN 13
+      WHEN 'prod_caixa_5000l' THEN 14
+      WHEN 'prod_caixa_2000l' THEN 15
+      WHEN 'prod_caixa_1000l' THEN 16
+      WHEN 'prod_caixa_500l' THEN 17
+      WHEN 'prod_cimento_liz_cp4' THEN 18
+      WHEN 'prod_churrasqueira_premoldada' THEN 19
       ELSE 999
     END ASC, name ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   params.push(limit, offset);

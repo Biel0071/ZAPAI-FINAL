@@ -90,20 +90,16 @@ export function ChatHeaderBar({
               </AvatarFallback>
             </Avatar>
 
-            {/* Presença do contato: Bolinha Verde para Online / Vermelha para Offline */}
-            <span
-              className="absolute -bottom-0.5 -right-0.5 z-10 flex h-3.5 w-3.5 items-center justify-center pointer-events-none"
-              title={isOnlineOrTyping ? "Online agora" : "Offline"}
-            >
-              {isOnlineOrTyping ? (
-                <>
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
-                </>
-              ) : (
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-background shadow-xs" />
-              )}
-            </span>
+            {/* Presença do contato: Bolinha Verde para Online / NENHUMA bolinha vermelha para Offline (padrão WhatsApp Web) */}
+            {isOnlineOrTyping && (
+              <span
+                className="absolute -bottom-0.5 -right-0.5 z-10 flex h-3.5 w-3.5 items-center justify-center pointer-events-none"
+                title="Online agora"
+              >
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+              </span>
+            )}
           </div>
 
           <div className="min-w-0 flex-1 flex flex-col justify-center">
@@ -129,20 +125,17 @@ export function ChatHeaderBar({
                     ? "text-emerald-400 font-semibold hover:bg-emerald-500/10"
                     : "text-muted-foreground/80 hover:bg-muted"
                 )}
-                title="Clique para alternar entre status e última visualização"
+                title="Status de conexão do contato"
               >
-                <span
-                  className={cn(
-                    "inline-block h-1.5 w-1.5 rounded-full shrink-0",
-                    isOnlineOrTyping ? "bg-emerald-400 animate-pulse" : "bg-rose-500"
-                  )}
-                />
+                {isOnlineOrTyping && (
+                  <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-400 animate-pulse" />
+                )}
                 <span>
                   {showDetailedPresence
                     ? (isOnlineOrTyping
                         ? "Online agora"
-                        : (lastSeenLabel ? `Visto por último: ${lastSeenLabel}` : "Visto recentemente"))
-                    : (statusLabel || (isOnlineOrTyping ? "online" : "offline"))}
+                        : (lastSeenLabel ? `Visto por último: ${lastSeenLabel}` : ""))
+                    : (statusLabel || (isOnlineOrTyping ? "online" : (lastSeenLabel ? `visto por último ${lastSeenLabel}` : "")))}
                 </span>
               </button>
               {statusBadges}

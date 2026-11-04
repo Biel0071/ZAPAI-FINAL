@@ -2683,15 +2683,21 @@ export const apiService = {
 
     const formData = new FormData();
     formData.append("image", fileOrBase64);
-    const headers = await buildApiHeaders();
+    const session = loadAdminAuthSession();
+    const token = session?.token || "";
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const res = await axios.post(`${API_BASE_URL}/api/products/upload-image`, formData, {
-      headers: {
-        ...headers,
-        "Content-Type": "multipart/form-data",
-      },
+    const res = await fetch(`${BACKEND_BASE_URL}/api/products/upload-image`, {
+      method: "POST",
+      headers,
+      body: formData,
     });
-    return res.data as { success: boolean; url: string; fileName: string };
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Falha ao enviar imagem do produto");
+    }
+    return await res.json() as { success: boolean; url: string; fileName: string };
   },
   async syncWhatsAppCatalog(sessionId?: string) {
     return request<{ success: boolean; synced: number; waFetched?: number; total: number; data: any[]; message?: string }>({
