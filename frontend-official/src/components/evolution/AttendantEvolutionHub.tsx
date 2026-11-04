@@ -447,18 +447,6 @@ export function AttendantEvolutionHub({
             <div className="flex items-center gap-2 self-center lg:self-start">
               <Button
                 type="button"
-                variant="default"
-                size="sm"
-                onClick={handleMineManualAttendance}
-                disabled={isMining}
-                className="h-9 text-xs font-semibold gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-xs"
-              >
-                <Sparkles className={cn("h-3.5 w-3.5", isMining && "animate-spin")} />
-                {isMining ? "Minerando Atendimentos..." : "Aprender de Atendimentos Reais"}
-              </Button>
-
-              <Button
-                type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => fetchProfile()}

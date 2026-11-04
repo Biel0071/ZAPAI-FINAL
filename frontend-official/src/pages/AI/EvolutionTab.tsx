@@ -777,17 +777,6 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             </div>
           )}
 
-          {selectedAgentKey && <Button
-            type="button"
-            variant="default"
-            size="sm"
-            onClick={handleSyncManual}
-            disabled={isSyncingManual}
-            className="h-9 text-xs gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold shadow-xs"
-          >
-            <Sparkles className={cn("h-3.5 w-3.5", isSyncingManual && "animate-spin")} />
-            {isSyncingManual ? "Minerando Atendimentos..." : "Aprender dos Atendimentos Manuais"}
-          </Button>}
 
           {selectedAgentKey && <Button
             type="button"

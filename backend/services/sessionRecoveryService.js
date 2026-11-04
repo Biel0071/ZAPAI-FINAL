@@ -58,32 +58,36 @@ async function recoverSessions() {
     console.log(`[SessionRecoveryService] Found session directories:`, sessionIds);
 
     for (const id of sessionIds) {
-      const normalizedId = sessionManager.normalizeSessionName(id);
-      
-      // 1. Verify credentials validity
-      const validation = await validateSession(normalizedId);
-      if (!validation.ok) {
-        console.log(`[SessionRecoveryService] Session "${normalizedId}" has invalid or incomplete credentials. Skipping.`);
-        continue;
-      }
-
-      // 2. Check current in-memory status
-      const session = sessionManager.getSession(normalizedId);
-      const status = session ? String(session.status || '').toLowerCase() : 'disconnected';
-
-      if (shouldRecoverSession(session)) {
-        console.log(`[SessionRecoveryService] Session "${normalizedId}" is disconnected but has valid credentials. Recovering...`);
-
-        try {
-          const triggered = await reconnectPersistedSession(normalizedId, session);
-          if (triggered) {
-            recovered.push(normalizedId);
-          }
-        } catch (err) {
-          console.error(`[SessionRecoveryService] Failed to reconnect session "${normalizedId}":`, err.message || err);
+      try {
+        const normalizedId = sessionManager.normalizeSessionName(id);
+        
+        // 1. Verify credentials validity
+        const validation = await validateSession(normalizedId);
+        if (!validation.ok) {
+          console.log(`[SessionRecoveryService] Session "${normalizedId}" has invalid or incomplete credentials. Skipping.`);
+          continue;
         }
-      } else {
-        console.log(`[SessionRecoveryService] Session "${normalizedId}" is already ${status}.`);
+
+        // 2. Check current in-memory status
+        const session = sessionManager.getSession(normalizedId);
+        const status = session ? String(session.status || '').toLowerCase() : 'disconnected';
+
+        if (shouldRecoverSession(session)) {
+          console.log(`[SessionRecoveryService] Session "${normalizedId}" is disconnected but has valid credentials. Recovering...`);
+
+          try {
+            const triggered = await reconnectPersistedSession(normalizedId, session);
+            if (triggered) {
+              recovered.push(normalizedId);
+            }
+          } catch (err) {
+            console.error(`[SessionRecoveryService] Failed to reconnect session "${normalizedId}":`, err.message || err);
+          }
+        } else {
+          console.log(`[SessionRecoveryService] Session "${normalizedId}" is already ${status}.`);
+        }
+      } catch (sessionError) {
+        console.warn(`[SessionRecoveryService] Error validating or recovering session "${id}", skipping:`, sessionError.message || sessionError);
       }
     }
   } catch (error) {

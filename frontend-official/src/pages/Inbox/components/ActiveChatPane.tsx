@@ -645,7 +645,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       useAppStore.getState().updateConversationRealtime({
         id: selectedConversation.id,
         lastMessage: formattedText,
-        lastMessageType: "product",
+        lastMessageType: "product" as any,
         updatedAt: now,
       });
 
@@ -672,13 +672,13 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       if (res?.success) {
         useAppStore.getState().addMessage(selectedConversation.id, {
           ...optimisticMessage,
-          id: res.whatsappMessageId || res.persistedMessage?.id || optimisticId,
+          id: res.whatsappMessageId || (res as any).persistedMessage?.id || optimisticId,
           status: "sent",
         });
         sonnerToast.success(`"${product.name || 'Produto'}" enviado como produto oficial no WhatsApp!`);
         return;
       } else {
-        throw new Error(res?.error || 'Erro ao processar produto');
+        throw new Error((res as any)?.error || 'Erro ao processar produto');
       }
     } catch (commerceErr: any) {
       console.error('[handleSendProductMessage] Direct native commerce dispatch failed:', commerceErr);
@@ -815,15 +815,15 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
   useEffect(() => {
     if (!selectedConversation?.id) return;
-    apiService.getCommerceOrders({
+    apiService.getCommerceOrders?.({
       conversationId: selectedConversation.id,
       phone: selectedConversation.phone,
       status: "pending",
-    }).then(res => {
+    })?.then(res => {
       if (res?.success && typeof res.total === "number") {
         setPendingOrdersCount(res.total);
       }
-    }).catch(() => {});
+    })?.catch?.(() => {});
 
     const socket = getSharedSocket();
     if (!socket || typeof socket.on !== "function") return;
@@ -1638,9 +1638,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       ? "Buscando mensagens anteriores…"
                       : "Carregar mensagens anteriores"}
                   </Button>
-                  {historySyncStatus === "requested" && <p role="status" className="text-xs text-muted-foreground">Histórico solicitado; aguardando retorno do WhatsApp.</p>}
                   {historySyncStatus === "imported" && <p role="status" className="text-xs text-muted-foreground">Novas mensagens históricas foram sincronizadas.</p>}
-                  {historySyncStatus === "error" && <p role="alert" className="text-xs text-destructive">Não foi possível solicitar o histórico. Tente novamente.</p>}
                 </div>
               )}
               {isDraggingFiles && <p className="text-xs text-muted-foreground">Solte arquivos aqui para anexar.</p>}
@@ -1861,7 +1859,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         type="button"
                         title={item.isFlow || item.items?.some(entry => entry.type !== "text") ? "Abrir prévia antes de enviar" : "Inserir no rascunho para revisar"}
                         onClick={() => {
-                          if (item.isFlow || (item.steps && item.steps.length > 1) || (item.items && item.items.length > 1) || item.items?.some(entry => entry.type !== "text") || item.mediaUrl) {
+                          if (item.isFlow || (item.steps && item.steps.length > 1) || (item.items && item.items.length > 1) || item.items?.some(entry => entry.type !== "text") || (item as any).mediaUrl) {
                             setSelectedQuickReplyModal(item);
                             setIsQuickReplyModalOpen(true);
                           } else {

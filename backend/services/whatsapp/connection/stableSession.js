@@ -95,8 +95,9 @@ const messageAckPipeline = require('../../messageAckPipeline');
 const messageRepository = require('../../../src/data/repositories/messageRepository');
 const conversationRepository = require('../../../src/data/repositories/conversationRepository');
 const { getAutomationPermission } = require('../../../src/infrastructure/config/aiToggle');
+const { getCanonicalSessionsDirectory, getSessionPath } = require('./sessionPaths');
 
-const SESSIONS_DIRECTORY = path.join(__dirname, '..', '..', '..', '..', 'data', 'sessions');
+const SESSIONS_DIRECTORY = getCanonicalSessionsDirectory();
 const DEFAULT_RECONNECT_DELAY_MS = 3000;
 const RECONNECT_BACKOFF_BASE_MS = Math.max(
   500,
@@ -183,7 +184,7 @@ async function ensureSessionsDirectory() {
 async function ensureSessionPath(sessionName) {
   await ensureSessionsDirectory();
   const normalizedSessionName = normalizeSessionName(sessionName);
-  const sessionPath = path.join(SESSIONS_DIRECTORY, normalizedSessionName);
+  const sessionPath = getSessionPath(normalizedSessionName);
 
   // eslint-disable-next-line no-console
   console.log('Creating session:', normalizedSessionName);
@@ -1305,6 +1306,7 @@ async function createStableSession({
       session.updatedAt = new Date().toISOString();
       session.hasEmittedQr = true;
       pushConnectionLog(session, 'info', 'qr_ready', 'QR is ready for authentication.');
+      safeUpdateSessionStatus(normalizedSessionName, 'qr', null, session.sessionName).catch(() => {});
 
       // QR timeout guard: if no scan happens within QR_TIMEOUT_MS we close the
       // socket and mark the session as disconnected WITHOUT removing auth state,
@@ -1330,6 +1332,7 @@ async function createStableSession({
         console.warn(
           `[WHATSAPP] QR timeout: ${normalizedSessionName} — closing socket, auth preserved.`
         );
+        safeUpdateSessionStatus(normalizedSessionName, 'disconnected', null, session.sessionName).catch(() => {});
         (io || global.io)?.emit('qr_expired', {
           eventAt: Date.now(),
           sessionId: normalizedSessionName,
@@ -1396,16 +1399,19 @@ async function createStableSession({
         console.warn('[ORCHESTRATOR-INTEGRATION] Failed to register connection:', orchErr.message);
       }
 
-      // Auto-sync automático do catálogo comercial em background ao conectar
+      // Silent automatic background synchronization (Catalog, Orders, Billing) via WhatsAppAutoSyncCoordinator
       try {
-        const webCatalogExtractor = require('../../webbridge/WebCatalogExtractor');
-        setTimeout(() => {
-          webCatalogExtractor.extractCatalog(normalizedSessionName, session.companyId || 'default')
-            .then(res => console.log(`[WHATSAPP-AUTO-SYNC] Catálogo sincronizado automaticamente para ${normalizedSessionName}: ${res.total} produtos.`))
-            .catch(err => console.warn(`[WHATSAPP-AUTO-SYNC] Aviso no auto-sync do catálogo:`, err.message));
-        }, 2500);
-      } catch (catErr) {
-        console.warn('[WHATSAPP-AUTO-SYNC] Falha ao disparar auto-sync de catálogo:', catErr.message);
+        const whatsAppAutoSyncCoordinator = require('../sync/WhatsAppAutoSyncCoordinator');
+        whatsAppAutoSyncCoordinator.onSessionConnected({
+          sessionId: normalizedSessionName,
+          companyId: session.companyId || process.env.DEFAULT_COMPANY_ID || 'default',
+          sock,
+          isDifferentAccount: Boolean(session.isDifferentAccount),
+        }).catch((syncErr) => {
+          console.warn('[WHATSAPP-AUTO-SYNC] Background auto-sync non-blocking warning:', syncErr?.message || syncErr);
+        });
+      } catch (syncInitErr) {
+        console.warn('[WHATSAPP-AUTO-SYNC] Failed to invoke WhatsAppAutoSyncCoordinator:', syncInitErr?.message || syncInitErr);
       }
       session.qrCode = null;
       session.lastError = null;
@@ -1581,31 +1587,14 @@ async function createStableSession({
 
       await onSessionConnected(session);
 
-      // Automatically sync WhatsApp Business catalog on connection open so products are immediately available for dispatch
-      setTimeout(async () => {
-        if (session.isDisposed || session.isClosing || session.status !== 'connected') return;
-        try {
-          const productsController = require('../../../src/api/controllers/productsController');
-          if (typeof productsController.syncWhatsAppCatalogInternal === 'function') {
-            // eslint-disable-next-line no-console
-            console.log(`[CATALOG] Auto-syncing WhatsApp Business catalog for session: ${normalizedSessionName}`);
-            const result = await productsController.syncWhatsAppCatalogInternal({
-              companyId: session.companyId || process.env.DEFAULT_COMPANY_ID || 'default',
-              sessionId: normalizedSessionName,
-              sock,
-              forceClean: Boolean(session.isDifferentAccount),
-            });
-            // eslint-disable-next-line no-console
-            console.log(`[CATALOG] Auto-sync finished: ${result.total} products ready for dispatch.`);
-          }
-        } catch (catErr) {
-          // eslint-disable-next-line no-console
-          console.warn('[CATALOG] Auto-sync catalog on connection open warning:', catErr?.message || catErr);
-        }
-      }, 3500);
+      // Background catalog sync is coordinated silently via WhatsAppAutoSyncCoordinator (F2.2)
 
       // Sync Blocklist asynchronously after initial offline sync settles
-      setTimeout(async () => {
+      if (session.blocklistSyncTimer) {
+        clearTimeout(session.blocklistSyncTimer);
+      }
+      session.blocklistSyncTimer = setTimeout(async () => {
+        session.blocklistSyncTimer = null;
         if (session.isDisposed || session.isClosing || session.status !== 'connected') return;
         try {
           if (typeof sock.fetchBlocklist === 'function') {
@@ -1656,9 +1645,21 @@ async function createStableSession({
         const conversationRepository = require('../../../src/data/repositories/conversationRepository');
         conversationRepository.invalidateConversationCache(companyId);
       } catch (_) {}
+      try {
+        const whatsAppAutoSyncCoordinator = require('../sync/WhatsAppAutoSyncCoordinator');
+        whatsAppAutoSyncCoordinator.onSessionDisconnected(normalizedSessionName);
+      } catch (_) {}
       if (session.bufferFlushInterval) {
         clearInterval(session.bufferFlushInterval);
         session.bufferFlushInterval = null;
+      }
+      if (session.catalogSyncTimer) {
+        clearTimeout(session.catalogSyncTimer);
+        session.catalogSyncTimer = null;
+      }
+      if (session.webCatalogTimer) {
+        clearTimeout(session.webCatalogTimer);
+        session.webCatalogTimer = null;
       }
       // Only set global tenant status to DISCONNECTED if no other session is connected
       const anyConnected = Object.values(activeSessions).some(
@@ -1698,8 +1699,12 @@ async function createStableSession({
       if (closeCode === 409) {
         session.hasConflict = true;
       }
-      if (closeCode === 401 || closeCode === 403) {
+      if (closeCode === 401) {
+        session.isLoggedOut = true;
+        session.isBanned = false;
+      } else if (closeCode === 403) {
         session.isBanned = true;
+        session.isLoggedOut = false;
       }
 
       if (willReconnect) {
@@ -1841,8 +1846,53 @@ async function createStableSession({
               error?.message || error
             );
           });
-      } else if (terminalDisconnect) {
+      } else if (terminalDisconnect || !willReconnect) {
+        session.isDisposed = true;
+        session.isClosing = true;
         delete activeSessions[normalizedSessionName];
+
+        try {
+          const whatsAppAutoSyncCoordinator = require('../sync/WhatsAppAutoSyncCoordinator');
+          whatsAppAutoSyncCoordinator.onSessionDisconnected(normalizedSessionName);
+        } catch (_) {}
+        if (session.bufferFlushInterval) {
+          clearInterval(session.bufferFlushInterval);
+          session.bufferFlushInterval = null;
+        }
+        if (session.catalogSyncTimer) {
+          clearTimeout(session.catalogSyncTimer);
+          session.catalogSyncTimer = null;
+        }
+        if (session.webCatalogTimer) {
+          clearTimeout(session.webCatalogTimer);
+          session.webCatalogTimer = null;
+        }
+        if (session.blocklistSyncTimer) {
+          clearTimeout(session.blocklistSyncTimer);
+          session.blocklistSyncTimer = null;
+        }
+        if (session.qrTimeoutTimer) {
+          clearTimeout(session.qrTimeoutTimer);
+          session.qrTimeoutTimer = null;
+        }
+        if (session.reconnectCooldownTimer) {
+          clearTimeout(session.reconnectCooldownTimer);
+          session.reconnectCooldownTimer = null;
+        }
+
+        try {
+          sock?.ev?.removeAllListeners?.();
+        } catch {}
+        try {
+          sock?.ws?.removeAllListeners?.();
+        } catch {}
+        try {
+          sock?.ws?.close?.();
+        } catch {}
+        try {
+          sock?.end?.(undefined);
+        } catch {}
+
         if (closeCode === 401) {
           // loggedOut / invalid session — clear stale auth so next connect gets a fresh QR
           // eslint-disable-next-line no-console
@@ -1857,15 +1907,24 @@ async function createStableSession({
             );
           }
         } else {
-          console.log(`[WHATSAPP] Terminal disconnect (${closeCode}) for ${normalizedSessionName} — keeping credentials`);
+          console.log(`[WHATSAPP] Terminal/unreconnected disconnect (${closeCode}) for ${normalizedSessionName} — keeping credentials`);
         }
-        (io || global.io)?.emit('session_logged_out', {
-          name: session.sessionName,
-          sessionId: normalizedSessionName,
-          sessionName: session.sessionName,
-        });
-      } else if (!willReconnect) {
-        delete activeSessions[normalizedSessionName];
+
+        safeUpdateSessionStatus(
+          normalizedSessionName,
+          'disconnected',
+          session.phone,
+          session.sessionName,
+          session.whatsappName
+        ).catch(() => {});
+
+        if (terminalDisconnect) {
+          (io || global.io)?.emit('session_logged_out', {
+            name: session.sessionName,
+            sessionId: normalizedSessionName,
+            sessionName: session.sessionName,
+          });
+        }
       }
     }
   });

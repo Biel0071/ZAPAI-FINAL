@@ -35,7 +35,8 @@ const DEFAULT_CONFIG = {
 let storeRef = null;
 let workerTimer = null;
 let workerWakeupTimer = null;
-let processingTick = false;
+let activeWorkers = 0;
+const MAX_CONCURRENT_DISPATCHES = Math.max(1, Number(process.env.OUTBOUND_QUEUE_CONCURRENCY) || 3);
 let persistLock = Promise.resolve();
 let enqueueLock = Promise.resolve();
 const uncommittedItems = new Set();
@@ -61,6 +62,9 @@ function scheduleNextWorkerTick() {
     workerWakeupTimer = setTimeout(() => {
       processOneItem().catch(err => console.error('[OUTBOUND_QUEUE] Wakeup tick failed:', err?.message || err));
     }, delay);
+    if (workerWakeupTimer && typeof workerWakeupTimer.unref === 'function') {
+      workerWakeupTimer.unref();
+    }
   }
 }
 
@@ -185,10 +189,26 @@ async function writeQueueFileAtomic() {
   pruneTerminalItems();
   // Serialize at write time so coalesced callers persist the latest state.
   const next = JSON.stringify(queueState) + '\n';
-  // Bugfix#4: atomic write (tmp + rename) so a crash never corrupts the queue.
-  const tmpPath = `${QUEUE_FILE_PATH}.${process.pid}.tmp`;
-  await fs.writeFile(tmpPath, next, 'utf8');
-  await fs.rename(tmpPath, QUEUE_FILE_PATH);
+  // Atomic write (unique tmp + rename with Windows retry) so crashes and collisions never corrupt the queue.
+  const tmpPath = `${QUEUE_FILE_PATH}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+  try {
+    await fs.writeFile(tmpPath, next, 'utf8');
+    try {
+      await fs.rename(tmpPath, QUEUE_FILE_PATH);
+    } catch (renameErr) {
+      if (['EPERM', 'EBUSY', 'EACCES'].includes(renameErr?.code)) {
+        await new Promise(r => setTimeout(r, 25));
+        await fs.rename(tmpPath, QUEUE_FILE_PATH);
+      } else {
+        throw renameErr;
+      }
+    }
+  } catch (err) {
+    if (typeof fs.unlink === 'function') {
+      await fs.unlink(tmpPath).catch(() => {});
+    }
+    throw err;
+  }
 }
 
 // While a write is in flight, all new callers share ONE trailing write that
@@ -924,11 +944,9 @@ async function reprocessDeadLetterItem(id, options = {}) {
 }
 
 async function processOneItem() {
-  if (processingTick) {
+  if (activeWorkers >= MAX_CONCURRENT_DISPATCHES) {
     return;
   }
-
-  processingTick = true;
 
   try {
     const item = pickNextProcessableItem();
@@ -937,6 +955,7 @@ async function processOneItem() {
       return;
     }
 
+    activeWorkers++;
     item.state = STATES.PROCESSING;
     item.processingStartedAt = nowIso();
     item.updatedAt = nowIso();
@@ -1171,7 +1190,7 @@ async function processOneItem() {
       await saveQueueState();
     }
   } finally {
-    processingTick = false;
+    activeWorkers--;
     if (pickNextProcessableItem()) {
       queueMicrotask(() => {
         processOneItem().catch((error) => {
@@ -1194,6 +1213,9 @@ function startWorker() {
       console.error('[OUTBOUND_QUEUE] Worker cycle failed:', error?.message || error);
     });
   }, DEFAULT_CONFIG.pollMs);
+  if (workerTimer && typeof workerTimer.unref === 'function') {
+    workerTimer.unref();
+  }
 }
 
 function stopWorker() {
@@ -1223,7 +1245,7 @@ async function initializeOutboundQueue({ store }) {
 
 async function shutdownOutboundQueue() {
   stopWorker();
-  processingTick = false;
+  activeWorkers = 0;
   await saveQueueState();
 }
 

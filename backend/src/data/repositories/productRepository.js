@@ -46,10 +46,13 @@ async function listProducts({ companyId = 'default', limit = 50, offset = 0, cat
 
   try {
     const result = await query(sql, params);
-    return result.rows || [];
+    if (result.rows && result.rows.length > 0) {
+      return result.rows;
+    }
   } catch (error) {
-    // If table doesn't exist yet, return official store products
-    return [
+    // If table doesn't exist yet or query fails, return official store products
+  }
+  let fallback = [
       {
         id: 'prod_caixa_5000l',
         code: 'CX-5000',
@@ -279,7 +282,19 @@ async function listProducts({ companyId = 'default', limit = 50, offset = 0, cat
         company_id: companyId,
       },
     ];
-  }
+    if (category) {
+      fallback = fallback.filter((p) => p.category === category);
+    }
+    if (search) {
+      const s = String(search).toLowerCase();
+      fallback = fallback.filter(
+        (p) =>
+          (p.name && p.name.toLowerCase().includes(s)) ||
+          (p.description && p.description.toLowerCase().includes(s)) ||
+          (p.code && p.code.toLowerCase().includes(s))
+      );
+    }
+    return fallback.slice(offset, offset + limit);
 }
 
 async function getProductById(id, companyId = 'default') {

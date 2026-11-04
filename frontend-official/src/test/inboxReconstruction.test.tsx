@@ -11,6 +11,8 @@ vi.mock("@/core/services/apiService", () => ({
   requestApiEndpoint: vi.fn().mockResolvedValue({ suggestedText: "Ficha oficial" }),
   apiService: {
     getActiveQuickReplyFlow: vi.fn().mockResolvedValue({ flow: null }),
+    getCommerceOrders: vi.fn().mockResolvedValue({ success: true, total: 0, orders: [] }),
+    getProducts: vi.fn().mockResolvedValue({ success: true, data: [] }),
     aiCompose: vi.fn().mockResolvedValue({
       message: "Olá! Temos tijolos a pronta entrega com frete grátis.",
       detectedContext: { product: "Tijolos", intent: "Vendas" },

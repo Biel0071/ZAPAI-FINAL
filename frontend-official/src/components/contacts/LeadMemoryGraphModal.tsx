@@ -17,6 +17,7 @@ import {
   ClockCounterClockwise,
   Tag,
   CheckCircle,
+  X,
 } from "@phosphor-icons/react";
 
 export interface LeadMemoryGraphModalProps {

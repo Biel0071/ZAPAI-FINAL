@@ -170,6 +170,12 @@ interface AgentTabProps {
   onSelectAgent?: (key: string) => void;
   onOpenCustomizer?: (agent?: any) => void;
   agents?: any[];
+  agentsList?: any[];
+  objective?: string;
+  tone?: string;
+  temperature?: number;
+  responseStyle?: string;
+  customInstructions?: string;
   onRefreshAgents?: () => Promise<void>;
   aiEnabled?: boolean;
   onToggleAI?: (enabled: boolean) => void;
@@ -757,7 +763,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Estado Operacional</span>
               <span className="font-mono font-bold text-emerald-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                {runtimeState === "WORKING" ? "Operando no PC" : runtimeState === "TALKING" ? "Em conversa" : "Pronta para atendimento"}
+                {(runtimeState as string) === "WORKING" ? "Operando no PC" : (runtimeState as string) === "TALKING" ? "Em conversa" : "Pronta para atendimento"}
               </span>
             </div>
           </div>
@@ -1336,7 +1342,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
             )}
           >
             <History className="h-3 w-3" />
-            <span>Atendimentos & Sync</span>
+            <span>Atendimentos Reais</span>
           </button>
         </div>
       </CardHeader>
@@ -1525,25 +1531,13 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
               <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-sky-500/30 bg-sky-500/5">
                 <div>
                   <span className="font-bold text-foreground text-xs block">Atendimentos Reais</span>
-                  <span className="text-[10px] text-muted-foreground">Sincronize conversas reais do WhatsApp</span>
+                  <span className="text-[10px] text-muted-foreground">Conversas sincronizadas automaticamente via WhatsApp</span>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={handleSyncRealAttendance}
-                  disabled={isSyncingAttendance}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-7 gap-1 shadow-xs"
-                >
-                  <RefreshCw className={cn("h-3 w-3", isSyncingAttendance && "animate-spin")} />
-                  <span>{isSyncingAttendance ? "Sincronizando..." : "Sincronizar (Sync)"}</span>
-                </Button>
+                <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[10px] font-semibold gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Sincronia Automática
+                </Badge>
               </div>
-
-              {syncStatus && (
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <span>{syncStatus}</span>
-                </div>
-              )}
 
               <div className="space-y-1.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">

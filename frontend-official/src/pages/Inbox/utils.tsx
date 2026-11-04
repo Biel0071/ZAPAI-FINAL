@@ -1252,7 +1252,7 @@ export function isPotentialDuplicateMessage(base: ChatMessage[], incoming: ChatM
 }
 
 export function inferConversationMessageType(conversation: Conversation): "text" | "image" | "video" | "audio" | "file" | "sticker" {
-  if (conversation.lastMessageType && conversation.lastMessageType !== "text") return conversation.lastMessageType;
+  if (conversation.lastMessageType && conversation.lastMessageType !== "text") return conversation.lastMessageType as any;
   const normalized = (conversation.lastMessage ?? "").trim().toLowerCase();
   if (normalized.includes("image") || normalized.startsWith("[image]")) return "image";
   if (normalized.includes("video") || normalized.startsWith("[video]")) return "video";

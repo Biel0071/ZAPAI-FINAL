@@ -166,7 +166,7 @@ export const CollapsedConversationRow = memo(function CollapsedConversationRow(p
   const isOnline = Boolean(
     isTyping ||
     conversation.status === "online" ||
-    conversation.status === "available" ||
+    (conversation.status as string) === "available" ||
     (conversation as any).presence === "online" ||
     (conversation as any).presence === "available" ||
     (conversation as any).isOnline === true
@@ -321,7 +321,7 @@ export const CollapsedConversationRow = memo(function CollapsedConversationRow(p
                   )}
                   {/* Lead Funnel status badge */}
                   <div className="flex items-center gap-1.5 pt-0.5">
-                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", leadStatus.badgeClass || "bg-muted text-muted-foreground")}>
+                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", (leadStatus as any).badgeClass || "bg-muted text-muted-foreground")}>
                       {leadStatus.label}
                     </span>
                     <span className={cn("text-[10px] px-1.5 py-0.5 rounded-md font-medium", aiEnabled ? "bg-emerald-500/15 text-emerald-400" : "bg-muted text-muted-foreground")}>
@@ -585,7 +585,7 @@ export const ChatListPanel = memo(function ChatListPanel({
             </div>
           ) : (
             <List
-              rowComponent={CollapsedConversationRow}
+              rowComponent={CollapsedConversationRow as any}
               rowCount={filteredConversations.length}
               rowHeight={COLLAPSED_ROW_HEIGHT}
               rowProps={conversationRowData}
@@ -952,7 +952,7 @@ export const ChatListPanel = memo(function ChatListPanel({
           )
         ) : (
           <List
-            rowComponent={ConversationRow}
+            rowComponent={ConversationRow as any}
             rowCount={filteredConversations.length}
             rowHeight={CONVERSATION_ROW_HEIGHT}
             rowProps={conversationRowData}

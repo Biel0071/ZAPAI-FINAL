@@ -52,7 +52,7 @@ class CatalogSyncEngine {
    * List products with search filter
    */
   async listProducts(companyId = 'default', query = {}) {
-    const products = await productRepository.findByCompanyId(companyId);
+    const products = await productRepository.findByCompanyId(companyId, { limit: 1000, ...query });
     let filtered = products;
 
     if (query.search) {

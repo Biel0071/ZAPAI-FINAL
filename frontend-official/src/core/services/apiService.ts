@@ -92,11 +92,11 @@ export interface Conversation {
   updatedAt: string;
   phone: string;
   unread?: number;
-  status?: "online" | "offline" | "typing" | "open" | "archived";
+  status?: "online" | "offline" | "typing" | "open" | "archived" | "pending_human" | "closed_won" | "intervencao_humana" | string;
   tags?: string[];
   whatsappLabels?: string[];
   isAI?: boolean;
-  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker";
+  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "product" | "order" | string;
   aiEnabled?: boolean;
   ai_enabled?: boolean;
   ai_reactivate_at?: string | null;
@@ -105,6 +105,7 @@ export interface Conversation {
   summary?: string;
   notes?: string;
   funnel_stage?: string;
+  funnelStage?: string;
   controlMode?: string;
   humanActive?: boolean;
   assignedAgentName?: string;
@@ -126,11 +127,18 @@ export interface ChatMessage {
   conversationId?: string;
   chatId?: string;
   content: string;
+  text?: string;
   caption?: string;
   fromMe: boolean;
-  createdAt: string;
+  createdAt?: string;
   timestamp?: string | number;
-  status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry" | "error" | "blocked";
+  status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry" | "error" | "blocked" | "received";
+  direction?: "incoming" | "outgoing" | string;
+  phone?: string;
+  sessionId?: string;
+  sender?: string;
+  type?: string;
+  product?: any;
   isAI?: boolean;
   aiProvider?: string;
   aiModel?: string;
@@ -139,7 +147,7 @@ export interface ChatMessage {
   aiPromptTokens?: number;
   aiCompletionTokens?: number;
   aiTotalTokens?: number;
-  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order" | "text";
   mediaPath?: string;
   mediaUrl?: string;
   url?: string;
@@ -161,6 +169,7 @@ export interface Contact {
   name: string;
   phone: string;
   status: string;
+  createdAt?: string;
   updatedAt?: string;
   remoteJid?: string;
   lid?: string;
@@ -186,6 +195,7 @@ export interface MetricsSummary {
   activeSessionsCount?: number;
   messagesCount?: number;
   messagesToday?: number;
+  tokensToday?: number;
   todayMessages?: number;
   totalMessages?: number;
   messages?: number;
@@ -311,10 +321,11 @@ export interface CampaignMessage {
 }
 
 export interface CampaignSettings {
-  intervalSeconds: number;
-  pauseEvery: number;
-  pauseSeconds: number;
-  typingDelaySeconds: number;
+  allowOutsideHours?: boolean;
+  intervalSeconds?: number;
+  pauseEvery?: number;
+  pauseSeconds?: number;
+  typingDelaySeconds?: number;
   startAt?: string | null;
   flowId?: string | null;
   sessionId?: string | null;
@@ -1017,7 +1028,7 @@ export function normalizeConversation(item: RawConversation, index: number = 0):
     is_pinned: Boolean(item.is_pinned ?? item.pinned),
     pinned: Boolean(item.is_pinned ?? item.pinned),
     pinned_at: item.pinned_at ? String(item.pinned_at) : null,
-    archived: Boolean(item.archived || item.status === "archived"),
+    archived: Boolean(item.archived || (item.status as unknown as string) === "archived"),
     archived_at: item.archived_at ? String(item.archived_at) : null,
   };
 }

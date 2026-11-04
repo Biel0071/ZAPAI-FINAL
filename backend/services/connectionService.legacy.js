@@ -3,6 +3,7 @@ const path = require('path');
 const sessionManager = require('./sessionManager');
 const sessionRepository = require('../src/data/repositories/sessionRepository');
 const outboundQueueService = require('./outboundQueueService');
+const { getSessionPath } = require('./whatsapp/connection/sessionPaths');
 
 const DEFAULT_SESSION = sessionManager.DEFAULT_SESSION || 'main';
 
@@ -429,8 +430,8 @@ async function getConnectionQr(sessionId = DEFAULT_SESSION) {
 
 async function getSessionHealth(sessionId = DEFAULT_SESSION) {
   const session = getSessionCompat(sessionId);
-  const SESSIONS_DIRECTORY = path.join(__dirname, '..', 'sessions');
-  const credsPath = path.join(SESSIONS_DIRECTORY, sessionId, 'creds.json');
+  const sessionPath = getSessionPath(sessionId);
+  const credsPath = path.join(sessionPath, 'creds.json');
   const hasCreds = fs.existsSync(credsPath);
 
   const websocketConnected = !!(

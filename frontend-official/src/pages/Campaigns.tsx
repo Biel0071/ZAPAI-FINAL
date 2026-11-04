@@ -1322,7 +1322,7 @@ export default function Campaigns() {
           const isFuture = payload.settings?.startAt && new Date(payload.settings.startAt).getTime() > Date.now();
           const targetTime = payload.settings?.startAt || new Date().toISOString();
           const bh = checkBusinessHours(targetTime);
-          const allowOutside = Boolean(payload.settings?.allowOutsideHours);
+          const allowOutside = Boolean((payload.settings as any)?.allowOutsideHours);
 
           if (!isFuture && bh.isOutside && !allowOutside) {
             setBusinessHoursModal({

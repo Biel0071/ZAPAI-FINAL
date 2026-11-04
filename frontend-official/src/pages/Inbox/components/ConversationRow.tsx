@@ -79,7 +79,14 @@ export interface ConversationRowData {
 
 const BUSINESS_TAG_OPTIONS = ["Novo Lead", "Cliente", "Orçamento", "Venda", "Suporte", "VIP", "Urgente"] as const;
 
-export const ConversationRow = memo(function ConversationRow(props: RowComponentProps<ConversationRowData>) {
+export type ConversationRowProps = Partial<RowComponentProps<ConversationRowData>> & {
+  index: number;
+  style: React.CSSProperties;
+  data?: ConversationRowData | any;
+  isScrolling?: boolean;
+};
+
+export const ConversationRow = memo(function ConversationRow(props: ConversationRowProps) {
   const { index, style } = props;
   const data: ConversationRowData = ((props as any).data || props) as ConversationRowData;
   const {
@@ -202,7 +209,7 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
   const isOnline = Boolean(
     isTyping ||
     conversation.status === "online" ||
-    conversation.status === "available" ||
+    (conversation.status as string) === "available" ||
     (conversation as any).presence === "online" ||
     (conversation as any).presence === "available" ||
     (conversation as any).isOnline === true
@@ -388,7 +395,9 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
                 <PushPin weight="fill" className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               )}
               {isMuted && (
-                <BellSimpleSlash className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" title="Silenciado" />
+                <span title="Silenciado">
+                  <BellSimpleSlash className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                </span>
               )}
               <span className="text-[10px] text-muted-foreground/70 font-medium tabular-nums">
                 {formatConversationTimestamp((conversation as any).lastMessageAt || (conversation as any).lastInteractionAt || (conversation as any).timestamp || conversation.updatedAt)}

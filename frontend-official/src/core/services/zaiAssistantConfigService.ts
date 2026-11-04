@@ -168,7 +168,7 @@ export async function fetchZaiAssistantConfigFromApi(): Promise<ZaiAssistantConf
   try {
     const response = await fetch(`${API_BASE_URL}/ai/evolution/zai-assistant-config`, {
       method: "GET",
-      headers: buildApiHeaders(),
+      headers: await buildApiHeaders(),
     });
     if (response.ok) {
       const json = (await response.json()) as { success?: boolean; data?: Partial<ZaiAssistantConfig> };
@@ -187,10 +187,11 @@ export async function saveZaiAssistantConfigToApi(
 ): Promise<ZaiAssistantConfig> {
   const merged = setLocalZaiAssistantConfig(next);
   try {
+    const authHeaders = await buildApiHeaders();
     await fetch(`${API_BASE_URL}/ai/evolution/zai-assistant-config`, {
       method: "PUT",
       headers: {
-        ...buildApiHeaders(),
+        ...authHeaders,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(merged),

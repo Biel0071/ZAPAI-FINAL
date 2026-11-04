@@ -164,7 +164,18 @@ async function initDatabase(options = {}) {
   };
 }
 
+async function closeDatabase() {
+  if (pool && !pool.ending) {
+    try {
+      await pool.end();
+    } catch (err) {
+      console.warn('[DB] Error closing pool:', err?.message || err);
+    }
+  }
+}
+
 module.exports = {
+  closeDatabase,
   initDatabase,
   pool,
   query,

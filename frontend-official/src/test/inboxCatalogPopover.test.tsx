@@ -192,9 +192,11 @@ describe("WhatsApp Catalog Integration & Inbox Dispatch", () => {
 
     await act(async () => {
       batchSendBtn?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      // Await batch dispatch loop (400ms delay between products) so all timers resolve before teardown
+      await new Promise((r) => setTimeout(r, 450));
     });
 
-    expect(handleSend).toHaveBeenCalledTimes(1);
+    expect(handleSend).toHaveBeenCalledTimes(2);
     expect(handleSend).toHaveBeenCalledWith(
       expect.anything(),
       expect.stringContaining("[CATÁLOGO WHATSAPP]")

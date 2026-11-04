@@ -250,18 +250,18 @@ export default function Connections() {
     setIsHistoryModalOpen(true);
   }, [activeSession, safeSessions]);
 
-  // Auto-open modal when connection connects
+  // Auto-close modal when connection connects
   useEffect(() => {
     safeSessions.forEach((s) => {
       const prev = prevSessionStatusesRef.current[s.id];
       if (prev && (prev === "connecting" || prev === "qr") && s.status === "connected") {
-        handleOpenHistoryModal(s.id, 'history');
         setIsActivationDialogOpen(false);
         setShowQRModal(false);
+        setActiveModalSessionId(null);
       }
       prevSessionStatusesRef.current[s.id] = s.status;
     });
-  }, [safeSessions, handleOpenHistoryModal]);
+  }, [safeSessions]);
  
   const [isLogsDialogOpen, setIsLogsDialogOpen] = useState(false);
   const [logsSessionId, setLogsSessionId] = useState<string | null>(null);
@@ -1286,18 +1286,18 @@ export default function Connections() {
                 </div>
               )
             )}
-            {activeModalSessionId && currentQrSession?.status === 'connected' && <div className="space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-4">
-              <p className="font-semibold text-primary">WhatsApp conectado. Preparando histórico e memória.</p>
-              <p className="text-sm text-muted-foreground">{onboardingStatus ? `${onboardingStatus.imported.toLocaleString('pt-BR')} de ${onboardingStatus.total.toLocaleString('pt-BR')} mensagens importadas` : 'Aguardando o primeiro lote do WhatsApp...'}</p>
-              <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${onboardingStatus?.total ? Math.min(100, onboardingStatus.imported / onboardingStatus.total * 100) : 0}%` }} /></div>
-              <p className="text-xs text-muted-foreground">{onboardingStatus?.pending || 0} mensagens aguardando. Você pode acompanhar o progresso ou abrir o painel completo.</p>
-              <div className="grid grid-cols-3 gap-2">
-                <Button variant="outline" className="h-auto min-h-16 flex-col gap-1 text-xs" onClick={() => chooseOnboardingMode('manual')}><PencilSimple className="h-6 w-6" />Manual</Button>
-                <Button variant="outline" className="h-auto min-h-16 flex-col gap-1 text-xs" onClick={() => chooseOnboardingMode('prompt')}><Sparkle className="h-6 w-6" />Com IA</Button>
-                <Button variant="outline" className="h-auto min-h-16 flex-col gap-1 text-xs" onClick={() => chooseOnboardingMode('history')}><Chats className="h-6 w-6" />Conversas</Button>
+            {activeModalSessionId && currentQrSession?.status === 'connected' && (
+              <div className="space-y-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                  <CheckCircle className="h-6 w-6" />
+                </div>
+                <p className="font-semibold text-emerald-400">WhatsApp Conectado com Sucesso!</p>
+                <p className="text-xs text-muted-foreground">Sessão ativa e sincronizada em segundo plano.</p>
+                <Button variant="default" className="w-full rounded-xl" onClick={() => { setIsActivationDialogOpen(false); setActiveModalSessionId(null); }}>
+                  Concluir
+                </Button>
               </div>
-              <Button variant="default" className="w-full shadow-glow" onClick={() => chooseOnboardingMode('history')}>Abrir Central de IA & Histórico</Button>
-            </div>}
+            )}
           </div>
         </DialogContent>
       </Dialog>

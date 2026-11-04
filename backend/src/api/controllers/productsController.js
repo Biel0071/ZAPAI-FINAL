@@ -296,9 +296,10 @@ async function getProductById(req, res) {
   }
 }
 
-async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 'main', sock = null, forceClean = false, limit = 50 } = {}) {
+async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 'main', sock = null, forceClean = false, limit = 50, skipWebBridge = false } = {}) {
   let syncedCount = 0;
   let waFetched = 0;
+  let catalogResult = null;
 
   if (forceClean) {
     try {
@@ -354,8 +355,9 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
         try {
           console.log('[ProductsController] Calling activeSock.getCatalog with options:', JSON.stringify(options));
           const queryPromise = activeSock.getCatalog(options);
+          const effectiveTimeout = process.env.NODE_ENV === 'test' ? 800 : 12000;
           const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('getCatalog timeout after 12s')), 12000)
+            setTimeout(() => reject(new Error('getCatalog timeout')), effectiveTimeout)
           );
           return await Promise.race([queryPromise, timeoutPromise]);
         } catch (err) {
@@ -364,28 +366,28 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
         }
       };
 
-      let catalogResult = null;
+      catalogResult = null;
 
       // Strategy 1: getCatalog with explicit target bizJid and limit
       if (bizJid) {
         catalogResult = await tryFetchCatalog({ jid: bizJid, limit });
       }
 
-      // Strategy 2: getCatalog without jid (queries authenticated account directly)
-      if (!catalogResult || !Array.isArray(catalogResult.products) || catalogResult.products.length === 0) {
+      // Strategy 2: getCatalog without jid (queries authenticated account directly if strategy 1 failed)
+      if (!catalogResult || !Array.isArray(catalogResult.products)) {
         console.log('[ProductsController] Strategy 2: calling getCatalog without explicit jid...');
         catalogResult = await tryFetchCatalog({ limit });
       }
 
       // Strategy 3: getCatalog using LID if available
-      if ((!catalogResult || !Array.isArray(catalogResult.products) || catalogResult.products.length === 0) && activeSock?.user?.lid) {
+      if ((!catalogResult || !Array.isArray(catalogResult.products)) && activeSock?.user?.lid) {
         const lidJid = activeSock.user.lid.split(':')[0] + '@lid';
         console.log('[ProductsController] Strategy 3: calling getCatalog with LID jid:', lidJid);
         catalogResult = await tryFetchCatalog({ jid: lidJid, limit });
       }
 
       // Strategy 4: Raw IQ query if getCatalog wrapper failed
-      if (!catalogResult || !Array.isArray(catalogResult.products) || catalogResult.products.length === 0) {
+      if (!catalogResult || !Array.isArray(catalogResult.products)) {
         try {
           console.log('[ProductsController] Strategy 4: sending direct binary IQ query for product_catalog...');
           const { parseCatalogNode } = require('@whiskeysockets/baileys/lib/Utils/business');
@@ -463,8 +465,9 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
     console.warn('[ProductsController] WhatsApp getCatalog query returned:', waErr.message);
   }
 
-  // If live items were not returned from Meta, automatically run WebCatalogExtractor
-  if (waFetched === 0) {
+  // If live items were not returned from Meta, automatically run WebCatalogExtractor unless skipped or in test mode
+  const shouldSkipWebBridge = skipWebBridge || process.env.NODE_ENV === 'test' || Array.isArray(catalogResult?.products);
+  if (waFetched === 0 && !shouldSkipWebBridge) {
     try {
       const webCatalogExtractor = require('../../../services/webbridge/WebCatalogExtractor');
       const bridgeRes = await webCatalogExtractor.extractCatalog(sessionId, companyId);

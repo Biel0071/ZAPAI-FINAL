@@ -3,6 +3,17 @@ const path = require('path');
 const sessionRepository = require('../src/data/repositories/sessionRepository');
 const sessionRegistry = require('./sessionRegistry');
 const { validateSession } = require('./whatsapp/connection/sessionPersistenceValidator');
+const {
+  getCanonicalSessionsDirectory,
+  getSessionPath,
+  migrateLegacySessions,
+  normalizeSessionId,
+} = require('./whatsapp/connection/sessionPaths');
+const {
+  computeReconnectBackoff,
+  MAX_RECONNECT_ATTEMPTS,
+} = require('./whatsapp/connection/reconnect');
+
 // NOTE: whatsappService is required lazily inside startSession() to break the
 // circular dependency: sessionManager → whatsappService → sessionManager.
 // A top-level require would cause whatsappService.createStableSession to be
@@ -17,7 +28,7 @@ function getWhatsappService() {
 // Shared mutable registry — same object reference as stableSession.js uses.
 const { activeSessions } = require('./whatsapp/state/registry');
 
-const SESSIONS_DIRECTORY = path.join(__dirname, '..', 'sessions');
+const SESSIONS_DIRECTORY = getCanonicalSessionsDirectory();
 const fsSync = require('fs');
 fsSync.mkdirSync(SESSIONS_DIRECTORY, { recursive: true });
 const sessions = new Map();
@@ -26,26 +37,41 @@ const startupPromises = new Map();
 const reconnectTimers = new Map();
 const reconnectAttempts = new Map();
 const reconnectInFlight = new Set();
-const MAX_RECONNECT_ATTEMPTS = 1000;
 
-// Latest QR code for the single session (expires after 60 s)
-let _latestQr = null;
-let _qrExpiresAt = 0;
+// Latest QR code per session (expires after 60 s)
+const _qrMap = new Map(); // sessionId -> { qr: string, expiresAt: number }
 const QR_TTL_MS = 60_000;
 
-function setLatestQr(qr) {
-  _latestQr = qr;
-  _qrExpiresAt = Date.now() + QR_TTL_MS;
+function setLatestQr(qr, sessionId = DEFAULT_SESSION) {
+  const normalizedId = normalizeSessionName(sessionId);
+  _qrMap.set(normalizedId, {
+    qr,
+    expiresAt: Date.now() + QR_TTL_MS,
+  });
 }
 
-function clearLatestQr() {
-  _latestQr = null;
-  _qrExpiresAt = 0;
+function clearLatestQr(sessionId = DEFAULT_SESSION) {
+  const normalizedId = normalizeSessionName(sessionId);
+  _qrMap.delete(normalizedId);
 }
 
-function getLatestQr() {
-  if (!_latestQr || Date.now() > _qrExpiresAt) return null;
-  return _latestQr;
+function getLatestQr(sessionId = DEFAULT_SESSION) {
+  const isDefault = !sessionId || sessionId === DEFAULT_SESSION;
+  const normalizedId = normalizeSessionName(sessionId);
+  const entry = _qrMap.get(normalizedId);
+  if (!entry) {
+    if (isDefault) {
+      for (const [, e] of _qrMap.entries()) {
+        if (e && Date.now() <= e.expiresAt) return e.qr;
+      }
+    }
+    return null;
+  }
+  if (Date.now() > entry.expiresAt) {
+    _qrMap.delete(normalizedId);
+    return null;
+  }
+  return entry.qr;
 }
 
 let managerOptions = {
@@ -56,12 +82,7 @@ let managerOptions = {
 let runtimeActive = true;
 
 function normalizeSessionName(sessionName = DEFAULT_SESSION) {
-  const normalized = String(sessionName || DEFAULT_SESSION)
-    .trim()
-    .replace(/\s+/g, '_')
-    .toLowerCase();
-
-  return normalized || DEFAULT_SESSION;
+  return normalizeSessionId(sessionName || DEFAULT_SESSION);
 }
 
 function normalizeLifecycleStatus(status = 'disconnected') {
@@ -184,6 +205,26 @@ async function closeSocket(session, { logout = false } = {}) {
     session.heartbeatTimer = null;
   }
 
+  if (session.bufferFlushInterval) {
+    clearInterval(session.bufferFlushInterval);
+    session.bufferFlushInterval = null;
+  }
+
+  if (session.catalogSyncTimer) {
+    clearTimeout(session.catalogSyncTimer);
+    session.catalogSyncTimer = null;
+  }
+
+  if (session.webCatalogTimer) {
+    clearTimeout(session.webCatalogTimer);
+    session.webCatalogTimer = null;
+  }
+
+  if (session.blocklistSyncTimer) {
+    clearTimeout(session.blocklistSyncTimer);
+    session.blocklistSyncTimer = null;
+  }
+
   if (session.qrTimeoutTimer) {
     clearTimeout(session.qrTimeoutTimer);
     session.qrTimeoutTimer = null;
@@ -206,6 +247,12 @@ async function closeSocket(session, { logout = false } = {}) {
     session.sock?.ev?.removeAllListeners?.();
   } catch {
     // ignore listener cleanup errors
+  }
+
+  try {
+    session.sock?.ws?.removeAllListeners?.();
+  } catch {
+    // ignore ws listener cleanup errors
   }
 
   try {
@@ -237,7 +284,7 @@ async function closeSocket(session, { logout = false } = {}) {
 
 async function deleteSessionFolder(sessionName) {
   const normalizedName = normalizeSessionName(sessionName);
-  const sessionPath = path.join(SESSIONS_DIRECTORY, normalizedName);
+  const sessionPath = getSessionPath(normalizedName);
 
   try {
     await fs.rm(sessionPath, { force: true, recursive: true });
@@ -390,7 +437,7 @@ async function listStoredSessionNames() {
   }
 
   try {
-    const entries = await fs.readdir(SESSIONS_DIRECTORY, { withFileTypes: true });
+    const entries = await fs.readdir(getCanonicalSessionsDirectory(), { withFileTypes: true });
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
@@ -445,7 +492,7 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
       onIncomingMessage: managerOptions.onIncomingMessage,
       onMessageUpdate: async () => {},
       onQrGenerated: (qr) => {
-        setLatestQr(qr);
+        setLatestQr(qr, normalizedName);
         const s = getSession(normalizedName);
         if (s) {
           s.qrCode = qr;
@@ -470,12 +517,13 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
         }
 
         const attempt = nextReconnectAttempt(normalizedTarget);
+        const backoffMs = computeReconnectBackoff(attempt, closeCode);
 
-        if (attempt > MAX_RECONNECT_ATTEMPTS) {
-          console.warn(`[WHATSAPP] Reconnect limit reached for ${normalizedTarget} (attempt ${attempt-1}/${MAX_RECONNECT_ATTEMPTS})`);
+        if (backoffMs < 0) {
+          console.warn(`[WHATSAPP] Reconnect halted for ${normalizedTarget} (attempt ${attempt}, closeCode: ${closeCode || 'unknown'})`);
           if (targetSession) {
             targetSession.status = 'error';
-            targetSession.lastError = `Reconnect limit reached (${MAX_RECONNECT_ATTEMPTS} attempts, last close code: ${closeCode || 'unknown'})`;
+            targetSession.lastError = `Reconnect limit or terminal disconnect reached (${attempt} attempts, last close code: ${closeCode || 'unknown'})`;
             setSession(normalizedTarget, targetSession);
           }
           // Emit final status so frontend stops showing 'connecting'
@@ -483,13 +531,11 @@ async function startSession(sessionName = DEFAULT_SESSION, options = {}) {
             sessionId: normalizedTarget,
             sessionName: targetSession?.sessionName || normalizedTarget,
             status: 'error',
-            lastError: 'Reconnect limit reached',
+            lastError: targetSession?.lastError || 'Reconnect limit reached',
           });
           return;
         }
 
-        // Exponential backoff: 5s, 10s, 20s, 30s, 60s (capped)
-        const backoffMs = Math.min(5000 * Math.pow(2, attempt - 1), 60000);
         console.log(`[WHATSAPP] Reconnect scheduled for ${normalizedTarget} in ${backoffMs}ms (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS}, closeCode=${closeCode || 'n/a'})`);
 
         const timer = setTimeout(async () => {
@@ -709,6 +755,13 @@ async function setSessionAutomationPaused(sessionName, paused, companyId) {
 
 async function restoreSessions() {
   const restoredSessions = [];
+
+  try {
+    await migrateLegacySessions();
+  } catch (migErr) {
+    console.warn('[WHATSAPP] Safe legacy session migration warning:', migErr?.message || migErr);
+  }
+
   const storedSessions = await listStoredSessionNames();
   const restoreMode = String(process.env.WHATSAPP_RESTORE_MODE || '').trim().toLowerCase();
   const defaultRestoreMode = 'active';
@@ -786,12 +839,12 @@ async function cleanupZombieSessions() {
   const cleaned = [];
 
   try {
-    const entries = await fs.readdir(SESSIONS_DIRECTORY, { withFileTypes: true });
+    const entries = await fs.readdir(getCanonicalSessionsDirectory(), { withFileTypes: true });
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
 
-      const sessionDir = path.join(SESSIONS_DIRECTORY, entry.name);
+      const sessionDir = path.join(getCanonicalSessionsDirectory(), entry.name);
       const normalizedName = normalizeSessionName(entry.name);
 
       // Never clean the default session directory — it should always exist
@@ -835,7 +888,7 @@ async function cleanupZombieSessions() {
   for (const [sessionName, session] of sessions.entries()) {
     if (sessionName === DEFAULT_SESSION) continue;
 
-    const sessionDir = path.join(SESSIONS_DIRECTORY, sessionName);
+    const sessionDir = path.join(getCanonicalSessionsDirectory(), sessionName);
     try {
       await fs.access(sessionDir);
     } catch {
@@ -999,7 +1052,7 @@ module.exports = {
   getConnectedSessionOrNull,
   getDefaultSession,
   getLatestQr,
-  getSessionQr: (sessionId) => getLatestQr(),
+  getSessionQr: (sessionId) => getLatestQr(sessionId),
   getSession,
   hasSession,
   isSessionCreating,

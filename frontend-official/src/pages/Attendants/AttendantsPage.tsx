@@ -48,6 +48,7 @@ import { ZaiPlatformAssistantView } from "@/components/ai/ZaiPlatformAssistantVi
 import { AgentCustomizerModal } from "@/components/ai/AgentCustomizerModal";
 import { AgentProfileModal } from "@/components/ai/AgentProfileModal";
 import { NewAgentWizardModal } from "@/components/ai/NewAgentWizardModal";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AvatarEditorModal } from "@/components/avatar-engine/AvatarEditorModal";
 import { ZaiAvatarRenderer } from "@/components/avatar-engine/ZaiAvatarRenderer";
 import { EXAMPLE_ATTENDANTS } from "@/components/attendants/exampleAttendants";
@@ -837,7 +838,7 @@ export default function AttendantsPage() {
     const foundModular = AVATAR_HAIRS.find((h) => h.id === hair);
     if (foundModular) return resolveItemDisplayForGender(foundModular, gender);
     const foundLegacy = [...HAIRSTYLES_FEMALE, ...HAIRSTYLES_MALE].find((h) => h.id === hair);
-    if (foundLegacy) return { title: foundLegacy.label };
+    if (foundLegacy) return { title: (foundLegacy as any).label || foundLegacy.name };
     return { title: gender === "male" ? "Executivo Clássico" : "Rabo de Cavalo Executivo" };
   }, [previewAgent?.avatarConfig?.hair, previewAgent?.avatarConfig?.body]);
 
@@ -851,7 +852,7 @@ export default function AttendantsPage() {
     const foundModular = AVATAR_OUTFITS.find((o) => o.id === outfit);
     if (foundModular) return foundModular;
     const foundLegacy = CLOTHING_STYLES.find((c) => c.id === outfit);
-    if (foundLegacy) return { title: foundLegacy.label };
+    if (foundLegacy) return { title: (foundLegacy as any).label || foundLegacy.name };
     return { title: "Polo ZAI" };
   }, [previewAgent?.avatarConfig?.outfit, previewAgent?.avatarConfig?.clothing]);
 
@@ -1553,7 +1554,7 @@ export default function AttendantsPage() {
                 renderStyle={resolvedInlineAvatar.renderStyle || "chibi_25d"}
                 state={
                   isAgentActive && studioMovement3D === "idle" && !isStudioDragging
-                    ? previewPresence?.state === "TYPING" || previewPresence?.state === "TALKING"
+                    ? (previewPresence?.state as string) === "TYPING" || (previewPresence?.state as string) === "TALKING"
                       ? previewPresence.state
                       : "WORKING"
                     : "WAITING"

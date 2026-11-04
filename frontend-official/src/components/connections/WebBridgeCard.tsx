@@ -128,7 +128,7 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
             memoryMb: res.memoryMb,
             lastSyncAt: res.lastSyncAt,
             productCount: res.productCount || prev.productCount,
-            qrImage: res.qrImage || prev.qrImage,
+            qrImage: (res as any)?.qrImage || prev.qrImage,
           }));
           if (res.authenticated) {
             notify.success("WhatsApp Web Conectado com Sucesso!");
@@ -172,30 +172,6 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
       }
     };
   }, [loadStatus]);
-
-  const handleSyncCatalog = async () => {
-    try {
-      setSyncing(true);
-      const res = await apiService.syncWebBridgeCatalog(sessionId);
-      if (res?.success) {
-        notify.success("Catálogo sincronizado com sucesso!", {
-          description: `${res.upserted || res.total || 0} produtos atualizados no banco de dados.`,
-        });
-        setBridgeState((prev) => ({
-          ...prev,
-          lastSyncAt: new Date().toISOString(),
-          productCount: res.total || prev.productCount,
-        }));
-        onCatalogSynced?.();
-      } else {
-        throw new Error(res?.error || "Falha na sincronização");
-      }
-    } catch (err: any) {
-      notify.error("Erro na extração de catálogo: " + (err?.message || ""));
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const handleTestConnection = async () => {
     try {
@@ -377,17 +353,10 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleSyncCatalog}
-            disabled={syncing}
-            className="h-8 text-xs rounded-xl px-3 gap-1.5 shadow-emerald-900/30 bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
-            title="Extrai o catálogo oficial completo via interface do WhatsApp Web"
-          >
-            {syncing ? <Spinner className="h-3.5 w-3.5 animate-spin" /> : <ArrowClockwise className="h-3.5 w-3.5" />}
-            <span>{syncing ? "Sincronizando Catálogo..." : "Sincronizar Catálogo Agora"}</span>
-          </Button>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-2.5 py-1 rounded-xl bg-background/50 border border-border/60">
+            <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Sincronização contínua ativa</span>
+          </div>
 
           <Button
             variant="outline"
@@ -463,13 +432,10 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
                     variant="default"
                     size="sm"
                     className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium gap-2 px-4 shadow-emerald-900/30"
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      void handleSyncCatalog();
-                    }}
+                    onClick={() => setIsModalOpen(false)}
                   >
-                    <ArrowClockwise className="h-4 w-4" />
-                    <span>Sincronizar Catálogo Agora</span>
+                    <Check className="h-4 w-4" />
+                    <span>Concluído</span>
                   </Button>
                 </div>
               </div>

@@ -205,9 +205,12 @@ Escreva uma mensagem curta, acolhedora e natural em português brasileiro (1 a 2
 }
 
 // Start recurring check every 1 minute
-setInterval(() => {
+const reactivationInterval = setInterval(() => {
   checkAndDispatchReactivationQueue().catch(() => {});
 }, 60000);
+if (reactivationInterval && typeof reactivationInterval.unref === 'function') {
+  reactivationInterval.unref();
+}
 
 async function getQueueStats(companyId = 'default') {
   try {

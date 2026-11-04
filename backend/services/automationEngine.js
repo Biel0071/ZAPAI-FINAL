@@ -682,6 +682,7 @@ function splitLongMessage(text) {
     message: 'Resposta pronta; aguardando o tempo humanizado para envio.',
   });
 
+  const chunkQueueItems = [];
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
     const responseDelayMs = i === 0
@@ -697,7 +698,7 @@ function splitLongMessage(text) {
     const inboundMsgId = payload?.externalMessageId || payload?.messageId || '';
     const correlationId = inboundMsgId ? `ai_reply_${inboundMsgId}_chunk_${i}` : undefined;
 
-    await outboundQueueService.enqueue({
+    chunkQueueItems.push({
       companyId,
       phone,
       sessionId,
@@ -724,6 +725,12 @@ function splitLongMessage(text) {
         progressStartedAt,
       }
     });
+  }
+
+  if (chunkQueueItems.length > 1) {
+    await outboundQueueService.enqueueBatch(chunkQueueItems);
+  } else if (chunkQueueItems.length === 1) {
+    await outboundQueueService.enqueue(chunkQueueItems[0]);
   }
 
   // 9. Dispatch Multimodal Media from Coupled Memory (Single Media or Triggered Quick Reply)
@@ -754,6 +761,7 @@ function splitLongMessage(text) {
         console.log(`[AutomationEngine] Triggering coupled quick reply "${targetQR.title}" (ID: ${targetQR.id}) for ${phone}`);
         const items = Array.isArray(targetQR.items) && targetQR.items.length > 0 ? targetQR.items : (targetQR.steps || []);
         let cumulativeDelay = 2500;
+        const qrQueueItems = [];
         for (const item of items) {
           const itemType = item.type || 'text';
           const stepDelay = Number(item.delay || item.delayMs || 2000);
@@ -763,7 +771,7 @@ function splitLongMessage(text) {
             const val = String(item.value || '').trim();
             // Evitar enviar texto duplicado se a IA já respondeu com algo muito similar
             if (val && !replyText.includes(val.substring(0, Math.min(val.length, 30)))) {
-              await outboundQueueService.enqueue({
+              qrQueueItems.push({
                 companyId,
                 phone,
                 sessionId,
@@ -778,7 +786,7 @@ function splitLongMessage(text) {
               });
             }
           } else if (itemType === 'image' || itemType === 'audio' || itemType === 'video' || itemType === 'document') {
-            await outboundQueueService.enqueue({
+            qrQueueItems.push({
               companyId,
               phone,
               sessionId,
@@ -796,6 +804,11 @@ function splitLongMessage(text) {
               }
             });
           }
+        }
+        if (qrQueueItems.length > 1) {
+          await outboundQueueService.enqueueBatch(qrQueueItems);
+        } else if (qrQueueItems.length === 1) {
+          await outboundQueueService.enqueue(qrQueueItems[0]);
         }
       }
     } catch (qrErr) {

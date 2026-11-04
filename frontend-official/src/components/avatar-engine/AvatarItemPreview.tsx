@@ -13,7 +13,7 @@ export type AvatarPreviewFocus =
 export interface AvatarItemPreviewProps {
   spriteRef?: string;
   itemId?: string;
-  gender?: "male" | "female";
+  gender?: "male" | "female" | "neutral" | string;
   focus?: AvatarPreviewFocus;
   title?: string;
   accentColor?: string;

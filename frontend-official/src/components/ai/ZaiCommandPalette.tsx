@@ -72,8 +72,8 @@ export function ZaiCommandPalette({
     {
       id: "aprender",
       command: "/aprender",
-      title: "Sincronizar Aprendizados Reais",
-      description: "Minerar novos padrões das conversas humanas e aprovar sugestões.",
+      title: "Painel de Aprendizados & Evolução",
+      description: "Visualizar padrões e sugestões de evolução da inteligência do atendente.",
       category: "Evolução",
       icon: Brain,
       action: () => onExecuteCommand("aprender"),

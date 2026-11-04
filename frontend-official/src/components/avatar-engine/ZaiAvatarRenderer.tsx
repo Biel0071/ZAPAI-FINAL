@@ -885,7 +885,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
   const isExplicitMale = avatar?.body === "male" || avatar?.base === "male";
   const isExplicitFemale = avatar?.body === "female" || avatar?.base === "female";
   const agentKey = String(avatar?.agentId || "").toLowerCase();
-  const agentName = String(avatar?.name || "").toLowerCase();
+  const agentName = String((avatar as any)?.name || "").toLowerCase();
   const isCamila = agentKey.includes("camila") || agentName.includes("camila");
   const resolvedGender: "male" | "female" = isExplicitMale
     ? "male"

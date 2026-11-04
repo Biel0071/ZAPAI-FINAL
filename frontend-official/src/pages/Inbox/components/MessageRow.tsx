@@ -47,6 +47,7 @@ import {
   logInboxDebug,
   formatPlaybackTime,
   formatTime,
+  formatPhoneNumber,
 } from "../utils";
 
 interface ParsedCatalogItem {
@@ -296,7 +297,7 @@ function parseDisparoCard(text: string, message: ChatMessage): ParsedDisparoItem
     currentStep: Number(currentStep) || 1,
     status: "Enviado no WhatsApp",
     previewText: previewText.replace(/\[DISPARO[^\]]*\]/gi, "").trim(),
-    dispatchedAt: message.timestamp || message.createdAt,
+    dispatchedAt: String(message.timestamp || message.createdAt || ""),
   };
 }
 
@@ -402,11 +403,11 @@ export const MessageRow = memo(function MessageRow({
   onForwardMessage: (message: ChatMessage) => void;
   onDeleteMessage: (messageId: string, scope: "local" | "everyone") => void;
   onDownloadMedia: (message: ChatMessage) => void;
-  onToggleAudio: (messageId: string, url: string) => void;
-  isAudioLoading: boolean;
-  isAudioPlaying: boolean;
-  audioProgress: number;
-  audioDuration: number;
+  onToggleAudio?: (messageId: string, url: string) => void;
+  isAudioLoading?: boolean;
+  isAudioPlaying?: boolean;
+  audioProgress?: number;
+  audioDuration?: number;
   backendOnline: boolean;
   searchQuery?: string;
   isActiveSearchMatch?: boolean;

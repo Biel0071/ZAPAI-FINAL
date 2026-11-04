@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Storefront,
   ShoppingBag,
@@ -419,12 +419,24 @@ export function CatalogSelectorPopover({
   };
   const [products, setProducts] = useState<CatalogProduct[]>(FALLBACK_STORE_PRODUCTS);
   const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("TODOS");
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const isMountedRef = useRef(true);
+  const batchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (batchTimeoutRef.current) {
+        clearTimeout(batchTimeoutRef.current);
+        batchTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Fetch real products from backend repository on mount, on open, and whenever WhatsApp connects/syncs
   useEffect(() => {
@@ -493,8 +505,9 @@ export function CatalogSelectorPopover({
   // Also refresh when popover is explicitly opened
   useEffect(() => {
     if (open) {
+      let openMounted = true;
       apiService.getProducts().then((res) => {
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (openMounted && isMountedRef.current && res?.success && Array.isArray(res.data) && res.data.length > 0) {
           const mapped: CatalogProduct[] = res.data.map((item: any) => ({
             id: item.id || `prod_${Math.random()}`,
             code: item.code || "",
@@ -512,6 +525,9 @@ export function CatalogSelectorPopover({
           setProducts(mapped);
         }
       }).catch(() => {});
+      return () => {
+        openMounted = false;
+      };
     }
   }, [open]);
 
@@ -561,16 +577,24 @@ export function CatalogSelectorPopover({
       return;
     }
     try {
-      setSendingId(product.id);
+      if (isMountedRef.current && typeof window !== "undefined") {
+        setSendingId(product.id);
+      }
       const formatted = formatProductMessage(product);
       await onSendProduct(product, formatted);
-      setOpen(false);
+      if (isMountedRef.current) {
+        setOpen(false);
+      }
     } catch (err: any) {
-      toast.error("Falha ao enviar produto", {
-        description: err?.message || "Tente novamente.",
-      });
+      if (isMountedRef.current) {
+        toast.error("Falha ao enviar produto", {
+          description: err?.message || "Tente novamente.",
+        });
+      }
     } finally {
-      setSendingId(null);
+      if (isMountedRef.current && typeof window !== "undefined") {
+        setSendingId(null);
+      }
     }
   };
 
@@ -583,31 +607,50 @@ export function CatalogSelectorPopover({
     if (selectedProducts.length === 0) return;
 
     try {
-      setSendingId("selected_batch");
+      if (isMountedRef.current && typeof window !== "undefined") {
+        setSendingId("selected_batch");
+      }
       if (onSendMultipleProducts) {
         await onSendMultipleProducts(selectedProducts);
       } else if (selectedProducts.length === 1) {
         const p = selectedProducts[0];
         const formatted = formatProductMessage(p);
         await onSendProduct(p, formatted);
-        toast.success(`"${p.name}" enviado no chat!`);
+        if (isMountedRef.current) {
+          toast.success(`"${p.name}" enviado no chat!`);
+        }
       } else {
         for (let i = 0; i < selectedProducts.length; i++) {
+          if (!isMountedRef.current) break;
           const p = selectedProducts[i];
           const formatted = formatProductMessage(p);
           await onSendProduct(p, formatted);
+          if (!isMountedRef.current) break;
           if (i < selectedProducts.length - 1) {
-            await new Promise((r) => setTimeout(r, 400));
+            await new Promise<void>((resolve) => {
+              batchTimeoutRef.current = setTimeout(() => {
+                batchTimeoutRef.current = null;
+                resolve();
+              }, 400);
+            });
           }
         }
-        toast.success(`${selectedProducts.length} produtos enviados no chat!`);
+        if (isMountedRef.current) {
+          toast.success(`${selectedProducts.length} produtos enviados no chat!`);
+        }
       }
-      setSelectedIds(new Set());
-      setOpen(false);
+      if (isMountedRef.current) {
+        setSelectedIds(new Set());
+        setOpen(false);
+      }
     } catch (err: any) {
-      toast.error("Falha ao enviar produtos", { description: err?.message });
+      if (isMountedRef.current) {
+        toast.error("Falha ao enviar produtos", { description: err?.message });
+      }
     } finally {
-      setSendingId(null);
+      if (isMountedRef.current && typeof window !== "undefined") {
+        setSendingId(null);
+      }
     }
   };
 
@@ -620,7 +663,9 @@ export function CatalogSelectorPopover({
     }
 
     try {
-      setSendingId("catalog_root");
+      if (isMountedRef.current && typeof window !== "undefined") {
+        setSendingId("catalog_root");
+      }
       const formattedCatalog = `📦 *[CATÁLOGO WHATSAPP]*\n${OFFICIAL_STORE_CATALOG_URL}`;
       await onSendProduct(
         {
@@ -633,49 +678,18 @@ export function CatalogSelectorPopover({
         },
         formattedCatalog
       );
-      toast.success("Catálogo enviado no chat!");
-      setOpen(false);
-    } catch (err: any) {
-      toast.error("Falha ao enviar catálogo", { description: err?.message });
-    } finally {
-      setSendingId(null);
-    }
-  };
-
-  const handleSyncWhatsApp = async () => {
-    try {
-      setSyncing(true);
-      const res = await apiService.syncWhatsAppCatalog();
-      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-        const mapped: CatalogProduct[] = res.data.map((item: any) => ({
-          id: item.id || `prod_${Math.random()}`,
-          code: item.code || "",
-          name: item.name || "Produto Sem Nome",
-          description: item.description || "",
-          price: Number(item.price) || 0,
-          category: item.category || "Geral",
-          stock: item.stock ?? 10,
-          images: Array.isArray(item.images) ? item.images : item.images ? [item.images] : [],
-          whatsapp_url: item.whatsapp_url || OFFICIAL_STORE_CATALOG_URL,
-          promotions: item.promotions || "",
-          condition: item.condition || "Novo",
-          shipping: item.shipping || "Pronta Entrega",
-        }));
-        setProducts(mapped);
-        toast.success("Catálogo sincronizado com o WhatsApp!", {
-          description: res.message || `${mapped.length} produtos disponíveis.`,
-        });
-      } else {
-        toast.info("Catálogo atualizado", {
-          description: `${products.length} produtos disponíveis.`,
-        });
+      if (isMountedRef.current) {
+        toast.success("Catálogo enviado no chat!");
+        setOpen(false);
       }
     } catch (err: any) {
-      toast.error("Erro ao sincronizar catálogo do WhatsApp", {
-        description: err?.message || "Verifique a conexão da sessão.",
-      });
+      if (isMountedRef.current) {
+        toast.error("Falha ao enviar catálogo", { description: err?.message });
+      }
     } finally {
-      setSyncing(false);
+      if (isMountedRef.current && typeof window !== "undefined") {
+        setSendingId(null);
+      }
     }
   };
 

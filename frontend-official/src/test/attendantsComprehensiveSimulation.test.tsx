@@ -443,11 +443,12 @@ describe("Comprehensive Attendants Frontend Simulation & Render Validation", () 
       tags: [],
     };
 
+    const AnySidebarPanel = SidebarPanel as any;
     await act(async () => {
       root?.render(
         <TooltipProvider>
           <MemoryRouter>
-            <SidebarPanel
+            <AnySidebarPanel
               isOpen={true}
               onClose={vi.fn()}
               selectedConversation={mockConversation as any}

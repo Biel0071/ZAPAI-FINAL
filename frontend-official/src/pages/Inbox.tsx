@@ -713,7 +713,7 @@ export default function Inbox() {
               filter={state.filter}
               setFilter={state.setFilter}
               funnelFilter={funnelFilter}
-              setFunnelFilter={setFunnelFilter}
+              setFunnelFilter={(val: any) => setFunnelFilter(val)}
               filteredConversations={filteredConversations}
               allConversations={state.conversations}
               conversationCounts={state.conversationCounts}

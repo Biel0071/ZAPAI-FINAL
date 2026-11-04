@@ -99,6 +99,7 @@ import { QuickResponseModal } from "./QuickResponseModal";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface SidebarPanelProps {
+  isOpen?: boolean;
   selectedConversation: Conversation | null;
   isCustomerOnline?: boolean;
   lastSeenLabel?: string;
@@ -797,7 +798,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 
   const chooseReply = (reply: QuickReplyItem) => {
     const entries = reply.isFlow ? reply.steps ?? [] : reply.items ?? [];
-    if (reply.isFlow || (reply.steps && reply.steps.length > 1) || (reply.items && reply.items.length > 1) || entries.some((entry) => entry.type !== "text") || reply.mediaUrl) {
+    if (reply.isFlow || (reply.steps && reply.steps.length > 1) || (reply.items && reply.items.length > 1) || entries.some((entry) => entry.type !== "text") || (reply as any).mediaUrl) {
       setPreviewReply(reply);
     } else {
       setMessageInput(getQuickReplyPreviewText(reply, variableContext));

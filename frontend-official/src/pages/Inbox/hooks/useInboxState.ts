@@ -2323,7 +2323,7 @@ export function useInboxState() {
         const updated: Conversation = {
           ...current,
           lastMessage: optimisticLast?.content || textToSend || (currentAttachments[0]?.mediaType ? getMediaTypeLabel(currentAttachments[0].mediaType) : current.lastMessage || ""),
-          lastMessageType: optimisticLast?.mediaType === "document" || optimisticLast?.mediaType === "media" ? "file" : optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text",
+          lastMessageType: (optimisticLast?.mediaType === "document" || optimisticLast?.mediaType === "media" ? "file" : optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text") as any,
           lastMessageAt: optimisticLast?.createdAt ?? now,
           updatedAt: optimisticLast?.createdAt ?? now,
         };
@@ -2558,9 +2558,9 @@ export function useInboxState() {
                 aiPausedUntil: reactivateAt,
                 ...(persistedEnabled
                   ? {
-                      status: conversation.status === "pending_human" || conversation.status === "intervencao_humana" ? "open" : conversation.status,
+                      status: (conversation.status as string) === "pending_human" || (conversation.status as string) === "intervencao_humana" ? "open" : conversation.status,
                       funnel_stage: conversation.funnel_stage === "intervencao_humana" ? "em_atendimento" : conversation.funnel_stage,
-                      funnelStage: conversation.funnelStage === "intervencao_humana" ? "em_atendimento" : conversation.funnelStage,
+                      funnelStage: (conversation as any).funnelStage === "intervencao_humana" ? "em_atendimento" : (conversation as any).funnelStage,
                       needsHuman: false,
                       needs_human: false,
                       tags: Array.isArray(conversation.tags)
@@ -3179,7 +3179,7 @@ export function useInboxState() {
           : c
       )
     );
-    void persistConversationMetadata(conversationId, { unread_count: nextUnread, unreadCount: nextUnread });
+    void persistConversationMetadata(conversationId, { unread_count: nextUnread, unreadCount: nextUnread } as any);
     toast({ title: nextUnread > 0 ? "Conversa marcada como não lida." : "Conversa marcada como lida." });
   }, [persistConversationMetadata, setConversations, toast]);
 
