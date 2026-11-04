@@ -46,6 +46,7 @@ import { normalizeSession as backendNormalizeSession } from "@/core/services/nor
 import { SafeRender } from "@/components/system/SafeRender";
 import { HistoryBootstrapPanel } from '@/components/evolution/HistoryBootstrapPanel';
 import { WebBridgeCard } from "@/components/connections/WebBridgeCard";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 type SessionAutomationItem = {
   id: string;
@@ -1253,13 +1254,13 @@ export default function Connections() {
                         alt="QR Code da sessão WhatsApp"
                         className="mx-auto block h-[260px] w-[260px] rounded-xl object-contain"
                       />
-                      {/* Logo ZAI centralizado no meio do QR Code */}
+                      {/* Logo ZAI centralizado no meio do QR Code (Black and White) */}
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="h-14 w-14 rounded-2xl bg-white shadow-xl border-2 border-emerald-500/60 p-1.5 flex items-center justify-center">
-                          <img
-                            src="/brand/logo-dark.svg"
-                            alt="ZAI"
-                            className="h-10 w-10 object-contain drop-shadow"
+                        <div className="h-14 w-14 rounded-2xl bg-white shadow-xl border-2 border-black/85 p-1.5 flex items-center justify-center">
+                          <BrandLogo
+                            size={38}
+                            variant="bw"
+                            className="object-contain"
                           />
                         </div>
                       </div>

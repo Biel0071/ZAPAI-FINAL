@@ -207,6 +207,10 @@ class WebBridgeSessionManager {
             errorCorrectionLevel: 'M',
             margin: 2,
             width: 320,
+            color: {
+              dark: '#000000',
+              light: '#ffffff',
+            },
           });
         } catch (_) {}
       }
@@ -339,6 +343,10 @@ class WebBridgeSessionManager {
           errorCorrectionLevel: 'M',
           margin: 2,
           width: 320,
+          color: {
+            dark: '#000000',
+            light: '#ffffff',
+          },
         });
       } catch (qrErr) {
         console.warn('[WEB-BRIDGE] Falha ao gerar QR Code a partir de ref:', qrErr.message);

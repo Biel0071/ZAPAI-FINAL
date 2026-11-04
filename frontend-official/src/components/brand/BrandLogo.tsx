@@ -14,8 +14,8 @@ export interface BrandLogoProps {
    * When omitted, automatically adapts to the active theme (white Z in dark mode, carbon-black Z in light mode).
    */
   forceZColor?: "black" | "white";
-  /** Alias for forceZColor using theme terminology ("dark" = white Z, "light" = black Z). */
-  variant?: "auto" | "dark" | "light";
+  /** Alias for forceZColor using theme terminology ("dark" = white Z, "light" = black Z, "bw" = monochrome black & white). */
+  variant?: "auto" | "dark" | "light" | "bw";
 }
 
 function getDomThemeClass(): "light" | "dark" | null {
@@ -63,16 +63,20 @@ export function BrandLogo({
   const nextTheme = resolvedTheme || theme;
   const effectiveTheme = domTheme || (nextTheme === "light" ? "light" : nextTheme === "dark" ? "dark" : null);
 
+  const isBw = variant === "bw";
+
   const resolvedZMode: "white" | "black" | "css" =
-    forceZColor === "white" || variant === "dark"
-      ? "white"
-      : forceZColor === "black" || variant === "light"
-        ? "black"
-        : effectiveTheme === "light"
+    isBw
+      ? "black"
+      : forceZColor === "white" || variant === "dark"
+        ? "white"
+        : forceZColor === "black" || variant === "light"
           ? "black"
-          : effectiveTheme === "dark"
-            ? "white"
-            : "css";
+          : effectiveTheme === "light"
+            ? "black"
+            : effectiveTheme === "dark"
+              ? "white"
+              : "css";
 
   const bubbleGradId = `zai-bubble-grad-${uid}`;
   const circuitGradId = `zai-circuit-grad-${uid}`;
@@ -110,26 +114,53 @@ export function BrandLogo({
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
-        {/* Outer Speech Bubble Gradient: Deep Forest Left -> Vivid Neon Top-Right -> Deep Emerald Bottom */}
+        {/* Outer Speech Bubble Gradient */}
         <linearGradient id={bubbleGradId} x1="265" y1="880" x2="985" y2="260" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#085A18" />
-          <stop offset="42%" stopColor="#0B7A22" />
-          <stop offset="76%" stopColor="#00C838" />
-          <stop offset="100%" stopColor="#00EB3C" />
+          {isBw ? (
+            <>
+              <stop offset="0%" stopColor="#000000" />
+              <stop offset="100%" stopColor="#000000" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor="#085A18" />
+              <stop offset="42%" stopColor="#0B7A22" />
+              <stop offset="76%" stopColor="#00C838" />
+              <stop offset="100%" stopColor="#00EB3C" />
+            </>
+          )}
         </linearGradient>
 
-        {/* Left Circuit Traces Gradient: Deep Emerald Rings -> Bright Emerald Tips */}
+        {/* Left Circuit Traces Gradient */}
         <linearGradient id={circuitGradId} x1="158" y1="590" x2="585" y2="590" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#075216" />
-          <stop offset="50%" stopColor="#0A8424" />
-          <stop offset="100%" stopColor="#00C436" />
+          {isBw ? (
+            <>
+              <stop offset="0%" stopColor="#000000" />
+              <stop offset="100%" stopColor="#000000" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor="#075216" />
+              <stop offset="50%" stopColor="#0A8424" />
+              <stop offset="100%" stopColor="#00C436" />
+            </>
+          )}
         </linearGradient>
 
         {/* Detached Z Bottom-Right Bar Gradient */}
         <linearGradient id={barGradId} x1="588" y1="815" x2="870" y2="795" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#085A18" />
-          <stop offset="55%" stopColor="#0A8E26" />
-          <stop offset="100%" stopColor="#00C838" />
+          {isBw ? (
+            <>
+              <stop offset="0%" stopColor="#000000" />
+              <stop offset="100%" stopColor="#000000" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor="#085A18" />
+              <stop offset="55%" stopColor="#0A8E26" />
+              <stop offset="100%" stopColor="#00C838" />
+            </>
+          )}
         </linearGradient>
 
         {/* Crisp White Z Gradient for Dark Theme */}

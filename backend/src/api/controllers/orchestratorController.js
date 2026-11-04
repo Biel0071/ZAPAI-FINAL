@@ -180,7 +180,7 @@ class OrchestratorController {
     .qr-container { background-color: #ffffff; border-radius: 16px; padding: 16px; display: inline-flex; align-items: center; justify-content: center; min-height: 288px; min-width: 288px; margin-bottom: 20px; position: relative; box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
     .qr-wrapper { position: relative; width: 256px; height: 256px; display: none; }
     .qr-img { width: 256px; height: 256px; object-fit: contain; border-radius: 8px; }
-    .qr-logo-badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; background: #ffffff; border-radius: 14px; border: 2px solid rgba(0, 168, 132, 0.7); box-shadow: 0 4px 14px rgba(0,0,0,0.18); display: flex; align-items: center; justify-content: center; pointer-events: none; }
+    .qr-logo-badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; background: #ffffff; border-radius: 14px; border: 2px solid #000000; box-shadow: 0 4px 14px rgba(0,0,0,0.18); display: flex; align-items: center; justify-content: center; pointer-events: none; }
     .spinner { border: 4px solid #202c33; border-top: 4px solid #00a884; border-radius: 50%; width: 44px; height: 44px; animation: spin 1s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .instructions { background-color: #182229; border: 1px solid #222e35; border-radius: 12px; padding: 16px; text-align: left; font-size: 12px; color: #8696a0; line-height: 1.6; margin-bottom: 24px; }
@@ -208,39 +208,17 @@ class OrchestratorController {
         <img id="qrImage" class="qr-img" alt="QR Code WhatsApp Web" />
         <div class="qr-logo-badge">
           <svg viewBox="135 180 945 855" width="38" height="38" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="zai-bubble-b" x1="265" y1="880" x2="985" y2="260" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#085A18" />
-                <stop offset="42%" stop-color="#0B7A22" />
-                <stop offset="76%" stop-color="#00C838" />
-                <stop offset="100%" stop-color="#00EB3C" />
-              </linearGradient>
-              <linearGradient id="zai-circuit-b" x1="158" y1="590" x2="585" y2="590" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#075216" />
-                <stop offset="50%" stop-color="#0A8424" />
-                <stop offset="100%" stop-color="#00C436" />
-              </linearGradient>
-              <linearGradient id="zai-bar-b" x1="588" y1="815" x2="870" y2="795" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#085A18" />
-                <stop offset="55%" stop-color="#0A8E26" />
-                <stop offset="100%" stop-color="#00C838" />
-              </linearGradient>
-              <linearGradient id="zai-z-b" x1="480" y1="424" x2="720" y2="852" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#FFFFFF" />
-                <stop offset="100%" stop-color="#F1F5F3" />
-              </linearGradient>
-            </defs>
-            <path d="M 317 450 C 365 305, 500 212, 660 212 C 878 212, 1055 388, 1055 606.5 C 1055 824.5, 878 1001, 660 1001 C 586 1001, 517 980, 458 944 L 282 1004 C 268 1009, 259 997, 265 983 L 352 752 C 356 741, 369 737, 376 743 C 382 749, 382 759, 378 769 L 304 962 L 455 910 C 464 907, 472 909, 480 915 C 533 952, 595 973, 660 973 C 863 973, 1027 809, 1027 606.5 C 1027 404, 863 240, 660 240 C 507 240, 377 325, 317 450 Z" fill="url(#zai-bubble-b)"/>
+            <path d="M 317 450 C 365 305, 500 212, 660 212 C 878 212, 1055 388, 1055 606.5 C 1055 824.5, 878 1001, 660 1001 C 586 1001, 517 980, 458 944 L 282 1004 C 268 1009, 259 997, 265 983 L 352 752 C 356 741, 369 737, 376 743 C 382 749, 382 759, 378 769 L 304 962 L 455 910 C 464 907, 472 909, 480 915 C 533 952, 595 973, 660 973 C 863 973, 1027 809, 1027 606.5 C 1027 404, 863 240, 660 240 C 507 240, 377 325, 317 450 Z" fill="#000000"/>
             <g>
-              <circle cx="245" cy="500" r="20" stroke="url(#zai-circuit-b)" stroke-width="14" fill="none" />
-              <path d="M 268 492 H 442 L 479 530 H 457 L 434 507 H 268 Z" fill="url(#zai-circuit-b)" />
-              <circle cx="184" cy="590" r="19.5" stroke="url(#zai-circuit-b)" stroke-width="13.5" fill="none" />
-              <path d="M 207 583 H 395 L 411 600 L 592 609 L 402 613 L 386 597 H 207 Z" fill="url(#zai-circuit-b)" />
-              <circle cx="256" cy="680" r="19.5" stroke="url(#zai-circuit-b)" stroke-width="13.5" fill="none" />
-              <path d="M 279 673 L 532 681 L 279 689 Z" fill="url(#zai-circuit-b)" />
+              <circle cx="245" cy="500" r="20" stroke="#000000" stroke-width="14" fill="none" />
+              <path d="M 268 492 H 442 L 479 530 H 457 L 434 507 H 268 Z" fill="#000000" />
+              <circle cx="184" cy="590" r="19.5" stroke="#000000" stroke-width="13.5" fill="none" />
+              <path d="M 207 583 H 395 L 411 600 L 592 609 L 402 613 L 386 597 H 207 Z" fill="#000000" />
+              <circle cx="256" cy="680" r="19.5" stroke="#000000" stroke-width="13.5" fill="none" />
+              <path d="M 279 673 L 532 681 L 279 689 Z" fill="#000000" />
             </g>
-            <path d="M 530 424 H 852 C 884 424, 901 456, 880 482 L 559 852 H 485 C 461 852, 452 824, 469 804 L 720 515 H 526 C 499 515, 484 494, 484 470 C 484 443, 503 424, 530 424 Z" fill="url(#zai-z-b)"/>
-            <path d="M 671 758 H 870 C 871 798, 842 852, 795 852 H 588 L 671 758 Z" fill="url(#zai-bar-b)"/>
+            <path d="M 530 424 H 852 C 884 424, 901 456, 880 482 L 559 852 H 485 C 461 852, 452 824, 469 804 L 720 515 H 526 C 499 515, 484 494, 484 470 C 484 443, 503 424, 530 424 Z" fill="#000000"/>
+            <path d="M 671 758 H 870 C 871 798, 842 852, 795 852 H 588 L 671 758 Z" fill="#000000"/>
           </svg>
         </div>
       </div>

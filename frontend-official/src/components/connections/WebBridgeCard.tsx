@@ -28,6 +28,7 @@ import {
 import { apiService } from "@/core/services/apiService";
 import { notify } from "@/core/services/notifyService";
 import { getSharedSocket } from "@/core/runtime/socket/socketManager";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { cn } from "@/core/lib/utils";
 
 interface WebBridgeCardProps {
@@ -315,13 +316,13 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
                 alt="QR Code WebBridge"
                 className="h-44 w-44 object-contain"
               />
-              {/* Logo ZAI centralizado no meio do QR Code */}
+              {/* Logo ZAI centralizado no meio do QR Code (Black and White) */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="h-11 w-11 rounded-xl bg-white shadow-md border-2 border-emerald-500/60 p-1 flex items-center justify-center">
-                  <img
-                    src="/brand/logo-dark.svg"
-                    alt="ZAI"
-                    className="h-7 w-7 object-contain drop-shadow"
+                <div className="h-11 w-11 rounded-xl bg-white shadow-md border-2 border-black/85 p-1 flex items-center justify-center">
+                  <BrandLogo
+                    size={28}
+                    variant="bw"
+                    className="object-contain"
                   />
                 </div>
               </div>
@@ -455,13 +456,13 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
                     alt="QR Code WhatsApp Web Bridge"
                     className="h-[256px] w-[256px] object-contain rounded-xl"
                   />
-                  {/* Logo ZAI centralizado no meio do QR Code */}
+                  {/* Logo ZAI centralizado no meio do QR Code (Black and White) */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="h-14 w-14 rounded-2xl bg-white shadow-xl border-2 border-emerald-500/60 p-1.5 flex items-center justify-center">
-                      <img
-                        src="/brand/logo-dark.svg"
-                        alt="ZAI"
-                        className="h-10 w-10 object-contain drop-shadow"
+                    <div className="h-14 w-14 rounded-2xl bg-white shadow-xl border-2 border-black/85 p-1.5 flex items-center justify-center">
+                      <BrandLogo
+                        size={38}
+                        variant="bw"
+                        className="object-contain"
                       />
                     </div>
                   </div>
