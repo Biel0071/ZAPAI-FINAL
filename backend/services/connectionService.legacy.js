@@ -76,6 +76,11 @@ function extractPhoneNumber(session) {
 function normalizeSession(session) {
   if (!session) return { status: 'disconnected', connected: false };
 
+  const isWebBridge = (
+    session.engine === 'WHATSAPP_WEB_BRIDGE' ||
+    session.engine === 'WEB_BRIDGE'
+  );
+
   const hasSocket = !!(
     session.sock &&
     session.sock.ws &&
@@ -83,12 +88,15 @@ function normalizeSession(session) {
   );
 
   const isReallyConnected = !!(
-    hasSocket &&
-    session.sock?.user &&
-    (session.connected === true ||
-     session.connection === 'open' ||
-     session.state === 'CONNECTED' ||
-     session.status === 'connected')
+    (isWebBridge && (session.status === 'connected' || session.connected === true || session.authenticated === true)) ||
+    (hasSocket &&
+      session.sock?.user &&
+      (session.connected === true ||
+       session.connection === 'open' ||
+       session.state === 'CONNECTED' ||
+       session.status === 'connected')) ||
+    (session.connected === true && session.status !== 'disconnected' && session.status !== 'error') ||
+    (session.status === 'connected' && !session.lastError && !session.lastDisconnectReason)
   );
 
   let status = 'disconnected';
@@ -121,14 +129,11 @@ function normalizeSession(session) {
     status = 'offline';
   } else {
     status = session.status || 'disconnected';
-    if (status === 'connected') {
-      status = 'disconnected';
-    }
   }
 
   return {
     status,
-    connected: isReallyConnected,
+    connected: status === 'connected',
   };
 }
 
@@ -263,14 +268,16 @@ async function listConnections(companyId) {
     if (dbSession.status === 'deleted') continue;
     const id = dbSession.sessionId || dbSession.id;
     if (id) {
+      const isConn = dbSession.status === 'connected' || dbSession.connected === true;
       merged.set(id, {
         companyId,
         sessionId: id,
         sessionName: dbSession.sessionName || dbSession.name || id,
-        status: 'disconnected',
-        phone: dbSession.phone || null,
-        whatsAppName: dbSession.whatsappName || null,
-        systemConnected: false,
+        status: isConn ? 'connected' : (dbSession.status || 'disconnected'),
+        connected: isConn,
+        phone: dbSession.phone || dbSession.phone_number || null,
+        whatsAppName: dbSession.whatsappName || dbSession.whatsapp_name || null,
+        systemConnected: isConn,
       });
     }
   }
@@ -280,12 +287,14 @@ async function listConnections(companyId) {
     const existing = merged.get(id);
     if (companyId && !existing) continue;
     const realSession = getSessionCompat(id) || activeSession;
+    const isConn = realSession.status === 'connected' || realSession.connected === true || activeSession.status === 'connected' || activeSession.connected === true;
     merged.set(id, {
       ...realSession,
       companyId: companyId || realSession.companyId || (existing ? existing.companyId : null),
       sessionId: id,
       sessionName: existing?.sessionName || activeSession.sessionName || activeSession.name || id,
-      status: realSession.status || activeSession.status || 'disconnected',
+      status: isConn ? 'connected' : (realSession.status || activeSession.status || 'disconnected'),
+      connected: isConn,
       phone: realSession.phone || activeSession.phone || (existing ? existing.phone : null),
       whatsAppName: realSession.whatsAppName || activeSession.whatsAppName || existing?.whatsAppName || null,
       systemConnected: true,
@@ -303,6 +312,7 @@ async function listConnections(companyId) {
           sessionId: wbId,
           sessionName: wbId === 'main' ? 'WhatsApp Principal (Web)' : `WhatsApp Web ${wbId}`,
           status: 'connected',
+          connected: true,
           phone: wbState.phone || '553193672075',
           whatsAppName: 'WhatsApp Web Nativo',
           systemConnected: true,
@@ -371,10 +381,12 @@ async function getConnectionStatus(sessionId = DEFAULT_SESSION) {
       const persisted = await sessionRepository.getSessions(undefined, { activeOnly: false });
       const dbSession = persisted.find((s) => String(s.sessionId || s.id) === String(sessionId));
       if (dbSession) {
+        const isConn = dbSession.status === 'connected' || dbSession.connected === true;
         return {
           ...mapSession({
             ...dbSession,
-            status: 'disconnected',
+            status: isConn ? 'connected' : (dbSession.status || 'disconnected'),
+            connected: isConn,
           }, sessionId),
           qrReady: false,
           logs: [],

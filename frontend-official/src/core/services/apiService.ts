@@ -2365,7 +2365,17 @@ export const apiService = {
         const raw = data as Record<string, unknown>;
         const nested = raw.data as Record<string, unknown> | undefined;
         if (nested?.sessions && Array.isArray(nested.sessions)) {
-          return parseSessionStatusPayload(nested.sessions).map(normalizeSessionInfo);
+          const sessionsList = parseSessionStatusPayload(nested.sessions).map(normalizeSessionInfo);
+          if (nested.status === "connected" || nested.connected === true) {
+            const targetId = String(nested.sessionId || "main").toLowerCase();
+            for (const s of sessionsList) {
+              if (String(s.id).toLowerCase() === targetId || String(s.name).toLowerCase().includes("principal")) {
+                s.status = "connected";
+                s.connected = true;
+              }
+            }
+          }
+          return sessionsList;
         }
         return parseSessionStatusPayload(data).map(normalizeSessionInfo);
       } catch (error) {
