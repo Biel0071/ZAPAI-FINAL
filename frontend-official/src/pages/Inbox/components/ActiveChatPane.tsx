@@ -618,8 +618,16 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       const optimisticId = `prod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const now = new Date().toISOString();
       const isBlockProd = (product.name || product.title || '').toLowerCase().includes('bloco') || (product.code || '').toLowerCase().includes('bloc');
-      const defaultProdImg = isBlockProd ? '/assets/catalog/bloco_10_100un.png' : `/assets/catalog/${product.code?.toLowerCase() || 'bloco_10_100un'}.png`;
-      const productImageUrl = (Array.isArray(product.images) && product.images[0]) || product.image || product.productImage || defaultProdImg;
+      const defaultProdImg = isBlockProd ? '/assets/catalog/real/bloco_10_100un.png' : `/assets/catalog/${product.code?.toLowerCase() || 'bloco_10_100un'}.png`;
+      const fallbackBlockImages = [
+        '/assets/catalog/real/bloco_10_100un.png',
+        '/assets/catalog/real/bloco_10_100un_2.png',
+        '/assets/catalog/real/bloco_10_100un_3.png'
+      ];
+      const productImages = Array.isArray(product.images) && product.images.length > 0
+        ? product.images
+        : (isBlockProd ? fallbackBlockImages : [defaultProdImg]);
+      const productImageUrl = productImages[0] || product.image || product.productImage || defaultProdImg;
       const formattedText = formattedMessage || `*${product.name || product.title}*\nR$ ${(Number(product.price) || 0).toFixed(2)}`;
 
       const optimisticMessage: ChatMessage = {
@@ -639,7 +647,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           id: product.id || product.productId,
           name: product.name || product.title,
           price: product.price,
-          images: Array.isArray(product.images) && product.images.length > 0 ? product.images : [productImageUrl],
+          images: productImages,
         },
       };
 

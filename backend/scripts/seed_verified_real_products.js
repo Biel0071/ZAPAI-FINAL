@@ -15,7 +15,11 @@ const realProducts = [
     price: 134.99,
     category: 'Tijolos & Blocos',
     stock: 50,
-    images: ['/assets/catalog/real/bloco_10_100un.png'],
+    images: [
+      '/assets/catalog/real/bloco_10_100un.png',
+      '/assets/catalog/real/bloco_10_100un_2.png',
+      '/assets/catalog/real/bloco_10_100un_3.png'
+    ],
     whatsapp_url: 'https://wa.me/c/553193672075',
     promotions: 'Lote com 100 unidades',
     condition: 'Novo',

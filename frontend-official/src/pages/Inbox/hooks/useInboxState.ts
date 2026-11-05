@@ -620,7 +620,13 @@ export function useInboxState() {
   }, [conversations, rememberContacts]);
 
   const selectedConversation = useMemo(() => {
-    const match = conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
+    if (!selectedConversationId) return null;
+    const targetStr = String(selectedConversationId).trim();
+    const match = conversations.find((conversation) => {
+      const convIdStr = String(conversation.id ?? "").trim();
+      const chatIdStr = String(conversation.chatId ?? "").trim();
+      return convIdStr === targetStr || chatIdStr === targetStr;
+    }) ?? null;
     return isOwnSessionConversation(match) ? null : match;
   }, [conversations, isOwnSessionConversation, selectedConversationId]);
 
@@ -1313,8 +1319,11 @@ export function useInboxState() {
     const targetSession = storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : undefined;
 
     let cancelled = false;
-    // Reset open chat and messages immediately to avoid cross-session bleed
-    setSelectedConversationId(null);
+    const currentSelectedId = selectedConversationRef.current?.id;
+    const currentConv = currentSelectedId ? conversationsRef.current.find(c => String(c.id) === String(currentSelectedId)) : null;
+    if (targetSession && currentConv && currentConv.sessionId && currentConv.sessionId !== targetSession) {
+      setSelectedConversationId(null);
+    }
     setLoadingConversations(true);
 
     const targetSessionObj = targetSession ? sessions.find(s => s && (s.id === targetSession || s.name === targetSession)) : null;
@@ -1426,9 +1435,7 @@ export function useInboxState() {
 
       if (!olderBatch.length) break;
 
-      const normalizedBatch = olderBatch
-        .map((item) => ({ ...item, conversationId: item.conversationId ?? normalizedConversationId }))
-        .filter((item) => String(item.conversationId ?? "") === normalizedConversationId);
+      const normalizedBatch = olderBatch.map((item) => ({ ...item, conversationId: normalizedConversationId }));
 
       if (!normalizedBatch.length) break;
 
@@ -1462,7 +1469,7 @@ export function useInboxState() {
         .map((item, index) => normalizeLoadedMessage(item, normalizedConversationId, index))
         .filter((item) => normalizeId(item.conversationId) === normalizeId(normalizedConversationId));
 
-      if (!options?.force && cached && Date.now() - cached.cachedAt < MESSAGE_CACHE_TTL_MS) {
+      if (!options?.force && cached && cached.messages && cached.messages.length > 0 && Date.now() - cached.cachedAt < MESSAGE_CACHE_TTL_MS) {
         if (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
           const resolvedId = resolveStoreConversationId(useAppStore.getState().conversations, normalizedConversationId);
           const currentStoreMessages = useAppStore.getState().messagesByConversationId[resolvedId] || [];
@@ -1477,11 +1484,8 @@ export function useInboxState() {
       // Show persisted messages as a skeleton ONLY if they belong to this exact conversation.
       // They will be replaced immediately once the server fetch completes.
       if (!cached && persisted.length > 0) {
-        const sortedPersisted = sortMessagesAsc(persisted);
-        const allBelongToConv = sortedPersisted.every(
-          (msg) => !msg.conversationId || normalizeId(msg.conversationId) === normalizeId(normalizedConversationId),
-        );
-        if (allBelongToConv && normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
+        const sortedPersisted = sortMessagesAsc(persisted.map((m) => ({ ...m, conversationId: normalizedConversationId })));
+        if (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
           setMessagesForConversation(normalizedConversationId, sortedPersisted);
           setHasMoreMessages(sortedPersisted.length >= MESSAGE_PAGE_SIZE);
         }
@@ -1492,7 +1496,7 @@ export function useInboxState() {
       const requestStartState = useAppStore.getState();
       const requestStartConversationId = resolveStoreConversationId(requestStartState.conversations, normalizedConversationId);
       const messagesAtRequestStart = requestStartState.messagesByConversationId[requestStartConversationId] || [];
-      const shouldShowLoading = !options?.background && !(cached?.messages.length || persisted.length);
+      const shouldShowLoading = !options?.background && !(cached?.messages?.length || persisted.length);
       if (shouldShowLoading) {
         setLoadingMessages(true);
       }
@@ -1505,12 +1509,16 @@ export function useInboxState() {
         if (activeMessageRequestRef.current.get(normalizedConversationId) !== requestId) return;
 
         const normalizedData = Array.isArray(data)
-          ? data.map((item, index) => normalizeLoadedMessage(item, normalizedConversationId, index))
+          ? data.map((item, index) => {
+              const msg = normalizeLoadedMessage(item, normalizedConversationId, index);
+              return {
+                ...msg,
+                conversationId: normalizedConversationId,
+              };
+            })
           : [];
 
-        const sorted = sortMessagesAsc(
-          normalizedData.filter((item) => normalizeId(item.conversationId) === normalizeId(normalizedConversationId)),
-        );
+        const sorted = sortMessagesAsc(normalizedData);
         const latestStore = useAppStore.getState();
         const latestConversationId = resolveStoreConversationId(latestStore.conversations, normalizedConversationId);
         const currentStoreMessages = latestStore.messagesByConversationId[latestConversationId] || [];
@@ -1811,17 +1819,22 @@ export function useInboxState() {
         beforeId: /^\d+$/.test(String(messages[0]?.id || '')) ? String(messages[0].id) : undefined,
       });
 
+      const normalizedConversationId = String(selectedConversation.id);
       const normalizedOlderBatch = Array.isArray(olderBatch)
-        ? olderBatch.map((item, index) => normalizeLoadedMessage(item, String(selectedConversation.id), index))
+        ? olderBatch.map((item, index) => {
+            const msg = normalizeLoadedMessage(item, normalizedConversationId, index);
+            return {
+              ...msg,
+              conversationId: normalizedConversationId,
+            };
+          })
         : [];
 
       const nextHasMore = normalizedOlderBatch.length >= MESSAGE_PAGE_SIZE;
-      const normalizedConversationId = String(selectedConversation.id);
       setMessagesForConversation(normalizedConversationId, (prev) => {
         const seen = new Set(prev.map((item) => item.id));
         const merged = [
-          ...normalizedOlderBatch
-            .filter((item) => !seen.has(item.id) && normalizeId(item.conversationId) === normalizeId(normalizedConversationId)),
+          ...normalizedOlderBatch.filter((item) => !seen.has(item.id)),
           ...prev,
         ];
         const sorted = sortMessagesAsc(merged);

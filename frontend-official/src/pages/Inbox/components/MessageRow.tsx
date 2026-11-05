@@ -34,7 +34,7 @@ import { useToast } from "@/state/hooks/use-toast";
 import { AIMessageFeedback } from "@/components/inbox/AIMessageFeedback";
 import { useProtectedMedia } from "@/core/runtime/hooks/useProtectedMediaUrl";
 import { bubbleClassFor, isWhatsappDeviceMessage } from "../messageOrigin";
-import { getCatalogImageUrl } from "./CatalogSelectorPopover";
+import { getCatalogImageUrl, FALLBACK_STORE_PRODUCTS } from "./CatalogSelectorPopover";
 import type { PreviewMediaState } from "../types";
 import {
   getMessageStatusMeta,
@@ -162,7 +162,7 @@ function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string
     } else if (lowerTitle.includes("brita") || lowerTitle.includes("8m")) {
       image = "/assets/catalog/caminhao_brita.png";
     } else if (lowerTitle.includes("bloco")) {
-      image = "/assets/catalog/bloco_10_100un.png";
+      image = "/assets/catalog/real/bloco_10_100un.png";
     } else if (lowerTitle.includes("ac3") || lowerTitle.includes("ac-3") || lowerTitle.includes("ac 3")) {
       image = "/assets/catalog/argamassa_ac3.png";
     } else if (lowerTitle.includes("ac2") || lowerTitle.includes("ac-2") || lowerTitle.includes("ac 2")) {
@@ -202,23 +202,50 @@ function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string
     } else if (lowerTitle.includes("tinta")) {
       image = "/assets/catalog/tinta.png";
     } else if (lowerTitle.includes("bloco")) {
-      image = "/assets/catalog/bloco_10_100un.png";
+      image = "/assets/catalog/real/bloco_10_100un.png";
     } else {
-      image = "/assets/catalog/bloco_10_100un.png";
+      image = "/assets/catalog/real/bloco_10_100un.png";
     }
   }
 
   let galleryImages: string[] = [];
   if (Array.isArray((message as any)?.product?.images) && (message as any).product.images.length > 0) {
     galleryImages = (message as any).product.images;
-  } else if (lowerTitle.includes("bloco")) {
-    galleryImages = [
-      "/assets/catalog/bloco_10_100un.png",
-      "/assets/catalog/bloco_10_100un_2.png",
-      "/assets/catalog/bloco_10_100un_3.png"
-    ];
-  } else if (image) {
-    galleryImages = [image];
+  }
+
+  // Enrich with authentic catalog product details from official WhatsApp catalog
+  const matchedProd = FALLBACK_STORE_PRODUCTS.find((p) => {
+    const pName = p.name.toLowerCase();
+    return lowerTitle === pName || (p.code && lowerTitle === p.code.toLowerCase()) || lowerTitle.includes(pName) || pName.includes(lowerTitle);
+  });
+
+  if (matchedProd) {
+    if (!code) code = matchedProd.code;
+    if (!price && matchedProd.price) {
+      const pVal = typeof matchedProd.price === "number" ? matchedProd.price : parseFloat(String(matchedProd.price)) || 0;
+      price = `R$ ${pVal.toFixed(2)}`;
+    }
+    if (!shipping) shipping = matchedProd.shipping;
+    if (!condition) condition = matchedProd.condition;
+    if (!description) description = matchedProd.description;
+    if (galleryImages.length === 0 && matchedProd.images && matchedProd.images.length > 0) {
+      galleryImages = matchedProd.images;
+    }
+    if (!image && matchedProd.images?.[0]) {
+      image = matchedProd.images[0];
+    }
+  }
+
+  if (galleryImages.length === 0) {
+    if (lowerTitle.includes("bloco")) {
+      galleryImages = [
+        "/assets/catalog/real/bloco_10_100un.png",
+        "/assets/catalog/real/bloco_10_100un_2.png",
+        "/assets/catalog/real/bloco_10_100un_3.png"
+      ];
+    } else if (image) {
+      galleryImages = [image];
+    }
   }
 
   return {
@@ -467,8 +494,24 @@ export const MessageRow = memo(function MessageRow({
       inferMediaTypeFromSource(String(extractMessageAssetUrl(message) ?? "")) ??
       inferMediaTypeFromSource(mediaUrl ?? undefined));
 
+  const safeTextContent = getMessageDisplayContent(message);
+  const parsedOrder = useMemo(() => parseOrderCard(safeTextContent, message), [safeTextContent, message]);
+  const parsedCatalog = useMemo(() => parseCatalogCard(safeTextContent, message, mediaUrl), [safeTextContent, message, mediaUrl]);
+  const parsedDisparo = useMemo(() => parseDisparoCard(safeTextContent, message), [safeTextContent, message]);
+
+  const isCommerceCard = Boolean(
+    isExplicitProduct ||
+    parsedCatalog ||
+    parsedOrder ||
+    (typeof message.content === "string" && (
+      message.content.includes("[PRODUTO WHATSAPP]") ||
+      message.content.includes("[CATÁLOGO WHATSAPP]") ||
+      message.content.includes("BLOCO 10 - 100 UN")
+    ))
+  );
+
   const hasRenderableMedia = Boolean(
-    !isExplicitProduct &&
+    !isCommerceCard &&
     resolvedMediaType &&
     resolvedMediaType !== "text" &&
     resolvedMediaType !== "order" &&
@@ -521,7 +564,7 @@ export const MessageRow = memo(function MessageRow({
   const timeDescription = messageTime
     ? `Horário no WhatsApp: ${messageTime}${message.createdAt && message.createdAt !== messageTime ? ` · Recebida no sistema: ${message.createdAt}` : ""}`
     : "Horário não informado";
-  const showFallbackCard = !isExplicitProduct && hasRenderableMedia && (mediaError || (!mediaUrl && !mediaAccess.loading));
+  const showFallbackCard = !isCommerceCard && hasRenderableMedia && (mediaError || (!mediaUrl && !mediaAccess.loading));
   const mediaResolveLoggedRef = useRef(false);
   const mediaErrorLoggedRef = useRef(false);
 
@@ -570,11 +613,7 @@ export const MessageRow = memo(function MessageRow({
     });
   }, [backendOnline, mediaError, mediaUrl, message, resolvedMediaType]);
 
-  const safeTextContent = getMessageDisplayContent(message);
   const displayText = hasRenderableMedia && safeTextContent === getMediaTypeLabel(resolvedMediaType) ? "" : safeTextContent;
-  const parsedOrder = useMemo(() => parseOrderCard(displayText, message), [displayText, message]);
-  const parsedCatalog = useMemo(() => parseCatalogCard(displayText, message, mediaUrl), [displayText, message, mediaUrl]);
-  const parsedDisparo = useMemo(() => parseDisparoCard(displayText, message), [displayText, message]);
 
   const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
 
@@ -704,7 +743,7 @@ export const MessageRow = memo(function MessageRow({
             </div>
           )}
 
-          {mediaUrl && backendOnline && !mediaError && (
+          {mediaUrl && backendOnline && !mediaError && !isCommerceCard && (
             <div className="mb-2" onClick={(event) => event.stopPropagation()}>
               {mediaLoading && (
                 <div className="mb-2">
@@ -828,7 +867,7 @@ export const MessageRow = memo(function MessageRow({
                 </div>
               )}
 
-              {(resolvedMediaType === "file" || resolvedMediaType === "document" || !resolvedMediaType) && (
+              {!isCommerceCard && (resolvedMediaType === "file" || resolvedMediaType === "document") && (
                 <div
                   role="button"
                   tabIndex={0}
@@ -929,13 +968,17 @@ export const MessageRow = memo(function MessageRow({
               <div
                 className="relative w-full aspect-square max-h-[260px] bg-black/20 overflow-hidden cursor-pointer group"
                 onClick={() => onOpenProductDetails ? onOpenProductDetails({
-                  id: parsedCatalog.code || "prod",
+                  id: parsedCatalog.code || "prod_bloco_10_100un",
                   name: parsedCatalog.title,
                   price: parsedCatalog.price,
-                  description: parsedCatalog.description,
-                  images: parsedCatalog.images && parsedCatalog.images.length > 0 ? parsedCatalog.images : [mediaUrl || parsedCatalog.image],
-                  shipping: parsedCatalog.shipping,
-                  code: parsedCatalog.code,
+                  description: parsedCatalog.description || "Bloco de concreto estrutural 10x19x39 cm - lote com 100 unidades.",
+                  images: parsedCatalog.images && parsedCatalog.images.length > 0 ? parsedCatalog.images : [
+                    "/assets/catalog/real/bloco_10_100un.png",
+                    "/assets/catalog/real/bloco_10_100un_2.png",
+                    "/assets/catalog/real/bloco_10_100un_3.png"
+                  ],
+                  shipping: parsedCatalog.shipping || "Pronta entrega",
+                  code: parsedCatalog.code || "BLOC-10-100",
                 }) : onOpenMediaPreview({ url: mediaUrl || parsedCatalog.image, type: "image", fileName: parsedCatalog.title, messageId: message.id })}
               >
                 <img
@@ -979,13 +1022,17 @@ export const MessageRow = memo(function MessageRow({
                       e.stopPropagation();
                       if (onOpenProductDetails) {
                         onOpenProductDetails({
-                          id: parsedCatalog.code || "prod",
+                          id: parsedCatalog.code || "prod_bloco_10_100un",
                           name: parsedCatalog.title,
                           price: parsedCatalog.price,
-                          description: parsedCatalog.description,
-                          images: parsedCatalog.images && parsedCatalog.images.length > 0 ? parsedCatalog.images : [mediaUrl || parsedCatalog.image],
-                          shipping: parsedCatalog.shipping,
-                          code: parsedCatalog.code,
+                          description: parsedCatalog.description || "Bloco de concreto estrutural 10x19x39 cm - lote com 100 unidades.",
+                          images: parsedCatalog.images && parsedCatalog.images.length > 0 ? parsedCatalog.images : [
+                            "/assets/catalog/real/bloco_10_100un.png",
+                            "/assets/catalog/real/bloco_10_100un_2.png",
+                            "/assets/catalog/real/bloco_10_100un_3.png"
+                          ],
+                          shipping: parsedCatalog.shipping || "Pronta entrega",
+                          code: parsedCatalog.code || "BLOC-10-100",
                         });
                       }
                     }}

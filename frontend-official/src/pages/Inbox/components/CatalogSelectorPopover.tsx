@@ -87,9 +87,9 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     category: "Tijolos & Blocos",
     stock: 150,
     images: [
-      "/assets/catalog/bloco_10_100un.png",
-      "/assets/catalog/bloco_10_100un_2.png",
-      "/assets/catalog/bloco_10_100un_3.png"
+      "/assets/catalog/real/bloco_10_100un.png",
+      "/assets/catalog/real/bloco_10_100un_2.png",
+      "/assets/catalog/real/bloco_10_100un_3.png"
     ],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Lote com 100 unidades",
@@ -353,7 +353,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
 export const getCatalogImageUrl = (raw?: string) => {
   if (!raw) return "";
   const base = raw.replace("/assets/catalog/real/", "/assets/catalog/");
-  return base.includes("?") ? base : `${base}?v=real_v4`;
+  return base.includes("?") ? base : `${base}?v=real_v6_authentic`;
 };
 
 export function formatProductMessage(product: CatalogProduct, customNote?: string): string {

@@ -6,3 +6,4 @@ try {
 } catch (e) {
   console.log('Grep finished with output:\n', e.stdout || e.message);
 }
+

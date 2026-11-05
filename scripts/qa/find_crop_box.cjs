@@ -60,3 +60,4 @@ const fs = require('fs');
   console.log('Detected main image crop box:', crops);
   await browser.close();
 })();
+

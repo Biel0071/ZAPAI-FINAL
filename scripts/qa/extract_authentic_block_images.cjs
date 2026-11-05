@@ -93,3 +93,4 @@ const fs = require('fs');
   await browser.close();
   console.log('ALL AUTHENTIC BLOCK IMAGES EXTRACTED AND SAVED SUCCESSFULLY!');
 })();
+
