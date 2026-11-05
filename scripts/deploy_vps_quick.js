@@ -6,11 +6,13 @@ try {
   execSync('npm run build:frontend', { stdio: 'inherit' });
 
   console.log('1. Packaging and uploading frontend_code.tar.gz via scp...');
-  execSync('tar --exclude="*.png" --exclude="*.jpg" --exclude="*.jpeg" -czf frontend_code.tar.gz -C frontend-official/dist .', { stdio: 'inherit' });
+  execSync('tar -czf frontend_code.tar.gz -C frontend-official/dist .', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 frontend_code.tar.gz root@209.50.241.22:/tmp/frontend_code.tar.gz', { stdio: 'inherit' });
   
   console.log('2. Unpacking in OpenResty (/www/zapai/ and /etc/icontainer/...)...');
-  execSync('ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@209.50.241.22 "tar -xzf /tmp/frontend_code.tar.gz -C /www/zapai/ && tar -xzf /tmp/frontend_code.tar.gz -C /etc/icontainer/apps/openresty/openresty/www/zapai/ && rm -f /tmp/frontend_code.tar.gz"', { stdio: 'inherit' });
+  execSync('ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@209.50.241.22 "tar -xzf /tmp/frontend_code.tar.gz -C /www/zapai/ && rm -f /tmp/frontend_code.tar.gz"', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 frontend-official/public/assets/catalog/bloco_10_100un*.png root@209.50.241.22:/www/zapai/assets/catalog/', { stdio: 'inherit' });
+  execSync('ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@209.50.241.22 "mkdir -p /www/zapai/assets/catalog/real && cp -f /www/zapai/assets/catalog/bloco_10_100un*.png /www/zapai/assets/catalog/real/ 2>/dev/null; mkdir -p /opt/zapai/backend/assets/catalog/real && cp -f /www/zapai/assets/catalog/bloco_10_100un*.png /opt/zapai/backend/assets/catalog/ && cp -f /www/zapai/assets/catalog/bloco_10_100un*.png /opt/zapai/backend/assets/catalog/real/"', { stdio: 'inherit' });
 
   console.log('3. Uploading unified backend files...');
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/productRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/productRepository.js', { stdio: 'inherit' });

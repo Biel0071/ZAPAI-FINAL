@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   ArrowLeft,
   ShoppingCart,
@@ -13,6 +13,8 @@ import {
   Truck,
   WhatsappLogo,
   PencilSimple,
+  CaretLeft,
+  CaretRight,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -53,6 +55,24 @@ export function ProductDetailDrawer({
   onClearCart,
 }: ProductDetailDrawerProps) {
   const [view, setView] = useState<"details" | "cart">("details");
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [product?.id]);
+
+  const allImages: string[] = useMemo(() => {
+    if (!product) return [];
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      return product.images.filter(Boolean);
+    }
+    if ((product as any).image) {
+      return [(product as any).image];
+    }
+    return [];
+  }, [product]);
+
+  const currentImageIndex = Math.min(Math.max(0, activeImageIndex), Math.max(0, allImages.length - 1));
 
   if (!isOpen) return null;
 
@@ -176,21 +196,81 @@ export function ProductDetailDrawer({
       {/* Content Area */}
       {view === "details" && product ? (
         <ScrollArea className="flex-1 p-4 space-y-4">
-          {/* Main Product Image */}
-          <div className="w-full aspect-square max-h-[380px] rounded-2xl overflow-hidden bg-[#202c33] border border-[#2a3942] flex items-center justify-center relative shadow-lg">
-            {product.images && product.images.length > 0 && product.images[0] ? (
-              <img
-                src={getCatalogImageUrl(product.images[0])}
-                alt={product.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = "none";
-                }}
-              />
-            ) : (
-              <div className="text-center text-muted-foreground p-8">
-                <Storefront className="h-16 w-16 mx-auto opacity-30 text-emerald-400" />
-                <p className="text-xs mt-2">Sem foto disponível</p>
+          {/* Main Product Image & Multi-Image Gallery */}
+          <div className="space-y-2.5">
+            <div className="w-full aspect-square max-h-[380px] rounded-2xl overflow-hidden bg-[#202c33] border border-[#2a3942] flex items-center justify-center relative shadow-lg group">
+              {allImages.length > 0 ? (
+                <>
+                  <img
+                    src={getCatalogImageUrl(allImages[currentImageIndex])}
+                    alt={`${product.name} ${currentImageIndex + 1}`}
+                    className="w-full h-full object-cover transition-all duration-300"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = "none";
+                    }}
+                  />
+                  {allImages.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : allImages.length - 1));
+                        }}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors shadow-lg z-10"
+                        title="Imagem anterior"
+                        aria-label="Imagem anterior"
+                      >
+                        <CaretLeft className="h-5 w-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-colors shadow-lg z-10"
+                        title="Próxima imagem"
+                        aria-label="Próxima imagem"
+                      >
+                        <CaretRight className="h-5 w-5" />
+                      </button>
+                      <div className="absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-xs text-[11px] font-semibold text-white/90">
+                        {currentImageIndex + 1} / {allImages.length}
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="text-center text-muted-foreground p-8">
+                  <Storefront className="h-16 w-16 mx-auto opacity-30 text-emerald-400" />
+                  <p className="text-xs mt-2">Sem foto disponível</p>
+                </div>
+              )}
+            </div>
+
+            {/* Thumbnail Gallery Strip */}
+            {allImages.length > 1 && (
+              <div className="flex items-center gap-2 overflow-x-auto py-1 px-0.5">
+                {allImages.map((imgUrl, idx) => (
+                  <button
+                    key={`${imgUrl}-${idx}`}
+                    type="button"
+                    onClick={() => setActiveImageIndex(idx)}
+                    className={cn(
+                      "w-16 h-16 rounded-xl overflow-hidden border-2 shrink-0 transition-all bg-[#202c33]",
+                      idx === currentImageIndex
+                        ? "border-emerald-500 ring-2 ring-emerald-500/30 scale-105"
+                        : "border-[#2a3942] opacity-70 hover:opacity-100"
+                    )}
+                  >
+                    <img
+                      src={getCatalogImageUrl(imgUrl)}
+                      alt={`Miniatura ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
             )}
           </div>

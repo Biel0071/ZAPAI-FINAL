@@ -61,6 +61,7 @@ interface ParsedCatalogItem {
   description?: string;
   catalogUrl?: string;
   image?: string;
+  images?: string[];
 }
 
 function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string | null): ParsedCatalogItem | null {
@@ -200,9 +201,24 @@ function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string
       image = "/assets/catalog/betoneira_csm_400l.png";
     } else if (lowerTitle.includes("tinta")) {
       image = "/assets/catalog/tinta.png";
+    } else if (lowerTitle.includes("bloco")) {
+      image = "/assets/catalog/bloco_10_100un.png";
     } else {
-      image = "/assets/catalog/areia_m3.png";
+      image = "/assets/catalog/bloco_10_100un.png";
     }
+  }
+
+  let galleryImages: string[] = [];
+  if (Array.isArray((message as any)?.product?.images) && (message as any).product.images.length > 0) {
+    galleryImages = (message as any).product.images;
+  } else if (lowerTitle.includes("bloco")) {
+    galleryImages = [
+      "/assets/catalog/bloco_10_100un.png",
+      "/assets/catalog/bloco_10_100un_2.png",
+      "/assets/catalog/bloco_10_100un_3.png"
+    ];
+  } else if (image) {
+    galleryImages = [image];
   }
 
   return {
@@ -215,6 +231,7 @@ function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string
     description,
     catalogUrl,
     image,
+    images: galleryImages,
   };
 }
 
@@ -426,15 +443,32 @@ export const MessageRow = memo(function MessageRow({
   isActiveSearchMatch?: boolean;
 }) {
   const explicitMessageType = (message as any).messageType;
-  
-  const mediaAccess = useProtectedMedia(extractMessageAssetUrl(message));
-  const mediaUrl = mediaAccess.url;
-  const resolvedMediaType =
-    message.mediaType ??
-    explicitMessageType ??
-    inferMediaTypeFromSource(String(extractMessageAssetUrl(message) ?? "")) ??
-    inferMediaTypeFromSource(mediaUrl ?? undefined);
+  const isExplicitProduct =
+    message.type === "product" ||
+    (message as any).mediaType === "product" ||
+    (message as any).media_type === "product" ||
+    explicitMessageType === "product" ||
+    Boolean((message as any)?.product) ||
+    (typeof message.content === "string" && (
+      message.content.includes("[PRODUTO WHATSAPP]") ||
+      message.content.includes("[CATÁLOGO WHATSAPP]") ||
+      message.content.includes("BLOCO 10 - 100 UN")
+    ));
+
+  const rawAsset = extractMessageAssetUrl(message);
+  const isPublicCatalogAsset = typeof rawAsset === "string" && (rawAsset.startsWith("/assets/catalog") || rawAsset.includes("/assets/catalog/"));
+  const mediaAccess = useProtectedMedia(isExplicitProduct || isPublicCatalogAsset ? null : rawAsset);
+  const mediaUrl = isPublicCatalogAsset ? rawAsset : (isExplicitProduct ? (rawAsset || (message as any)?.url) : mediaAccess.url);
+
+  const resolvedMediaType = isExplicitProduct
+    ? "product"
+    : (message.mediaType ??
+      explicitMessageType ??
+      inferMediaTypeFromSource(String(extractMessageAssetUrl(message) ?? "")) ??
+      inferMediaTypeFromSource(mediaUrl ?? undefined));
+
   const hasRenderableMedia = Boolean(
+    !isExplicitProduct &&
     resolvedMediaType &&
     resolvedMediaType !== "text" &&
     resolvedMediaType !== "order" &&
@@ -487,7 +521,7 @@ export const MessageRow = memo(function MessageRow({
   const timeDescription = messageTime
     ? `Horário no WhatsApp: ${messageTime}${message.createdAt && message.createdAt !== messageTime ? ` · Recebida no sistema: ${message.createdAt}` : ""}`
     : "Horário não informado";
-  const showFallbackCard = hasRenderableMedia && (mediaError || (!mediaUrl && !mediaAccess.loading));
+  const showFallbackCard = !isExplicitProduct && hasRenderableMedia && (mediaError || (!mediaUrl && !mediaAccess.loading));
   const mediaResolveLoggedRef = useRef(false);
   const mediaErrorLoggedRef = useRef(false);
 
@@ -899,7 +933,7 @@ export const MessageRow = memo(function MessageRow({
                   name: parsedCatalog.title,
                   price: parsedCatalog.price,
                   description: parsedCatalog.description,
-                  images: [mediaUrl || parsedCatalog.image],
+                  images: parsedCatalog.images && parsedCatalog.images.length > 0 ? parsedCatalog.images : [mediaUrl || parsedCatalog.image],
                   shipping: parsedCatalog.shipping,
                   code: parsedCatalog.code,
                 }) : onOpenMediaPreview({ url: mediaUrl || parsedCatalog.image, type: "image", fileName: parsedCatalog.title, messageId: message.id })}
@@ -910,8 +944,10 @@ export const MessageRow = memo(function MessageRow({
                   className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
                   onError={(e) => {
                     const img = e.currentTarget as HTMLImageElement;
-                    if (!img.src.includes('areia_m3.png')) {
-                      img.src = '/assets/catalog/areia_m3.png';
+                    if (parsedCatalog.title?.toLowerCase().includes("bloco")) {
+                      img.src = '/assets/catalog/bloco_10_100un.png';
+                    } else if (parsedCatalog.image && !img.src.includes(parsedCatalog.image)) {
+                      img.src = parsedCatalog.image;
                     }
                   }}
                 />
@@ -947,7 +983,7 @@ export const MessageRow = memo(function MessageRow({
                           name: parsedCatalog.title,
                           price: parsedCatalog.price,
                           description: parsedCatalog.description,
-                          images: [mediaUrl || parsedCatalog.image],
+                          images: parsedCatalog.images && parsedCatalog.images.length > 0 ? parsedCatalog.images : [mediaUrl || parsedCatalog.image],
                           shipping: parsedCatalog.shipping,
                           code: parsedCatalog.code,
                         });
@@ -1008,7 +1044,9 @@ export const MessageRow = memo(function MessageRow({
                         id: "prod",
                         name: cleanCardTitle || "Produto do Catálogo",
                         price: cleanCardPrice || undefined,
-                        images: [cardImg],
+                        images: cleanCardTitle?.toLowerCase().includes("bloco")
+                          ? ["/assets/catalog/bloco_10_100un.png", "/assets/catalog/bloco_10_100un_2.png", "/assets/catalog/bloco_10_100un_3.png"]
+                          : [cardImg],
                       }) : onOpenMediaPreview({ url: cardImg, type: "image", fileName: cleanCardTitle || "Produto", messageId: message.id })}
                     >
                       <img
@@ -1017,8 +1055,10 @@ export const MessageRow = memo(function MessageRow({
                         className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
                         onError={(e) => {
                           const img = e.currentTarget as HTMLImageElement;
-                          if (!img.src.includes('areia_m3.png')) {
-                            img.src = '/assets/catalog/areia_m3.png';
+                          if (cleanCardTitle?.toLowerCase().includes("bloco")) {
+                            img.src = '/assets/catalog/bloco_10_100un.png';
+                          } else if (!img.src.includes(fallbackImg)) {
+                            img.src = fallbackImg;
                           }
                         }}
                       />

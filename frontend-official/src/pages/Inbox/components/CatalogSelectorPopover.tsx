@@ -86,7 +86,11 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     price: 134.99,
     category: "Tijolos & Blocos",
     stock: 150,
-    images: ["/assets/catalog/bloco_10_100un.png"],
+    images: [
+      "/assets/catalog/bloco_10_100un.png",
+      "/assets/catalog/bloco_10_100un_2.png",
+      "/assets/catalog/bloco_10_100un_3.png"
+    ],
     whatsapp_url: OFFICIAL_STORE_CATALOG_URL,
     promotions: "Lote com 100 unidades",
     condition: "Novo",

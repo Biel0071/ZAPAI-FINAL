@@ -617,7 +617,9 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     try {
       const optimisticId = `prod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const now = new Date().toISOString();
-      const productImageUrl = (Array.isArray(product.images) && product.images[0]) || product.image || product.productImage || `/assets/catalog/${product.code?.toLowerCase() || 'areia_m3'}.png`;
+      const isBlockProd = (product.name || product.title || '').toLowerCase().includes('bloco') || (product.code || '').toLowerCase().includes('bloc');
+      const defaultProdImg = isBlockProd ? '/assets/catalog/bloco_10_100un.png' : `/assets/catalog/${product.code?.toLowerCase() || 'bloco_10_100un'}.png`;
+      const productImageUrl = (Array.isArray(product.images) && product.images[0]) || product.image || product.productImage || defaultProdImg;
       const formattedText = formattedMessage || `*${product.name || product.title}*\nR$ ${(Number(product.price) || 0).toFixed(2)}`;
 
       const optimisticMessage: ChatMessage = {
@@ -637,7 +639,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           id: product.id || product.productId,
           name: product.name || product.title,
           price: product.price,
-          images: [productImageUrl],
+          images: Array.isArray(product.images) && product.images.length > 0 ? product.images : [productImageUrl],
         },
       };
 
@@ -696,7 +698,9 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       const now = new Date().toISOString();
       for (const p of products) {
         const optimisticId = `prod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-        const pImg = (Array.isArray(p.images) && p.images[0]) || (p as any).image || `/assets/catalog/${p.code?.toLowerCase() || 'areia_m3'}.png`;
+        const isBlockP = (p.name || '').toLowerCase().includes('bloco') || (p.code || '').toLowerCase().includes('bloc');
+        const defaultImg = isBlockP ? '/assets/catalog/bloco_10_100un.png' : `/assets/catalog/${p.code?.toLowerCase() || 'bloco_10_100un'}.png`;
+        const pImg = (Array.isArray(p.images) && p.images[0]) || (p as any).image || defaultImg;
         const text = `*${p.name}*\nR$ ${(Number(p.price) || 0).toFixed(2)}`;
         useAppStore.getState().addMessage(selectedConversation.id, {
           id: optimisticId,
@@ -711,7 +715,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           mediaUrl: pImg,
           url: pImg,
           mediaPath: pImg,
-          product: { id: p.id, name: p.name, price: p.price, images: [pImg] },
+          product: { id: p.id, name: p.name, price: p.price, images: Array.isArray(p.images) && p.images.length > 0 ? p.images : [pImg] },
         });
       }
 

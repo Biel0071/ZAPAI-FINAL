@@ -62,3 +62,4 @@ async function captureDetailedInbox() {
 }
 
 captureDetailedInbox().catch(console.error);
+

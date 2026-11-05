@@ -1034,15 +1034,27 @@ export function normalizeConversation(item: RawConversation, index: number = 0):
 }
 
 function normalizeMessage(item: RawMessage, index: number, defaultConversationId?: string): ChatMessage {
-  const normalizedMediaType = item.mediaType ?? item.type;
-  const mediaPath = item.mediaPath ?? item.media_path;
-  const mediaUrl = item.url ?? item.mediaUrl ?? item.media_url ?? item.fileUrl ?? item.file_url;
+  const normalizedMediaType = item.mediaType ?? item.type ?? (item as any).media_type;
+  let mediaPath = item.mediaPath ?? item.media_path;
+  let mediaUrl = item.url ?? item.mediaUrl ?? item.media_url ?? item.fileUrl ?? item.file_url;
+
+  // Prevent mixed content errors when serving over HTTPS
+  if (typeof mediaUrl === "string" && mediaUrl.startsWith("http://209.50.241.22")) {
+    mediaUrl = mediaUrl.replace(/^http:\/\/209\.50\.241\.22(:1000)?/, "");
+  }
+  if (typeof mediaPath === "string" && mediaPath.startsWith("http://209.50.241.22")) {
+    mediaPath = mediaPath.replace(/^http:\/\/209\.50\.241\.22(:1000)?/, "");
+  }
+
+  const isProduct = normalizedMediaType === "product" || item.type === "product" || (item as any).media_type === "product";
   const source = `${mediaPath ?? ""} ${mediaUrl ?? ""}`.toLowerCase();
   const contentStr = String(item.content ?? item.text ?? item.body ?? item.caption ?? "").toLowerCase();
 
-  let inferredMediaType: "image" | "video" | "audio" | "file" | "sticker" | undefined = undefined;
+  let inferredMediaType: "image" | "video" | "audio" | "file" | "sticker" | "product" | undefined = undefined;
 
-  if (contentStr.includes("[image]")) {
+  if (isProduct) {
+    inferredMediaType = "product";
+  } else if (contentStr.includes("[image]")) {
     inferredMediaType = "image";
   } else if (contentStr.includes("[video]")) {
     inferredMediaType = "video";
@@ -1068,9 +1080,10 @@ function normalizeMessage(item: RawMessage, index: number, defaultConversationId
       normalizedMediaType === "video" ||
       normalizedMediaType === "audio" ||
       normalizedMediaType === "file" ||
-      normalizedMediaType === "sticker"
+      normalizedMediaType === "sticker" ||
+      normalizedMediaType === "product"
     ) {
-      inferredMediaType = normalizedMediaType;
+      inferredMediaType = normalizedMediaType as any;
     } else if (normalizedMediaType === "document" || normalizedMediaType === "media") {
       inferredMediaType = "file";
     } else if (mediaPath || mediaUrl) {
