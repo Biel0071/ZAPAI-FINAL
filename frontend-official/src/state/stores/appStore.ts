@@ -860,14 +860,34 @@ export const useAppStore = create<AppState>((set) => ({
   updateMessageStatus: (conversationId, messageId, status) =>
     set((state) => {
       const resolvedId = resolveStoreConversationId(state.conversations, conversationId);
-      const current = state.messagesByConversationId[resolvedId] ?? [];
+      let targetId = resolvedId;
+      let current = state.messagesByConversationId[resolvedId] ?? [];
+      if (!current.some((m) => String(m.id) === String(messageId))) {
+        for (const [convId, msgs] of Object.entries(state.messagesByConversationId)) {
+          if (msgs.some((m) => String(m.id) === String(messageId))) {
+            targetId = convId;
+            current = msgs;
+            break;
+          }
+        }
+      }
       const updated = current.map((m) =>
         String(m.id) === String(messageId) ? { ...m, status: mergeMessageStatus(m.status, status) } : m
       );
+      const nextConversations = state.conversations.map((c) => {
+        if (String(c.id) === String(targetId)) {
+          const lastMsg = updated[updated.length - 1];
+          if (lastMsg && String(lastMsg.id) === String(messageId)) {
+            return { ...c, lastMessageStatus: mergeMessageStatus(c.lastMessageStatus as any, status) as any };
+          }
+        }
+        return c;
+      });
       return {
+        conversations: nextConversations,
         messagesByConversationId: {
           ...state.messagesByConversationId,
-          [resolvedId]: updated,
+          [targetId]: updated,
         },
       };
     }),

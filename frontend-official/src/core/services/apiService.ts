@@ -89,6 +89,8 @@ export interface Conversation {
   isGroup?: boolean;
   lastMessage: string;
   lastMessageAt?: string | null;
+  lastMessageFromMe?: boolean;
+  lastMessageStatus?: ChatMessage["status"];
   updatedAt: string;
   phone: string;
   unread?: number;

@@ -163,7 +163,7 @@ export function useInboxState() {
   const [conversationSearchOpen, setConversationSearchOpen] = useState(false);
   const [conversationSearchQuery, setConversationSearchQuery] = useState("");
   const [activeConversationSearchIndex, setActiveConversationSearchIndex] = useState(0);
-  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [loadingConversations, setLoadingConversations] = useState(() => useAppStore.getState().conversations.length === 0);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [historySyncStatus, setHistorySyncStatus] = useState<"idle" | "requesting" | "requested" | "imported" | "error">("idle");
@@ -1231,7 +1231,13 @@ export function useInboxState() {
 
     const loadInitial = async () => {
       setError(null);
-      setLoadingConversations(true);
+      const initialPersisted = filterConversationsForSession(loadPersistedConversations(), null);
+      if (initialPersisted.length > 0 && useAppStore.getState().conversations.length === 0) {
+        setConversations(initialPersisted);
+        setLoadingConversations(false);
+      } else if (useAppStore.getState().conversations.length === 0) {
+        setLoadingConversations(true);
+      }
       setConversationsLoadFailed(false);
 
       try {
@@ -1705,7 +1711,6 @@ export function useInboxState() {
     void loadConversationMessagesRef.current(normalizedId);
 
     autoScrollRef.current = true;
-    setLoadingMessages(false);
     setPendingBackgroundUpdates(0);
     setUnseenRealtimeCount(0);
     setActiveMessageMenuId(null);
@@ -2228,6 +2233,95 @@ export function useInboxState() {
     const pendingTempIds = new Set<string>();
     let acceptedCount = 0;
 
+    const optimisticMessages: ChatMessage[] = currentAttachments.length
+      ? currentAttachments.map((attachment, index) => {
+          const tempId = `temp-media-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${index}`;
+          pendingTempIds.add(tempId);
+          return {
+            id: tempId,
+            conversationId: currentConversation.id,
+            content: attachment.caption || (index === 0 ? textToSend : ""),
+            fromMe: true,
+            createdAt: now,
+            status: "sending",
+            mediaType: attachment.mediaType,
+            url: attachment.previewUrl,
+          };
+        })
+      : [
+          (() => {
+            const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+            pendingTempIds.add(tempId);
+            return {
+              id: tempId,
+              conversationId: currentConversation.id,
+              content: textToSend,
+              fromMe: true,
+              createdAt: now,
+              status: "sending" as const,
+            };
+          })(),
+        ];
+
+    // ZERO-LATENCY INSTANT UI FEEDBACK (0ms): Clear composer and insert bubble immediately
+    const isOriginSelected = useAppStore.getState().activeConversationId === currentConversation.id;
+    if (isOriginSelected) {
+      messageInputStateRef.current = "";
+      attachmentsStateRef.current = [];
+      replyingToStateRef.current = null;
+      setMessageInput("");
+      setAttachments([]);
+      setReplyingTo(null);
+    }
+    persistDraftSnapshot(currentConversation.id, { draftMessage: "", draftMedia: [], draftReply: null, draftMentions: [] });
+    saveDraftToStorage(currentConversation.id, "");
+
+    // Clear typing status immediately upon sending a message
+    const storeState = useAppStore.getState();
+    storeState.updateTypingStatus(currentConversation.id, false);
+    if (currentConversation.chatId) {
+      storeState.updateTypingStatus(currentConversation.chatId, false);
+    }
+    if (currentConversation.phone) {
+      storeState.updateTypingStatus(currentConversation.phone, false);
+    }
+
+    setMessagesForConversation(currentConversation.id, (prev) => {
+      const next = sortMessagesAsc([...prev, ...optimisticMessages]);
+      updateConversationMessageStore(
+        currentConversation.id,
+        next,
+        messageCacheRef.current.get(currentConversation.id)?.hasMore ?? hasMoreMessages,
+      );
+      return next;
+    });
+
+    const pendingQueue = pendingOutgoingTempIdsRef.current.get(currentConversation.id) ?? [];
+    pendingOutgoingTempIdsRef.current.set(
+      currentConversation.id,
+      [...pendingQueue, ...optimisticMessages.map((item) => item.id)],
+    );
+
+    const optimisticLast = optimisticMessages[optimisticMessages.length - 1];
+    setConversations((prev) => {
+      const current = prev.find((item) => item.id === currentConversation.id);
+      if (!current) return prev;
+
+      const updated: Conversation = {
+        ...current,
+        lastMessage: optimisticLast?.content || textToSend || (currentAttachments[0]?.mediaType ? getMediaTypeLabel(currentAttachments[0].mediaType) : current.lastMessage || ""),
+        lastMessageFromMe: true,
+        lastMessageStatus: "sending",
+        lastMessageType: (optimisticLast?.mediaType === "document" || optimisticLast?.mediaType === "media" ? "file" : optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text") as any,
+        lastMessageAt: optimisticLast?.createdAt ?? now,
+        updatedAt: optimisticLast?.createdAt ?? now,
+      };
+
+      return [updated, ...prev.filter((item) => item.id !== currentConversation.id)];
+    });
+
+    scheduleScrollToBottom("smooth");
+
     try {
       // Always read latest sessions directly from the Zustand store to avoid stale closure
       const storeSessions = useAppStore.getState().sessions as unknown as SessionInfo[];
@@ -2244,105 +2338,12 @@ export function useInboxState() {
         const unavailableMessage = "Nenhuma sessão do WhatsApp está conectada. Reconecte uma sessão e tente novamente.";
         if (useAppStore.getState().activeConversationId === currentConversation.id) setError(unavailableMessage);
         showErrorToast(unavailableMessage);
-        return;
+        throw new Error(unavailableMessage);
       }
 
       const sessionIdToSend = resolvedActiveSession.id;
-
-      // Only clear the composer after a connected session has been resolved.
-      // Preserve edits and the next conversation's composer made during the await.
-      const isOriginSelected = useAppStore.getState().activeConversationId === currentConversation.id;
-      const currentDraft = isOriginSelected
-        ? { draftMessage: messageInputStateRef.current, draftMedia: attachmentsStateRef.current, draftReply: replyingToStateRef.current }
-        : composerDraftsRef.current.get(currentConversation.id);
-      const retainedText = currentDraft?.draftMessage === draftTextSnapshot ? "" : currentDraft?.draftMessage ?? "";
-      const retainedMedia = (currentDraft?.draftMedia ?? []).filter(attachment => !currentAttachments.some(sent => sent.id === attachment.id));
-      const retainedReply = currentDraft?.draftReply?.id === replyingToSnapshot?.id ? null : currentDraft?.draftReply ?? null;
-      persistDraftSnapshot(currentConversation.id, { draftMessage: retainedText, draftMedia: retainedMedia, draftReply: retainedReply, draftMentions: [] });
-      saveDraftToStorage(currentConversation.id, retainedText);
-      if (isOriginSelected) {
-        messageInputStateRef.current = retainedText;
-        attachmentsStateRef.current = retainedMedia;
-        replyingToStateRef.current = retainedReply;
-        setMessageInput(retainedText);
-        setAttachments(retainedMedia);
-        setReplyingTo(retainedReply);
-      }
-
       setPreferredSessionId(sessionIdToSend);
       localStorage.setItem("zapai_inbox_active_session", sessionIdToSend);
-
-      // Clear typing status immediately upon sending a message
-      const storeState = useAppStore.getState();
-      storeState.updateTypingStatus(currentConversation.id, false);
-      if (currentConversation.chatId) {
-        storeState.updateTypingStatus(currentConversation.chatId, false);
-      }
-      if (currentConversation.phone) {
-        storeState.updateTypingStatus(currentConversation.phone, false);
-      }
-
-      const optimisticMessages: ChatMessage[] = currentAttachments.length
-        ? currentAttachments.map((attachment, index) => {
-            const tempId = `temp-media-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${index}`;
-            pendingTempIds.add(tempId);
-            return {
-              id: tempId,
-              conversationId: currentConversation.id,
-              content: attachment.caption || (index === 0 ? textToSend : ""),
-              fromMe: true,
-              createdAt: now,
-              status: "sending",
-              mediaType: attachment.mediaType,
-              url: attachment.previewUrl,
-            };
-          })
-        : [
-            (() => {
-              const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-              pendingTempIds.add(tempId);
-              return {
-                id: tempId,
-                conversationId: currentConversation.id,
-                content: textToSend,
-                fromMe: true,
-                createdAt: now,
-                status: "sending" as const,
-              };
-            })(),
-          ];
-
-      setMessagesForConversation(currentConversation.id, (prev) => {
-        const next = sortMessagesAsc([...prev, ...optimisticMessages]);
-        updateConversationMessageStore(
-          currentConversation.id,
-          next,
-          messageCacheRef.current.get(currentConversation.id)?.hasMore ?? hasMoreMessages,
-        );
-        return next;
-      });
-
-      const pendingQueue = pendingOutgoingTempIdsRef.current.get(currentConversation.id) ?? [];
-      pendingOutgoingTempIdsRef.current.set(
-        currentConversation.id,
-        [...pendingQueue, ...optimisticMessages.map((item) => item.id)],
-      );
-
-      const optimisticLast = optimisticMessages[optimisticMessages.length - 1];
-      setConversations((prev) => {
-        const current = prev.find((item) => item.id === currentConversation.id);
-        if (!current) return prev;
-
-        const updated: Conversation = {
-          ...current,
-          lastMessage: optimisticLast?.content || textToSend || (currentAttachments[0]?.mediaType ? getMediaTypeLabel(currentAttachments[0].mediaType) : current.lastMessage || ""),
-          lastMessageType: (optimisticLast?.mediaType === "document" || optimisticLast?.mediaType === "media" ? "file" : optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text") as any,
-          lastMessageAt: optimisticLast?.createdAt ?? now,
-          updatedAt: optimisticLast?.createdAt ?? now,
-        };
-
-        return [updated, ...prev.filter((item) => item.id !== currentConversation.id)];
-      });
 
       console.log("[SEND] Sending loop starting...");
       for (let i = 0; i < optimisticMessages.length; i += 1) {

@@ -1271,16 +1271,16 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   if (normStatus === "sending" || normStatus === "pending" || normStatus === "retry") {
     return {
       symbol: "1V",
-      className: "text-amber-500 animate-pulse",
-      label: normStatus === "pending" ? "Na fila de envio" : normStatus === "retry" ? "Nova tentativa na fila" : "Preparando envio",
+      className: "text-muted-foreground/70 animate-pulse",
+      label: normStatus === "pending" ? "Na fila de envio" : normStatus === "retry" ? "Nova tentativa na fila" : "Enviando...",
       icon: "clock",
     };
   }
   if (normStatus === "failed" || normStatus === "blocked" || normStatus === "error") {
     return {
       symbol: "1V",
-      className: "text-destructive font-bold",
-      label: "Falha no envio",
+      className: "text-red-500 font-bold",
+      label: normStatus === "blocked" ? "Contato bloqueado / Não entregue" : "Falha no envio (não entregue)",
       icon: "failed",
     };
   }
@@ -1288,15 +1288,15 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
     return {
       symbol: "2V",
       className: "text-emerald-500 font-bold",
-      label: "Lida no WhatsApp",
+      label: "Lida pelo destinatário",
       icon: "read",
     };
   }
   if (normStatus === "device_ack" || normStatus === "delivered" || normStatus === "received") {
     return {
       symbol: "2V",
-      className: "text-emerald-500 font-bold",
-      label: "Entregue no WhatsApp",
+      className: "text-muted-foreground/80",
+      label: "Entregue ao aparelho",
       icon: "delivered",
     };
   }
@@ -1304,7 +1304,7 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
     return {
       symbol: "1V",
       className: "text-muted-foreground/70",
-      label: "Enviada ao WhatsApp",
+      label: "Enviada ao servidor WhatsApp",
       icon: "sent",
     };
   }
@@ -1312,8 +1312,8 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   return {
     symbol: "1V",
     className: "text-muted-foreground/70",
-    label: "Status não informado",
-    icon: "clock",
+    label: "Enviada",
+    icon: "sent",
   };
 }
 

@@ -17,7 +17,11 @@ import {
   Sparkle,
   WarningCircle,
   BellSimpleSlash,
+  Check,
+  Checks,
+  Clock,
 } from "@phosphor-icons/react";
+import { getMessageStatusMeta } from "../utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -430,7 +434,21 @@ export const ConversationRow = memo(function ConversationRow(props: Conversation
                     <span className="font-semibold text-primary">Rascunho:</span> {draftPreview}
                   </span>
                 ) : (
-                  <span className="truncate min-w-0">{conversation.lastMessage || "Sem mensagens"}</span>
+                  <span className="inline-flex items-center gap-1 truncate min-w-0">
+                    {conversation.lastMessageFromMe && (
+                      <span className="inline-flex items-center shrink-0">
+                        {(() => {
+                          const meta = getMessageStatusMeta(conversation.lastMessageStatus);
+                          if (meta.icon === "clock") return <Clock className="h-3 w-3 text-muted-foreground/60 animate-pulse" />;
+                          if (meta.icon === "failed") return <Check className="h-3 w-3 text-red-500 font-bold" weight="bold" />;
+                          if (meta.icon === "read") return <Checks className="h-3 w-3 text-emerald-500 font-bold" weight="bold" />;
+                          if (meta.icon === "delivered") return <Checks className="h-3 w-3 text-muted-foreground/70" />;
+                          return <Check className="h-3 w-3 text-muted-foreground/70" />;
+                        })()}
+                      </span>
+                    )}
+                    <span className="truncate">{conversation.lastMessage || "Sem mensagens"}</span>
+                  </span>
                 )}
               </p>
               <div className="flex items-center gap-1 shrink-0 pr-0.5">
