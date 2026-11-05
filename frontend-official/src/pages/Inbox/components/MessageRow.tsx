@@ -983,7 +983,9 @@ export const MessageRow = memo(function MessageRow({
                           name: parsedCatalog.title,
                           price: parsedCatalog.price,
                           description: parsedCatalog.description,
-                          images: parsedCatalog.images && parsedCatalog.images.length > 0 ? parsedCatalog.images : [mediaUrl || parsedCatalog.image],
+                          images: parsedCatalog.title?.toLowerCase().includes("bloco")
+                            ? ["/assets/catalog/bloco_10_100un.png", "/assets/catalog/bloco_10_100un_2.png", "/assets/catalog/bloco_10_100un_3.png"]
+                            : (parsedCatalog.images && parsedCatalog.images.length > 0 ? parsedCatalog.images : [mediaUrl || parsedCatalog.image]),
                           shipping: parsedCatalog.shipping,
                           code: parsedCatalog.code,
                         });
@@ -1087,7 +1089,9 @@ export const MessageRow = memo(function MessageRow({
                               id: "prod",
                               name: cleanCardTitle || "Produto do Catálogo",
                               price: cleanCardPrice || undefined,
-                              images: cardImg ? [cardImg] : [],
+                              images: cleanCardTitle?.toLowerCase().includes("bloco")
+                                ? ["/assets/catalog/bloco_10_100un.png", "/assets/catalog/bloco_10_100un_2.png", "/assets/catalog/bloco_10_100un_3.png"]
+                                : (cardImg ? [cardImg] : []),
                             });
                           }
                         }}

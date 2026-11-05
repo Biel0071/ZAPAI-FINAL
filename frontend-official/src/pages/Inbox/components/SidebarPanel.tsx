@@ -77,7 +77,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InboxSectionBoundary } from "@/components/system/InboxSectionBoundary";
 import { useProtectedMediaUrl } from "@/core/runtime/hooks/useProtectedMediaUrl";
-import { apiService, type ChatMessage, type Conversation } from "@/core/services/apiService";
+import { apiService, requestApiEndpoint, type ChatMessage, type Conversation } from "@/core/services/apiService";
 import type { AiMemoryRecord, InboxAiRuntime, PreviewMediaState, QuickReplyCategoryAppearance, QuickReplyItem } from "../types";
 import {
   extractMessageAssetUrl,
@@ -728,14 +728,11 @@ export const SidebarPanel = memo(function SidebarPanel({
     const fetchConversationMedia = async () => {
       setLoadingMedia(true);
       try {
-        const origin = typeof window !== "undefined" && window.location?.origin && !window.location.origin.startsWith("null") ? window.location.origin : "";
-        const url = `${origin}/api/conversations/${encodeURIComponent(selectedConversation.id)}/media`;
-        const resp = await fetch(url).catch(() => null);
-        if (resp && resp.ok) {
-          const data = await resp.json();
-          if (!isCancelled && Array.isArray(data?.media)) {
-            setRemoteMediaMessages(data.media);
-          }
+        const data = await requestApiEndpoint<{ success?: boolean; media?: any[] }>(
+          `/api/conversations/${encodeURIComponent(selectedConversation.id)}/media`
+        ).catch(() => null);
+        if (!isCancelled && Array.isArray(data?.media)) {
+          setRemoteMediaMessages(data.media);
         }
       } catch (err) {
         // Silent fallback in test/mock environments

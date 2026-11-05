@@ -2,8 +2,12 @@ const { execSync } = require('child_process');
 
 console.log('--- DEPLOYING FULL SYSTEM (FRONTEND + PUPPET BACKEND) TO VPS (209.50.241.22) ---');
 try {
-  console.log('0. Compiling fresh production frontend bundle...');
-  execSync('npm run build:frontend', { stdio: 'inherit' });
+  if (!process.argv.includes('--skip-build')) {
+    console.log('0. Compiling fresh production frontend bundle...');
+    execSync('npm run build:frontend', { stdio: 'inherit' });
+  } else {
+    console.log('0. Skipping build as requested (--skip-build)...');
+  }
 
   console.log('1. Packaging and uploading frontend_code.tar.gz via scp...');
   execSync('tar -czf frontend_code.tar.gz -C frontend-official/dist .', { stdio: 'inherit' });

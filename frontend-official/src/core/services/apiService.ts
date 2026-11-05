@@ -997,7 +997,12 @@ export function normalizeConversation(item: RawConversation, index: number = 0):
     companyId: item.companyId ?? item.company_id,
     contactId,
     sessionId,
-    contactName: item.contactName ?? item.name ?? item.pushName ?? resolvedPhone ?? "Contato",
+    contactName: (() => {
+      const cName = String(item.name ?? "").trim();
+      const cContact = String(item.contactName ?? "").trim();
+      if (cName && (cName.length > cContact.length || cContact.length <= 2)) return cName;
+      return cContact || cName || (item.pushName as string) || resolvedPhone || "Contato";
+    })(),
     avatar: item.avatar ?? item.profilePictureUrl ?? item.profile_picture_url,
     isGroup: Boolean(
       item.isGroup ||

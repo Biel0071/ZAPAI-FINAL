@@ -1098,7 +1098,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               ) : null
             }
             contactName={(() => {
-              const rawName = (selectedConversation.contactName || "").trim();
+              const fullTitle = (selectedConversation.name || "").trim();
+              const rawContact = (selectedConversation.contactName || "").trim();
+              const rawName = (fullTitle && (fullTitle.length > rawContact.length || !rawContact))
+                ? fullTitle
+                : (rawContact || fullTitle);
               const rawPhone = (selectedConversation.phone || "").trim();
               const isLidName =
                 rawName.includes("@lid") ||
@@ -1108,6 +1112,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                 if (rawPhone && !rawPhone.includes("@lid") && cleanPhoneDigits.length >= 10 && cleanPhoneDigits.length <= 13) {
                   return formatPhoneNumber(rawPhone);
                 }
+                if (fullTitle && !fullTitle.includes("@lid")) return fullTitle;
                 return formatPhoneNumber(rawName);
               }
               const cleaned = rawName.replace(/@s\.whatsapp\.net.*/, "").trim();
@@ -1115,11 +1120,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               if (digitsOnly.length >= 10 && (digitsOnly === cleaned || cleaned.startsWith("+") || cleaned.startsWith("55"))) {
                 return formatPhoneNumber(cleaned);
               }
-              return cleaned || (rawPhone ? formatPhoneNumber(rawPhone) : "Contato");
+              return cleaned || fullTitle || (rawPhone ? formatPhoneNumber(rawPhone) : "Contato");
             })()}
             avatar={activeChatAvatar || ""}
             tags={selectedConversation.tags ?? []}
-            initials={getInitials(selectedConversation.contactName || "C")}
+            initials={getInitials(selectedConversation.name || selectedConversation.contactName || "C")}
             isMobile={isMobile}
             onBack={onBack ?? (() => setShowLeadPanel(false))}
             onContactClick={() => {

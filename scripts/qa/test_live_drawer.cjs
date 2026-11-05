@@ -27,26 +27,28 @@ const { chromium } = require('../../frontend-official/node_modules/playwright');
 
   // Click on Deposito Material V A
   console.log('Clicking Deposito Material V A...');
-  const depositoItem = page.locator('text=/Deposito Material/i').first();
+  const depositoItem = page.locator('[data-testid="conversation-item"], .conversation-card, div').filter({ hasText: /^Deposito Material V A/i }).first();
   if (await depositoItem.isVisible()) {
     await depositoItem.click();
     await page.waitForTimeout(4000);
   }
 
+  // Scroll chat down to ensure bottom product card is rendered and visible
+  await page.evaluate(() => {
+    const scroller = document.querySelector('.overflow-y-auto, [data-chat-scroll="true"]');
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  });
+  await page.waitForTimeout(2000);
+
   // Locate the exact "Ver" button inside the product card
   console.log('Looking for exact "Ver" button on product card...');
-  const verButton = page.locator('[data-testid="whatsapp-product-card"] button').filter({ hasText: /^Ver$/i }).first();
+  const verButton = page.locator('[data-testid="whatsapp-product-card"] button, button').filter({ hasText: /^Ver$/i }).last();
+  console.log('Ver button visible:', await verButton.isVisible());
   if (await verButton.isVisible()) {
     console.log('Clicking exact "Ver" button...');
+    await verButton.scrollIntoViewIfNeeded();
     await verButton.click();
     await page.waitForTimeout(2500);
-  } else {
-    console.log('Product card "Ver" button not found by testid, checking general card...');
-    const anyVer = page.locator('button').filter({ hasText: /^Ver$/i }).first();
-    if (await anyVer.isVisible()) {
-      await anyVer.click();
-      await page.waitForTimeout(2500);
-    }
   }
 
   // Inspect drawer

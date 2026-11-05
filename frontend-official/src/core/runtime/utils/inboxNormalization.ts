@@ -209,7 +209,11 @@ export function parseChatsLoadedPayload(payload: unknown): Conversation[] {
       const item = entry as Record<string, unknown>;
       const rawId = String(item.id ?? item.conversationId ?? item.conversation_id ?? item.chatId ?? item.chat_id ?? "").trim();
       const rawPhone = String(item.phone ?? item.phoneNumber ?? item.jid ?? item.remoteJid ?? item.chatId ?? item.chat_id ?? "").trim();
-      const rawName = String((item.contactName ?? item.name ?? item.pushName ?? rawPhone) || "Contato").trim();
+      const candidateContactName = String(item.contactName ?? "").trim();
+      const candidateName = String(item.name ?? "").trim();
+      const rawName = (candidateName && (candidateName.length > candidateContactName.length || candidateContactName.length <= 2))
+        ? candidateName
+        : (candidateContactName || candidateName || String(item.pushName ?? rawPhone ?? "Contato").trim());
       const normalizedLastMessageType = String(item.lastMessageType ?? item.messageType ?? item.mediaType ?? "text").toLowerCase();
       const lastMessageType =
         normalizedLastMessageType === "image" ||
