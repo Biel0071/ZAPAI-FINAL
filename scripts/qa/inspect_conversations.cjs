@@ -24,3 +24,4 @@ const { chromium } = require('../../frontend-official/node_modules/playwright');
   console.log('STATE:', JSON.stringify(state, null, 2));
   await browser.close();
 })();
+

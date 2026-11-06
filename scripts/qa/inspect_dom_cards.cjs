@@ -60,3 +60,4 @@ const { chromium } = require('../../frontend-official/node_modules/playwright');
 
   await browser.close();
 })();
+

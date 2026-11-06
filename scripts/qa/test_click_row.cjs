@@ -35,3 +35,4 @@ const { chromium } = require('../../frontend-official/node_modules/playwright');
   console.log('CLICK RESULT:', JSON.stringify(result, null, 2));
   await browser.close();
 })();
+

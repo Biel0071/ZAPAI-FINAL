@@ -74,6 +74,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InboxSectionBoundary } from "@/components/system/InboxSectionBoundary";
 import { useProtectedMediaUrl } from "@/core/runtime/hooks/useProtectedMediaUrl";
@@ -415,6 +416,8 @@ export const SidebarPanel = memo(function SidebarPanel({
   const [previewReply, setPreviewReply] = useState<QuickReplyItem | null>(null);
   const [savingNotes, setSavingNotes] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [localTagInput, setLocalTagInput] = useState("");
   const [qrTypeFilter, setQrTypeFilter] = useState<"all" | "text" | "audio" | "video" | "image" | "flow">("all");
   const [qrPillFilter, setQrPillFilter] = useState<"all" | "favorites" | "uncategorized">("all");
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -530,9 +533,20 @@ export const SidebarPanel = memo(function SidebarPanel({
     return (orderedSections[0]?.id as any) || "ai";
   }, [rightPanelTab, orderedSections]);
 
-  const clientPhone = useMemo(() => {
-    if (!selectedConversation) return "";
-    const candidates = [
+  const phoneMeta = useMemo(() => {
+    if (!selectedConversation) {
+      return { display: "Número não informado", isRealPhone: false, isLid: false, isGroup: false, raw: "", badge: null };
+    }
+
+    const rawJid = String(selectedConversation.chatId || selectedConversation.phone || "").trim();
+    if (rawJid.endsWith("@g.us") || rawJid.includes("@g.us") || selectedConversation.isGroup) {
+      return { display: "Grupo WhatsApp", isRealPhone: true, isLid: false, isGroup: true, raw: rawJid, badge: "Grupo" };
+    }
+
+    // 1. Direct candidates from backend (including mapped_phone from whatsapp_lid_mappings)
+    const directCandidates = [
+      (selectedConversation as any).mapped_phone,
+      (selectedConversation as any).mappedPhone,
       selectedConversation.phone,
       (selectedConversation as any).customerPhone,
       (selectedConversation as any).contactPhone,
@@ -540,17 +554,98 @@ export const SidebarPanel = memo(function SidebarPanel({
       (selectedConversation as any).whatsappNumber,
       selectedConversation.chatId,
       (selectedConversation as any).jid,
-      selectedConversation.id,
     ];
-    for (const cand of candidates) {
+
+    for (const cand of directCandidates) {
       if (!cand || typeof cand !== "string") continue;
       const cleanDigits = cand.replace(/@.*$/, "").replace(/\D/g, "");
       if (cleanDigits.length >= 10 && cleanDigits.length <= 13) {
-        return formatPhoneNumber(cand);
+        return {
+          display: formatPhoneNumber(cand),
+          isRealPhone: true,
+          isLid: false,
+          isGroup: false,
+          raw: cleanDigits,
+          badge: "WhatsApp Verificado",
+        };
       }
     }
-    return selectedConversation.phone ? formatPhoneNumber(selectedConversation.phone) : "";
-  }, [selectedConversation]);
+
+    // 2. Scan conversation messages for customer order/contact details
+    if (Array.isArray(messages) && messages.length > 0) {
+      for (const m of messages) {
+        const text = m.content || "";
+        if (!text) continue;
+
+        // Explicit phone label in message: Telefone/Celular/Whats
+        const labelMatch = text.match(/(?:Telefone|Celular|Whats(?:App)?|Tel|Cel|Contato)\s*[:=-]?\s*([+0-9()\s-]{8,22})/i);
+        if (labelMatch) {
+          let digits = labelMatch[1].replace(/\D/g, "");
+          if (digits.length === 10 || digits.length === 11) {
+            if (!digits.startsWith("55")) digits = "55" + digits;
+          }
+          if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+            return {
+              display: formatPhoneNumber(digits),
+              isRealPhone: true,
+              isLid: false,
+              isGroup: false,
+              raw: digits,
+              badge: "Detectado no Pedido",
+            };
+          }
+        }
+
+        // Standalone Brazilian mobile phone: DD + 9XXXX-XXXX
+        const brMatch = text.match(/(?:\+?55\s?)?(?:\(?([1-9]{2})\)?\s?)?(9\d{4})[-\s]?(\d{4})/);
+        if (brMatch) {
+          let digits = brMatch[0].replace(/\D/g, "");
+          if (digits.length === 10 || digits.length === 11) {
+            if (!digits.startsWith("55")) digits = "55" + digits;
+          }
+          if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+            return {
+              display: formatPhoneNumber(digits),
+              isRealPhone: true,
+              isLid: false,
+              isGroup: false,
+              raw: digits,
+              badge: "Detectado na Conversa",
+            };
+          }
+        }
+      }
+    }
+
+    // 3. Fallback for pure LID
+    const rawDigits = String(selectedConversation.phone || selectedConversation.chatId || "").replace(/@.*$/, "").replace(/\D/g, "");
+    const isLid = String(selectedConversation.phone || selectedConversation.chatId || "").includes("@lid") || (rawDigits.length >= 14 && rawDigits.length <= 16);
+    if (isLid) {
+      return {
+        display: `ID WhatsApp: ${rawDigits}`,
+        isRealPhone: false,
+        isLid: true,
+        isGroup: false,
+        raw: rawDigits,
+        badge: "LID Multi-Device",
+      };
+    }
+
+    if (rawDigits) {
+      return {
+        display: formatPhoneNumber(rawDigits),
+        isRealPhone: true,
+        isLid: false,
+        isGroup: false,
+        raw: rawDigits,
+        badge: null,
+      };
+    }
+
+    return { display: "Número não informado", isRealPhone: false, isLid: false, isGroup: false, raw: "", badge: null };
+  }, [selectedConversation, messages]);
+
+  const clientPhone = phoneMeta.display;
 
   const categories = useMemo(
     () => Array.from(new Set((quickReplies || []).map((reply) => reply.category).filter(Boolean))),
@@ -1182,31 +1277,44 @@ export const SidebarPanel = memo(function SidebarPanel({
                 </div>
               </div>
 
-              {/* Destaque do Número do Cliente com Botão de Copiar (Imagem 5) */}
+              {/* Destaque do Número do Cliente com Botão de Copiar */}
               <div className="flex items-center justify-between rounded-lg bg-emerald-500/[0.08] border border-emerald-500/20 px-2.5 py-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="h-7 w-7 rounded-md bg-emerald-500/15 flex items-center justify-center text-emerald-400 shrink-0">
                     <Phone className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-medium text-emerald-400/90 uppercase tracking-wider">Número WhatsApp</p>
-                    <p className="text-xs font-bold text-foreground font-mono select-all truncate">
-                      {clientPhone || selectedConversation.phone || "Número não informado"}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-[10px] font-medium text-emerald-400/90 uppercase tracking-wider">
+                        {phoneMeta.isLid ? "Identificador WhatsApp" : "Número WhatsApp"}
+                      </p>
+                      {phoneMeta.badge && (
+                        <span className={cn(
+                          "px-1.5 py-0.2 rounded text-[9px] font-semibold border",
+                          phoneMeta.isRealPhone 
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/35"
+                            : "bg-sky-500/20 text-sky-300 border-sky-500/35"
+                        )}>
+                          {phoneMeta.badge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-bold text-foreground font-mono select-all truncate mt-0.5">
+                      {phoneMeta.display}
                     </p>
                   </div>
                 </div>
-                {(clientPhone || selectedConversation.phone) && (
+                {phoneMeta.raw && (
                   <Button
                     size="sm"
                     variant="ghost"
                     className="h-7 gap-1 px-2 text-[11px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 shrink-0"
                     onClick={() => {
-                      const num = (clientPhone || selectedConversation.phone || "").replace(/\D/g, "");
-                      navigator.clipboard.writeText(num || selectedConversation.phone || "");
+                      navigator.clipboard.writeText(phoneMeta.raw);
                       setCopiedPhone(true);
                       setTimeout(() => setCopiedPhone(false), 2000);
                     }}
-                    title="Copiar número de telefone"
+                    title="Copiar número / identificador"
                   >
                     <Copy className="h-3 w-3" />
                     {copiedPhone ? "Copiado!" : "Copiar"}
@@ -1230,25 +1338,138 @@ export const SidebarPanel = memo(function SidebarPanel({
                 </div>
               </div>
 
-              {/* Stacked Overlapping Tags Badge */}
-              <div className="border-t border-border/40 pt-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[11px] font-medium text-muted-foreground">Etiquetas</p>
-                  <span className="text-[9.5px] text-muted-foreground/70">Clique para gerenciar</span>
+              {/* Seção de Etiquetas de Contato - Padrão Top */}
+              <div className="border-t border-border/40 pt-2.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5 text-primary" />
+                    <p className="text-xs font-bold text-foreground">Etiquetas</p>
+                    {Array.isArray(selectedConversation.tags) && selectedConversation.tags.length > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/25">
+                        {selectedConversation.tags.length}
+                      </span>
+                    )}
+                  </div>
+                  <Popover open={tagPickerOpen} onOpenChange={setTagPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-[11px] font-medium gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-md"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>Nova</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      side="bottom"
+                      className="w-72 p-3 bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl rounded-xl z-50 text-foreground"
+                    >
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
+                          <p className="text-xs font-semibold text-foreground">Adicionar Etiqueta</p>
+                          <button
+                            type="button"
+                            onClick={() => setTagPickerOpen(false)}
+                            className="p-1 rounded text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <Input
+                            value={localTagInput}
+                            onChange={(e) => setLocalTagInput(e.target.value)}
+                            placeholder="Nome da etiqueta..."
+                            className="h-7 text-xs bg-muted/30"
+                            onKeyDown={(e) => {
+                              const trimmed = localTagInput.trim();
+                              if (e.key === "Enter" && trimmed) {
+                                e.preventDefault();
+                                handleAddTagToSelectedConversation(trimmed);
+                                setLocalTagInput("");
+                                setTagPickerOpen(false);
+                              }
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            className="h-7 px-2.5 text-xs font-semibold shrink-0"
+                            disabled={!localTagInput.trim()}
+                            onClick={() => {
+                              const trimmed = localTagInput.trim();
+                              if (trimmed) {
+                                handleAddTagToSelectedConversation(trimmed);
+                                setLocalTagInput("");
+                                setTagPickerOpen(false);
+                              }
+                            }}
+                          >
+                            Adicionar
+                          </Button>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-medium text-muted-foreground mb-1.5">Sugestões rápidas:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {["Lead Quente", "Ficha Gerada", "Aguardando Pagamento", "PIX Pendente", "Novo Lead", "Orçamento", "VIP", "Finalizado"]
+                              .filter((s) => !(selectedConversation.tags || []).includes(s))
+                              .map((sug) => (
+                                <button
+                                  key={sug}
+                                  type="button"
+                                  onClick={() => {
+                                    handleAddTagToSelectedConversation(sug);
+                                    setTagPickerOpen(false);
+                                  }}
+                                  className="text-[10px] py-0.5 px-2 rounded-full border border-border/60 bg-muted/40 hover:bg-primary/15 hover:border-primary/40 hover:text-primary transition-all text-muted-foreground"
+                                >
+                                  + {sug}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
+
+                {/* Lista de Badges Coloridos de Alto Padrão */}
                 <div className="pt-0.5">
-                  <StackedTagsBadge
-                    tags={selectedConversation.tags ?? []}
-                    maxVisible={4}
-                    size="sm"
-                    showCountLabel={true}
-                    interactive={true}
-                    align="start"
-                    side="bottom"
-                    onAddTag={(tag) => handleAddTagToSelectedConversation(tag)}
-                    onRemoveTag={(tag) => handleRemoveTagFromSelectedConversation(tag)}
-                  />
-                  <WhatsappLabelBadges labels={selectedConversation.whatsappLabels} maxVisible={6} className="mt-1.5" />
+                  {Array.isArray(selectedConversation.tags) && selectedConversation.tags.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedConversation.tags.map((tag) => (
+                        <TagIconBadge
+                          key={tag}
+                          tag={tag}
+                          size="xs"
+                          colorClass={getTagColor(tag)}
+                          interactive={false}
+                          className="shadow-xs hover:brightness-110 transition-all"
+                          onRemove={() => handleRemoveTagFromSelectedConversation(tag)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setTagPickerOpen(true)}
+                      className="w-full py-2 px-3 rounded-lg border border-dashed border-border/70 hover:border-primary/50 bg-muted/20 hover:bg-primary/5 transition-all flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Adicionar primeira etiqueta</span>
+                    </button>
+                  )}
+
+                  {/* Etiquetas Oficiais WhatsApp Business */}
+                  {Array.isArray(selectedConversation.whatsappLabels) && selectedConversation.whatsappLabels.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border/30">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                        WhatsApp Business
+                      </p>
+                      <WhatsappLabelBadges labels={selectedConversation.whatsappLabels} maxVisible={8} />
+                    </div>
+                  )}
                 </div>
               </div>
 
