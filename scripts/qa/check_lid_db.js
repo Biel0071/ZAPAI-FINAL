@@ -1,13 +1,23 @@
 const db = require('/opt/zapai/backend/src/infrastructure/config/database');
 
 async function run() {
-  const lead = await db.query(`SELECT * FROM leads WHERE id = 2614`);
-  console.log('Lead 2614:', lead.rows);
-
-  const msgs = await db.query(`SELECT id, phone, sender, from_me, content FROM messages WHERE conversation_id = '12574' LIMIT 5`);
-  console.log('Messages for 12574 sample:', msgs.rows);
+  console.log('=== DEAD TUPLES & AUTOVACUUM STATUS ===');
+  
+  const stats = await db.query(`
+    SELECT relname, n_live_tup, n_dead_tup, last_vacuum, last_autovacuum, last_analyze, last_autoanalyze
+    FROM pg_stat_user_tables
+    ORDER BY n_dead_tup DESC
+    LIMIT 10
+  `);
+  
+  for (const row of stats.rows) {
+    console.log(` - ${row.relname}: live=${row.n_live_tup}, dead=${row.n_dead_tup}, last_auto=${row.last_autovacuum || 'never'}`);
+  }
 
   process.exit(0);
 }
 
-run().catch(e => { console.error(e); process.exit(1); });
+run().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

@@ -539,8 +539,28 @@ export const SidebarPanel = memo(function SidebarPanel({
     }
 
     const rawJid = String(selectedConversation.chatId || selectedConversation.phone || "").trim();
+    const rawDigits = String(selectedConversation.phone || selectedConversation.chatId || "").replace(/@.*$/, "").replace(/\D/g, "");
+
     if (rawJid.endsWith("@g.us") || rawJid.includes("@g.us") || selectedConversation.isGroup) {
-      return { display: "Grupo WhatsApp", isRealPhone: true, isLid: false, isGroup: true, raw: rawJid, badge: "Grupo" };
+      return { display: "Grupo WhatsApp", isRealPhone: false, isLid: false, isGroup: true, raw: rawJid, badge: "Grupo" };
+    }
+
+    // System accounts (e.g. WhatsApp Business official announcements 0@s.whatsapp.net)
+    const isSystemAccount =
+      rawJid === "0@s.whatsapp.net" ||
+      rawJid.includes("status@broadcast") ||
+      rawDigits === "0" ||
+      ((selectedConversation.contactName || "").toLowerCase().includes("whatsapp business") && rawDigits.length < 8);
+
+    if (isSystemAccount) {
+      return {
+        display: "Canal Oficial WhatsApp",
+        isRealPhone: false,
+        isLid: false,
+        isGroup: false,
+        raw: "",
+        badge: "Oficial",
+      };
     }
 
     // 1. Direct candidates from backend (including mapped_phone from whatsapp_lid_mappings)
@@ -618,7 +638,6 @@ export const SidebarPanel = memo(function SidebarPanel({
     }
 
     // 3. Fallback for pure LID
-    const rawDigits = String(selectedConversation.phone || selectedConversation.chatId || "").replace(/@.*$/, "").replace(/\D/g, "");
     const isLid = String(selectedConversation.phone || selectedConversation.chatId || "").includes("@lid") || (rawDigits.length >= 14 && rawDigits.length <= 16);
     if (isLid) {
       return {
@@ -631,7 +650,7 @@ export const SidebarPanel = memo(function SidebarPanel({
       };
     }
 
-    if (rawDigits) {
+    if (rawDigits && rawDigits.length >= 8 && rawDigits.length <= 13) {
       return {
         display: formatPhoneNumber(rawDigits),
         isRealPhone: true,
@@ -1286,7 +1305,13 @@ export const SidebarPanel = memo(function SidebarPanel({
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="text-[10px] font-medium text-emerald-400/90 uppercase tracking-wider">
-                        {phoneMeta.isLid ? "Identificador WhatsApp" : "Número WhatsApp"}
+                        {phoneMeta.isGroup
+                          ? "Grupo WhatsApp"
+                          : phoneMeta.isLid
+                          ? "Identificador WhatsApp"
+                          : phoneMeta.isRealPhone
+                          ? "Número WhatsApp"
+                          : "Contato WhatsApp"}
                       </p>
                       {phoneMeta.badge && (
                         <span className={cn(
