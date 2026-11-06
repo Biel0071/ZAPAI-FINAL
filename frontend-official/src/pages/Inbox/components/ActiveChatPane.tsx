@@ -35,9 +35,13 @@ import {
   PushPin,
   FileText,
   Image as ImageIcon,
+  Gear,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -308,6 +312,37 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
   const [activeSheetModalData, setActiveSheetModalData] = useState<any>(null);
   const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
+
+  const [headerActionsConfig, setHeaderActionsConfig] = useState<{
+    search: boolean;
+    sheet: boolean;
+    orders: boolean;
+    transfer: boolean;
+    broadcast: boolean;
+    finalize: boolean;
+  }>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem("zapflow_inbox_header_actions");
+        if (saved) return { search: true, sheet: true, orders: true, transfer: true, broadcast: true, finalize: true, ...JSON.parse(saved) };
+      } catch {}
+    }
+    return { search: true, sheet: true, orders: true, transfer: true, broadcast: true, finalize: true };
+  });
+
+  const [isHeaderActionsDialogOpen, setIsHeaderActionsDialogOpen] = useState(false);
+
+  const toggleHeaderAction = (key: "search" | "sheet" | "orders" | "transfer" | "broadcast" | "finalize") => {
+    setHeaderActionsConfig((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem("zapflow_inbox_header_actions", JSON.stringify(next));
+        } catch {}
+      }
+      return next;
+    });
+  };
 
   const handleGenerateSheet = async () => {
     if (!selectedConversation?.id) return;
@@ -1163,71 +1198,101 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                     : "offline"
             }
             rightActions={
-              <div className="flex min-w-0 items-center gap-1">
-                {/* 1. Buscar */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
-                  onClick={() => setConversationSearchOpen(true)}
-                  title="Buscar na conversa"
-                  aria-label="Buscar na conversa"
-                >
-                  <MagnifyingGlass className="h-3.5 w-3.5 shrink-0" />
-                  <span className="hidden 2xl:inline">Buscar</span>
-                </Button>
+              <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">
+                {/* 1. 🔍 Buscar */}
+                {headerActionsConfig.search && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setConversationSearchOpen(true)}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent"
+                          title="Buscar na conversa"
+                          aria-label="Buscar na conversa"
+                        >
+                          🔍
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Buscar na conversa
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
-                {/* 2. Gerar Ficha */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={generatingSheet}
-                  className="h-8 px-2 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/30 shrink-0"
-                  onClick={handleGenerateSheet}
-                  title="Gerar ficha de atendimento com IA"
-                  aria-label="Gerar Ficha"
-                >
-                  <FileIcon className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="bold" />
-                  <span className="hidden xl:inline">{generatingSheet ? "Gerando..." : "Gerar Ficha"}</span>
-                </Button>
+                {/* 2. 📄 Gerar Ficha */}
+                {headerActionsConfig.sheet && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={generatingSheet}
+                          onClick={handleGenerateSheet}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent disabled:opacity-50"
+                          title={generatingSheet ? "Gerando ficha..." : "Gerar Ficha com IA"}
+                          aria-label="Gerar Ficha"
+                        >
+                          {generatingSheet ? "⏳" : "📄"}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        {generatingSheet ? "Gerando ficha..." : "Gerar Ficha com IA"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
-                {/* 2.5 Pedidos WhatsApp Commerce */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/30 shrink-0 relative"
-                  onClick={() => setIsCustomerOrdersOpen(true)}
-                  title="Abrir pedidos recebidos do catálogo WhatsApp"
-                  aria-label="Pedidos WhatsApp"
-                >
-                  <ShoppingBag className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <span className="hidden xl:inline">Pedidos</span>
-                  {pendingOrdersCount > 0 && (
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-black ml-0.5">
-                      {pendingOrdersCount}
-                    </span>
-                  )}
-                </Button>
+                {/* 2.5 🛍️ Pedidos WhatsApp Commerce */}
+                {headerActionsConfig.orders && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomerOrdersOpen(true)}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent relative"
+                          title="Abrir pedidos recebidos do catálogo WhatsApp"
+                          aria-label="Pedidos WhatsApp"
+                        >
+                          🛍️
+                          {pendingOrdersCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-black ring-2 ring-background">
+                              {pendingOrdersCount}
+                            </span>
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Pedidos do Catálogo ({pendingOrdersCount})
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
-                {/* 3. Transferir */}
-                {aiAgents && aiAgents.length > 0 && handleSetConversationAgent ? (
+                {/* 3. 🔀 Transferir */}
+                {headerActionsConfig.transfer && aiAgents && aiAgents.length > 0 && handleSetConversationAgent ? (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
-                        title="Transferir atendimento para outro atendente"
-                        aria-label="Transferir atendimento"
-                      >
-                        <UserSwitch className="h-3.5 w-3.5 shrink-0" />
-                        <span className="hidden 2xl:inline">Transferir</span>
-                      </Button>
-                    </DropdownMenuTrigger>
+                    <TooltipProvider delayDuration={150}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent"
+                              title="Transferir atendimento para outro atendente"
+                              aria-label="Transferir atendimento"
+                            >
+                              🔀
+                            </button>
+                          </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="text-xs">
+                          Transferir Atendimento
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <DropdownMenuContent align="end" className="w-56 bg-popover/95 border-border/80 text-popover-foreground">
                       <div className="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground border-b border-border/40">
                         Transferir para:
@@ -1253,37 +1318,53 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                   </DropdownMenu>
                 ) : null}
 
-                {/* 4. Pop-up de Disparos */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-2.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15 rounded-lg gap-1.5 shrink-0 transition-all border border-emerald-500/40 shadow-xs"
-                  onClick={() => setIsDisparoModalOpen(true)}
-                  title="Abrir Pop-up de Disparos para este contato"
-                  aria-label="Abrir Pop-up de Disparos"
-                >
-                  <Megaphone className="h-3.5 w-3.5" weight="fill" />
-                  <span className="hidden sm:inline">Disparos</span>
-                </Button>
+                {/* 4. 📢 Pop-up de Disparos */}
+                {headerActionsConfig.broadcast && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setIsDisparoModalOpen(true)}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent"
+                          title="Abrir Pop-up de Disparos para este contato"
+                          aria-label="Abrir Pop-up de Disparos"
+                        >
+                          📢
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Pop-up de Disparos
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
-                {/* 5. Finalizar */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
-                  onClick={() => {
-                    handleArchiveSelectedConversation();
-                  }}
-                  title="Finalizar atendimento"
-                  aria-label="Finalizar atendimento"
-                >
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="bold" />
-                  <span className="hidden 2xl:inline">Finalizar</span>
-                </Button>
+                {/* 5. ✅ Finalizar */}
+                {headerActionsConfig.finalize && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleArchiveSelectedConversation();
+                          }}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent"
+                          title="Finalizar atendimento"
+                          aria-label="Finalizar atendimento"
+                        >
+                          ✅
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Finalizar Atendimento
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
-                {/* 5. Menu adicional (...) */}
+                {/* 6. Menu adicional (...) */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -1297,13 +1378,21 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       <DotsThreeVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                      className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
+                      onClick={() => setIsHeaderActionsDialogOpen(true)}
+                    >
+                      <Gear className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>⚙️ Personalizar Ações (Admin)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="flex items-center gap-2 text-xs cursor-pointer text-emerald-400 hover:bg-emerald-500/10 focus:bg-emerald-500/10"
                       onClick={() => setIsDisparoModalOpen(true)}
                     >
                       <Megaphone className="h-3.5 w-3.5 text-emerald-400" weight="fill" />
-                      Pop-up de Disparos
+                      <span>Pop-up de Disparos</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
@@ -1312,7 +1401,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       }}
                     >
                       <Trash className="h-3.5 w-3.5" />
-                      Limpar conversa
+                      <span>Limpar conversa</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
@@ -1328,12 +1417,12 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       {(archivedChatIds.includes(selectedConversation.id) || String(selectedConversation.status).toLowerCase() === 'archived') ? (
                         <>
                           <CaretLeft className="h-3.5 w-3.5" />
-                          Desarquivar conversa
+                          <span>Desarquivar conversa</span>
                         </>
                       ) : (
                         <>
                           <CaretRight className="h-3.5 w-3.5" />
-                          Arquivar conversa
+                          <span>Arquivar conversa</span>
                         </>
                       )}
                     </DropdownMenuItem>
@@ -1345,7 +1434,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         }}
                       >
                         <Check className="h-3.5 w-3.5 text-green-500" />
-                        Desbloquear contato
+                        <span>Desbloquear contato</span>
                       </DropdownMenuItem>
                     ) : (
                       <DropdownMenuItem
@@ -1355,7 +1444,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         }}
                       >
                         <Check className="h-3.5 w-3.5 text-destructive" />
-                        Bloquear contato
+                        <span>Bloquear contato</span>
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator className="border-t border-border/40 my-1" />
@@ -1364,7 +1453,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       onClick={handleGenerateSheet}
                     >
                       <FileIcon className="h-3.5 w-3.5 text-emerald-400" />
-                      Gerar ficha IA
+                      <span>Gerar ficha IA</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -2476,6 +2565,57 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           }}
         />
       )}
+
+      {/* Dialog para Personalizar Ações Rápidas do Topo (Admin) */}
+      <Dialog open={isHeaderActionsDialogOpen} onOpenChange={setIsHeaderActionsDialogOpen}>
+        <DialogContent className="max-w-sm bg-card border-border/80">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <span>⚙️</span>
+              <span>Ações do Topo da Conversa</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Escolha quais funções e botões de emojis ficam ativos no cabeçalho do atendimento:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2.5 py-2">
+            {[
+              { id: "search" as const, emoji: "🔍", label: "Buscar na Conversa", desc: "Pesquisa por termos no histórico" },
+              { id: "sheet" as const, emoji: "📄", label: "Gerar Ficha IA", desc: "Ficha cadastral e resumo do lead" },
+              { id: "orders" as const, emoji: "🛍️", label: "Pedidos WhatsApp", desc: "Carrinho e pedidos do catálogo" },
+              { id: "transfer" as const, emoji: "🔀", label: "Transferir Atendente", desc: "Transferência para outros operadores" },
+              { id: "broadcast" as const, emoji: "📢", label: "Pop-up de Disparos", desc: "Abertura rápida de mensagens em massa" },
+              { id: "finalize" as const, emoji: "✅", label: "Finalizar Atendimento", desc: "Conclusão e arquivamento rápido" },
+            ].map((action) => (
+              <div key={action.id} className="flex items-center justify-between gap-3 p-2 rounded-lg bg-muted/30 border border-border/40">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-base shrink-0">{action.emoji}</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-foreground truncate">{action.label}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{action.desc}</p>
+                  </div>
+                </div>
+                <Switch
+                  checked={headerActionsConfig[action.id]}
+                  onCheckedChange={() => toggleHeaderAction(action.id)}
+                  aria-label={`Ativar ou desativar ${action.label}`}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-border/40">
+            <Button
+              size="sm"
+              className="text-xs font-medium"
+              onClick={() => setIsHeaderActionsDialogOpen(false)}
+            >
+              Salvar Preferências
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
     </Popover>
   );

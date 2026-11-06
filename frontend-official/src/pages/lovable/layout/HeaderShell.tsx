@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +69,20 @@ export function HeaderShell({
   const isAdminPage = ["/nodes", "/users", "/deployments", "/memory", "/logs", "/versions"].some(
     (path) => location.pathname.startsWith(path)
   );
+
+  // Auto-lock to the primary connected WhatsApp session for single-connection focus
+  useEffect(() => {
+    if (sessions && sessions.length > 0) {
+      if (!activeSessionId || activeSessionId === "all") {
+        const connectedSession = sessions.find((s) => s.status === "connected" || s.connected === true);
+        if (connectedSession?.id) {
+          setActiveSessionId(connectedSession.id);
+        } else if (sessions[0]?.id) {
+          setActiveSessionId(sessions[0].id);
+        }
+      }
+    }
+  }, [sessions, activeSessionId, setActiveSessionId]);
 
   const notificationsList = [
     {
@@ -165,11 +179,10 @@ export function HeaderShell({
             <div className="flex-1 sm:flex-initial flex items-center gap-1.5 justify-center sm:justify-start">
               <select
                 aria-label="Filtrar por conexão"
-                value={activeSessionId || "all"}
-                onChange={(e) => setActiveSessionId(e.target.value === "all" ? null : e.target.value)}
-                className="h-7 sm:h-8 max-w-[125px] sm:max-w-[160px] md:max-w-[200px] lg:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 py-0 text-[11px] sm:text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
+                value={activeSessionId || (sessions.find((s) => s.status === "connected" || s.connected)?.id) || sessions[0]?.id || "main"}
+                onChange={(e) => setActiveSessionId(e.target.value)}
+                className="h-7 sm:h-8 max-w-[130px] sm:max-w-[170px] md:max-w-[210px] lg:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 py-0 text-[11px] sm:text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
               >
-                <option value="all" className="bg-background text-foreground">🌐 Todas as Conexões</option>
                 {sessions.map((session) => {
                   const isOnline = session.status === "connected" || session.connected === true;
                   return (

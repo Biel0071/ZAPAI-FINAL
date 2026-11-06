@@ -1117,7 +1117,8 @@ export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]):
       if (String(candidate.id) === String(message.id)) return true;
       const candidateWaId = (candidate as any).whatsappMessageId || (candidate as any).externalMessageId;
       if (candidateWaId && messageWaId && String(candidateWaId) === String(messageWaId)) return true;
-      if (!message.fromMe || !candidate.fromMe || messageWaId || candidateWaId) return false;
+      if (Boolean(candidate.fromMe) !== Boolean(message.fromMe)) return false;
+      if (messageWaId || candidateWaId) return false;
       if ((candidate.content ?? "").trim() !== (message.content ?? "").trim()) return false;
       const candidateTime = new Date(String(candidate.createdAt ?? (candidate as any).timestamp ?? "")).getTime();
       return Number.isFinite(messageTime) && Number.isFinite(candidateTime) && Math.abs(messageTime - candidateTime) <= 3000;
@@ -1147,14 +1148,12 @@ export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]):
       }
     }
 
-    // Realtime ACKs can arrive once from the HTTP response and again from
-    // Socket.IO with different local IDs but the same persisted content.
-    // Collapse only an exact outgoing text duplicate inside a short window;
-    // repeated operator messages outside that window remain independent.
-    if (existingIdx === undefined && item.fromMe && !String(item.id).startsWith("temp-")) {
+    // Collapse exact duplicates in a short window for both inbound and outbound messages
+    if (existingIdx === undefined && !String(item.id).startsWith("temp-")) {
       const itemTime = new Date(String(item.createdAt ?? item.timestamp ?? "")).getTime();
       existingIdx = result.findIndex((candidate) => {
-        if (!candidate.fromMe || String(candidate.id).startsWith("temp-")) return false;
+        if (Boolean(candidate.fromMe) !== Boolean(item.fromMe)) return false;
+        if (String(candidate.id).startsWith("temp-")) return false;
         if ((candidate.content ?? "").trim() !== (item.content ?? "").trim()) return false;
         const candidateWaId = (candidate as any).whatsappMessageId || (candidate as any).externalMessageId;
         const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
@@ -1172,8 +1171,19 @@ export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]):
       const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
       if (itemWaId) waIdMap.set(String(itemWaId), newIdx);
     } else {
-      if (String(result[existingIdx].id).startsWith("temp-") && !String(item.id).startsWith("temp-")) {
+      const current = result[existingIdx];
+      const isCurrentTemp = String(current.id).startsWith("temp-");
+      const isItemTemp = String(item.id).startsWith("temp-");
+      if (isCurrentTemp && !isItemTemp) {
         result[existingIdx] = item;
+      } else if (!isItemTemp) {
+        // Merge real-time status and ACK updates without duplicate bubbles
+        result[existingIdx] = {
+          ...current,
+          ...item,
+          status: item.status || current.status,
+          ack: (item as any).ack !== undefined ? (item as any).ack : (current as any).ack,
+        };
       }
     }
   }
