@@ -36,6 +36,9 @@ import {
   FileText,
   Image as ImageIcon,
   Gear,
+  ShoppingBag,
+  ArrowsLeftRight,
+  CircleNotch,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -1199,7 +1202,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
             }
             rightActions={
               <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">
-                {/* 1. 🔍 Buscar */}
+                {/* 1. Buscar */}
                 {headerActionsConfig.search && (
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
@@ -1207,11 +1210,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         <button
                           type="button"
                           onClick={() => setConversationSearchOpen(true)}
-                          className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent"
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50"
                           title="Buscar na conversa"
                           aria-label="Buscar na conversa"
                         >
-                          🔍
+                          <MagnifyingGlass className="h-4 w-4" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="text-xs">
@@ -1221,7 +1224,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                   </TooltipProvider>
                 )}
 
-                {/* 2. 📄 Gerar Ficha */}
+                {/* 2. Gerar Ficha */}
                 {headerActionsConfig.sheet && (
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
@@ -1230,11 +1233,15 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                           type="button"
                           disabled={generatingSheet}
                           onClick={handleGenerateSheet}
-                          className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent disabled:opacity-50"
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50 disabled:opacity-50"
                           title={generatingSheet ? "Gerando ficha..." : "Gerar Ficha com IA"}
                           aria-label="Gerar Ficha"
                         >
-                          {generatingSheet ? "⏳" : "📄"}
+                          {generatingSheet ? (
+                            <CircleNotch className="h-4 w-4 animate-spin text-muted-foreground" />
+                          ) : (
+                            <FileText className="h-4 w-4" />
+                          )}
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="text-xs">
@@ -1244,7 +1251,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                   </TooltipProvider>
                 )}
 
-                {/* 2.5 🛍️ Pedidos WhatsApp Commerce */}
+                {/* 2.5 Pedidos WhatsApp Commerce */}
                 {headerActionsConfig.orders && (
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
@@ -1252,13 +1259,13 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         <button
                           type="button"
                           onClick={() => setIsCustomerOrdersOpen(true)}
-                          className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent relative"
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50 relative"
                           title="Abrir pedidos recebidos do catálogo WhatsApp"
                           aria-label="Pedidos WhatsApp"
                         >
-                          🛍️
+                          <ShoppingBag className="h-4 w-4" />
                           {pendingOrdersCount > 0 && (
-                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-black ring-2 ring-background">
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[9px] font-bold">
                               {pendingOrdersCount}
                             </span>
                           )}
@@ -1271,7 +1278,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                   </TooltipProvider>
                 )}
 
-                {/* 3. 🔀 Transferir */}
+                {/* 3. Transferir */}
                 {headerActionsConfig.transfer && aiAgents && aiAgents.length > 0 && handleSetConversationAgent ? (
                   <DropdownMenu>
                     <TooltipProvider delayDuration={150}>
@@ -1280,11 +1287,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                           <DropdownMenuTrigger asChild>
                             <button
                               type="button"
-                              className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent"
+                              className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50"
                               title="Transferir atendimento para outro atendente"
                               aria-label="Transferir atendimento"
                             >
-                              🔀
+                              <ArrowsLeftRight className="h-4 w-4" />
                             </button>
                           </DropdownMenuTrigger>
                         </TooltipTrigger>
@@ -1318,7 +1325,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                   </DropdownMenu>
                 ) : null}
 
-                {/* 4. 📢 Pop-up de Disparos */}
+                {/* 4. Pop-up de Disparos */}
                 {headerActionsConfig.broadcast && (
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
@@ -1326,11 +1333,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         <button
                           type="button"
                           onClick={() => setIsDisparoModalOpen(true)}
-                          className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent"
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50"
                           title="Abrir Pop-up de Disparos para este contato"
                           aria-label="Abrir Pop-up de Disparos"
                         >
-                          📢
+                          <Megaphone className="h-4 w-4" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="text-xs">
@@ -1340,7 +1347,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                   </TooltipProvider>
                 )}
 
-                {/* 5. ✅ Finalizar */}
+                {/* 5. Finalizar */}
                 {headerActionsConfig.finalize && (
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
@@ -1350,11 +1357,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                           onClick={() => {
                             handleArchiveSelectedConversation();
                           }}
-                          className="h-8 w-8 flex items-center justify-center rounded-lg text-sm sm:text-base hover:bg-muted/70 transition-all select-none cursor-pointer border-none bg-transparent"
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50"
                           title="Finalizar atendimento"
                           aria-label="Finalizar atendimento"
                         >
-                          ✅
+                          <CheckCircle className="h-4 w-4" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="text-xs">
@@ -1384,7 +1391,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       onClick={() => setIsHeaderActionsDialogOpen(true)}
                     >
                       <Gear className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>⚙️ Personalizar Ações (Admin)</span>
+                      <span>Personalizar Ações Rápidas (Admin)</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -2571,38 +2578,43 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         <DialogContent className="max-w-sm bg-card border-border/80">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-semibold">
-              <span>⚙️</span>
-              <span>Ações do Topo da Conversa</span>
+              <Gear className="h-4 w-4 text-muted-foreground" />
+              <span>Ações Rápidas do Topo</span>
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Escolha quais funções e botões de emojis ficam ativos no cabeçalho do atendimento:
+              Escolha quais funções e ícones minimalistas ficam ativos no cabeçalho do atendimento:
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2.5 py-2">
+          <div className="space-y-2 py-2">
             {[
-              { id: "search" as const, emoji: "🔍", label: "Buscar na Conversa", desc: "Pesquisa por termos no histórico" },
-              { id: "sheet" as const, emoji: "📄", label: "Gerar Ficha IA", desc: "Ficha cadastral e resumo do lead" },
-              { id: "orders" as const, emoji: "🛍️", label: "Pedidos WhatsApp", desc: "Carrinho e pedidos do catálogo" },
-              { id: "transfer" as const, emoji: "🔀", label: "Transferir Atendente", desc: "Transferência para outros operadores" },
-              { id: "broadcast" as const, emoji: "📢", label: "Pop-up de Disparos", desc: "Abertura rápida de mensagens em massa" },
-              { id: "finalize" as const, emoji: "✅", label: "Finalizar Atendimento", desc: "Conclusão e arquivamento rápido" },
-            ].map((action) => (
-              <div key={action.id} className="flex items-center justify-between gap-3 p-2 rounded-lg bg-muted/30 border border-border/40">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="text-base shrink-0">{action.emoji}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-foreground truncate">{action.label}</p>
-                    <p className="text-[10px] text-muted-foreground truncate">{action.desc}</p>
+              { id: "search" as const, icon: MagnifyingGlass, label: "Buscar na Conversa", desc: "Pesquisa por termos no histórico" },
+              { id: "sheet" as const, icon: FileText, label: "Gerar Ficha IA", desc: "Ficha cadastral e resumo do lead" },
+              { id: "orders" as const, icon: ShoppingBag, label: "Pedidos WhatsApp", desc: "Carrinho e pedidos do catálogo" },
+              { id: "transfer" as const, icon: ArrowsLeftRight, label: "Transferir Atendente", desc: "Transferência para outros operadores" },
+              { id: "broadcast" as const, icon: Megaphone, label: "Pop-up de Disparos", desc: "Abertura rápida de mensagens em massa" },
+              { id: "finalize" as const, icon: CheckCircle, label: "Finalizar Atendimento", desc: "Conclusão e arquivamento rápido" },
+            ].map((action) => {
+              const ActionIcon = action.icon;
+              return (
+                <div key={action.id} className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/20 border border-border/40 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-7 w-7 rounded-md bg-muted/40 flex items-center justify-center text-muted-foreground shrink-0 border border-border/40">
+                      <ActionIcon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">{action.label}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{action.desc}</p>
+                    </div>
                   </div>
+                  <Switch
+                    checked={headerActionsConfig[action.id]}
+                    onCheckedChange={() => toggleHeaderAction(action.id)}
+                    aria-label={`Ativar ou desativar ${action.label}`}
+                  />
                 </div>
-                <Switch
-                  checked={headerActionsConfig[action.id]}
-                  onCheckedChange={() => toggleHeaderAction(action.id)}
-                  aria-label={`Ativar ou desativar ${action.label}`}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="flex justify-end pt-2 border-t border-border/40">

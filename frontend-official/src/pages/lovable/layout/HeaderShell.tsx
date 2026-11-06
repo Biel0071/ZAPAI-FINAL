@@ -187,7 +187,7 @@ export function HeaderShell({
                   const isOnline = session.status === "connected" || session.connected === true;
                   return (
                     <option key={session.id} value={session.id} className="bg-background text-foreground">
-                      {isOnline ? "🟢" : "🔴"} {session.name || session.id} {session.phone ? `(${session.phone})` : isOnline ? "(Online)" : "(Offline)"}
+                      {isOnline ? "●" : "○"} {session.name || session.id} {session.phone ? `(${session.phone})` : isOnline ? "(Online)" : "(Offline)"}
                     </option>
                   );
                 })}
