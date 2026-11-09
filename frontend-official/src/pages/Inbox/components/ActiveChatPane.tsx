@@ -1177,6 +1177,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               setLeadDrawerOpen(true);
             }}
             phoneLabel={(() => {
+              if (!selectedConversation) return undefined;
               const mapped = (selectedConversation as any).mapped_phone || (selectedConversation as any).mappedPhone;
               if (mapped) return formatPhoneNumber(mapped);
               const rawPhone = (selectedConversation.phone || "").trim();
@@ -1188,6 +1189,9 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               ) {
                 return formatPhoneNumber(rawPhone);
               }
+              if (cleanPhoneDigits) {
+                return `ID WhatsApp: ${cleanPhoneDigits}`;
+              }
               return undefined;
             })()}
             lastSeenLabel={selectedConversation ? formatConversationTimestamp((selectedConversation as any).lastMessageAt || (selectedConversation as any).lastInteractionAt || (selectedConversation as any).timestamp || selectedConversation.updatedAt) : undefined}
@@ -1196,9 +1200,13 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                 ? "gravando áudio..."
                 : (isTyping === "composing" || isTyping === true)
                   ? "digitando..."
-                  : (isWhatsappConnected && inboxRuntimeState !== "OFFLINE")
+                  : (selectedConversation?.status === "online" ||
+                     (selectedConversation as any)?.status === "available" ||
+                     (selectedConversation as any)?.presence === "online" ||
+                     (selectedConversation as any)?.presence === "available" ||
+                     (selectedConversation as any)?.isOnline === true)
                     ? "online"
-                    : "offline"
+                    : undefined
             }
             rightActions={
               <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">

@@ -158,6 +158,8 @@ interface SidebarPanelProps {
   onClose?: () => void;
   onAttachMedia?: (message: ChatMessage) => void;
   isWhatsappConnected?: boolean;
+  selectedLead?: any;
+  setConversations?: React.Dispatch<React.SetStateAction<Conversation[]>>;
 }
 
 const SECTIONS = [
@@ -374,6 +376,35 @@ function SharedMediaCard({
   );
 }
 
+export const FUNNEL_STAGES = [
+  { id: "new_lead", label: "Novo Lead", color: "border-sky-500/40 text-sky-400 bg-sky-500/10", icon: "🌱" },
+  { id: "qualifying", label: "Qualificação", color: "border-indigo-500/40 text-indigo-400 bg-indigo-500/10", icon: "🎯" },
+  { id: "price_sent", label: "Orçamento", color: "border-amber-500/40 text-amber-400 bg-amber-500/10", icon: "📑" },
+  { id: "negotiation", label: "Negociação", color: "border-orange-500/40 text-orange-400 bg-orange-500/10", icon: "🤝" },
+  { id: "payment_pending", label: "Pagamento", color: "border-emerald-500/40 text-emerald-400 bg-emerald-500/10", icon: "💳" },
+  { id: "won", label: "Fechado", color: "border-green-500/50 text-green-300 bg-green-500/20", icon: "🏆" },
+] as const;
+
+export const LEAD_TEMPERATURES = [
+  { id: "hot", label: "Quente", icon: "🔥", color: "border-red-500/40 text-red-400 bg-red-500/10" },
+  { id: "warm", label: "Morno", icon: "🌤️", color: "border-amber-500/40 text-amber-400 bg-amber-500/10" },
+  { id: "cold", label: "Frio", icon: "❄️", color: "border-blue-500/40 text-blue-400 bg-blue-500/10" },
+] as const;
+
+export const SYSTEM_TAG_TRANSLATIONS: Record<string, { label: string; icon?: string }> = {
+  price_request: { label: "Pediu Preço", icon: "💬" },
+  price_sent: { label: "Orçamento Enviado", icon: "📑" },
+  send_price: { label: "Enviar Preço", icon: "📤" },
+  warm: { label: "Lead Quente", icon: "🔥" },
+  cold: { label: "Lead Frio", icon: "❄️" },
+  hot: { label: "Super Quente", icon: "⚡" },
+  ficha_gerada: { label: "Ficha Gerada", icon: "📋" },
+  question: { label: "Dúvida", icon: "❓" },
+  educate: { label: "Educando Lead", icon: "💡" },
+  out_of_context: { label: "Fora de Contexto", icon: "🔄" },
+  handover_human: { label: "Transf. Humano", icon: "👤" },
+};
+
 export const SidebarPanel = memo(function SidebarPanel({
   selectedConversation,
   rightPanelTab,
@@ -428,6 +459,8 @@ export const SidebarPanel = memo(function SidebarPanel({
   isWhatsappConnected = true,
   isCustomerOnline,
   lastSeenLabel,
+  selectedLead,
+  setConversations,
 }: SidebarPanelProps) {
   const [showDetailedPresence, setShowDetailedPresence] = useState(false);
   const [fileFilter, setFileFilter] = useState("all");
@@ -445,6 +478,52 @@ export const SidebarPanel = memo(function SidebarPanel({
   const [isCreatingNewLabel, setIsCreatingNewLabel] = useState(false);
   const [newLabelColorHex, setNewLabelColorHex] = useState("#00d26a");
   const [autoTagging, setAutoTagging] = useState(false);
+  const [updatingFunnel, setUpdatingFunnel] = useState(false);
+  const [showSystemTags, setShowSystemTags] = useState(false);
+
+  const isCustomerPresenceOnline = Boolean(
+    isCustomerOnline ||
+    selectedConversation?.status === "online" ||
+    (selectedConversation as any)?.status === "available" ||
+    (selectedConversation as any)?.presence === "online" ||
+    (selectedConversation as any)?.presence === "available" ||
+    (selectedConversation as any)?.isOnline === true
+  );
+
+  const handleUpdateFunnelStage = async (stageId: string) => {
+    if (!selectedConversation || updatingFunnel) return;
+    try {
+      setUpdatingFunnel(true);
+      await apiService.patchConversation(selectedConversation.id, { funnel_stage: stageId });
+      if (setConversations) {
+        setConversations((prev) =>
+          prev.map((c) => (c.id === selectedConversation.id ? { ...c, funnel_stage: stageId } : c))
+        );
+      }
+      notify.success(`Etapa atualizada para "${FUNNEL_STAGES.find((s) => s.id === stageId)?.label || stageId}"`);
+    } catch (e) {
+      console.error("Erro ao atualizar etapa do funil", e);
+      notify.error("Falha ao atualizar etapa do funil.");
+    } finally {
+      setUpdatingFunnel(false);
+    }
+  };
+
+  const handleUpdateTemperature = async (tempId: string) => {
+    if (!selectedConversation) return;
+    try {
+      await apiService.patchConversation(selectedConversation.id, { lead_temperature: tempId });
+      if (setConversations) {
+        setConversations((prev) =>
+          prev.map((c) => (c.id === selectedConversation.id ? { ...c, lead_temperature: tempId } : c))
+        );
+      }
+      notify.success(`Temperatura atualizada para "${LEAD_TEMPERATURES.find((t) => t.id === tempId)?.label || tempId}"`);
+    } catch (e) {
+      console.error("Erro ao atualizar temperatura", e);
+      notify.error("Falha ao atualizar temperatura.");
+    }
+  };
 
   const loadRealLabels = useCallback(async (sessionId?: string) => {
     try {
@@ -714,10 +793,13 @@ export const SidebarPanel = memo(function SidebarPanel({
       };
     }
 
-    // 1. Direct candidates from backend (including mapped_phone from whatsapp_lid_mappings)
+    // 1. Direct candidates from backend (including mapped_phone from whatsapp_lid_mappings and selectedLead)
     const directCandidates = [
       (selectedConversation as any).mapped_phone,
       (selectedConversation as any).mappedPhone,
+      selectedLead?.phone,
+      (selectedLead as any)?.whatsapp,
+      (selectedLead as any)?.celular,
       selectedConversation.phone,
       (selectedConversation as any).customerPhone,
       (selectedConversation as any).contactPhone,
@@ -813,7 +895,7 @@ export const SidebarPanel = memo(function SidebarPanel({
     }
 
     return { display: "Número não informado", isRealPhone: false, isLid: false, isGroup: false, raw: "", badge: null };
-  }, [selectedConversation, messages]);
+  }, [selectedConversation, messages, selectedLead]);
 
   const clientPhone = phoneMeta.display;
 
@@ -1142,6 +1224,21 @@ export const SidebarPanel = memo(function SidebarPanel({
     return name || (rawPhone ? formatPhoneNumber(rawPhone) : "Contato");
   }, [selectedConversation?.contactName, selectedConversation?.phone]);
 
+  // Split official/user tags from internal AI classifier tags
+  const { officialOrCustomTags, aiSystemTags } = useMemo(() => {
+    const all = Array.isArray(selectedConversation?.tags) ? selectedConversation.tags : [];
+    const official: string[] = [];
+    const ai: string[] = [];
+    for (const t of all) {
+      if (SYSTEM_TAG_TRANSLATIONS[t.toLowerCase()]) {
+        ai.push(t);
+      } else {
+        official.push(t);
+      }
+    }
+    return { officialOrCustomTags: official, aiSystemTags: ai };
+  }, [selectedConversation?.tags]);
+
   const panelContent = !isWhatsappConnected ? (
     <div className="flex h-full min-h-0 w-full flex-col items-center justify-center p-6 text-center text-muted-foreground select-none">
       <div className="rounded-2xl bg-amber-500/10 p-4 ring-1 ring-amber-500/20 mb-3">
@@ -1386,8 +1483,8 @@ export const SidebarPanel = memo(function SidebarPanel({
                       {getInitials(cleanName)}
                     </AvatarFallback>
                   </Avatar>
-                  {/* Presença do contato: Bolinha Verde para Online / Nada para Offline (vermelho off) */}
-                  {(isCustomerOnline ?? (selectedConversation.status === "online")) && (
+                  {/* Presença do contato: Sincronizada 100% com o header central */}
+                  {isCustomerPresenceOnline && (
                     <span
                       className="absolute -bottom-0.5 -left-0.5 z-10 flex h-3.5 w-3.5 items-center justify-center pointer-events-none"
                       title="Cliente online no WhatsApp"
@@ -1416,32 +1513,36 @@ export const SidebarPanel = memo(function SidebarPanel({
                   >
                     {cleanName}
                   </p>
+                  {/* Telefone / Identificador completo logo abaixo do nome */}
+                  <p className="text-[11px] font-mono text-muted-foreground select-all truncate mt-0.5" title="Telefone / Identificador WhatsApp">
+                    {phoneMeta.display}
+                  </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    {/* Status interativo clicável: alterna entre Online/Offline e Última visualização */}
+                    {/* Status interativo clicável: sincronizado com header central */}
                     <button
                       type="button"
                       onClick={() => setShowDetailedPresence((prev) => !prev)}
                       className={cn(
                         "inline-flex items-center gap-1 text-[11px] font-medium transition-colors hover:underline cursor-pointer rounded px-1 py-0.2 -ml-1",
-                        (isCustomerOnline ?? (selectedConversation.status === "online")) ? "text-emerald-400 hover:bg-emerald-500/10" : "text-muted-foreground hover:bg-muted"
+                        isCustomerPresenceOnline ? "text-emerald-400 hover:bg-emerald-500/10" : "text-muted-foreground hover:bg-muted"
                       )}
                       title="Clique para alternar entre status e última visualização"
                     >
                       <span
                         className={cn(
                           "h-1.5 w-1.5 rounded-full inline-block shrink-0",
-                          (isCustomerOnline ?? (selectedConversation.status === "online")) ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground/40"
+                          isCustomerPresenceOnline ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground/40"
                         )}
                       />
                       <span>
                         {showDetailedPresence
-                          ? ((isCustomerOnline ?? (selectedConversation.status === "online")) ? "Online agora" : (lastSeenLabel ? `Visto: ${lastSeenLabel}` : "Visto recentemente"))
-                          : ((isCustomerOnline ?? (selectedConversation.status === "online")) ? "Online" : "Offline")}
+                          ? (isCustomerPresenceOnline ? "Online agora" : (lastSeenLabel ? `Visto: ${lastSeenLabel}` : "Visto recentemente"))
+                          : (isCustomerPresenceOnline ? "Online" : "Offline")}
                       </span>
                     </button>
                     <span className="text-muted-foreground/40">•</span>
                     <span className="truncate text-[11px] font-medium text-foreground/80">
-                      {selectedConversation.funnel_stage || "Lead Quente"}
+                      {FUNNEL_STAGES.find((s) => s.id === selectedConversation.funnel_stage)?.label || selectedConversation.funnel_stage || "Novo Lead"}
                     </span>
                   </div>
                 </div>
@@ -1475,7 +1576,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs font-bold text-foreground font-mono select-all truncate mt-0.5">
+                    <p className="text-xs font-bold text-foreground font-mono select-all break-all mt-0.5">
                       {phoneMeta.display}
                     </p>
                   </div>
@@ -1498,19 +1599,68 @@ export const SidebarPanel = memo(function SidebarPanel({
                 )}
               </div>
 
-              {/* 2-column compact grid for Origem & Etapa */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 border border-border/40">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Origem</p>
-                  <p className="mt-0.5 truncate text-xs font-semibold text-foreground">
-                    {getConversationSourceLabel(selectedConversation)}
-                  </p>
+              {/* Afunilamento de IA & Funil de Vendas Interativo */}
+              <div className="rounded-lg bg-card/60 border border-border/60 p-2.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Afunilamento de IA</p>
+                  </div>
+                  {/* Lead Temperature Selector */}
+                  <div className="flex items-center gap-1">
+                    {LEAD_TEMPERATURES.map((t) => {
+                      const isCurrent = (selectedConversation.lead_temperature || "").toLowerCase() === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleUpdateTemperature(t.id)}
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px] font-medium border transition-all cursor-pointer",
+                            isCurrent
+                              ? t.color
+                              : "border-border/30 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                          )}
+                          title={`Temperatura do Lead: ${t.label}`}
+                        >
+                          {t.icon} {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 border border-border/40">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Etapa</p>
-                  <p className="mt-0.5 truncate text-xs font-semibold text-foreground">
-                    {selectedConversation.funnel_stage || "Lead Quente"}
-                  </p>
+
+                {/* Etapas do Funil com Botões Clicáveis e Stepper */}
+                <div className="grid grid-cols-3 gap-1 pt-0.5">
+                  {FUNNEL_STAGES.map((stage) => {
+                    const currentStageKey = (selectedConversation.funnel_stage || "new_lead").toLowerCase();
+                    const isCurrent = currentStageKey === stage.id ||
+                      (stage.id === "new_lead" && (currentStageKey === "novo" || currentStageKey === "lead")) ||
+                      (stage.id === "price_sent" && currentStageKey === "orcamento");
+                    return (
+                      <button
+                        key={stage.id}
+                        type="button"
+                        onClick={() => handleUpdateFunnelStage(stage.id)}
+                        disabled={updatingFunnel}
+                        className={cn(
+                          "flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[10px] font-medium border transition-all text-center",
+                          isCurrent
+                            ? cn(stage.color, "ring-1 ring-primary/40 font-bold shadow-xs")
+                            : "border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 hover:border-border/80"
+                        )}
+                        title={`Mudar etapa para ${stage.label}`}
+                      >
+                        <span className="text-[11px]">{stage.icon}</span>
+                        <span className="truncate">{stage.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/30">
+                  <span>Origem: <strong className="text-foreground">{getConversationSourceLabel(selectedConversation)}</strong></span>
+                  <span className="truncate max-w-[150px]">Etapa: <strong className="text-primary">{FUNNEL_STAGES.find((s) => s.id === selectedConversation.funnel_stage)?.label || selectedConversation.funnel_stage || "Novo Lead"}</strong></span>
                 </div>
               </div>
 
@@ -1519,10 +1669,10 @@ export const SidebarPanel = memo(function SidebarPanel({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <Tag className="h-3.5 w-3.5 text-primary" />
-                    <p className="text-xs font-bold text-foreground">Etiquetas</p>
-                    {Array.isArray(selectedConversation.tags) && selectedConversation.tags.length > 0 && (
+                    <p className="text-xs font-bold text-foreground">Etiquetas WhatsApp</p>
+                    {officialOrCustomTags.length > 0 && (
                       <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/25">
-                        {selectedConversation.tags.length}
+                        {officialOrCustomTags.length}
                       </span>
                     )}
                   </div>
@@ -1772,22 +1922,22 @@ export const SidebarPanel = memo(function SidebarPanel({
                   </div>
                 </div>
 
-                {/* Lista de Badges Coloridos Reais */}
+                {/* Badges de Etiquetas Reais do WhatsApp com Cores Oficiais */}
                 <div className="pt-0.5">
-                  {Array.isArray(selectedConversation.tags) && selectedConversation.tags.length > 0 ? (
+                  {officialOrCustomTags.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
-                      {selectedConversation.tags.map((tag) => {
+                      {officialOrCustomTags.map((tag) => {
                         const matched = realLabels.find((l) => l.name.toLowerCase() === tag.toLowerCase());
                         const customHex = matched?.color_hex;
                         return (
                           <span
                             key={tag}
-                            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold border transition-all shadow-xs"
+                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium border transition-all shadow-xs"
                             style={
                               customHex
                                 ? {
-                                    backgroundColor: `${customHex}15`,
-                                    borderColor: `${customHex}50`,
+                                    backgroundColor: `${customHex}18`,
+                                    borderColor: `${customHex}60`,
                                     color: customHex,
                                   }
                                 : undefined
@@ -1797,7 +1947,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                               className="h-2 w-2 rounded-full shrink-0"
                               style={{ backgroundColor: customHex || "#00d26a" }}
                             />
-                            <span>{tag}</span>
+                            <span className="font-semibold">{tag}</span>
                             <button
                               type="button"
                               onClick={() => handleRemoveTagFromSelectedConversation(tag)}
@@ -1817,10 +1967,52 @@ export const SidebarPanel = memo(function SidebarPanel({
                       className="w-full py-2 px-3 rounded-lg border border-dashed border-border/70 hover:border-primary/50 bg-muted/20 hover:bg-primary/5 transition-all flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
                     >
                       <Plus className="h-3.5 w-3.5" />
-                      <span>Adicionar primeira etiqueta</span>
+                      <span>Adicionar etiqueta do WhatsApp</span>
                     </button>
                   )}
                 </div>
+
+                {/* Tags de Contexto da IA (Classificações Automáticas) */}
+                {aiSystemTags.length > 0 && (
+                  <div className="pt-2 border-t border-border/30">
+                    <button
+                      type="button"
+                      onClick={() => setShowSystemTags((prev) => !prev)}
+                      className="flex items-center justify-between w-full text-[10px] text-muted-foreground hover:text-foreground py-0.5 cursor-pointer"
+                    >
+                      <span className="font-medium flex items-center gap-1">
+                        <Sparkles className="h-2.5 w-2.5 text-amber-400" />
+                        Classificação IA ({aiSystemTags.length})
+                      </span>
+                      <span className="text-[10px] underline">{showSystemTags ? "ocultar" : "ver"}</span>
+                    </button>
+                    {showSystemTags && (
+                      <div className="flex flex-wrap gap-1 mt-1.5 animate-in fade-in-0">
+                        {aiSystemTags.map((tag) => {
+                          const trans = SYSTEM_TAG_TRANSLATIONS[tag.toLowerCase()];
+                          return (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1 rounded bg-muted/60 border border-border/60 px-2 py-0.5 text-[10px] text-foreground/90 font-medium"
+                              title={`Tag IA: ${tag}`}
+                            >
+                              {trans?.icon && <span>{trans.icon}</span>}
+                              <span>{trans?.label || tag}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTagFromSelectedConversation(tag)}
+                                className="hover:text-destructive transition-colors ml-1 p-0.5"
+                                title={`Remover ${tag}`}
+                              >
+                                <X className="h-2.5 w-2.5" />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Notas do Atendimento */}

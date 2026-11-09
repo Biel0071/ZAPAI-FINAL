@@ -369,32 +369,42 @@ export const ConversationRow = memo(function ConversationRow(props: Conversation
               {leadStatus.state === "finalizado" && (
                 <span className="sr-only" title={leadStatus.tooltip}>AGUARDA PIX AGUARDANDO PAGAMENTO</span>
               )}
-              {conversation.tags && conversation.tags.length > 0 && (
-                <div
-                  className="inline-flex items-center shrink-0 ml-1.5"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <StackedTagsBadge
-                    tags={conversation.tags}
-                    maxVisible={3}
-                    size="xs"
-                    interactive={true}
-                    side="right"
-                    align="start"
-                    onAddTag={(tag) => {
-                      const currentTags = conversation.tags ?? [];
-                      if (!currentTags.includes(tag)) {
-                        onUpdateTags(conversation.id, [...currentTags, tag]);
-                      }
-                    }}
-                    onRemoveTag={(tag) => {
-                      const currentTags = conversation.tags ?? [];
-                      onUpdateTags(conversation.id, currentTags.filter((t) => t !== tag));
-                    }}
-                  />
-                </div>
-              )}
-              <WhatsappLabelBadges labels={conversation.whatsappLabels} maxVisible={1} className="ml-1.5 shrink-0" />
+              <WhatsappLabelBadges labels={conversation.whatsappLabels} maxVisible={2} className="ml-1.5 shrink min-w-0" />
+              {(() => {
+                const wLabelsLower = new Set((conversation.whatsappLabels || []).map((l: string) => l.toLowerCase()));
+                const cleanUserTags = (conversation.tags || []).filter((t: string) => {
+                  const lower = t.toLowerCase();
+                  if (wLabelsLower.has(lower)) return false;
+                  if (["handover_human", "out_of_context", "cold", "warm", "price_request", "price_sent", "send_price"].includes(lower)) return false;
+                  return true;
+                });
+                if (cleanUserTags.length === 0) return null;
+                return (
+                  <div
+                    className="inline-flex items-center shrink-0 ml-1.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <StackedTagsBadge
+                      tags={cleanUserTags}
+                      maxVisible={2}
+                      size="xs"
+                      interactive={true}
+                      side="right"
+                      align="start"
+                      onAddTag={(tag) => {
+                        const currentTags = conversation.tags ?? [];
+                        if (!currentTags.includes(tag)) {
+                          onUpdateTags(conversation.id, [...currentTags, tag]);
+                        }
+                      }}
+                      onRemoveTag={(tag) => {
+                        const currentTags = conversation.tags ?? [];
+                        onUpdateTags(conversation.id, currentTags.filter((t) => t !== tag));
+                      }}
+                    />
+                  </div>
+                );
+              })()}
             </h4>
             <div className="flex items-center gap-1.5 shrink-0 ml-1">
               {isPinned && (

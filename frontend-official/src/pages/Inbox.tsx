@@ -452,7 +452,14 @@ export default function Inbox() {
   // Sidebar props mapped
   const sidebarProps = {
     selectedConversation: state.selectedConversation,
-    isCustomerOnline: Boolean(state.isTyping || state.selectedConversation?.status === "online"),
+    isCustomerOnline: Boolean(
+      state.isTyping ||
+      state.selectedConversation?.status === "online" ||
+      (state.selectedConversation as any)?.status === "available" ||
+      (state.selectedConversation as any)?.presence === "online" ||
+      (state.selectedConversation as any)?.presence === "available" ||
+      (state.selectedConversation as any)?.isOnline === true
+    ),
     lastSeenLabel: state.selectedConversation
       ? formatConversationTimestamp(
           (state.selectedConversation as any).lastMessageAt ||
