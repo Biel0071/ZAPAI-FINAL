@@ -1599,69 +1599,28 @@ export const SidebarPanel = memo(function SidebarPanel({
                 )}
               </div>
 
-              {/* Afunilamento de IA & Funil de Vendas Interativo */}
-              <div className="rounded-lg bg-card/60 border border-border/60 p-2.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-primary" />
-                    <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Afunilamento de IA</p>
-                  </div>
-                  {/* Lead Temperature Selector */}
-                  <div className="flex items-center gap-1">
-                    {LEAD_TEMPERATURES.map((t) => {
-                      const isCurrent = (selectedConversation.lead_temperature || "").toLowerCase() === t.id;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => handleUpdateTemperature(t.id)}
-                          className={cn(
-                            "px-1.5 py-0.5 rounded text-[10px] font-medium border transition-all cursor-pointer",
-                            isCurrent
-                              ? t.color
-                              : "border-border/30 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                          )}
-                          title={`Temperatura do Lead: ${t.label}`}
-                        >
-                          {t.icon} {t.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+              {/* 2-column compact grid: Origem & Acesso à Ficha 360 do Contato */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 border border-border/40">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Origem</p>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-foreground">
+                    {getConversationSourceLabel(selectedConversation)}
+                  </p>
                 </div>
-
-                {/* Etapas do Funil com Botões Clicáveis e Stepper */}
-                <div className="grid grid-cols-3 gap-1 pt-0.5">
-                  {FUNNEL_STAGES.map((stage) => {
-                    const currentStageKey = (selectedConversation.funnel_stage || "new_lead").toLowerCase();
-                    const isCurrent = currentStageKey === stage.id ||
-                      (stage.id === "new_lead" && (currentStageKey === "novo" || currentStageKey === "lead")) ||
-                      (stage.id === "price_sent" && currentStageKey === "orcamento");
-                    return (
-                      <button
-                        key={stage.id}
-                        type="button"
-                        onClick={() => handleUpdateFunnelStage(stage.id)}
-                        disabled={updatingFunnel}
-                        className={cn(
-                          "flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[10px] font-medium border transition-all text-center",
-                          isCurrent
-                            ? cn(stage.color, "ring-1 ring-primary/40 font-bold shadow-xs")
-                            : "border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 hover:border-border/80"
-                        )}
-                        title={`Mudar etapa para ${stage.label}`}
-                      >
-                        <span className="text-[11px]">{stage.icon}</span>
-                        <span className="truncate">{stage.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/30">
-                  <span>Origem: <strong className="text-foreground">{getConversationSourceLabel(selectedConversation)}</strong></span>
-                  <span className="truncate max-w-[150px]">Etapa: <strong className="text-primary">{FUNNEL_STAGES.find((s) => s.id === selectedConversation.funnel_stage)?.label || selectedConversation.funnel_stage || "Novo Lead"}</strong></span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("zapflow:open-lead-modal"))}
+                  className="rounded-lg bg-muted/40 hover:bg-muted/70 px-2.5 py-1.5 border border-border/40 text-left transition-colors cursor-pointer group"
+                  title="Abrir ficha completa do contato com Afunilamento de IA e Análise de Conversa"
+                >
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                    <span>Ficha 360</span>
+                    <Sparkles className="h-2.5 w-2.5 text-primary group-hover:scale-110 transition-transform" />
+                  </p>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-primary">
+                    Ver Contatos &rarr;
+                  </p>
+                </button>
               </div>
 
               {/* Seção de Etiquetas de Contato - Padrão Oficial WhatsApp Web */}
@@ -1971,48 +1930,6 @@ export const SidebarPanel = memo(function SidebarPanel({
                     </button>
                   )}
                 </div>
-
-                {/* Tags de Contexto da IA (Classificações Automáticas) */}
-                {aiSystemTags.length > 0 && (
-                  <div className="pt-2 border-t border-border/30">
-                    <button
-                      type="button"
-                      onClick={() => setShowSystemTags((prev) => !prev)}
-                      className="flex items-center justify-between w-full text-[10px] text-muted-foreground hover:text-foreground py-0.5 cursor-pointer"
-                    >
-                      <span className="font-medium flex items-center gap-1">
-                        <Sparkles className="h-2.5 w-2.5 text-amber-400" />
-                        Classificação IA ({aiSystemTags.length})
-                      </span>
-                      <span className="text-[10px] underline">{showSystemTags ? "ocultar" : "ver"}</span>
-                    </button>
-                    {showSystemTags && (
-                      <div className="flex flex-wrap gap-1 mt-1.5 animate-in fade-in-0">
-                        {aiSystemTags.map((tag) => {
-                          const trans = SYSTEM_TAG_TRANSLATIONS[tag.toLowerCase()];
-                          return (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center gap-1 rounded bg-muted/60 border border-border/60 px-2 py-0.5 text-[10px] text-foreground/90 font-medium"
-                              title={`Tag IA: ${tag}`}
-                            >
-                              {trans?.icon && <span>{trans.icon}</span>}
-                              <span>{trans?.label || tag}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveTagFromSelectedConversation(tag)}
-                                className="hover:text-destructive transition-colors ml-1 p-0.5"
-                                title={`Remover ${tag}`}
-                              >
-                                <X className="h-2.5 w-2.5" />
-                              </button>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Notas do Atendimento */}
