@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141e24" />
+      <stop offset="100%" stop-color="#0b141a" />
+    </linearGradient>
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#c2410c" />
+    </linearGradient>
+    <linearGradient id="wallGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Circular Base -->
+  <circle cx="64" cy="64" r="62" fill="url(#bgGrad)" stroke="#22c55e" stroke-width="2.5" />
+
+  <!-- Construction / House Icon -->
+  <!-- Roof -->
+  <polygon points="64,28 26,58 35,62 64,39 93,62 102,58" fill="url(#roofGrad)" />
+  <!-- Chimney -->
+  <rect x="78" y="32" width="10" height="18" fill="#9a3412" rx="1" />
+
+  <!-- House Body / Material Depot Block -->
+  <rect x="36" y="56" width="56" height="42" rx="3" fill="#1e293b" stroke="#334155" stroke-width="2" />
+  
+  <!-- Depot Roller Shutter / Gate -->
+  <rect x="50" y="66" width="28" height="32" rx="2" fill="#0f172a" />
+  <line x1="50" y1="72" x2="78" y2="72" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.7" />
+  <line x1="50" y1="78" x2="78" y2="78" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.7" />
+  <line x1="50" y1="84" x2="78" y2="84" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.7" />
+  <line x1="50" y1="90" x2="78" y2="90" stroke="#38bdf8" stroke-width="1.5" stroke-opacity="0.7" />
+
+  <!-- Side Windows / Bricks Accent -->
+  <rect x="40" y="66" width="6" height="8" rx="1" fill="#ea580c" opacity="0.9" />
+  <rect x="82" y="66" width="6" height="8" rx="1" fill="#ea580c" opacity="0.9" />
+
+  <!-- Bottom Badge: DM -->
+  <rect x="42" y="102" width="44" height="14" rx="4" fill="#22c55e" />
+  <text x="64" y="112" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="900" fill="#0b141a" text-anchor="middle" letter-spacing="1">DEPÓSITO</text>
+</svg>

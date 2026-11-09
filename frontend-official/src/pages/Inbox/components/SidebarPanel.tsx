@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, memo } from "react";
+import { useEffect, useMemo, useState, memo, useCallback } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -51,6 +51,9 @@ import {
   X,
   Zap,
   Volume2,
+  Check,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +81,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InboxSectionBoundary } from "@/components/system/InboxSectionBoundary";
 import { useProtectedMediaUrl } from "@/core/runtime/hooks/useProtectedMediaUrl";
+import { notify } from "@/core/services/notifyService";
 import { apiService, requestApiEndpoint, type ChatMessage, type Conversation } from "@/core/services/apiService";
 import type { AiMemoryRecord, InboxAiRuntime, PreviewMediaState, QuickReplyCategoryAppearance, QuickReplyItem } from "../types";
 import {
@@ -260,6 +264,21 @@ const PRESET_CATEGORY_COLORS = [
   { name: "Ardósia", hex: "#64748b" },
 ];
 
+const OFFICIAL_WPP_COLORS = [
+  { name: "Verde WhatsApp", hex: "#00d26a", index: 0 },
+  { name: "Azul Claro", hex: "#5ac8fa", index: 1 },
+  { name: "Azul Índigo", hex: "#5856d6", index: 2 },
+  { name: "Rosa", hex: "#ff2d55", index: 3 },
+  { name: "Laranja", hex: "#ff9500", index: 4 },
+  { name: "Amarelo Ouro", hex: "#ffcc00", index: 5 },
+  { name: "Púrpura", hex: "#af52de", index: 6 },
+  { name: "Vermelho Alerta", hex: "#ff3b30", index: 7 },
+  { name: "Azul Real", hex: "#007aff", index: 8 },
+  { name: "Verde Esmeralda", hex: "#34c759", index: 9 },
+  { name: "Marrom Dourado", hex: "#a2845e", index: 10 },
+  { name: "Cinza", hex: "#8e8e93", index: 11 },
+];
+
 function SharedMediaCard({
   message,
   onOpen,
@@ -418,6 +437,138 @@ export const SidebarPanel = memo(function SidebarPanel({
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [localTagInput, setLocalTagInput] = useState("");
+  const [realLabels, setRealLabels] = useState<Array<{ id: string; name: string; color: number; color_hex: string }>>([]);
+  const [loadingRealLabels, setLoadingRealLabels] = useState(false);
+  const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+  const [editLabelName, setEditLabelName] = useState("");
+  const [editLabelColorHex, setEditLabelColorHex] = useState("#00d26a");
+  const [isCreatingNewLabel, setIsCreatingNewLabel] = useState(false);
+  const [newLabelColorHex, setNewLabelColorHex] = useState("#00d26a");
+  const [autoTagging, setAutoTagging] = useState(false);
+
+  const loadRealLabels = useCallback(async (sessionId?: string) => {
+    try {
+      setLoadingRealLabels(true);
+      if (typeof apiService.getWhatsAppLabels !== "function") return;
+      const res = await apiService.getWhatsAppLabels(sessionId);
+      if (res?.labels && Array.isArray(res.labels)) {
+        const valid = res.labels.filter(
+          (l) => !l.deleted && l.name && !["não lidas", "favoritos", "grupos"].includes(l.name.toLowerCase().trim())
+        );
+        setRealLabels(
+          valid.map((l) => ({
+            id: String(l.id),
+            name: l.name,
+            color: typeof l.color === "number" ? l.color : 0,
+            color_hex: l.color_hex || "#00d26a",
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to load WhatsApp labels:", err);
+    } finally {
+      setLoadingRealLabels(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRealLabels(selectedConversation?.sessionId);
+  }, [loadRealLabels, selectedConversation?.sessionId]);
+
+  const handleToggleRealLabel = async (labelName: string) => {
+    const isSelected = (selectedConversation?.tags || []).some(
+      (t) => t.toLowerCase() === labelName.toLowerCase()
+    );
+    if (isSelected) {
+      handleRemoveTagFromSelectedConversation(labelName);
+    } else {
+      await handleAddTagToSelectedConversation(labelName);
+    }
+  };
+
+  const handleCreateRealLabel = async () => {
+    const trimmed = localTagInput.trim();
+    if (!trimmed) return;
+    try {
+      const colorIdx = OFFICIAL_WPP_COLORS.findIndex((c) => c.hex.toLowerCase() === newLabelColorHex.toLowerCase());
+      const res = await apiService.createWhatsAppLabel({
+        name: trimmed,
+        colorHex: newLabelColorHex,
+        color: colorIdx >= 0 ? colorIdx : 0,
+        sessionId: selectedConversation?.sessionId,
+      });
+      if (res?.success && res.label) {
+        await handleAddTagToSelectedConversation(res.label.name);
+        setLocalTagInput("");
+        setIsCreatingNewLabel(false);
+        notify.success(`Etiqueta "${res.label.name}" criada e associada!`);
+        void loadRealLabels(selectedConversation?.sessionId);
+      }
+    } catch (err: any) {
+      notify.error(err.message || "Erro ao criar etiqueta.");
+    }
+  };
+
+  const handleSaveEditLabel = async (id: string) => {
+    const trimmed = editLabelName.trim();
+    if (!trimmed) return;
+    try {
+      const colorIdx = OFFICIAL_WPP_COLORS.findIndex((c) => c.hex.toLowerCase() === editLabelColorHex.toLowerCase());
+      const res = await apiService.updateWhatsAppLabel(id, {
+        name: trimmed,
+        colorHex: editLabelColorHex,
+        color: colorIdx >= 0 ? colorIdx : 0,
+        sessionId: selectedConversation?.sessionId,
+      });
+      if (res?.success) {
+        notify.success("Etiqueta atualizada!");
+        setEditingLabelId(null);
+        void loadRealLabels(selectedConversation?.sessionId);
+      }
+    } catch (err: any) {
+      notify.error(err.message || "Erro ao editar etiqueta.");
+    }
+  };
+
+  const handleDeleteLabel = async (id: string, name: string) => {
+    try {
+      await apiService.deleteWhatsAppLabel(id, selectedConversation?.sessionId);
+      handleRemoveTagFromSelectedConversation(name);
+      notify.success(`Etiqueta "${name}" excluída.`);
+      void loadRealLabels(selectedConversation?.sessionId);
+    } catch (err: any) {
+      notify.error(err.message || "Erro ao excluir etiqueta.");
+    }
+  };
+
+  const handleSyncLabels = async () => {
+    try {
+      setLoadingRealLabels(true);
+      const res = await apiService.syncWhatsAppLabels(selectedConversation?.sessionId);
+      notify.success(`${res?.syncedCount || 0} etiquetas sincronizadas do WhatsApp.`);
+      void loadRealLabels(selectedConversation?.sessionId);
+    } catch (err: any) {
+      notify.error(err.message || "Erro ao sincronizar etiquetas.");
+    } finally {
+      setLoadingRealLabels(false);
+    }
+  };
+
+  const handleAutoTagWithAi = async () => {
+    if (!selectedConversation?.id) return;
+    try {
+      setAutoTagging(true);
+      const res = await apiService.autoTagConversation(selectedConversation.id);
+      if (res?.success) {
+        notify.success(`IA aplicou etiquetas: ${res.assigned?.join(", ") || "Atualizado"}`);
+        void loadRealLabels(selectedConversation.sessionId);
+      }
+    } catch (err: any) {
+      notify.error(err.message || "Não foi possível analisar e auto-etiquetar a conversa.");
+    } finally {
+      setAutoTagging(false);
+    }
+  };
   const [qrTypeFilter, setQrTypeFilter] = useState<"all" | "text" | "audio" | "video" | "image" | "flow">("all");
   const [qrPillFilter, setQrPillFilter] = useState<"all" | "favorites" | "uncategorized">("all");
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -1363,7 +1514,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                 </div>
               </div>
 
-              {/* Seção de Etiquetas de Contato - Padrão Top */}
+              {/* Seção de Etiquetas de Contato - Padrão Oficial WhatsApp Web */}
               <div className="border-t border-border/40 pt-2.5 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
@@ -1375,105 +1526,289 @@ export const SidebarPanel = memo(function SidebarPanel({
                       </span>
                     )}
                   </div>
-                  <Popover open={tagPickerOpen} onOpenChange={setTagPickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 px-2 text-[11px] font-medium gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-md"
-                      >
-                        <Plus className="h-3 w-3" />
-                        <span>Nova</span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      align="end"
-                      side="bottom"
-                      className="w-72 p-3 bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl rounded-xl z-50 text-foreground"
+
+                  <div className="flex items-center gap-1">
+                    {/* Botão de Auto-Etiquetamento Inteligente com IA */}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-1.5 text-[10px] font-semibold gap-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-md"
+                      onClick={handleAutoTagWithAi}
+                      disabled={autoTagging}
+                      title="Ler conversa com IA e aplicar etiquetas reais automaticamente"
                     >
-                      <div className="space-y-2.5">
-                        <div className="flex items-center justify-between pb-1.5 border-b border-border/40">
-                          <p className="text-xs font-semibold text-foreground">Adicionar Etiqueta</p>
-                          <button
-                            type="button"
-                            onClick={() => setTagPickerOpen(false)}
-                            className="p-1 rounded text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                        <div className="flex gap-1.5">
-                          <Input
-                            value={localTagInput}
-                            onChange={(e) => setLocalTagInput(e.target.value)}
-                            placeholder="Nome da etiqueta..."
-                            className="h-7 text-xs bg-muted/30"
-                            onKeyDown={(e) => {
-                              const trimmed = localTagInput.trim();
-                              if (e.key === "Enter" && trimmed) {
-                                e.preventDefault();
-                                handleAddTagToSelectedConversation(trimmed);
-                                setLocalTagInput("");
-                                setTagPickerOpen(false);
-                              }
-                            }}
-                          />
-                          <Button
-                            size="sm"
-                            className="h-7 px-2.5 text-xs font-semibold shrink-0"
-                            disabled={!localTagInput.trim()}
-                            onClick={() => {
-                              const trimmed = localTagInput.trim();
-                              if (trimmed) {
-                                handleAddTagToSelectedConversation(trimmed);
-                                setLocalTagInput("");
-                                setTagPickerOpen(false);
-                              }
-                            }}
-                          >
-                            Adicionar
-                          </Button>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-medium text-muted-foreground mb-1.5">Sugestões rápidas:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {["Lead Quente", "Ficha Gerada", "Aguardando Pagamento", "PIX Pendente", "Novo Lead", "Orçamento", "VIP", "Finalizado"]
-                              .filter((s) => !(selectedConversation.tags || []).includes(s))
-                              .map((sug) => (
-                                <button
-                                  key={sug}
-                                  type="button"
-                                  onClick={() => {
-                                    handleAddTagToSelectedConversation(sug);
-                                    setTagPickerOpen(false);
-                                  }}
-                                  className="text-[10px] py-0.5 px-2 rounded-full border border-border/60 bg-muted/40 hover:bg-primary/15 hover:border-primary/40 hover:text-primary transition-all text-muted-foreground"
-                                >
-                                  + {sug}
-                                </button>
-                              ))}
+                      <Sparkles className={cn("h-3 w-3", autoTagging && "animate-spin text-emerald-400")} />
+                      <span>{autoTagging ? "Analisando..." : "Auto-IA"}</span>
+                    </Button>
+
+                    <Popover open={tagPickerOpen} onOpenChange={setTagPickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[11px] font-medium gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-md"
+                        >
+                          <Plus className="h-3 w-3" />
+                          <span>Etiquetas</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="end"
+                        side="bottom"
+                        className="w-80 p-3 bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl rounded-xl z-50 text-foreground"
+                      >
+                        <div className="space-y-3">
+                          {/* Header do Menu de Etiquetas */}
+                          <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                            <div className="flex items-center gap-1.5">
+                              <Tag className="h-3.5 w-3.5 text-primary" />
+                              <p className="text-xs font-bold text-foreground">Etiquetas WhatsApp</p>
+                              <span className="text-[10px] text-muted-foreground">({realLabels.length})</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                onClick={handleSyncLabels}
+                                title="Sincronizar etiquetas com WhatsApp"
+                                disabled={loadingRealLabels}
+                              >
+                                <RefreshCw className={cn("h-3 w-3", loadingRealLabels && "animate-spin text-primary")} />
+                              </Button>
+                              <button
+                                type="button"
+                                onClick={() => setTagPickerOpen(false)}
+                                className="p-1 rounded text-muted-foreground hover:text-foreground"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Lista de Etiquetas Reais com Checkbox e Cores */}
+                          <div className="max-h-56 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                            {loadingRealLabels && realLabels.length === 0 ? (
+                              <div className="py-4 text-center text-xs text-muted-foreground">Carregando etiquetas...</div>
+                            ) : realLabels.length === 0 ? (
+                              <div className="py-4 text-center text-xs text-muted-foreground">Nenhuma etiqueta encontrada.</div>
+                            ) : (
+                              realLabels.map((lbl) => {
+                                const isSelected = (selectedConversation?.tags || []).some(
+                                  (t) => t.toLowerCase() === lbl.name.toLowerCase()
+                                );
+                                const isEditing = editingLabelId === lbl.id;
+
+                                if (isEditing) {
+                                  return (
+                                    <div key={lbl.id} className="p-2 rounded-lg bg-muted/40 border border-primary/30 space-y-2">
+                                      <div className="flex gap-1.5 items-center">
+                                        <Input
+                                          value={editLabelName}
+                                          onChange={(e) => setEditLabelName(e.target.value)}
+                                          className="h-6 text-xs bg-background"
+                                          autoFocus
+                                        />
+                                        <Button
+                                          size="sm"
+                                          className="h-6 px-2 text-[10px] font-bold"
+                                          onClick={() => handleSaveEditLabel(lbl.id)}
+                                        >
+                                          Salvar
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 px-1.5 text-[10px]"
+                                          onClick={() => setEditingLabelId(null)}
+                                        >
+                                          X
+                                        </Button>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {OFFICIAL_WPP_COLORS.map((col) => (
+                                          <button
+                                            key={col.hex}
+                                            type="button"
+                                            onClick={() => setEditLabelColorHex(col.hex)}
+                                            className={cn(
+                                              "h-3.5 w-3.5 rounded-full transition-transform",
+                                              editLabelColorHex.toLowerCase() === col.hex.toLowerCase()
+                                                ? "scale-125 ring-2 ring-primary ring-offset-1"
+                                                : "hover:scale-110 opacity-70 hover:opacity-100"
+                                            )}
+                                            style={{ backgroundColor: col.hex }}
+                                            title={col.name}
+                                          />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <div
+                                    key={lbl.id}
+                                    className={cn(
+                                      "flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-all border group",
+                                      isSelected
+                                        ? "bg-primary/10 border-primary/40 text-foreground"
+                                        : "hover:bg-muted/30 border-transparent text-muted-foreground hover:text-foreground"
+                                    )}
+                                    onClick={() => handleToggleRealLabel(lbl.name)}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span
+                                        className="h-3 w-3 rounded-full shrink-0 shadow-xs"
+                                        style={{ backgroundColor: lbl.color_hex || "#00d26a" }}
+                                      />
+                                      <span className="text-xs font-medium truncate">{lbl.name}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingLabelId(lbl.id);
+                                          setEditLabelName(lbl.name);
+                                          setEditLabelColorHex(lbl.color_hex || "#00d26a");
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-primary transition-opacity"
+                                        title="Editar etiqueta"
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteLabel(lbl.id, lbl.name);
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
+                                        title="Excluir etiqueta"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+
+                                      <div
+                                        className={cn(
+                                          "h-4 w-4 rounded border flex items-center justify-center transition-colors shrink-0",
+                                          isSelected
+                                            ? "bg-primary border-primary text-primary-foreground"
+                                            : "border-muted-foreground/40 bg-background/50"
+                                        )}
+                                      >
+                                        {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          {/* Criar Nova Etiqueta WhatsApp */}
+                          <div className="pt-2 border-t border-border/40 space-y-2">
+                            {!isCreatingNewLabel ? (
+                              <button
+                                type="button"
+                                onClick={() => setIsCreatingNewLabel(true)}
+                                className="w-full flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors py-1"
+                              >
+                                <Plus className="h-3.5 w-3.5 text-primary" />
+                                <span>+ Criar nova etiqueta WhatsApp</span>
+                              </button>
+                            ) : (
+                              <div className="space-y-2 p-2 bg-muted/20 rounded-lg border border-border/60 animate-in fade-in-0">
+                                <div className="flex gap-1.5">
+                                  <Input
+                                    placeholder="Nome da etiqueta..."
+                                    value={localTagInput}
+                                    onChange={(e) => setLocalTagInput(e.target.value)}
+                                    className="h-7 text-xs bg-background"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        void handleCreateRealLabel();
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-2.5 text-xs font-bold shrink-0"
+                                    disabled={!localTagInput.trim()}
+                                    onClick={() => void handleCreateRealLabel()}
+                                  >
+                                    Salvar
+                                  </Button>
+                                </div>
+                                <div className="flex flex-wrap gap-1 pt-1">
+                                  {OFFICIAL_WPP_COLORS.map((col) => (
+                                    <button
+                                      key={col.hex}
+                                      type="button"
+                                      onClick={() => setNewLabelColorHex(col.hex)}
+                                      className={cn(
+                                        "h-3.5 w-3.5 rounded-full transition-transform",
+                                        newLabelColorHex.toLowerCase() === col.hex.toLowerCase()
+                                          ? "scale-125 ring-2 ring-primary ring-offset-1"
+                                          : "hover:scale-110 opacity-70 hover:opacity-100"
+                                      )}
+                                      style={{ backgroundColor: col.hex }}
+                                      title={col.name}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
 
-                {/* Lista de Badges Coloridos de Alto Padrão */}
+                {/* Lista de Badges Coloridos Reais */}
                 <div className="pt-0.5">
                   {Array.isArray(selectedConversation.tags) && selectedConversation.tags.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
-                      {selectedConversation.tags.map((tag) => (
-                        <TagIconBadge
-                          key={tag}
-                          tag={tag}
-                          size="xs"
-                          colorClass={getTagColor(tag)}
-                          interactive={false}
-                          className="shadow-xs hover:brightness-110 transition-all"
-                          onRemove={() => handleRemoveTagFromSelectedConversation(tag)}
-                        />
-                      ))}
+                      {selectedConversation.tags.map((tag) => {
+                        const matched = realLabels.find((l) => l.name.toLowerCase() === tag.toLowerCase());
+                        const customHex = matched?.color_hex;
+                        return (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold border transition-all shadow-xs"
+                            style={
+                              customHex
+                                ? {
+                                    backgroundColor: `${customHex}15`,
+                                    borderColor: `${customHex}50`,
+                                    color: customHex,
+                                  }
+                                : undefined
+                            }
+                          >
+                            <span
+                              className="h-2 w-2 rounded-full shrink-0"
+                              style={{ backgroundColor: customHex || "#00d26a" }}
+                            />
+                            <span>{tag}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTagFromSelectedConversation(tag)}
+                              className="hover:opacity-80 p-0.5 rounded-full hover:bg-background/20"
+                              title={`Remover ${tag}`}
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </span>
+                        );
+                      })}
                     </div>
                   ) : (
                     <button
@@ -1484,16 +1819,6 @@ export const SidebarPanel = memo(function SidebarPanel({
                       <Plus className="h-3.5 w-3.5" />
                       <span>Adicionar primeira etiqueta</span>
                     </button>
-                  )}
-
-                  {/* Etiquetas Oficiais WhatsApp Business */}
-                  {Array.isArray(selectedConversation.whatsappLabels) && selectedConversation.whatsappLabels.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-border/30">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                        WhatsApp Business
-                      </p>
-                      <WhatsappLabelBadges labels={selectedConversation.whatsappLabels} maxVisible={8} />
-                    </div>
                   )}
                 </div>
               </div>

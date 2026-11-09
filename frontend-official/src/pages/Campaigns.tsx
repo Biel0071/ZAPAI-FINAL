@@ -5,6 +5,7 @@ import {
   PaperPlaneTilt,
   Eye,
   CheckCircle,
+  Check,
   Plus,
   ArrowClockwise,
   Play,
@@ -396,6 +397,9 @@ export default function Campaigns() {
   const sessions = useAppStore((state) => state.sessions);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [tagInputVal, setTagInputVal] = useState("");
+  const [availableRealLabels, setAvailableRealLabels] = useState<Array<{ id: string; name: string; color_hex: string; count?: number }>>([]);
+  const [selectedTagNames, setSelectedTagNames] = useState<string[]>([]);
+  const [loadingRealLabels, setLoadingRealLabels] = useState(false);
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
   const [pasteInputVal, setPasteInputVal] = useState("");
   const [loading, setLoading] = useState(true);
@@ -420,6 +424,40 @@ export default function Campaigns() {
   const [warmupMessages, setWarmupMessages] = useState("5");
   const [warmupDelayMultiplier, setWarmupDelayMultiplier] = useState("3");
   const [dailyLimit, setDailyLimit] = useState("");
+
+  const loadCampaignLabels = useCallback(async () => {
+    try {
+      setLoadingRealLabels(true);
+      const labelsRes = await apiService.getWhatsAppLabels(activeSessionId).catch(() => ({ labels: [] }));
+      const validLabels = (labelsRes?.labels || []).filter(
+        (l: any) => !l.deleted && l.name && !["não lidas", "favoritos", "grupos"].includes(l.name.toLowerCase().trim())
+      );
+      const withCounts = validLabels.map((lbl: any) => {
+        const lowerName = lbl.name.toLowerCase();
+        const count = contacts.filter((c: any) =>
+          (c.tags || []).some((t: string) => t.toLowerCase() === lowerName) ||
+          (c.whatsappLabels || []).some((t: string) => t.toLowerCase() === lowerName)
+        ).length;
+        return {
+          id: String(lbl.id),
+          name: lbl.name,
+          color_hex: lbl.color_hex || "#00d26a",
+          count,
+        };
+      });
+      setAvailableRealLabels(withCounts);
+    } catch (err) {
+      console.warn("Failed to load campaign labels:", err);
+    } finally {
+      setLoadingRealLabels(false);
+    }
+  }, [activeSessionId, contacts]);
+
+  useEffect(() => {
+    if (isTagModalOpen) {
+      void loadCampaignLabels();
+    }
+  }, [isTagModalOpen, loadCampaignLabels]);
   const [hourlyLimit, setHourlyLimit] = useState("");
   const [startAt, setStartAt] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -1675,14 +1713,28 @@ export default function Campaigns() {
   };
 
   const handleApplyTagSelection = async () => {
-    const tag = tagInputVal.trim();
-    if (!tag) return;
+    const customTag = tagInputVal.trim().toLowerCase();
+    const tagsToFilter = new Set<string>();
+    if (customTag) tagsToFilter.add(customTag);
+    selectedTagNames.forEach((t) => tagsToFilter.add(t.toLowerCase()));
 
-    const normalizedTag = tag.toLowerCase();
+    if (tagsToFilter.size === 0) {
+      notify.error("Selecione ao menos uma etiqueta ou digite um nome.");
+      return;
+    }
+
     try {
       const conversations = await apiService.getConversations(false);
       const matchingPhones = conversations
-        .filter((conv) => conv.tags?.some((t) => t.toLowerCase() === normalizedTag))
+        .filter((conv) => {
+          const cTags = (conv.tags || []).map((t) => t.toLowerCase());
+          const wLabels = (conv.whatsappLabels || []).map((t) => t.toLowerCase());
+          const all = new Set([...cTags, ...wLabels]);
+          for (const t of tagsToFilter) {
+            if (all.has(t)) return true;
+          }
+          return false;
+        })
         .map((conv) => normalizePhone(conv.phone))
         .filter(Boolean);
 
@@ -1691,12 +1743,13 @@ export default function Campaigns() {
         .map((c) => String(c.phone || c.id));
 
       if (matchedContactKeys.length === 0) {
-        notify.error(`Nenhum contato encontrado com a tag "${tag}" na lista atual.`);
+        notify.error("Nenhum contato encontrado com as etiquetas selecionadas na lista atual.");
       } else {
         setSelectedContactIds((current) => Array.from(new Set([...current, ...matchedContactKeys])));
-        notify.success(`${matchedContactKeys.length} contatos com a tag "${tag}" selecionados.`);
+        notify.success(`${matchedContactKeys.length} contatos adicionados ao disparo da campanha!`);
         setIsTagModalOpen(false);
         setTagInputVal("");
+        setSelectedTagNames([]);
       }
     } catch (err) {
       console.error(err);
@@ -3905,28 +3958,93 @@ listSection={
       </Dialog>
 
       <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
-        <DialogContent className="max-w-md rounded-2xl border-border/70 bg-card/95">
+        <DialogContent className="max-w-md rounded-2xl border-border/70 bg-card/95 backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle className="font-display text-lg font-bold">Selecionar por Etiqueta</DialogTitle>
+            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2">
+              <TagIcon className="h-5 w-5 text-primary" />
+              <span>Selecionar por Etiqueta WhatsApp</span>
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-3">
-            <div className="space-y-2">
-              <Label htmlFor="tag-input" className="text-sm font-medium">Nome da etiqueta (tag)</Label>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Etiquetas Oficiais do WhatsApp
+              </p>
+              {loadingRealLabels ? (
+                <div className="py-4 text-center text-xs text-muted-foreground">Carregando etiquetas...</div>
+              ) : availableRealLabels.length === 0 ? (
+                <div className="py-2 text-xs text-muted-foreground">Nenhuma etiqueta cadastrada ainda.</div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {availableRealLabels.map((lbl) => {
+                    const isSelected = selectedTagNames.includes(lbl.name);
+                    const hex = lbl.color_hex || "#00d26a";
+                    return (
+                      <button
+                        key={lbl.id || lbl.name}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTagNames((prev) =>
+                            isSelected ? prev.filter((n) => n !== lbl.name) : [...prev, lbl.name]
+                          );
+                        }}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all shadow-xs",
+                          isSelected
+                            ? "ring-2 ring-primary ring-offset-1 text-foreground"
+                            : "opacity-75 hover:opacity-100 hover:scale-102 text-muted-foreground hover:text-foreground"
+                        )}
+                        style={{
+                          backgroundColor: `${hex}18`,
+                          borderColor: isSelected ? hex : `${hex}40`,
+                        }}
+                      >
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: hex }} />
+                        <span>{lbl.name}</span>
+                        {typeof lbl.count === "number" && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-background/50 border border-border/40 font-bold">
+                            {lbl.count}
+                          </span>
+                        )}
+                        {isSelected && <Check className="h-3 w-3 stroke-[3] text-primary ml-0.5" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5 pt-2 border-t border-border/40">
+              <Label htmlFor="tag-input" className="text-xs font-medium text-muted-foreground">Ou digite uma etiqueta personalizada</Label>
               <Input
                 id="tag-input"
                 placeholder="Ex: cliente, pendente, etc"
                 value={tagInputVal}
                 onChange={(e) => setTagInputVal(e.target.value)}
-                className="rounded-xl"
+                className="rounded-xl h-8 text-xs bg-muted/30"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleApplyTagSelection();
+                  }
+                }}
               />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" className="rounded-xl" onClick={() => setIsTagModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button className="rounded-xl shadow-glow" onClick={handleApplyTagSelection}>
-                Aplicar Filtro
-              </Button>
+
+            <div className="flex justify-between items-center pt-2 border-t border-border/40">
+              <span className="text-xs font-medium text-muted-foreground">
+                {selectedTagNames.length > 0
+                  ? `${selectedTagNames.length} etiqueta(s) selecionada(s)`
+                  : "Nenhuma selecionada"}
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => setIsTagModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button size="sm" className="rounded-xl shadow-glow text-xs font-bold" onClick={handleApplyTagSelection}>
+                  Aplicar aos Destinatários
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>

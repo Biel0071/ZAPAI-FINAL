@@ -33,6 +33,7 @@ router.get('/conversations/:conversationId/billing/:billingId', conversationsCon
 router.get('/system/attendant-quality', conversationsController.getAttendantQualityMetrics);
 router.patch('/conversations/:phone/ai', conversationsController.updateConversationAI);
 router.patch('/conversations/:conversationId', conversationsController.updateConversationMeta);
+router.post('/conversations/:conversationId/auto-tag', conversationsController.autoTagConversation);
 router.delete('/conversations/:conversationId', conversationsController.deleteConversation);
 router.post('/conversations/:conversationId/sync-history', conversationsController.syncConversationHistory);
 router.get('/public-url', conversationsController.getPublicUrl);

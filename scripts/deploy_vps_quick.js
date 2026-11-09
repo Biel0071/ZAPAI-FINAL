@@ -19,6 +19,11 @@ try {
   execSync('ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@209.50.241.22 "mkdir -p /www/zapai/assets/catalog/real && cp -f /www/zapai/assets/catalog/bloco_10_100un*.png /www/zapai/assets/catalog/real/ 2>/dev/null; mkdir -p /opt/zapai/backend/assets/catalog/real && cp -f /www/zapai/assets/catalog/bloco_10_100un*.png /opt/zapai/backend/assets/catalog/ && cp -f /www/zapai/assets/catalog/bloco_10_100un*.png /opt/zapai/backend/assets/catalog/real/"', { stdio: 'inherit' });
 
   console.log('3. Uploading unified backend files...');
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/messageRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/messageRepository.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/conversationRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/conversationRepository.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/controllers/conversationsController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/conversationsController.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/conversations.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/conversations.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/whatsapp.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/whatsapp.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/productRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/productRepository.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/services/commerce/NativeProductSender.js root@209.50.241.22:/opt/zapai/backend/services/commerce/NativeProductSender.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/services/commerce/CatalogSyncEngine.js root@209.50.241.22:/opt/zapai/backend/services/commerce/CatalogSyncEngine.js', { stdio: 'inherit' });

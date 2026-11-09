@@ -267,26 +267,11 @@ async function getMessagesByConversation(conversationId, options = {}) {
   const jidList = Array.from(jidCandidates);
 
   const values = [companyId];
-  const conditions = [];
-
+  let convIdIdx = null;
   if (resolvedConvId) {
     values.push(resolvedConvId);
-    conditions.push(`m.conversation_id = $${values.length}`);
+    convIdIdx = values.length;
   }
-  if (targetConv?.lead_id) {
-    values.push(targetConv.lead_id);
-    conditions.push(`conv.lead_id = $${values.length}`);
-  }
-  if (jidList.length > 0) {
-    values.push(jidList);
-    conditions.push(`m.remote_jid = ANY($${values.length}::text[])`);
-  }
-  if (aliases.length > 0) {
-    values.push(aliases);
-    conditions.push(`(m.phone = ANY($${values.length}::text[]) OR l.phone = ANY($${values.length}::text[]))`);
-  }
-
-  const matchClause = conditions.length > 0 ? `(${conditions.join(' OR ')})` : (resolvedConvId ? `m.conversation_id = ${resolvedConvId}` : '1=0');
 
   let beforeClause = '';
   if (before && !Number.isNaN(before.getTime())) {
@@ -295,29 +280,64 @@ async function getMessagesByConversation(conversationId, options = {}) {
     if (beforeId) {
       values.push(beforeId);
       const beforeIdIdx = values.length;
-      beforeClause = ` AND (m.timestamp,m.id) < ($${beforeIdx}::timestamp,$${beforeIdIdx}::integer)`;
+      beforeClause = ` AND (m.created_at, m.id) < ($${beforeIdx}::timestamp, $${beforeIdIdx}::integer)`;
     } else {
-      beforeClause = ` AND m.timestamp < ($${beforeIdx}::timestamp)`;
+      beforeClause = ` AND m.created_at < ($${beforeIdx}::timestamp)`;
     }
   }
 
   values.push(limit);
   const limitIdx = values.length;
 
-  const result = await db.query(
-    `
+  let queryText = '';
+  if (convIdIdx) {
+    const jidIdx = jidList.length > 0 ? (values.push(jidList), values.length) : null;
+    const aliasIdx = aliases.length > 0 ? (values.push(aliases), values.length) : null;
+    const fallbackWhere = [];
+    if (jidIdx) fallbackWhere.push(`m.remote_jid = ANY($${jidIdx}::text[])`);
+    if (aliasIdx) fallbackWhere.push(`m.phone = ANY($${aliasIdx}::text[])`);
+
+    const fallbackBranch = fallbackWhere.length > 0
+      ? `UNION ALL
+         SELECT m.id,
+                COALESCE(m.conversation_id, $${convIdIdx}) AS conversation_id,
+                COALESCE(m.sender, CASE WHEN m.from_me THEN 'agent' ELSE 'client' END) AS sender,
+                COALESCE(m.media_type, m.type, 'text') AS type,
+                COALESCE(m.content, m.text, '') AS content,
+                COALESCE(m.media_path, m.media_url) AS media_url,
+                COALESCE(m.timestamp, m.created_at) AS timestamp,
+                COALESCE(m.status, CASE WHEN m.from_me THEN 'sent' ELSE 'received' END) AS status,
+                m.created_at,
+                m.session_id,
+                m.phone,
+                m.text,
+                m.media_type,
+                m.media_path,
+                m.from_me,
+                m.whatsapp_message_id,
+                m.remote_jid,
+                m.participant_jid,
+                m.message_origin
+         FROM messages m
+         WHERE m.company_id = $1
+           AND m.conversation_id IS NULL
+           AND (${fallbackWhere.join(' OR ')})
+           ${beforeClause}`
+      : '';
+
+    queryText = `
       SELECT * FROM (
         SELECT m.id,
-               COALESCE(m.conversation_id, ${resolvedConvId || 'conv.id'}) AS conversation_id,
+               COALESCE(m.conversation_id, $${convIdIdx}) AS conversation_id,
                COALESCE(m.sender, CASE WHEN m.from_me THEN 'agent' ELSE 'client' END) AS sender,
                COALESCE(m.media_type, m.type, 'text') AS type,
                COALESCE(m.content, m.text, '') AS content,
                COALESCE(m.media_path, m.media_url) AS media_url,
-             COALESCE(m.timestamp, m.created_at) AS timestamp,
+               COALESCE(m.timestamp, m.created_at) AS timestamp,
                COALESCE(m.status, CASE WHEN m.from_me THEN 'sent' ELSE 'received' END) AS status,
                m.created_at,
-               COALESCE(m.session_id, conv.session_id, ${targetConv?.session_id ? `'${targetConv.session_id}'` : 'NULL'}) AS session_id,
-               COALESCE(l.phone, m.phone, ${targetConv?.phone ? `'${targetConv.phone}'` : 'NULL'}) AS phone,
+               m.session_id,
+               m.phone,
                m.text,
                m.media_type,
                m.media_path,
@@ -327,18 +347,60 @@ async function getMessagesByConversation(conversationId, options = {}) {
                m.participant_jid,
                m.message_origin
         FROM messages m
-        LEFT JOIN conversations conv ON conv.id = m.conversation_id
-        LEFT JOIN leads l ON l.id = conv.lead_id
         WHERE m.company_id = $1
-          AND ${matchClause}
-        ${beforeClause}
-        ORDER BY COALESCE(m.timestamp, m.created_at) DESC, m.id DESC
+          AND m.conversation_id = $${convIdIdx}
+          ${beforeClause}
+        ${fallbackBranch}
+        ORDER BY created_at DESC, id DESC
         LIMIT $${limitIdx}
       ) recent
-      ORDER BY COALESCE(recent.timestamp, recent.created_at) ASC, recent.id ASC
-    `,
-    values
-  );
+      ORDER BY recent.created_at ASC, recent.id ASC
+    `;
+  } else {
+    const matchConditions = [];
+    if (jidList.length > 0) {
+      values.push(jidList);
+      matchConditions.push(`m.remote_jid = ANY($${values.length}::text[])`);
+    }
+    if (aliases.length > 0) {
+      values.push(aliases);
+      matchConditions.push(`m.phone = ANY($${values.length}::text[])`);
+    }
+    const whereCond = matchConditions.length > 0 ? matchConditions.join(' OR ') : '1=0';
+
+    queryText = `
+      SELECT * FROM (
+        SELECT m.id,
+               m.conversation_id,
+               COALESCE(m.sender, CASE WHEN m.from_me THEN 'agent' ELSE 'client' END) AS sender,
+               COALESCE(m.media_type, m.type, 'text') AS type,
+               COALESCE(m.content, m.text, '') AS content,
+               COALESCE(m.media_path, m.media_url) AS media_url,
+               COALESCE(m.timestamp, m.created_at) AS timestamp,
+               COALESCE(m.status, CASE WHEN m.from_me THEN 'sent' ELSE 'received' END) AS status,
+               m.created_at,
+               m.session_id,
+               m.phone,
+               m.text,
+               m.media_type,
+               m.media_path,
+               m.from_me,
+               m.whatsapp_message_id,
+               m.remote_jid,
+               m.participant_jid,
+               m.message_origin
+        FROM messages m
+        WHERE m.company_id = $1
+          AND (${whereCond})
+          ${beforeClause}
+        ORDER BY created_at DESC, id DESC
+        LIMIT $${limitIdx}
+      ) recent
+      ORDER BY recent.created_at ASC, recent.id ASC
+    `;
+  }
+
+  const result = await db.query(queryText, values);
 
   const seen = new Set();
   const deduplicated = [];

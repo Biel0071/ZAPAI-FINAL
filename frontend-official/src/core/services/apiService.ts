@@ -2754,6 +2754,50 @@ export const apiService = {
       body: payload,
     });
   },
+  async updateWhatsAppLabel(id: string, payload: { name?: string; colorHex?: string; color?: number; sessionId?: string }) {
+    return request<{
+      success: boolean;
+      label: { id: string; name: string; color: number; color_hex: string; deleted?: boolean };
+    }>({
+      endpoint: `/api/whatsapp/labels/${encodeURIComponent(id)}`,
+      method: "PUT",
+      body: payload,
+    });
+  },
+  async deleteWhatsAppLabel(id: string, sessionId?: string) {
+    const query = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+    return request<{
+      success: boolean;
+      deleted: boolean;
+      labelId: string;
+    }>({
+      endpoint: `/api/whatsapp/labels/${encodeURIComponent(id)}${query}`,
+      method: "DELETE",
+    });
+  },
+  async syncWhatsAppLabels(sessionId?: string) {
+    return request<{
+      success: boolean;
+      labels: Array<{ id: string; name: string; color: number; color_hex: string; deleted?: boolean }>;
+      syncedCount: number;
+    }>({
+      endpoint: "/api/whatsapp/labels/sync",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async autoTagConversation(conversationId: string | number) {
+    return request<{
+      success: boolean;
+      tags: string[];
+      whatsappLabels: string[];
+      assigned: string[];
+      conversation: any;
+    }>({
+      endpoint: `/api/conversations/${encodeURIComponent(String(conversationId))}/auto-tag`,
+      method: "POST",
+    });
+  },
   async getCommerceCapabilities() {
     return request<{ success: boolean; data: any }>({
       endpoint: "/api/commerce/capabilities",
