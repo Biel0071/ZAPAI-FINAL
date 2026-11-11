@@ -225,11 +225,92 @@ function dedupeConversationState(
   const aliasToCanonical: Record<string, string> = {};
   let nextMessages = { ...messagesByConversationId };
 
+  // Session-scoped lookup maps for O(1) canonical matching across thousands of contacts
+  const idMap = new Map<string, number>();
+  const scopeMap = new Map<string, number>();
+  const phoneMap = new Map<string, number>();
+  const contactMap = new Map<string, number>();
+
+  function registerIndexes(conv: Conversation, index: number) {
+    const session = normalizeIdentityPart(conv.sessionId) || "main";
+    if (conv.id) idMap.set(`${session}:${conv.id}`, index);
+
+    const scope = getConversationIdentityScope(conv);
+    if (scope) scopeMap.set(scope, index);
+
+    const phones = [conv.phone, conv.chatId].filter(Boolean) as string[];
+    for (const p of phones) {
+      const clean = p.replace(/\D/g, "");
+      if (clean) {
+        phoneMap.set(`${session}:${clean}`, index);
+        if (clean.startsWith("55") && clean.length > 10) {
+          phoneMap.set(`${session}:${clean.slice(2)}`, index);
+        }
+        if (clean.length >= 8) {
+          phoneMap.set(`${session}:last8:${clean.slice(-8)}`, index);
+        }
+      }
+    }
+
+    const contactId = normalizeIdentityPart(conv.contactId);
+    if (contactId) {
+      contactMap.set(`${session}:${contactId}`, index);
+    }
+  }
+
+  function findCanonicalIndex(conv: Conversation): number {
+    const session = normalizeIdentityPart(conv.sessionId) || "main";
+
+    // 1. Direct ID match within session
+    if (conv.id) {
+      const idx = idMap.get(`${session}:${conv.id}`);
+      if (idx !== undefined) return idx;
+    }
+
+    // 2. Exact scope match (already prefixed with session)
+    const scope = getConversationIdentityScope(conv);
+    if (scope) {
+      const idx = scopeMap.get(scope);
+      if (idx !== undefined) return idx;
+    }
+
+    // 3. Phone / chatId matches within session
+    const phones = [conv.phone, conv.chatId].filter(Boolean) as string[];
+    for (const p of phones) {
+      const clean = p.replace(/\D/g, "");
+      if (clean) {
+        const idxExact = phoneMap.get(`${session}:${clean}`);
+        if (idxExact !== undefined) return idxExact;
+
+        if (clean.startsWith("55") && clean.length > 10) {
+          const idxNo55 = phoneMap.get(`${session}:${clean.slice(2)}`);
+          if (idxNo55 !== undefined) return idxNo55;
+        }
+
+        if (clean.length >= 8) {
+          const idxLast8 = phoneMap.get(`${session}:last8:${clean.slice(-8)}`);
+          if (idxLast8 !== undefined) return idxLast8;
+        }
+      }
+    }
+
+    // 4. ContactId match within session
+    const contactId = normalizeIdentityPart(conv.contactId);
+    if (contactId) {
+      const idxContact = contactMap.get(`${session}:${contactId}`);
+      if (idxContact !== undefined) return idxContact;
+    }
+
+    return -1;
+  }
+
   for (const conversation of conversations) {
-    const existingIndex = nextConversations.findIndex((existing) => shouldMergeConversations(existing, conversation));
+    const existingIndex = findCanonicalIndex(conversation);
     if (existingIndex === -1) {
+      const newIdx = nextConversations.length;
       nextConversations.push(conversation);
       aliasToCanonical[conversation.id] = conversation.id;
+      registerIndexes(conversation, newIdx);
       continue;
     }
 
@@ -237,6 +318,7 @@ function dedupeConversationState(
     nextConversations[existingIndex] = mergeConversationRecord(canonical, conversation);
     aliasToCanonical[conversation.id] = canonical.id;
     aliasToCanonical[canonical.id] = canonical.id;
+    registerIndexes(conversation, existingIndex);
 
     if (conversation.id !== canonical.id && nextMessages[conversation.id]) {
       nextMessages[canonical.id] = mergeMessageLists(nextMessages[canonical.id], nextMessages[conversation.id], canonical.id);
@@ -246,6 +328,25 @@ function dedupeConversationState(
 
   nextMessages = migrateTemporaryMessageKeys(nextConversations, nextMessages);
   return { conversations: nextConversations, messagesByConversationId: nextMessages, aliasToCanonical };
+}
+
+function updateConversationInList(
+  conversations: Conversation[],
+  convIdx: number,
+  updatedConv: Conversation,
+  moveToTop: boolean,
+): Conversation[] {
+  if (convIdx < 0 || convIdx >= conversations.length) return conversations;
+  if (!moveToTop || convIdx === 0) {
+    const copy = conversations.slice();
+    copy[convIdx] = updatedConv;
+    return copy;
+  }
+  return [
+    updatedConv,
+    ...conversations.slice(0, convIdx),
+    ...conversations.slice(convIdx + 1),
+  ];
 }
 
 function findConversationIndex(
@@ -432,6 +533,7 @@ type AppState = {
 
   setConversations: (listOrUpdater: Conversation[] | ((prev: Conversation[]) => Conversation[])) => void;
   upsertConversation: (conv: Conversation) => void;
+  upsertConversations: (conversations: Conversation[]) => void;
   setMetrics: (metrics: MetricsSummary | null) => void;
 
   setSessions: (sessionsOrUpdater: SessionItem[] | ((prev: SessionItem[]) => SessionItem[])) => void;
@@ -565,7 +667,7 @@ export const useAppStore = create<AppState>((set) => ({
         agent_name: conv.agent_name ?? conv.assignedAgentName ?? conv.assigned_to ?? null,
       };
       const idx = findConversationIndex(state.conversations, mappedConv);
-      let next;
+      let next: Conversation[];
       if (idx === -1) {
         const defaultConv: Conversation = {
           id: mappedConv.id,
@@ -584,14 +686,54 @@ export const useAppStore = create<AppState>((set) => ({
       } else {
         const existing = state.conversations[idx];
         const updated = mergeConversationRecord(existing, mappedConv);
-        next = [updated, ...state.conversations.filter((_, i) => i !== idx)];
+        next = state.conversations.slice();
+        next[idx] = updated;
       }
-      const deduped = dedupeConversationState(next, state.messagesByConversationId);
       return { 
-        conversations: deduped.conversations,
-        messagesByConversationId: deduped.messagesByConversationId,
-        activeConversationId: state.activeConversationId ? deduped.aliasToCanonical[state.activeConversationId] ?? state.activeConversationId : null,
+        conversations: next,
       };
+    }),
+
+  upsertConversations: (incoming) =>
+    set((state) => {
+      if (!Array.isArray(incoming) || incoming.length === 0) return {};
+      const next = state.conversations.slice();
+      const idMap = new Map<string, number>();
+      for (let i = 0; i < next.length; i++) {
+        const conv = next[i];
+        const session = normalizeIdentityPart(conv.sessionId) || "main";
+        idMap.set(`${session}:${conv.id}`, i);
+        if (conv.chatId) idMap.set(`${session}:${conv.chatId}`, i);
+        if (conv.phone) idMap.set(`${session}:${conv.phone.replace(/\D/g, "")}`, i);
+      }
+
+      let hasChanges = false;
+      for (const raw of incoming) {
+        if (!isConversationValid(raw)) continue;
+        const conv = {
+          ...raw,
+          assignedAgentName: raw.assignedAgentName ?? raw.agent_name ?? raw.assigned_to ?? null,
+          agent_name: raw.agent_name ?? raw.assignedAgentName ?? raw.assigned_to ?? null,
+        };
+        const session = normalizeIdentityPart(conv.sessionId) || "main";
+        const cleanPhone = conv.phone ? conv.phone.replace(/\D/g, "") : "";
+        const existingIdx =
+          idMap.get(`${session}:${conv.id}`) ??
+          (conv.chatId ? idMap.get(`${session}:${conv.chatId}`) : undefined) ??
+          (cleanPhone ? idMap.get(`${session}:${cleanPhone}`) : undefined);
+
+        if (existingIdx !== undefined) {
+          next[existingIdx] = mergeConversationRecord(next[existingIdx], conv);
+          hasChanges = true;
+        } else {
+          next.unshift(conv);
+          idMap.set(`${session}:${conv.id}`, 0);
+          hasChanges = true;
+        }
+      }
+
+      if (!hasChanges) return {};
+      return { conversations: next };
     }),
 
   setMetrics: (metrics) =>
@@ -768,9 +910,12 @@ export const useAppStore = create<AppState>((set) => ({
             updatedAt: isNewerMessage ? messageTime : existingConv.updatedAt,
             unread: state.activeConversationId === existingConv.id ? 0 : existingConv.unread,
           };
-          nextConversations = isNewerMessage
-            ? [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)]
-            : state.conversations.map((c, i) => (i === convIdx ? updatedConv : c));
+          nextConversations = updateConversationInList(
+            state.conversations,
+            convIdx,
+            updatedConv,
+            isNewerMessage,
+          );
         }
 
         return {
@@ -805,9 +950,12 @@ export const useAppStore = create<AppState>((set) => ({
               lastMessageAt: isNewerMessage ? messageTime : (existingConv.lastMessageAt || existingConv.updatedAt),
               updatedAt: isNewerMessage ? messageTime : existingConv.updatedAt,
             };
-            nextConversations = isNewerMessage
-              ? [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)]
-              : state.conversations.map((c, i) => (i === convIdx ? updatedConv : c));
+            nextConversations = updateConversationInList(
+              state.conversations,
+              convIdx,
+              updatedConv,
+              isNewerMessage,
+            );
           }
 
           return {
@@ -843,9 +991,12 @@ export const useAppStore = create<AppState>((set) => ({
           updatedAt: isNewerMessage ? messageTime : existingConv.updatedAt,
           unread: (!message.fromMe && state.activeConversationId !== existingConv.id) ? (existingConv.unread ?? 0) + 1 : existingConv.unread,
         };
-        nextConversations = isNewerMessage
-          ? [updatedConv, ...state.conversations.filter((_, i) => i !== convIdx)]
-          : state.conversations.map((c, i) => (i === convIdx ? updatedConv : c));
+        nextConversations = updateConversationInList(
+          state.conversations,
+          convIdx,
+          updatedConv,
+          isNewerMessage,
+        );
       }
 
       return {
@@ -947,13 +1098,13 @@ export const useAppStore = create<AppState>((set) => ({
       } else {
         const existing = state.conversations[idx];
         const updated = mergeConversationRecord(existing, mappedConv as Conversation);
-        next = [updated, ...state.conversations.filter((_, i) => i !== idx)];
+        const existingTime = getTime(existing.lastMessageAt || existing.updatedAt);
+        const updatedTime = getTime(updated.lastMessageAt || updated.updatedAt);
+        const isNewer = updatedTime > existingTime;
+        next = updateConversationInList(state.conversations, idx, updated, isNewer);
       }
-      const deduped = dedupeConversationState(next, state.messagesByConversationId);
       return { 
-        conversations: deduped.conversations,
-        messagesByConversationId: deduped.messagesByConversationId,
-        activeConversationId: state.activeConversationId ? deduped.aliasToCanonical[state.activeConversationId] ?? state.activeConversationId : null,
+        conversations: next,
       };
     }),
 
@@ -992,4 +1143,5 @@ export const useAppStore = create<AppState>((set) => ({
 
 if (typeof window !== "undefined") {
   (window as any).useAppStore = useAppStore;
+  (window as any).__ZAPAI_APP_STORE__ = useAppStore;
 }

@@ -345,7 +345,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   // Debounced refresh for reconnect — avoid flooding API after brief disconnection
   const debouncedRefresh = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    refreshTimerRef.current = setTimeout(() => void loadFromApi({ forceConversations: true }), 600);
+    refreshTimerRef.current = setTimeout(() => void loadFromApi({ forceConversations: true }), 1500);
   }, [loadFromApi]);
 
   // Debounced fetch for conversations when updates or missing conversations arrive
@@ -361,7 +361,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
           .getConversations(true, { limit: 100, sessionId: sessionId || undefined })
           .then((rows) => {
             if (Array.isArray(rows) && rows.length > 0) {
-              useAppStore.getState().setConversations(rows);
+              useAppStore.getState().upsertConversations(rows);
             }
           })
           .catch(() => {});
