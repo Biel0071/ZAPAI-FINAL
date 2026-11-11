@@ -22,6 +22,8 @@ try {
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/messageRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/messageRepository.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/conversationRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/conversationRepository.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/controllers/conversationsController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/conversationsController.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/controllers/quickRepliesController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/quickRepliesController.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/services/quickReplyService.js root@209.50.241.22:/opt/zapai/backend/services/quickReplyService.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/conversations.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/conversations.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/whatsapp.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/whatsapp.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/productRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/productRepository.js', { stdio: 'inherit' });
@@ -37,6 +39,13 @@ try {
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/webBridgeRoutes.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/webBridgeRoutes.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/controllers/productsController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/productsController.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/products.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/products.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/controllers/aiConfigController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/aiConfigController.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/ai/agents/services/aiAgentService.js root@209.50.241.22:/opt/zapai/backend/src/ai/agents/services/aiAgentService.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/stores.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/stores.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/attendantRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/attendantRepository.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/services/ai.service.js root@209.50.241.22:/opt/zapai/backend/services/ai.service.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/controllers/aiController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/aiController.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/migrations/053_create_attendants_multi_tenant_tables.js root@209.50.241.22:/opt/zapai/backend/migrations/053_create_attendants_multi_tenant_tables.js', { stdio: 'inherit' });
 
   console.log('4. Ensuring asset upload directories and restarting zapflow-api PM2 process on VPS...');
   execSync('ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@209.50.241.22 "mkdir -p /www/zapai/assets/catalog/uploads /etc/icontainer/apps/openresty/openresty/www/zapai/assets/catalog/uploads && chmod -R 777 /www/zapai/assets/catalog/uploads && pm2 restart zapflow-api"', { stdio: 'inherit' });

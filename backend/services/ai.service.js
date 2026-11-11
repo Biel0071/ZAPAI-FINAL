@@ -1986,81 +1986,164 @@ async function geocodeAddress(address) {
 }
 
 async function transcribeAudio({ mediaUrl, companyId }) {
-  const { OpenAI } = require('openai');
   const fs = require('fs');
   const path = require('path');
   const axios = require('axios');
 
   const resolvedCompanyId = companyId || 'default';
-  
-  // 1. Fetch enabled OpenAI/Groq key
-  const { query } = require('../src/infrastructure/config/database');
-  const { rows } = await query(
-    `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE AND (LOWER(provider) = 'openai' OR LOWER(provider) = 'groq') ORDER BY provider LIMIT 1`,
-    [resolvedCompanyId]
-  );
-  
-  if (rows.length === 0) {
-    throw new Error('Nenhum provedor de IA com suporte a transcrição (OpenAI ou Groq) está ativo.');
-  }
-  
-  const providerRow = rows[0];
-  const apiKey = decrypt(providerRow.api_key);
-  const providerName = providerRow.provider.toLowerCase();
-  
-  let baseURL = 'https://api.openai.com/v1';
-  let modelName = 'whisper-1';
-  if (providerName === 'groq') {
-    baseURL = 'https://api.groq.com/openai/v1';
-    modelName = 'whisper-large-v3-turbo';
-  }
-  
-  const openai = new OpenAI({
-    apiKey: apiKey,
-    baseURL: baseURL,
-    timeout: 60000,
-    maxRetries: 0,
-  });
-  
-  // 2. Locate or download file
+
+  // 1. Locate audio buffer on local storage or download via HTTP
+  let audioBuffer = null;
+  let filename = 'audio.ogg';
   let isLocal = false;
   let localPath = '';
-  let filename = 'audio.ogg';
-  
+
   if (typeof mediaUrl === 'string' && mediaUrl.trim() !== '') {
-    if (fs.existsSync(mediaUrl)) {
+    if (fs.existsSync(mediaUrl) && fs.statSync(mediaUrl).isFile()) {
       isLocal = true;
       localPath = mediaUrl;
       filename = path.basename(mediaUrl);
-    } else if (mediaUrl.startsWith('/') || mediaUrl.includes('/media/')) {
-      const filenamePart = mediaUrl.split('/').pop().split('?')[0];
-      const storagePath = path.join(__dirname, '..', '..', 'storage', 'media', filenamePart);
-      if (fs.existsSync(storagePath)) {
-        isLocal = true;
-        localPath = storagePath;
-        filename = filenamePart;
+      try { audioBuffer = fs.readFileSync(localPath); } catch {}
+    } else {
+      let cleanPath = mediaUrl;
+      if (/^https?:\/\//i.test(cleanPath)) {
+        try { cleanPath = new URL(cleanPath).pathname; } catch {}
+      }
+      const filenamePart = path.basename(cleanPath.split('?')[0]);
+      const subPath = cleanPath.replace(/^\/?(api\/)?media\//i, '');
+
+      const searchDirs = [
+        path.resolve(__dirname, '..', '..', 'storage', 'media', subPath),
+        path.resolve(__dirname, '..', '..', 'storage', 'media', resolvedCompanyId, 'audios', filenamePart),
+        path.resolve(__dirname, '..', '..', 'storage', 'media', 'default', 'audios', filenamePart),
+        path.resolve(__dirname, '..', '..', 'storage', 'media', filenamePart),
+        path.join('/opt/zapai/storage/media', subPath),
+        path.join('/opt/zapai/storage/media', resolvedCompanyId, 'audios', filenamePart),
+        path.join('/opt/zapai/storage/media/default/audios', filenamePart),
+        path.join('/opt/zapai/backend/uploads/quick_replies', filenamePart),
+        path.join('/www/zapai/assets', filenamePart)
+      ];
+
+      for (const cand of searchDirs) {
+        if (cand && fs.existsSync(cand)) {
+          try {
+            if (fs.statSync(cand).isFile()) {
+              isLocal = true;
+              localPath = cand;
+              filename = filenamePart;
+              audioBuffer = fs.readFileSync(localPath);
+              break;
+            }
+          } catch {}
+        }
       }
     }
   }
-  
-  let fileObj;
-  if (isLocal) {
-    fileObj = fs.createReadStream(localPath);
-  } else {
-    const downloadRes = await axios.get(mediaUrl, { responseType: 'arraybuffer' });
-    const buffer = Buffer.from(downloadRes.data);
-    const filenamePart = String(mediaUrl).split('/').pop().split('?')[0] || 'audio.ogg';
-    fileObj = await OpenAI.toFile(buffer, filenamePart);
+
+  // If not found locally and mediaUrl is an HTTP/HTTPS URL, download via axios
+  if ((!audioBuffer || audioBuffer.length === 0) && typeof mediaUrl === 'string' && /^https?:\/\//i.test(mediaUrl)) {
+    try {
+      const downloadRes = await axios.get(mediaUrl, { responseType: 'arraybuffer', timeout: 30000 });
+      audioBuffer = Buffer.from(downloadRes.data);
+      filename = path.basename(mediaUrl.split('?')[0]) || 'audio.ogg';
+    } catch (downloadErr) {
+      console.warn('[AI_STT] Falha ao baixar áudio via HTTP:', downloadErr.message);
+    }
   }
-  
-  // 3. Request transcription
-  const response = await openai.audio.transcriptions.create({
-    file: fileObj,
-    model: modelName,
-    language: 'pt'
-  });
-  
-  return response.text;
+
+  // If mediaUrl is base64 data URI
+  if ((!audioBuffer || audioBuffer.length === 0) && typeof mediaUrl === 'string' && mediaUrl.startsWith('data:')) {
+    try {
+      const b64 = mediaUrl.split(',')[1] || mediaUrl;
+      audioBuffer = Buffer.from(b64, 'base64');
+    } catch {}
+  }
+
+  if (!audioBuffer || audioBuffer.length === 0) {
+    throw new Error('Não foi possível localizar ou baixar o arquivo de áudio para transcrição.');
+  }
+
+  // 2. PRIMARY: Transcribe using API Platform audio engine (local faster-whisper, 0 credit dependency, fast)
+  const apiPlatformUrl = (process.env.API_PLATFORM_AUDIO_URL || process.env.API_PLATFORM_URL || 'http://209.50.241.22:3001').replace(/\/+$/, '');
+  const apiPlatformKey = process.env.API_PLATFORM_KEY || process.env.GRG_AIPLATFORM_KEY || 'ap_199924c0bf797f7885b06cc2f0be743ef145a7e3be1733bd';
+
+  try {
+    const payload = {
+      type: 'stt',
+      data: audioBuffer.toString('base64'),
+      language: 'pt'
+    };
+
+    const sttRes = await axios.post(`${apiPlatformUrl}/v1/audio`, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiPlatformKey
+      },
+      timeout: 45000
+    });
+
+    const transcribed = sttRes.data?.result?.text ?? sttRes.data?.text;
+    if (typeof transcribed === 'string') {
+      const trimmed = transcribed.trim();
+      const resultText = trimmed.length > 0 ? trimmed : '[Áudio inaudível ou sem fala detectada]';
+      console.log(`[AI_STT] Transcrição concluída via API Platform (${filename}): "${resultText.substring(0, 80)}..."`);
+      return resultText;
+    }
+  } catch (apiPlatErr) {
+    console.warn('[AI_STT] API Platform falhou ou indisponível:', apiPlatErr?.response?.data || apiPlatErr.message, '- tentando provedores de fallback...');
+  }
+
+  // 3. FALLBACK: Groq / OpenAI Whisper via provider_keys
+  try {
+    const { OpenAI } = require('openai');
+    const { query } = require('../src/infrastructure/config/database');
+    const { rows } = await query(
+      `SELECT * FROM provider_keys WHERE tenant_id = $1 AND enabled = TRUE AND (LOWER(provider) = 'openai' OR LOWER(provider) = 'groq') ORDER BY provider LIMIT 1`,
+      [resolvedCompanyId]
+    );
+
+    if (rows.length > 0) {
+      const providerRow = rows[0];
+      const apiKey = decrypt(providerRow.api_key);
+      const providerName = providerRow.provider.toLowerCase();
+
+      let baseURL = 'https://api.openai.com/v1';
+      let modelName = 'whisper-1';
+      if (providerName === 'groq') {
+        baseURL = 'https://api.groq.com/openai/v1';
+        modelName = 'whisper-large-v3-turbo';
+      }
+
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        baseURL: baseURL,
+        timeout: 60000,
+        maxRetries: 0,
+      });
+
+      let fileObj;
+      if (isLocal && localPath) {
+        fileObj = fs.createReadStream(localPath);
+      } else {
+        fileObj = await OpenAI.toFile(audioBuffer, filename);
+      }
+
+      const response = await openai.audio.transcriptions.create({
+        file: fileObj,
+        model: modelName,
+        language: 'pt'
+      });
+
+      if (response && typeof response.text === 'string') {
+        return response.text.trim();
+      }
+    }
+  } catch (fallbackErr) {
+    console.error('[AI_STT] Falha nos provedores de fallback (OpenAI/Groq):', fallbackErr.message);
+    throw new Error(`Falha na transcrição de áudio: ${fallbackErr.message}`);
+  }
+
+  throw new Error('Nenhum serviço de transcrição (API Platform, Groq ou OpenAI) conseguiu processar o áudio.');
 }
 
 async function describeImage({ mediaUrl, companyId }) {
