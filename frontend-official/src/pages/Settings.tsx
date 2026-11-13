@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   User,
+  Storefront,
   Buildings,
   Bell,
   Shield,
@@ -506,6 +507,52 @@ export default function Settings() {
     </Card>
   );
 
+  const renderZaiAssistantSummaryCard = () => (
+    <Card className="glass-card border-emerald-500/25" data-testid="zai-assistant-profile-card">
+      <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-1">
+            <img src="/assets/mascot/zaibot_avatar.png" alt="Mascote ZAI" className="h-full w-full rounded-xl object-cover" />
+          </div>
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-display text-sm font-bold text-foreground">Assistente ZAI</h2>
+              <Badge variant="outline" className={cn(
+                "text-[10px] font-bold",
+                zaiConfig.globallyEnabled === false
+                  ? "border-amber-500/40 bg-amber-500/15 text-amber-300"
+                  : zaiConfig.enabled
+                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-400"
+                    : "border-border/70 text-muted-foreground"
+              )}>
+                {zaiConfig.globallyEnabled === false ? "INDISPONÍVEL PELO ADMIN" : zaiConfig.enabled ? "PAINEL ATIVO" : "PAINEL INATIVO"}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">Apenas assistente do sistema</p>
+            <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
+              A análise das sessões WhatsApp conectadas continua em segundo plano. O painel controla a interação com o copiloto e a solicitação de tarefas.
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/50 px-3.5 py-2.5 sm:justify-end">
+          <div className="text-left sm:text-right">
+            <p className="text-xs font-bold text-foreground">
+              {zaiConfig.globallyEnabled === false ? "Bloqueado pelo administrador" : zaiConfig.enabled ? "Painel lateral ativo" : "Painel lateral inativo"}
+            </p>
+            <p className="text-[10px] text-muted-foreground">Análise independente do painel</p>
+          </div>
+          <Switch
+            data-testid="toggle-zai-profile-card"
+            aria-label="Ativar painel lateral do Assistente ZAI"
+            checked={Boolean(zaiConfig.enabled)}
+            disabled={zaiConfig.globallyEnabled === false}
+            onCheckedChange={(checked) => void handleToggleZaiAssistant(checked)}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   const handleSaveProfile = async () => {
     if (isProfileSaving) return;
     setIsProfileSaving(true);
@@ -634,6 +681,21 @@ export default function Settings() {
             </Badge>
           </div>
         </div>
+        <div className="mb-5 flex items-center gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+            {settingsMode === "master" ? <Shield className="h-7 w-7" weight="duotone" /> : <Storefront className="h-7 w-7" weight="duotone" />}
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+              {settingsMode === "master" ? "Administração (Master)" : "Conta & Loja"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {settingsMode === "master"
+                ? "Configurações avançadas, sistema, integrações e controle da plataforma."
+                : "Gerencie seu perfil, empresa, equipe, faturamento e preferências visuais."}
+            </p>
+          </div>
+        </div>
         <SettingsView
           navigation={
             <div className="w-full">
@@ -687,7 +749,7 @@ export default function Settings() {
               <nav className="hidden lg:flex flex-col gap-5 sticky top-4">
                 {navGroups.map((group) => (
                   <div key={group.title} className="space-y-1">
-                    <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                    <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-primary/90">
                       {group.title}
                     </p>
                     <div className="space-y-0.5">
@@ -783,7 +845,7 @@ export default function Settings() {
                       </Button>
                     </CardContent>
                   </Card>
-
+                  {renderZaiAssistantSummaryCard()}
                 </>
               )}
 
