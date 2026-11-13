@@ -25,7 +25,7 @@ export default defineConfig({
   // Setup global authentication so workers don't need to login repeatedly
   globalSetup: "./tests/global-setup.ts",
   use: {
-    baseURL: "http://localhost:8080",
+    baseURL: process.env.E2E_FRONTEND_BASE_URL || "http://localhost:8080",
     trace: "on-first-retry",
     viewport: { width: 1600, height: 900 },
     colorScheme: "dark",

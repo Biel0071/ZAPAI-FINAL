@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "../..");
+const frontendUrl = process.env.QA_FRONTEND_URL || "http://127.0.0.1:8080";
+const apiBaseUrl = process.env.QA_API_BASE_URL || "http://127.0.0.1:4025";
 
 // Garantir que o diretório do executável do Node está no PATH para execuções de sub-processos (como npm/npx)
 process.env.PATH = path.dirname(process.execPath) + path.delimiter + process.env.PATH;
@@ -62,7 +64,7 @@ try {
 async function checkFrontend() {
   return new Promise((resolve) => {
     const start = Date.now();
-    const req = http.get("http://127.0.0.1:8080", { timeout: 3000 }, (res) => {
+    const req = http.get(frontendUrl, { timeout: 3000 }, (res) => {
       report.frontendServed = res.statusCode < 400;
       console.log(`✅ Frontend servido: HTTP ${res.statusCode} em ${Date.now() - start}ms`);
       report.pagesStatus.Dashboard = "Homologado";
@@ -71,14 +73,14 @@ async function checkFrontend() {
     });
     req.on("error", (err) => {
       report.frontendServed = false;
-      report.failures.push(`Frontend não responde em localhost:8080: ${err.message}`);
+      report.failures.push(`Frontend não responde em ${frontendUrl}: ${err.message}`);
       report.pagesStatus.Dashboard = "Falha";
       resolve();
     });
     req.on("timeout", () => {
       req.destroy();
       report.frontendServed = false;
-      report.failures.push("Timeout ao conectar no Frontend (8080)");
+      report.failures.push(`Timeout ao conectar no Frontend (${frontendUrl})`);
       report.pagesStatus.Dashboard = "Falha";
       resolve();
     });
@@ -88,7 +90,7 @@ async function checkFrontend() {
 // 3. Testar conexão polling do WebSocket
 async function checkWebSocketProbe() {
   return new Promise((resolve) => {
-    const req = http.get("http://127.0.0.1:4025/socket.io/?EIO=4&transport=polling", { timeout: 3000 }, (res) => {
+    const req = http.get(`${apiBaseUrl}/socket.io/?EIO=4&transport=polling`, { timeout: 3000 }, (res) => {
       report.websocketRouteOk = res.statusCode === 200;
       console.log(`✅ WebSocket handshake probe: HTTP ${res.statusCode}`);
       resolve();

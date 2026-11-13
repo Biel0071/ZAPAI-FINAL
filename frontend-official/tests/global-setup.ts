@@ -1,6 +1,10 @@
 import { chromium, type FullConfig } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const apiBaseUrl = process.env.E2E_API_BASE_URL || 'http://127.0.0.1:4025';
 
 async function globalSetup(config: FullConfig) {
   const { baseURL } = config.projects[0].use;
@@ -19,7 +23,7 @@ async function globalSetup(config: FullConfig) {
   
   // Directly call the API to login instead of using UI for max speed
   const apiContext = await browser.newContext();
-  const loginResponse = await apiContext.request.post('http://127.0.0.1:4025/api/auth/login', {
+  const loginResponse = await apiContext.request.post(`${apiBaseUrl}/api/auth/login`, {
     data: {
       username: 'zapadmin',
       password: 'zapadmin123',

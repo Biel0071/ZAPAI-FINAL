@@ -36,7 +36,6 @@ import {
   FileText,
   Image as ImageIcon,
   Gear,
-  ShoppingBag,
   ArrowsLeftRight,
   CircleNotch,
 } from "@phosphor-icons/react";

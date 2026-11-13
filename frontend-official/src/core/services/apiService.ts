@@ -5,7 +5,7 @@ import { reportFrontendIssue } from "@/core/runtime/services/frontendHealthServi
 import { slog } from "@/core/runtime/logs/structuredLogger";
 import { notify } from "@/core/services/notifyService";
 import { API_BASE_URL, API_ORIGIN } from "@/core/lib/backendConfig";
-import { ADMIN_AUTH_CHANGED_EVENT, clearAdminAuthSession } from "@/core/lib/adminAuthSession";
+import { ADMIN_AUTH_CHANGED_EVENT, clearAdminAuthSession, loadAdminAuthSession } from "@/core/lib/adminAuthSession";
 import { generateUuid } from "@/core/lib/utils";
 import axios from "axios";
 
@@ -114,6 +114,8 @@ export interface Conversation {
   humanActive?: boolean;
   assignedAgentName?: string;
   agent_name?: string;
+  mappedPhone?: string | null;
+  mapped_phone?: string | null;
   isBlocked?: boolean;
   assigned_to?: string;
   lid?: string;
@@ -137,6 +139,7 @@ export interface ChatMessage {
   createdAt?: string;
   timestamp?: string | number;
   status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry" | "error" | "blocked" | "received";
+  ack?: number;
   direction?: "incoming" | "outgoing" | string;
   phone?: string;
   sessionId?: string;
@@ -591,12 +594,15 @@ type RawConversation = {
   status?: "online" | "offline" | "typing";
   tags?: string[];
   whatsappLabels?: string[];
+  whatsapp_labels?: string[];
+  mappedPhone?: string | null;
+  mapped_phone?: string | null;
   pinnedQuickReplies?: string[];
   pinned_quick_replies?: string[];
   isAI?: boolean;
-  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
-  messageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
-  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
+  messageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
   aiEnabled?: boolean;
   ai_enabled?: boolean;
   summary?: string;
@@ -634,8 +640,8 @@ type RawMessage = {
   timestamp?: string | number;
   status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry";
   isAI?: boolean;
-  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
-  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
+  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
   mediaPath?: string;
   media_path?: string;
   mediaUrl?: string;
@@ -2774,7 +2780,7 @@ export const apiService = {
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const res = await fetch(`${BACKEND_BASE_URL}/api/products/upload-image`, {
+    const res = await fetch(`${API_BASE_URL}/products/upload-image`, {
       method: "POST",
       headers,
       body: formData,

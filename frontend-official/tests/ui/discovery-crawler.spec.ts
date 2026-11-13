@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "../../..");
+const frontendBaseUrl = process.env.E2E_FRONTEND_BASE_URL || "http://localhost:8080";
+const apiBaseUrl = process.env.E2E_API_BASE_URL || "http://127.0.0.1:4025";
 
 // Helper to check if a string is a standard destructive operation
 function isDestructiveButton(text: string): boolean {
@@ -39,7 +41,7 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
       const text = msg.text();
       if (type === "error" || type === "warning") {
         mapData.console_errors.push({
-          path: page.url().replace("http://localhost:8080", ""),
+          path: page.url().replace(frontendBaseUrl, ""),
           type,
           text
         });
@@ -48,7 +50,7 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
 
     page.on("pageerror", (err) => {
       mapData.page_errors.push({
-        path: page.url().replace("http://localhost:8080", ""),
+        path: page.url().replace(frontendBaseUrl, ""),
         name: err.name,
         message: err.message,
         stack: err.stack
@@ -73,7 +75,7 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
 
         mapData.apis.push({
           method,
-          url: url.replace("http://127.0.0.1:4025", ""),
+          url: url.replace(apiBaseUrl, ""),
           status,
           error
         });
@@ -82,7 +84,7 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
 
     // 2. Perform authentication with master_admin credentials
     console.log("🔑 Authenticating test user...");
-    const loginResponse = await page.request.post("http://127.0.0.1:4025/api/auth/login", {
+    const loginResponse = await page.request.post(`${apiBaseUrl}/api/auth/login`, {
       data: {
         username: "zapadmin",
         password: "zapadmin123",
@@ -100,7 +102,7 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
 
     expect(token).toBeTruthy();
 
-    await page.goto("http://localhost:8080/login");
+    await page.goto(`${frontendBaseUrl}/login`);
     await page.evaluate(({ authToken }) => {
       const session = {
         token: authToken,
@@ -117,7 +119,7 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
     }, { authToken: token });
 
     // Verify authentication redirect
-    await page.goto("http://localhost:8080/dashboard");
+    await page.goto(`${frontendBaseUrl}/dashboard`);
     await page.waitForLoadState("networkidle");
     expect(page.url()).toContain("/dashboard");
     console.log("✅ Authenticated successfully as Master Admin.");
@@ -151,7 +153,7 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
       if (visitedRoutes.has(currentRoute)) continue;
 
       visitedRoutes.add(currentRoute);
-      const targetUrl = `http://localhost:8080${currentRoute}`;
+      const targetUrl = `${frontendBaseUrl}${currentRoute}`;
       console.log(`🔍 Crawling route: ${currentRoute}`);
 
       try {
@@ -163,7 +165,7 @@ test.describe("ZapAI CRM E2E Auto-Discovery Crawler & Auditor", () => {
         const response = await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
         await page.waitForTimeout(800);
         const finalUrl = page.url();
-        const finalRoute = finalUrl.replace("http://localhost:8080", "");
+        const finalRoute = finalUrl.replace(frontendBaseUrl, "");
         
         let redirectedTo = null;
         let isBroken = false;

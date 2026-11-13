@@ -53,15 +53,15 @@ describe("bolha azul do WhatsApp", () => {
 });
 
 describe("etiquetas do WhatsApp", () => {
-  it("renders blue WA badges, collapses overflow and renders nothing without labels", () => {
+  it("renders WhatsApp labels, collapses overflow and renders nothing without labels", () => {
     const host = document.createElement("div");
     const root = createRoot(host);
     act(() => root.render(<WhatsappLabelBadges labels={["Cliente VIP", "Pago", "Entrega"]} maxVisible={2} />));
     const wrap = host.querySelector('[data-testid="whatsapp-label-badges"]')!;
-    expect(wrap.textContent).toContain("WA");
+    expect(wrap.getAttribute("aria-label")).toBe("Etiquetas do WhatsApp: Cliente VIP, Pago, Entrega");
     expect(wrap.textContent).toContain("Cliente VIP");
     expect(wrap.textContent).toContain("+1");
-    expect(wrap.innerHTML).toContain("sky-500");
+    expect(wrap.querySelector('[title="Etiqueta WhatsApp: Cliente VIP"]')?.getAttribute("style")).toContain("#00d26a");
     act(() => root.render(<WhatsappLabelBadges labels={[]} />));
     expect(host.querySelector('[data-testid="whatsapp-label-badges"]')).toBeNull();
     act(() => root.unmount());
