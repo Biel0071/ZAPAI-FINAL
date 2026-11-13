@@ -24,6 +24,7 @@ const orchestratorRouter = require('./orchestratorRoutes');
 const storesRouter = require('./stores');
 const webBridgeRouter = require('./webBridgeRoutes');
 const quoteRouter = require('./quoteRoutes');
+const companyManagementRouter = require('./companyManagement');
 
 // ── NEW: Frontend-compatibility routers ──────────────────────────────────────
 const logsRouter = require('./logs');
@@ -80,6 +81,10 @@ function registerRoutes(app, options = {}) {
   app.post('/api/products/sync', (req, res) => productsController.syncWhatsAppCatalog(req, res));
 
   app.use(requireJwtAuth);
+  app.use(require('../middleware/companyStatus').companyStatus);
+  app.use(require('../middleware/adminCompanyContext').adminCompanyContext);
+  app.use(require('../middleware/companyEntitlements').companyEntitlements);
+  app.use('/api', companyManagementRouter);
   app.use('/api/ai/history', require('../../ai/evolutionary/historyRoutes').createHistoryRouter());
 
   // System routes (protected by requireJwtAuth)

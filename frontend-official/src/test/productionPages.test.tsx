@@ -32,6 +32,8 @@ vi.mock('@/state/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() })
 vi.mock('@/core/services/notifyService', () => ({ notify: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/core/services/apiService', () => ({ apiService: {
   getAdminUsers: vi.fn().mockResolvedValue([]), getAIStatus: vi.fn().mockResolvedValue({ enabled: false }),
+  getCompanyEntitlements: vi.fn().mockResolvedValue({ company: { id: 'tenant-a', name: 'Empresa teste' }, legacyAccess: true, modules: ['inbox', 'contacts', 'campaigns'], numberLimit: null, license: null }),
+  redeemCompanyLicense: vi.fn().mockResolvedValue({ redeemed: true, licenseId: 1 }),
   getContacts: vi.fn().mockImplementation(async () => state.contacts),
   listSessions: vi.fn().mockResolvedValue([]), getAIAgents: vi.fn().mockResolvedValue({ agents: [] }),
   getCampaigns: vi.fn().mockResolvedValue([]), getConversations: vi.fn().mockResolvedValue([]), getQuickReplies: vi.fn().mockResolvedValue([]),

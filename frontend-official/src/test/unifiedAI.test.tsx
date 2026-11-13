@@ -12,6 +12,7 @@ vi.mock("@/state/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
 // Mock apiService
 vi.mock("@/core/services/apiService", () => ({
   apiService: {
+    getCompanyEntitlements: vi.fn().mockResolvedValue({ company: { id: "default", name: "Default" }, legacyAccess: true, modules: ["inbox", "contacts", "campaigns"], numberLimit: null, license: null }),
     getAIStatus: vi.fn().mockResolvedValue({ enabled: true }),
     updateAIStatus: vi.fn().mockResolvedValue({ success: true }),
     getAIAgents: vi.fn().mockResolvedValue({ success: true, agents: [{ key: "camila", name: "Ana", role: "Suporte", personality: "Instrução salva", tone: "consultative", temperature: 0.2, responseStyle: "detailed", objective: "suporte", active: false }] }),

@@ -44,22 +44,26 @@ function getCpuPercentage() {
 
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
-const { query } = require('../../infrastructure/config/database');
+const { query, pool } = require('../../infrastructure/config/database');
 const { backendLog, errorLog } = require('../../../services/logger');
 const runtimeManager = require('../../../services/runtimeManager');
 const userRepository = require('../../data/repositories/userRepository');
 const auditLogRepository = require('../../data/repositories/auditLogRepository');
 const sessionManager = require('../../../services/sessionManager');
+const { clearCompanyStatusCache } = require('../middleware/companyStatus');
 
 const router = express.Router();
 
 function requireMasterAdmin(req, res, next) {
   const role = String(req.auth?.role || '').trim().toLowerCase();
-  if (role !== 'master_admin' && role !== 'admin' && role !== 'master') {
-    return res.status(403).json({ error: 'master_admin or admin role required.' });
+  if (role !== 'master_admin' && role !== 'master') {
+    return res.status(403).json({ error: 'master_admin or master role required.' });
   }
   return next();
 }
+
+router.use('/master', requireMasterAdmin);
+router.use('/impersonate', requireMasterAdmin);
 
 async function logAdminAction(req, action, details = {}) {
   await auditLogRepository.createAuditLog({
@@ -331,12 +335,271 @@ async function loadUserStats(req) {
   };
 }
 
-// Version history contains read-only deployment metadata. Authentication is
-// already enforced globally, so keep it available to every signed-in role as
-// the frontend route declares.
-router.get('/master/versions', getMasterVersions);
+// Version history contains deployment metadata and remains restricted to the
+// same master roles as the rest of this router.
+router.get('/master/versions', requireMasterAdmin, getMasterVersions);
 
-router.use('/master', requireMasterAdmin);
+router.post('/master/registration-links', requireMasterAdmin, async (req, res) => {
+  const base = String(process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+  if (!base) return res.status(503).json({ error: 'FRONTEND_URL deve estar configurado para gerar links compartilháveis.' });
+  const hours = Math.min(168, Math.max(1, Number(req.body?.validHours) || 72));
+  const token = crypto.randomBytes(32).toString('base64url');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  try {
+    const result = await query(
+      `INSERT INTO company_registration_links (token_hash, expires_at, created_by)
+       VALUES ($1, NOW() + ($2 * INTERVAL '1 hour'), $3) RETURNING id, expires_at`,
+      [tokenHash, hours, req.auth?.username || req.auth?.sub || 'master']
+    );
+    await logAdminAction(req, 'company_registration_link_created', { targetType: 'company_registration_link', targetId: String(result.rows[0].id) });
+    return res.status(201).json({ link: `${base}/company/register?token=${encodeURIComponent(token)}`, expiresAt: result.rows[0].expires_at, delivery: 'manual' });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'registration_link_create' });
+    return res.status(500).json({ error: 'Não foi possível criar o link de cadastro.' });
+  }
+});
+
+router.get('/master/companies', requireMasterAdmin, async (_req, res) => {
+  try {
+    const result = await query(`SELECT c.id, c.name, c.responsible_name, c.status, c.legacy_access, c.zai_enabled, c.created_at,
+      (SELECT COUNT(*)::int FROM users u WHERE u.tenant_id = c.id AND u.deleted_at IS NULL) AS users_count,
+      (SELECT COUNT(*)::int FROM ai_stores s WHERE s.company_id = c.id) AS stores_count
+      FROM companies c ORDER BY c.created_at DESC`);
+    return res.json({ companies: result.rows });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'companies_list' });
+    return res.status(500).json({ error: 'Não foi possível listar empresas.' });
+  }
+});
+
+router.get('/master/license-plans', requireMasterAdmin, async (_req, res) => {
+  try {
+    const result = await query('SELECT id, name, modules, number_limit, active, created_at FROM license_plans ORDER BY created_at DESC');
+    return res.json({ plans: result.rows });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'license_plans_list' });
+    return res.status(500).json({ error: 'Não foi possível listar planos.' });
+  }
+});
+
+router.get('/master/licenses', requireMasterAdmin, async (_req, res) => {
+  try {
+    const result = await query(`SELECT l.id, l.company_id, c.name AS company_name, p.name AS plan_name,
+      l.expires_at, l.redeemed_at, l.revoked_at, l.created_at
+      FROM company_licenses l JOIN companies c ON c.id = l.company_id JOIN license_plans p ON p.id = l.plan_id
+      ORDER BY l.created_at DESC`);
+    return res.json({ licenses: result.rows });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'licenses_list' });
+    return res.status(500).json({ error: 'Não foi possível listar licenças.' });
+  }
+});
+
+router.patch('/master/companies/:id/zai', requireMasterAdmin, async (req, res) => {
+  if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'enabled deve ser booleano.' });
+  try {
+    const result = await query('UPDATE companies SET zai_enabled = $2, updated_at = NOW() WHERE id = $1 RETURNING id, zai_enabled', [req.params.id, req.body.enabled]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Empresa não encontrada.' });
+    await logAdminAction(req, 'zai_assistant_company_updated', { targetType: 'company', targetId: req.params.id, enabled: req.body.enabled });
+    return res.json(result.rows[0]);
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'zai_assistant_company_update' });
+    return res.status(500).json({ error: 'Não foi possível alterar a ativação da empresa.' });
+  }
+});
+
+router.patch('/master/companies/:id/status', requireMasterAdmin, async (req, res) => {
+  const status = String(req.body?.status || '');
+  if (!['active', 'suspended'].includes(status)) return res.status(400).json({ error: 'Status inválido.' });
+  try {
+    const result = await query('UPDATE companies SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING id, status', [req.params.id, status]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Empresa não encontrada.' });
+    clearCompanyStatusCache(req.params.id);
+    await logAdminAction(req, 'company_status_updated', { targetType: 'company', targetId: req.params.id, status });
+    return res.json(result.rows[0]);
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'company_status_update' });
+    return res.status(500).json({ error: 'Não foi possível alterar o status da empresa.' });
+  }
+});
+
+router.get('/master/registration-requests', requireMasterAdmin, async (_req, res) => {
+  try {
+    const result = await query(`SELECT id, company_name, responsible_name, username, email, status, created_at
+      FROM company_registration_requests ORDER BY created_at DESC`);
+    return res.json({ requests: result.rows });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'registration_requests' });
+    return res.status(500).json({ error: 'Não foi possível listar solicitações.' });
+  }
+});
+
+router.post('/master/registration-requests/:id/approve', requireMasterAdmin, async (req, res) => {
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const pending = await client.query(`SELECT * FROM company_registration_requests WHERE id = $1 AND status = 'pending' FOR UPDATE`, [req.params.id]);
+    if (!pending.rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Solicitação pendente não encontrada.' }); }
+    const application = pending.rows[0];
+    const companyId = crypto.randomUUID();
+    await client.query(`INSERT INTO companies (id, name, responsible_name, status, legacy_access, zai_enabled) VALUES ($1, $2, $3, 'active', false, true)`, [companyId, application.company_name, application.responsible_name]);
+    await client.query(`INSERT INTO users (tenant_id, username, email, password_hash, role, is_active)
+      VALUES ($1, $2, $3, $4, 'admin', true)`, [companyId, application.username, application.email, application.password_hash]);
+    await client.query(`UPDATE company_registration_requests SET status = 'approved', reviewed_by = $2, reviewed_at = NOW() WHERE id = $1`, [application.id, req.auth?.username || req.auth?.sub || 'master']);
+    await client.query('COMMIT');
+    await logAdminAction(req, 'company_registration_approved', { targetType: 'company', targetId: companyId });
+    return res.json({ companyId, status: 'approved' });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    errorLog(error, { scope: 'admin_master', action: 'registration_approve' });
+    return res.status(500).json({ error: 'Não foi possível aprovar a solicitação.' });
+  } finally { if (client) client.release(); }
+});
+
+router.post('/master/registration-requests/:id/reject', requireMasterAdmin, async (req, res) => {
+  try {
+    const result = await query(`UPDATE company_registration_requests SET status = 'rejected', reviewed_by = $2, reviewed_at = NOW()
+      WHERE id = $1 AND status = 'pending' RETURNING id`, [req.params.id, req.auth?.username || req.auth?.sub || 'master']);
+    if (!result.rowCount) return res.status(404).json({ error: 'Solicitação pendente não encontrada.' });
+    await logAdminAction(req, 'company_registration_rejected', { targetType: 'company_registration_request', targetId: String(req.params.id) });
+    return res.json({ id: Number(req.params.id), status: 'rejected' });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'registration_reject' });
+    return res.status(500).json({ error: 'Não foi possível rejeitar a solicitação.' });
+  }
+});
+
+router.post('/master/license-plans', requireMasterAdmin, async (req, res) => {
+  const name = String(req.body?.name || '').trim();
+  const modules = Array.isArray(req.body?.modules) ? [...new Set(req.body.modules.map(String))] : [];
+  const numberLimit = Number(req.body?.numberLimit);
+  const allowedModules = new Set(['inbox', 'contacts', 'campaigns']);
+  if (!name || name.length > 120 || !Number.isInteger(numberLimit) || numberLimit < 0 || modules.some((item) => !allowedModules.has(item))) {
+    return res.status(400).json({ error: 'Plano, módulos ou limite inválidos.' });
+  }
+  try {
+    const result = await query(`INSERT INTO license_plans (name, modules, number_limit, created_by)
+      VALUES ($1, $2::jsonb, $3, $4) RETURNING id, name, modules, number_limit, active, created_at`,
+    [name, JSON.stringify(modules), numberLimit, req.auth?.username || req.auth?.sub || 'master']);
+    return res.status(201).json({ plan: result.rows[0] });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'license_plan_create' });
+    return res.status(500).json({ error: 'Não foi possível criar o plano.' });
+  }
+});
+
+router.post('/master/companies/:companyId/licenses', requireMasterAdmin, async (req, res) => {
+  const planId = Number(req.body?.planId);
+  const expiry = req.body?.expiresAt ? new Date(req.body.expiresAt) : null;
+  if (!Number.isInteger(planId) || (expiry && (!Number.isFinite(expiry.getTime()) || expiry.getTime() <= Date.now()))) return res.status(400).json({ error: 'Plano ou validade inválidos.' });
+  const token = crypto.randomBytes(32).toString('base64url');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  try {
+    const result = await query(`INSERT INTO company_licenses (company_id, plan_id, token_hash, expires_at, created_by)
+      SELECT c.id, p.id, $3, $4, $5 FROM companies c CROSS JOIN license_plans p WHERE c.id = $1 AND p.id = $2 AND p.active = true
+      RETURNING id, expires_at`, [req.params.companyId, planId, tokenHash, expiry, req.auth?.username || req.auth?.sub || 'master']);
+    if (!result.rowCount) return res.status(404).json({ error: 'Empresa ou plano ativo não encontrado.' });
+    return res.status(201).json({ token, licenseId: result.rows[0].id, expiresAt: result.rows[0].expires_at });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'license_issue' });
+    return res.status(500).json({ error: 'Não foi possível emitir a licença.' });
+  }
+});
+
+router.post('/master/licenses/:id/revoke', requireMasterAdmin, async (req, res) => {
+  try {
+    const result = await query('UPDATE company_licenses SET revoked_at = NOW() WHERE id = $1 AND revoked_at IS NULL RETURNING id, company_id, revoked_at', [req.params.id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Licença ativa não encontrada.' });
+    await logAdminAction(req, 'company_license_revoked', { targetType: 'company_license', targetId: req.params.id, companyId: result.rows[0].company_id });
+    return res.json({ license: result.rows[0] });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'license_revoke' });
+    return res.status(500).json({ error: 'Não foi possível revogar a licença.' });
+  }
+});
+
+const ZAI_GLOBAL_SETTING_KEY = 'zai_system_assistant_global_enabled';
+const zaiUserSettingKey = (userId) => `zai_system_assistant_user:${userId}`;
+const zaiCompanySettingKey = (tenantId) => `zai_system_assistant_config:${tenantId}`;
+const settingJson = (value) => {
+  if (typeof value === 'string') {
+    try { return JSON.parse(value); } catch { return value; }
+  }
+  return value;
+};
+
+router.get('/master/zai-assistant', requireMasterAdmin, async (req, res) => {
+  try {
+    const usersResult = await query(
+      `SELECT id, tenant_id, username, email, role FROM users WHERE deleted_at IS NULL ORDER BY created_at DESC`
+    );
+    const users = usersResult.rows || [];
+    const keys = [ZAI_GLOBAL_SETTING_KEY];
+    for (const user of users) {
+      keys.push(zaiUserSettingKey(user.id), zaiCompanySettingKey(user.tenant_id));
+    }
+    const settingsResult = await query('SELECT key, value FROM system_settings WHERE key = ANY($1::text[])', [keys]);
+    const settings = new Map((settingsResult.rows || []).map((row) => [row.key, settingJson(row.value)]));
+    const globalSetting = settings.get(ZAI_GLOBAL_SETTING_KEY);
+    const globalEnabled = typeof globalSetting === 'boolean' ? globalSetting : true;
+    return res.json({
+      globalEnabled,
+      users: users.map((user) => {
+        const personal = settings.get(zaiUserSettingKey(user.id));
+        const legacy = settings.get(zaiCompanySettingKey(user.tenant_id));
+        return {
+          id: user.id,
+          tenantId: user.tenant_id,
+          name: user.username,
+          email: user.email,
+          role: user.role,
+          enabled: typeof personal === 'boolean' ? personal : Boolean(legacy?.enabled),
+        };
+      }),
+    });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'zai_assistant_settings_read' });
+    return res.status(500).json({ error: 'Failed to load ZAI assistant settings.' });
+  }
+});
+
+router.patch('/master/zai-assistant/global', requireMasterAdmin, async (req, res) => {
+  if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'enabled must be a boolean.' });
+  try {
+    await query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [ZAI_GLOBAL_SETTING_KEY, JSON.stringify(req.body.enabled)]
+    );
+    await logAdminAction(req, 'zai_assistant_global_updated', { enabled: req.body.enabled });
+    return res.json({ globalEnabled: req.body.enabled });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'zai_assistant_global_update' });
+    return res.status(500).json({ error: 'Failed to update global ZAI assistant setting.' });
+  }
+});
+
+router.patch('/master/zai-assistant/users/:id', requireMasterAdmin, async (req, res) => {
+  const userId = Number(req.params.id);
+  if (!Number.isInteger(userId) || userId <= 0 || typeof req.body?.enabled !== 'boolean') {
+    return res.status(400).json({ error: 'A valid user ID and boolean enabled value are required.' });
+  }
+  try {
+    const user = await userRepository.getUserById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    await query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [zaiUserSettingKey(user.id), JSON.stringify(req.body.enabled)]
+    );
+    await logAdminAction(req, 'zai_assistant_user_updated', { targetType: 'user', targetId: String(userId), enabled: req.body.enabled });
+    return res.json({ userId, enabled: req.body.enabled });
+  } catch (error) {
+    errorLog(error, { scope: 'admin_master', action: 'zai_assistant_user_update' });
+    return res.status(500).json({ error: 'Failed to update user ZAI assistant setting.' });
+  }
+});
 
 router.get('/master/overview', async (req, res) => {
   try {
@@ -371,9 +634,11 @@ router.get('/master/overview', async (req, res) => {
 
 router.get('/master/users', async (req, res) => {
   try {
-    const users = await userRepository.listUsers({ includeDeleted: false });
+    const users = (await query(`SELECT id, tenant_id, username, email, role, blocked, plan, whatsapp_limit, created_at, updated_at, last_login_at
+      FROM users WHERE deleted_at IS NULL ORDER BY created_at DESC`)).rows;
     await logAdminAction(req, 'users_list', { targetType: 'user' });
-    return res.status(200).json({ users, total: users.length });
+    const safeUsers = users.map((user) => { const safe = { ...user }; delete safe.password_hash; delete safe.passwordHash; return safe; });
+    return res.status(200).json({ users: safeUsers, total: safeUsers.length });
   } catch (error) {
     errorLog(error, { scope: 'admin_master', action: 'users_list' });
     return res.status(500).json({ error: 'Failed to list users.' });
@@ -393,7 +658,8 @@ router.get('/master/users/:id', async (req, res) => {
     }
 
     await logAdminAction(req, 'user_read', { targetType: 'user', targetId: String(userId) });
-    return res.status(200).json({ user });
+    const safeUser = { ...user }; delete safeUser.password_hash; delete safeUser.passwordHash;
+    return res.status(200).json({ user: safeUser });
   } catch (error) {
     errorLog(error, { scope: 'admin_master', action: 'user_read' });
     return res.status(500).json({ error: 'Failed to get user.' });
@@ -424,7 +690,8 @@ router.patch('/master/users/:id', async (req, res) => {
     }
 
     await logAdminAction(req, 'user_updated', { targetType: 'user', targetId: String(userId), updates });
-    return res.status(200).json({ user: updatedUser });
+    const safeUser = { ...updatedUser }; delete safeUser.password_hash; delete safeUser.passwordHash;
+    return res.status(200).json({ user: safeUser });
   } catch (error) {
     errorLog(error, { scope: 'admin_master', action: 'user_updated' });
     return res.status(500).json({ error: 'Failed to update user.' });

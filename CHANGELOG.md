@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — empresas, licenças e Configurações
+
+- Configurações usam seções internas agrupadas; somente master acessa o hub da plataforma e o contexto de outra empresa é validado pelo backend antes de consultas tenant-scoped.
+- Cadastro por link expira e só pode ser usado uma vez. Solicitações ficam pendentes, senha é armazenada com bcrypt e a aprovação master cria empresa e usuário administrador sem envio automático de e-mail.
+- Migração 055 cria o registro canônico de empresas preservando IDs de `tenant_id`/`company_id`, registra o relatório de vínculos e mantém acesso legado até a empresa resgatar um pacote.
+- Planos e tokens de licença são administrados manualmente; o token é salvo como hash, fica vinculado a uma empresa, pode ser resgatado uma vez e revogado. Backend valida módulos e limite de números.
+- A equipe de cada empresa pode ser mantida no próprio hub; permissões individuais só reduzem os módulos do pacote, e empresas suspensas têm o acesso tenant bloqueado.
+- O mascote único do ZAI é montado uma vez no layout persistente e abre o copiloto em painel lateral. Preferências de interação não desativam a análise WhatsApp.
+
+## Unreleased — painel administrativo e Assistente ZAI
+
+- Indicadores do Cluster exibem indisponibilidade como “—”, e status não reportado permanece desconhecido; uptime aparece em formato legível e o gráfico de três pontos foi removido por não representar histórico.
+- O painel lateral do ZAI tem ativação individual, separada do processamento das conversas, e usa um único mascote. Admins podem controlar a disponibilidade global e as preferências por usuário.
+- `GET /api/master/zai-assistant` lista ativações; `PATCH /api/master/zai-assistant/global` e `PATCH /api/master/zai-assistant/users/:id` atualizam controles administrativos, protegidos pelo papel admin/master.
+
 ## Unreleased — pausa segura das automações por conexão
 
 - Ao desconectar um número, a pausa das automações, tarefas outbound pendentes e campanhas em execução fica persistida por sessão. A reconexão não retoma disparos nem respostas da IA automaticamente.

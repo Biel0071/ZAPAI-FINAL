@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "@/core/lib/backendConfig";
 import { buildApiHeaders } from "@/core/lib/apiGuard";
+import { loadAdminAuthSession } from "@/core/lib/adminAuthSession";
 
 export interface ZaiAssistantPersonality {
   tone: "executivo_direto" | "analitico_dados" | "consultivo_amigavel" | "operacional_tecnico";
@@ -11,6 +12,7 @@ export interface ZaiAssistantPersonality {
 
 export interface ZaiAssistantConfig {
   enabled: boolean;
+  globallyEnabled?: boolean;
   role: "system_assistant_only";
   name: string;
   mascotModel: string;
@@ -19,57 +21,11 @@ export interface ZaiAssistantConfig {
   updatedAt?: string;
 }
 
-export interface ZaiMascotModelOption {
-  id: string;
-  name: string;
-  badge: string;
-  description: string;
-  avatarUrl: string;
-}
-
 export interface ZaiPersonalityToneOption {
   id: ZaiAssistantPersonality["tone"];
   label: string;
   description: string;
 }
-
-export const ZAI_MASCOT_MODELS: ZaiMascotModelOption[] = [
-  {
-    id: "zaibot_avatar",
-    name: "Robô ZAI 3D Oficial",
-    badge: "Padrão ZAI",
-    description: "Mascote robótico oficial com visor digital neon e headset corporativo.",
-    avatarUrl: "/assets/mascot/zaibot_avatar.png",
-  },
-  {
-    id: "mascot_standing_thumbsup",
-    name: "ZAI Executivo Receptivo",
-    badge: "Boas-Vindas",
-    description: "Postura em pé receptiva para assistência administrativa e gestão.",
-    avatarUrl: "/assets/mascot/mascot_standing_thumbsup.png",
-  },
-  {
-    id: "mascot_laptop_working",
-    name: "ZAI Analista de Operação",
-    badge: "Operação & BI",
-    description: "Mascote operando terminal de métricas, filas e diagnóstico em tempo real.",
-    avatarUrl: "/assets/mascot/mascot_laptop_working.png",
-  },
-  {
-    id: "mascot_mobile",
-    name: "ZAI Especialista Canais",
-    badge: "Conectividade",
-    description: "Focado no monitoramento de sessões WhatsApp, QR Code e saúde de rede.",
-    avatarUrl: "/assets/mascot/mascot_mobile.png",
-  },
-  {
-    id: "mascot_celebrating",
-    name: "ZAI Alta Performance",
-    badge: "Metas & Escala",
-    description: "Visual dinâmico voltado para acompanhamento de metas e campanhas.",
-    avatarUrl: "/assets/mascot/mascot_celebrating.png",
-  },
-];
 
 export const ZAI_PERSONALITY_TONES: ZaiPersonalityToneOption[] = [
   {
@@ -97,6 +53,13 @@ export const ZAI_PERSONALITY_TONES: ZaiPersonalityToneOption[] = [
 const STORAGE_KEY = "zai_system_assistant_config_v1";
 export const ZAI_CONFIG_EVENT = "zai-assistant-config-updated";
 
+function getStorageKey(): string {
+  const session = loadAdminAuthSession();
+  const tenant = String(session?.tenantId || session?.companyId || "anonymous").trim();
+  const user = String(session?.username || "anonymous").trim().toLowerCase();
+  return `${STORAGE_KEY}:${encodeURIComponent(tenant)}:${encodeURIComponent(user)}`;
+}
+
 export const DEFAULT_ZAI_ASSISTANT_CONFIG: ZaiAssistantConfig = {
   enabled: false, // Desativado no momento por padrão (ativável em Configurações)
   role: "system_assistant_only",
@@ -116,13 +79,15 @@ export const DEFAULT_ZAI_ASSISTANT_CONFIG: ZaiAssistantConfig = {
 export function getZaiAssistantConfig(): ZaiAssistantConfig {
   if (typeof window === "undefined") return DEFAULT_ZAI_ASSISTANT_CONFIG;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(getStorageKey());
     if (!raw) return DEFAULT_ZAI_ASSISTANT_CONFIG;
     const parsed = JSON.parse(raw);
     return {
       ...DEFAULT_ZAI_ASSISTANT_CONFIG,
       ...parsed,
       role: "system_assistant_only",
+      mascotModel: "zaibot_avatar",
+      mascotAvatarUrl: "/assets/mascot/zaibot_avatar.png",
       personality: {
         ...DEFAULT_ZAI_ASSISTANT_CONFIG.personality,
         ...(parsed?.personality || {}),
@@ -135,16 +100,12 @@ export function getZaiAssistantConfig(): ZaiAssistantConfig {
 
 export function setLocalZaiAssistantConfig(next: Partial<ZaiAssistantConfig>): ZaiAssistantConfig {
   const current = getZaiAssistantConfig();
-  const modelObj =
-    ZAI_MASCOT_MODELS.find((m) => m.id === (next.mascotModel || current.mascotModel)) ||
-    ZAI_MASCOT_MODELS[0];
-
   const merged: ZaiAssistantConfig = {
     ...current,
     ...next,
     role: "system_assistant_only",
-    mascotModel: modelObj.id,
-    mascotAvatarUrl: next.mascotAvatarUrl || modelObj.avatarUrl,
+    mascotModel: "zaibot_avatar",
+    mascotAvatarUrl: "/assets/mascot/zaibot_avatar.png",
     personality: {
       ...current.personality,
       ...(next.personality || {}),
@@ -154,7 +115,7 @@ export function setLocalZaiAssistantConfig(next: Partial<ZaiAssistantConfig>): Z
 
   if (typeof window !== "undefined") {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      window.localStorage.setItem(getStorageKey(), JSON.stringify(merged));
       window.dispatchEvent(new CustomEvent(ZAI_CONFIG_EVENT, { detail: merged }));
     } catch {
       // ignore storage errors
@@ -185,10 +146,11 @@ export async function fetchZaiAssistantConfigFromApi(): Promise<ZaiAssistantConf
 export async function saveZaiAssistantConfigToApi(
   next: Partial<ZaiAssistantConfig>
 ): Promise<ZaiAssistantConfig> {
+  const previous = getZaiAssistantConfig();
   const merged = setLocalZaiAssistantConfig(next);
   try {
     const authHeaders = await buildApiHeaders();
-    await fetch(`${API_BASE_URL}/ai/evolution/zai-assistant-config`, {
+    const response = await fetch(`${API_BASE_URL}/ai/evolution/zai-assistant-config`, {
       method: "PUT",
       headers: {
         ...authHeaders,
@@ -196,8 +158,13 @@ export async function saveZaiAssistantConfigToApi(
       },
       body: JSON.stringify(merged),
     });
-  } catch {
-    // persisted locally even if offline
+    if (!response.ok) {
+      throw new Error(`Falha ao salvar configuração do ZAI (HTTP ${response.status}).`);
+    }
+    const json = await response.json() as { data?: Partial<ZaiAssistantConfig> };
+    return setLocalZaiAssistantConfig(json?.data ?? merged);
+  } catch (error) {
+    setLocalZaiAssistantConfig(previous);
+    throw error;
   }
-  return merged;
 }

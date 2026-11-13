@@ -13,6 +13,7 @@ import { type AppUserRole, useUserRole } from "@/state/hooks/useUserRole";
 import { useAdminAuth } from "@/state/hooks/useAdminAuth";
 import { useFrontendHealthWatcher } from "@/state/hooks/useFrontendHealthWatcher";
 import { InboxRuntimeBoundary } from "@/components/system/InboxRuntimeBoundary";
+import { CompanyEntitlementGate } from "@/components/auth/CompanyEntitlementGate";
 
 import { PageRouteBoundary } from "@/components/system/PageRouteBoundary";
 import { BrandLogo } from "@/components/brand/BrandLogo";
@@ -92,6 +93,7 @@ function lazyWithRetry<T extends ComponentType<any>>(importer: () => Promise<{ d
 }
 
 const AuthenticatedAppShell = lazyWithRetry(() => import("./components/layout/AuthenticatedAppShell"), "authenticated_shell");
+const CompanyRegistration = lazyWithRetry(() => import("./pages/CompanyRegistration"), "company_registration");
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"), "dashboard");
 const Inbox = lazyWithRetry(() => import("./pages/Inbox"), "inbox");
 const Connections = lazyWithRetry(() => import("./pages/Connections"), "connections");
@@ -177,10 +179,11 @@ const App = () => {
                 <Suspense fallback={<PageFallback />}>
                   <Routes>
                     <Route path="/login" element={<LoginRoute />} />
+                    <Route path="/company/register" element={<CompanyRegistration />} />
                     <Route element={<RequireAdminAuth><AuthenticatedAppShell /></RequireAdminAuth>}>
                       <Route path="/" element={<RootRoute />} />
                       <Route path="/dashboard" element={<PageRouteBoundary pageName="Dashboard"><Dashboard /></PageRouteBoundary>} />
-                      <Route path="/inbox" element={<InboxRuntimeBoundary><Inbox /></InboxRuntimeBoundary>} />
+                      <Route path="/inbox" element={<CompanyEntitlementGate module="inbox"><InboxRuntimeBoundary><Inbox /></InboxRuntimeBoundary></CompanyEntitlementGate>} />
                       <Route path="/connections" element={<PageRouteBoundary pageName="Conexões"><Connections /></PageRouteBoundary>} />
                       <Route path="/stores" element={<LegacyStoreRoute />} />
                       <Route path="/lojas" element={<LegacyStoreRoute />} />
@@ -188,14 +191,14 @@ const App = () => {
                       <Route path="/atendentes" element={<Navigate to="/attendants" replace />} />
                       <Route path="/assistant" element={<Navigate to="/attendants?tab=copilot" replace />} />
                       <Route path="/assistente-zai" element={<Navigate to="/attendants?tab=copilot" replace />} />
-                      <Route path="/contacts" element={<PageRouteBoundary pageName="Contatos"><Contacts /></PageRouteBoundary>} />
+                      <Route path="/contacts" element={<CompanyEntitlementGate module="contacts"><PageRouteBoundary pageName="Contatos"><Contacts /></PageRouteBoundary></CompanyEntitlementGate>} />
                       <Route path="/ai" element={<PageRouteBoundary pageName="Configurações de IA"><AI /></PageRouteBoundary>} />
                       <Route path="/operations" element={<Navigate to="/ai?tab=operations" replace />} />
                       <Route path="/flows" element={<Navigate to="/ai?tab=flows" replace />} />
                       <Route path="/evolution" element={<Navigate to="/ai?tab=evolution" replace />} />
                       <Route path="/evolucao" element={<Navigate to="/ai?tab=evolution" replace />} />
                       <Route path="/analytics" element={<Navigate to="/dashboard?tab=analytics" replace />} />
-                      <Route path="/campaigns" element={<PageRouteBoundary pageName="Campanhas"><Campaigns /></PageRouteBoundary>} />
+                      <Route path="/campaigns" element={<CompanyEntitlementGate module="campaigns"><PageRouteBoundary pageName="Campanhas"><Campaigns /></PageRouteBoundary></CompanyEntitlementGate>} />
                       <Route path="/automation" element={<Navigate to="/ai?tab=flows" replace />} />
                       <Route path="/integrations" element={<Navigate to="/connections" replace />} />
                       <Route path="/dev-tools" element={<ProtectedRoute minRole="user"><Navigate to="/diagnostics" replace /></ProtectedRoute>} />

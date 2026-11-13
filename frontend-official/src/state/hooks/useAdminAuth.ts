@@ -9,7 +9,6 @@ import {
   type AdminSessionRole,
 } from "@/core/lib/adminAuthSession";
 import { API_ORIGIN } from "@/core/lib/backendConfig";
-import { getCurrentTenantId } from "@/core/lib/apiGuard";
 import { apiService } from "@/core/services/apiService";
 
 const DEFAULT_SESSION_TTL_MS = 1000 * 60 * 60 * 8;
@@ -152,8 +151,7 @@ async function verifyCredentials(
   password: string,
 ): Promise<ParsedAuthPayload> {
   const apiLoginCandidates = ["/api/auth/login", "/api/login", "/auth/login", "/login"];
-  const tenantId = getCurrentTenantId();
-  const requestBody = { username, password, tenantId, companyId: tenantId };
+  const requestBody = { username, password };
   const origin = API_ORIGIN?.trim();
 
   const tryBackendLogin = async () => {
@@ -169,7 +167,6 @@ async function verifyCredentials(
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
-            "x-tenant-id": tenantId,
             "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify(requestBody),

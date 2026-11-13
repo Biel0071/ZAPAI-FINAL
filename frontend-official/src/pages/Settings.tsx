@@ -39,11 +39,11 @@ import { UnderConstruction } from "@/components/layout/UnderConstruction";
 import { useTheme } from "next-themes";
 import { cn } from "@/core/lib/utils";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { ZAI_OPEN_EVENT } from "@/components/ai/ZaibotFloatingAssistant";
 import {
   fetchZaiAssistantConfigFromApi,
   getZaiAssistantConfig,
   saveZaiAssistantConfigToApi,
-  ZAI_MASCOT_MODELS,
   ZAI_PERSONALITY_TONES,
   type ZaiAssistantConfig,
 } from "@/core/services/zaiAssistantConfigService";
@@ -57,6 +57,8 @@ const MasterVersionsPage = React.lazy(() => import("./MasterVersions"));
 const MasterLogsPage = React.lazy(() => import("./MasterLogs"));
 const TestsPage = React.lazy(() => import("./Tests"));
 const DiagnosticsPage = React.lazy(() => import("@/core/runtime/diagnostics/Diagnostics"));
+const MasterCompaniesPage = React.lazy(() => import("./MasterCompanies"));
+const CompanyTeamPage = React.lazy(() => import("./CompanyTeam"));
 
 
 
@@ -73,16 +75,23 @@ function resolveAIEnabled(status: AIStatusResponse | null): boolean {
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { username, role, session } = useAdminAuth();
+  const canOpenPlatformHub = role === "master";
+  const [selectedCompanyContext, setSelectedCompanyContext] = useState(() => {
+    try { return window.localStorage.getItem("zai_admin_company_context") || ""; } catch { return ""; }
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const settingsViewModel = useMemo(() => createSettingsLovableViewModel(), []);
   const tabParam = searchParams.get("tab") || searchParams.get("section");
 
-  const isMasterIndex = (idx: number) => idx >= 8;
+  const isMasterIndex = (idx: number) => idx >= 8 && idx <= 19;
+  const isCompanyAdminSection = (idx: number) => [1, 2, 5].includes(idx);
+  const canViewUserSection = (idx: number) => !isCompanyAdminSection(idx) || canOpenPlatformHub || role === "admin";
 
   const [activeSection, setActiveSection] = useState<number>(() => {
     if (tabParam) {
       const found = settingsViewModel.sections.findIndex((s) => s.id === tabParam);
-      if (found !== -1) return found;
+      if (found !== -1 && (canOpenPlatformHub || !isMasterIndex(found)) && canViewUserSection(found)) return found;
     }
     return 0;
   });
@@ -90,7 +99,7 @@ export default function Settings() {
   const [settingsMode, setSettingsMode] = useState<"user" | "master">(() => {
     if (tabParam) {
       const found = settingsViewModel.sections.findIndex((s) => s.id === tabParam);
-      if (found !== -1 && isMasterIndex(found)) return "master";
+      if (canOpenPlatformHub && found !== -1 && isMasterIndex(found)) return "master";
     }
     return "user";
   });
@@ -99,13 +108,22 @@ export default function Settings() {
     if (tabParam) {
       const found = settingsViewModel.sections.findIndex((s) => s.id === tabParam);
       if (found !== -1) {
-        if (found !== activeSection) {
-          setActiveSection(found);
+        if (!canOpenPlatformHub && isMasterIndex(found)) {
+          setActiveSection(0);
+          setSettingsMode("user");
+          setSearchParams({ tab: settingsViewModel.sections[0]?.id || "perfil" }, { replace: true });
+          return;
         }
-        setSettingsMode(isMasterIndex(found) ? "master" : "user");
+        if (!canViewUserSection(found)) {
+          setActiveSection(0);
+          setSearchParams({ tab: settingsViewModel.sections[0]?.id || "perfil" }, { replace: true });
+          return;
+        }
+        if (found !== activeSection) setActiveSection(found);
+        setSettingsMode(canOpenPlatformHub && isMasterIndex(found) ? "master" : "user");
       }
     }
-  }, [tabParam, settingsViewModel.sections, activeSection]);
+  }, [tabParam, settingsViewModel.sections, activeSection, canOpenPlatformHub, canViewUserSection, setSearchParams]);
 
   const handleSectionChange = (index: number) => {
     setActiveSection(index);
@@ -128,8 +146,54 @@ export default function Settings() {
   const [userId, setUserId] = useState<number | null>(null);
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [companyEntitlements, setCompanyEntitlements] = useState<Awaited<ReturnType<typeof apiService.getCompanyEntitlements>> | null>(null);
+  const [companyLoadError, setCompanyLoadError] = useState<string | null>(null);
+  const [companyUnlinked, setCompanyUnlinked] = useState(false);
+  const [companyNameInput, setCompanyNameInput] = useState("");
+  const [companyResponsibleInput, setCompanyResponsibleInput] = useState("");
+  const [companyContextApplied, setCompanyContextApplied] = useState(false);
+  const [isSavingCompany, setIsSavingCompany] = useState(false);
+  const [licenseToken, setLicenseToken] = useState("");
+  const [isRedeemingLicense, setIsRedeemingLicense] = useState(false);
+  const companyContextHeaders = canOpenPlatformHub && selectedCompanyContext ? { "x-admin-company-context": selectedCompanyContext } : undefined;
 
-  const { username } = useAdminAuth();
+  useEffect(() => {
+    let mounted = true;
+    const contextHeaders = canOpenPlatformHub && selectedCompanyContext ? { "x-admin-company-context": selectedCompanyContext } : undefined;
+    void apiService.getCompanyEntitlements(contextHeaders).then((value) => {
+      if (mounted) { setCompanyEntitlements(value); setCompanyNameInput(value.company.name); setCompanyResponsibleInput(value.company.responsible_name || ""); setCompanyUnlinked(false); setCompanyLoadError(null); setCompanyContextApplied(true); }
+    }).catch((error) => {
+      if (!mounted) return;
+      const message = error instanceof Error ? error.message : "";
+      if (/404|empresa não encontrada/i.test(message)) { setCompanyUnlinked(true); setCompanyContextApplied(true); }
+      else setCompanyLoadError(/403|empresa/i.test(message) ? "A empresa selecionada não existe ou não está disponível." : "Não foi possível carregar empresa e licença.");
+    });
+    return () => { mounted = false; };
+  }, [canOpenPlatformHub, selectedCompanyContext]);
+
+  const handleRedeemLicense = async () => {
+    if (isRedeemingLicense || !licenseToken.trim()) return;
+    setIsRedeemingLicense(true);
+    try {
+      await apiService.redeemCompanyLicense(licenseToken.trim(), companyContextHeaders);
+      setLicenseToken("");
+      setCompanyEntitlements(await apiService.getCompanyEntitlements(companyContextHeaders));
+      notify.success("Licença resgatada para esta empresa.");
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : "Não foi possível resgatar a licença.");
+    } finally { setIsRedeemingLicense(false); }
+  };
+
+  const handleSaveCompanyProfile = async () => {
+    if (isSavingCompany) return;
+    setIsSavingCompany(true);
+    try {
+      await apiService.updateCompanyProfile({ name: companyNameInput, responsibleName: companyResponsibleInput }, companyContextHeaders);
+      setCompanyEntitlements(await apiService.getCompanyEntitlements(companyContextHeaders));
+      notify.success("Dados da empresa salvos.");
+    } catch (error) { notify.error(error instanceof Error ? error.message : "Não foi possível salvar a empresa."); }
+    finally { setIsSavingCompany(false); }
+  };
 
   // Only backend-supported account fields can be saved.
   useEffect(() => {
@@ -207,22 +271,13 @@ export default function Settings() {
   }, []);
 
   const handleToggleZaiAssistant = async (checked: boolean) => {
-    const updated = await saveZaiAssistantConfigToApi({ ...zaiConfig, enabled: checked });
-    setZaiConfig(updated);
-    notify.success(
-      checked
-        ? "Assistente ZAI (Sistema) ativado no painel."
-        : "Assistente ZAI (Sistema) desativado no momento."
-    );
-  };
-
-  const handleSelectMascotModel = (modelId: string) => {
-    const model = ZAI_MASCOT_MODELS.find((m) => m.id === modelId) || ZAI_MASCOT_MODELS[0];
-    setZaiConfig((prev) => ({
-      ...prev,
-      mascotModel: model.id,
-      mascotAvatarUrl: model.avatarUrl,
-    }));
+    try {
+      const updated = await saveZaiAssistantConfigToApi({ ...zaiConfig, enabled: checked });
+      setZaiConfig(updated);
+      notify.success(checked ? "Painel lateral do ZAI ativado." : "Painel lateral do ZAI desativado.");
+    } catch {
+      notify.error("Não foi possível salvar a ativação do painel ZAI.");
+    }
   };
 
   const handleSaveZaiConfig = async () => {
@@ -246,7 +301,7 @@ export default function Settings() {
           <div className="flex items-center gap-3">
             <div className="relative h-12 w-12 shrink-0 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-1 overflow-hidden">
               <img
-                src={zaiConfig.mascotAvatarUrl || "/assets/mascot/zaibot_avatar.png"}
+                src="/assets/mascot/zaibot_avatar.png"
                 alt="Mascote ZAI"
                 className="h-full w-full rounded-xl object-cover"
               />
@@ -260,12 +315,12 @@ export default function Settings() {
                   variant="outline"
                   className={cn(
                     "text-[10px] font-bold",
-                    zaiConfig.enabled
+                    zaiConfig.enabled && zaiConfig.globallyEnabled !== false
                       ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-400"
                       : "border-amber-500/40 bg-amber-500/15 text-amber-300"
                   )}
                 >
-                  {zaiConfig.enabled ? "ATIVO NO SISTEMA" : "DESATIVADO NO MOMENTO"}
+                  {zaiConfig.globallyEnabled === false ? "BLOQUEADO PELO ADMIN" : zaiConfig.enabled ? "PAINEL ATIVO" : "PAINEL DESATIVADO"}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -274,19 +329,30 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 rounded-xl border border-border/70 bg-background/60 px-3.5 py-2 shrink-0">
+          <div className="flex flex-wrap items-center justify-end gap-2.5 rounded-xl border border-border/70 bg-background/60 px-3.5 py-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-2 text-xs"
+              disabled={!zaiConfig.enabled || zaiConfig.globallyEnabled === false}
+              onClick={() => window.dispatchEvent(new Event(ZAI_OPEN_EVENT))}
+            >
+              Abrir copiloto
+            </Button>
             <div className="text-right">
               <p className="text-xs font-bold text-foreground">
-                {zaiConfig.enabled ? "Assistente Ativado" : "Assistente Desativado"}
+                {zaiConfig.globallyEnabled === false ? "Indisponível pelo administrador" : zaiConfig.enabled ? "Painel lateral ativo" : "Painel lateral inativo"}
               </p>
               <p className="text-[10px] text-muted-foreground">
-                {zaiConfig.enabled ? "Botão flutuante visível" : "Oculto no painel"}
+                Análise do WhatsApp independe deste painel
               </p>
             </div>
             <Switch
               data-testid="toggle-zai-system-assistant"
-              aria-label="Ativar Assistente ZAI do Sistema"
+              aria-label="Ativar painel lateral do Assistente ZAI"
               checked={Boolean(zaiConfig.enabled)}
+              disabled={zaiConfig.globallyEnabled === false}
               onCheckedChange={(checked) => void handleToggleZaiAssistant(checked)}
             />
           </div>
@@ -294,56 +360,9 @@ export default function Settings() {
       </CardHeader>
 
       <CardContent className="space-y-5 pt-2">
-        {/* 1. Modelo de Mascote */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-              1. Modelo de Mascote ZAI
-            </Label>
-            <span className="text-[11px] text-muted-foreground">
-              Escolha o visual do assistente do sistema
-            </span>
-          </div>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
-            {ZAI_MASCOT_MODELS.map((model) => {
-              const selected = zaiConfig.mascotModel === model.id;
-              return (
-                <button
-                  key={model.id}
-                  type="button"
-                  data-testid={`select-mascot-${model.id}`}
-                  onClick={() => handleSelectMascotModel(model.id)}
-                  className={cn(
-                    "flex flex-col items-center text-center rounded-xl border p-3 transition-all",
-                    selected
-                      ? "border-emerald-500 bg-emerald-500/12 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                      : "border-border/70 bg-card/50 hover:border-emerald-500/40 hover:bg-card"
-                  )}
-                >
-                  <div className="h-14 w-14 rounded-xl border border-border/60 bg-background/80 p-1 overflow-hidden mb-2">
-                    <img
-                      src={model.avatarUrl}
-                      alt={model.name}
-                      className="h-full w-full object-cover rounded-lg"
-                    />
-                  </div>
-                  <span className="text-xs font-bold text-foreground line-clamp-1">{model.name}</span>
-                  <span className="mt-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 text-[9px] font-semibold text-emerald-400">
-                    {model.badge}
-                  </span>
-                  <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">
-                    {model.description}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 2. Ajustes de Personalidade */}
         <div className="space-y-3 pt-3 border-t border-border/50">
           <Label className="text-xs font-bold uppercase tracking-wider text-emerald-400 block">
-            2. Ajustes de Personalidade do Assistente ZAI
+            Ajustes de personalidade do Assistente ZAI
           </Label>
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -468,9 +487,9 @@ export default function Settings() {
 
         <div className="flex items-center justify-between pt-2 border-t border-border/50">
           <p className="text-[11px] text-muted-foreground">
-            Estado atual:{" "}
-            <strong className={zaiConfig.enabled ? "text-emerald-400" : "text-amber-300"}>
-              {zaiConfig.enabled ? "Ativado no sistema" : "Desativado no momento"}
+            Estado do painel:{" "}
+            <strong className={zaiConfig.enabled && zaiConfig.globallyEnabled !== false ? "text-emerald-400" : "text-amber-300"}>
+              {zaiConfig.globallyEnabled === false ? "Bloqueado pelo administrador" : zaiConfig.enabled ? "Ativado" : "Desativado; análise segue ativa"}
             </strong>
           </p>
           <Button
@@ -505,24 +524,21 @@ export default function Settings() {
   const iconMap: Record<number, any> = useMemo(() => ({
     0: User, 1: Buildings, 2: Users, 3: Bell, 4: Shield, 5: CreditCard,
     6: Palette, 7: Globe, 8: Key, 9: Link, 10: Database,
-    11: Queue, 12: HardDrives, 13: Shield, 14: TrendUp, 15: GitCommit, 16: FileText, 17: Flask, 18: Pulse,
-    19: Robot
+    11: Queue, 12: HardDrives, 13: Shield, 14: TrendUp, 15: GitCommit, 16: FileText, 17: Flask, 18: Pulse, 19: Buildings, 20: Robot,
   }), []);
 
   const userNavGroups = useMemo(() => [
     {
-      title: "Minha Conta",
+      title: "Conta e Acesso",
       indices: [0, 3, 4], // Perfil, Notificações, Segurança
     },
     {
       title: "Minha Empresa & Loja",
-      indices: [1, 2, 5], // Empresa, Equipe, Faturamento
+      indices: [1, 2, 5].filter((index) => canViewUserSection(index)), // Empresa, Equipe, Faturamento
     },
-    {
-      title: "Preferências & Visual",
-      indices: [6, 7], // Aparência, Idioma
-    },
-  ], []);
+    { title: "Personalização", indices: [6, 7] },
+    { title: "Inteligência Artificial", indices: [20] },
+  ], [canViewUserSection]);
 
   const masterNavGroups = useMemo(() => [
     {
@@ -539,11 +555,12 @@ export default function Settings() {
     },
     {
       title: "Diagnóstico & IA Sistema",
-      indices: [18, 17, 19], // Diagnósticos, Central de Testes, Assistente ZAI
+      indices: [18, 17], // Diagnósticos, Central de Testes
     },
+    { title: "Empresas e Licenças", indices: [19] },
   ], []);
 
-  const navGroups = settingsMode === "user" ? userNavGroups : masterNavGroups;
+  const navGroups = settingsMode === "master" ? masterNavGroups : companyUnlinked && !canOpenPlatformHub ? [] : userNavGroups;
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
@@ -567,14 +584,14 @@ export default function Settings() {
       />
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-4 sm:p-6 max-w-7xl mx-auto w-full">
-        {/* Top Segmented Mode Switcher: Usuário Normal / Loja vs Admin Master Enterprise */}
+        {/* Hub switch is visible only to platform masters. */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 rounded-2xl border border-border/70 bg-card/60 backdrop-blur-md shadow-sm">
-          <div className="grid grid-cols-2 gap-1.5 w-full sm:w-auto">
+          <div className={cn("grid gap-1.5 w-full sm:w-auto", canOpenPlatformHub ? "grid-cols-2" : "grid-cols-1")}>
             <button
               type="button"
               onClick={() => {
                 setSettingsMode("user");
-                if (activeSection >= 8) {
+                if (isMasterIndex(activeSection)) {
                   handleSectionChange(0);
                 }
               }}
@@ -586,16 +603,16 @@ export default function Settings() {
               )}
             >
               <User className="w-3.5 h-3.5" weight={settingsMode === "user" ? "fill" : "regular"} />
-              <span>👤 Conta & Loja</span>
+              <span>{settingsMode === "user" && canOpenPlatformHub ? `Conta da Empresa · ${selectedCompanyContext || session?.tenantId || "selecione"}` : "Conta & Loja"}</span>
             </button>
 
-            <button
+            {canOpenPlatformHub && <button
               type="button"
               onClick={() => {
+                try { window.localStorage.removeItem("zai_admin_company_context"); } catch { /* ignore unavailable storage */ }
+                setSelectedCompanyContext("");
                 setSettingsMode("master");
-                if (activeSection < 8) {
-                  handleSectionChange(12);
-                }
+                handleSectionChange(19);
               }}
               className={cn(
                 "flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
@@ -606,7 +623,7 @@ export default function Settings() {
             >
               <Shield className="w-3.5 h-3.5" weight={settingsMode === "master" ? "fill" : "regular"} />
               <span>🛡️ Painel Master Enterprise</span>
-            </button>
+            </button>}
           </div>
 
           <div className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground pr-3 font-medium">
@@ -708,12 +725,12 @@ export default function Settings() {
                   <div className="space-y-0.5">
                     {[
                       { label: "WhatsApp Conexões", path: "/connections" },
-                      { label: "Inbox Cockpit", path: "/inbox" },
-                      { label: "Campanhas & Disparos", path: "/campaigns" },
+                      { label: "Inbox Cockpit", path: "/inbox", module: "inbox" },
+                      { label: "Campanhas & Disparos", path: "/campaigns", module: "campaigns" },
                       { label: "Estúdio IA & Agentes", path: "/ai" },
                       { label: "Memória Neural", path: "/memory" },
                       { label: "Central de Operações", path: "/operations" },
-                    ].map((mod) => (
+                    ].filter((mod) => settingsMode === "master" || !mod.module || companyEntitlements?.legacyAccess || companyEntitlements?.modules.includes(mod.module)).map((mod) => (
                       <button
                         key={mod.path}
                         type="button"
@@ -730,6 +747,9 @@ export default function Settings() {
             </div>
           }
           content={
+            companyUnlinked && !canOpenPlatformHub ? (
+              <Card className="glass-card"><CardHeader><CardTitle>Conta sem empresa vinculada</CardTitle></CardHeader><CardContent className="space-y-2 text-sm text-muted-foreground"><p>Peça ao administrador master um link de cadastro ou conclua a solicitação enviada. O acesso será liberado após aprovação.</p><p>Solicitações de cadastro não enviam e-mail automaticamente.</p></CardContent></Card>
+            ) : (
             <div className="space-y-6">
               {activeSection === 0 && (
                 <>
@@ -764,11 +784,37 @@ export default function Settings() {
                     </CardContent>
                   </Card>
 
-                  {renderZaiSystemAssistantCard()}
                 </>
               )}
 
-              {activeSection === 19 && renderZaiSystemAssistantCard()}
+              {activeSection === 20 && renderZaiSystemAssistantCard()}
+
+              {activeSection === 1 && (
+                <Card className="glass-card">
+                  <CardHeader><CardTitle className="font-display">Dados da empresa</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    {companyLoadError ? <p role="alert" className="text-sm text-amber-400">{companyLoadError}</p> : companyEntitlements ? <>
+                      <div className="space-y-1.5"><Label htmlFor="company-name">Empresa</Label><Input id="company-name" value={companyNameInput} onChange={(event) => setCompanyNameInput(event.target.value)} readOnly={role === "user"} /></div>
+                      <div className="space-y-1.5"><Label htmlFor="company-responsible">Responsável</Label><Input id="company-responsible" value={companyResponsibleInput} onChange={(event) => setCompanyResponsibleInput(event.target.value)} readOnly={role === "user"} /></div>
+                      <div><p className="text-xs text-muted-foreground">Identificador mantido</p><p className="font-mono text-xs">{companyEntitlements.company.id}</p></div>
+                      {(role === "admin" || (canOpenPlatformHub && Boolean(selectedCompanyContext))) && <Button onClick={() => void handleSaveCompanyProfile()} disabled={isSavingCompany || !companyNameInput.trim() || !companyContextApplied}>{isSavingCompany ? "Salvando…" : "Salvar dados da empresa"}</Button>}
+                    </> : <p role="status" className="text-sm text-muted-foreground">Carregando dados da empresa…</p>}
+                    {!companyEntitlements && !companyLoadError && <p className="text-sm text-muted-foreground">Sem empresa vinculada. Solicite um link de cadastro ao administrador ou conclua o cadastro aprovado.</p>}
+                  </CardContent>
+                </Card>
+              )}
+
+      {activeSection === 2 && <React.Suspense fallback={<div role="status" className="p-8 text-center text-sm text-muted-foreground">Carregando equipe…</div>}><CompanyTeamPage adminHeaders={companyContextHeaders} /></React.Suspense>}
+
+              {activeSection === 5 && (
+                <Card className="glass-card">
+                  <CardHeader><CardTitle className="font-display">Plano e licença</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    {companyEntitlements?.legacyAccess ? <p className="text-sm text-muted-foreground">Acesso legado mantido enquanto um pacote não for atribuído.</p> : companyEntitlements?.license ? <div className="space-y-1 text-sm"><p>Plano: <strong>{companyEntitlements.license.plan}</strong></p><p>Módulos: {companyEntitlements.modules.join(", ") || "nenhum"}</p><p>Números WhatsApp: {companyEntitlements.numberLimit ?? 0}</p><p>Validade: {companyEntitlements.license.expires_at ? new Date(companyEntitlements.license.expires_at).toLocaleDateString() : "sem vencimento"}</p></div> : <p className="text-sm text-muted-foreground">Nenhuma licença ativa vinculada a esta empresa.</p>}
+                    {(role === "admin" || (canOpenPlatformHub && Boolean(selectedCompanyContext))) && <div className="flex flex-col gap-2 sm:flex-row"><Input value={licenseToken} onChange={(event) => setLicenseToken(event.target.value)} placeholder="Token da licença" aria-label="Token da licença" /><Button disabled={!licenseToken.trim() || isRedeemingLicense} onClick={() => void handleRedeemLicense()}>{isRedeemingLicense ? "Validando…" : "Resgatar licença"}</Button></div>}
+                  </CardContent>
+                </Card>
+              )}
 
               {activeSection === 6 && (
                 <Card className="glass-card">
@@ -870,7 +916,7 @@ export default function Settings() {
                 </Card>
               )}
 
-              {activeSection >= 11 && activeSection <= 18 && (
+              {activeSection >= 11 && activeSection <= 19 && (
                 <Card className="glass-card overflow-hidden w-full max-w-full min-w-0">
                   <React.Suspense fallback={<div className="flex h-32 items-center justify-center text-muted-foreground text-sm">Carregando painel...</div>}>
                     <style>{`
@@ -893,12 +939,13 @@ export default function Settings() {
                       {activeSection === 16 && <MasterLogsPage />}
                       {activeSection === 17 && <TestsPage />}
                       {activeSection === 18 && <DiagnosticsPage />}
+                      {activeSection === 19 && <MasterCompaniesPage />}
                     </div>
                   </React.Suspense>
                 </Card>
               )}
 
-              {![0, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18, 19].includes(activeSection) && (
+              {![0, 1, 2, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].includes(activeSection) && (
                 <Card className="glass-card">
                   <UnderConstruction
                     title={settingsViewModel.sections[activeSection]?.label || "Módulo em Desenvolvimento"}
@@ -907,6 +954,7 @@ export default function Settings() {
                 </Card>
               )}
             </div>
+            )
           }
         />
       </motion.div>

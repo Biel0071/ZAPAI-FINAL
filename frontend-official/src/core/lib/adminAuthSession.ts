@@ -59,7 +59,7 @@ function readStorage(storage: Storage | undefined): AdminAuthSession | null {
       return {
         token: fallbackToken,
         username,
-        role: role === "master" || role === "admin" ? role : "user",
+        role: ["master", "master_admin", "owner", "superadmin"].includes(role) ? "master" : role === "admin" ? "admin" : "user",
         tenantId,
         companyId: tenantId,
         issuedAt,
@@ -85,7 +85,7 @@ function readStorage(storage: Storage | undefined): AdminAuthSession | null {
       token,
       ...(refreshToken ? { refreshToken } : {}),
       username,
-      role: role === "master" || role === "admin" ? role : "user",
+        role: ["master", "master_admin", "owner", "superadmin"].includes(role) ? "master" : role === "admin" ? "admin" : "user",
       ...(tenantId ? { tenantId } : {}),
       ...(companyId ? { companyId } : {}),
       issuedAt,

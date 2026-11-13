@@ -97,6 +97,8 @@ export interface Conversation {
   status?: "online" | "offline" | "typing" | "open" | "archived" | "pending_human" | "closed_won" | "intervencao_humana" | string;
   tags?: string[];
   whatsappLabels?: string[];
+  pinnedQuickReplies?: string[];
+  pinned_quick_replies?: string[];
   isAI?: boolean;
   lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "product" | "order" | string;
   aiEnabled?: boolean;
@@ -523,6 +525,7 @@ type ProxyRequest = {
   endpoint: string;
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
+  headers?: Record<string, string>;
   timeoutMs?: number;
 };
 
@@ -588,6 +591,8 @@ type RawConversation = {
   status?: "online" | "offline" | "typing";
   tags?: string[];
   whatsappLabels?: string[];
+  pinnedQuickReplies?: string[];
+  pinned_quick_replies?: string[];
   isAI?: boolean;
   lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
   messageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
@@ -729,7 +734,7 @@ function isCacheableGetEndpoint(endpoint: string): boolean {
   );
 }
 
-async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_MS }: ProxyRequest, authScope: string, signal: AbortSignal): Promise<T> {
+async function executeRequest<T>({ endpoint, method, body, headers: extraHeaders, timeoutMs = REQUEST_TIMEOUT_MS }: ProxyRequest, authScope: string, signal: AbortSignal): Promise<T> {
   assertRequestAuthScope(authScope);
   if (!API_BASE_URL) {
     throw new Error("API_ORIGIN_UNAVAILABLE: configure VITE_API_URL para o backend oficial");
@@ -759,7 +764,7 @@ async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_T
       assertRequestAuthScope(authScope);
       slog.info("api", `${method} ${endpoint}`, { route: endpoint });
 
-      const apiHeaders = await buildApiHeaders();
+      const apiHeaders = { ...await buildApiHeaders(), ...(extraHeaders || {}) };
       assertRequestAuthScope(authScope);
       const correlationId = `web_${generateUuid()}`;
 
@@ -1018,7 +1023,15 @@ export function normalizeConversation(item: RawConversation, index: number = 0):
     unread: item.unread ?? item.unread_count ?? item.unreadCount ?? 0,
     status: item.status ?? "offline",
     tags: item.tags ?? [],
-    whatsappLabels: Array.isArray(item.whatsappLabels) ? item.whatsappLabels.map(String) : [],
+    whatsappLabels: Array.isArray(item.whatsappLabels)
+      ? item.whatsappLabels.map(String)
+      : (Array.isArray(item.whatsapp_labels) ? item.whatsapp_labels.map(String) : []),
+    pinnedQuickReplies: Array.isArray(item.pinnedQuickReplies)
+      ? item.pinnedQuickReplies.map(String)
+      : (Array.isArray(item.pinned_quick_replies) ? item.pinned_quick_replies.map(String) : []),
+    pinned_quick_replies: Array.isArray(item.pinnedQuickReplies)
+      ? item.pinnedQuickReplies.map(String)
+      : (Array.isArray(item.pinned_quick_replies) ? item.pinned_quick_replies.map(String) : []),
     isAI: item.isAI ?? false,
     lastMessageType:
       normalizedType === "image" || normalizedType === "video" || normalizedType === "audio" || normalizedType === "file" || normalizedType === "sticker" || normalizedType === "document" || normalizedType === "media"
@@ -1032,6 +1045,8 @@ export function normalizeConversation(item: RawConversation, index: number = 0):
     humanActive: item.humanActive,
     assignedAgentName: item.agent_name ?? item.assigned_to ?? item.assignedAgentName ?? null,
     agent_name: item.agent_name ?? item.assigned_to ?? item.assignedAgentName ?? null,
+    mappedPhone: item.mappedPhone ?? item.mapped_phone ?? null,
+    mapped_phone: item.mapped_phone ?? item.mappedPhone ?? null,
     is_pinned: Boolean(item.is_pinned ?? item.pinned),
     pinned: Boolean(item.is_pinned ?? item.pinned),
     pinned_at: item.pinned_at ? String(item.pinned_at) : null,
@@ -1292,6 +1307,18 @@ export const apiService = {
     return res?.data ?? [];
   },
 
+  async getCompanyEntitlements(headers?: Record<string, string>): Promise<{ company: { id: string; name: string; responsible_name?: string | null }; legacyAccess: boolean; modules: string[]; numberLimit: number | null; license: { plan: string; expires_at: string | null } | null }> {
+    return request({ endpoint: "/api/company/entitlements", method: "GET", headers });
+  },
+
+  async updateCompanyProfile(payload: { name: string; responsibleName: string }, headers?: Record<string, string>): Promise<{ company: { id: string; name: string; responsible_name: string | null } }> {
+    return request({ endpoint: "/api/company", method: "PATCH", body: payload, headers });
+  },
+
+  async redeemCompanyLicense(token: string, headers?: Record<string, string>): Promise<{ redeemed: boolean; licenseId: number }> {
+    return request({ endpoint: "/api/licenses/redeem", method: "POST", body: { token }, headers });
+  },
+
   async updateAdminUser(id: number, payload: { email?: string; role?: string; password?: string }): Promise<any> {
     const res = await request<{ ok: boolean; data: any }>({
       endpoint: `/api/admin/users/${id}`,
@@ -1299,6 +1326,30 @@ export const apiService = {
       body: payload,
     });
     return res?.data;
+  },
+
+  async createAdminUser(payload: { username: string; email?: string; password: string; role?: string }): Promise<any> {
+    const res = await request<{ ok: boolean; data: any }>({ endpoint: "/api/admin/users", method: "POST", body: payload });
+    return res?.data;
+  },
+
+  async deleteAdminUser(id: number): Promise<any> {
+    const res = await request<{ ok: boolean; data: any }>({ endpoint: `/api/admin/users/${id}`, method: "DELETE" });
+    return res?.data;
+  },
+
+  async getUserModulePermissions(id: number): Promise<Array<{ module: string; enabled: boolean }>> {
+    const res = await request<{ userId: number; permissions: Array<{ module: string; enabled: boolean }> }>({ endpoint: `/api/company/users/${id}/modules`, method: "GET" });
+    return res?.permissions ?? [];
+  },
+
+  async getCompanyUserModulePermissions(headers?: Record<string, string>): Promise<Array<{ user_id: number; module: string; enabled: boolean }>> {
+    const res = await request<{ permissions: Array<{ user_id: number; module: string; enabled: boolean }> }>({ endpoint: "/api/company/users/modules", method: "GET", headers });
+    return res?.permissions ?? [];
+  },
+
+  async setUserModulePermission(id: number, module: "inbox" | "contacts" | "campaigns", enabled: boolean, headers?: Record<string, string>): Promise<void> {
+    await request({ endpoint: `/api/company/users/${id}/modules/${module}`, method: "PUT", body: { enabled }, headers });
   },
 
   async getPublicUrl() {
@@ -2495,7 +2546,9 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: `/api/contacts/${encodeURIComponent(phone)}/block`, method: "POST" }),
   unblockContact: (phone: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/contacts/${encodeURIComponent(phone)}/unblock`, method: "POST" }),
-  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean }) =>
+  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean; pinnedQuickReplies?: string[]; pinned_quick_replies?: string[] }) =>
+    request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
+  updateConversationMeta: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean; pinnedQuickReplies?: string[]; pinned_quick_replies?: string[] }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
   createConversation: (payload: { phone: string; name?: string; sessionId?: string }) => {
     invalidateCache("conversations");
@@ -2524,9 +2577,12 @@ export const apiService = {
   reprocessDeadLetter: (id: string, testing?: boolean) =>
     request<{ item: OutboundQueueItem }>({ endpoint: `/api/outbound-queue/dlq/${encodeURIComponent(id)}/reprocess`, method: "POST", body: { testing } }),
 
-  async getQuickReplies() {
+  async getQuickReplies(sessionId?: string) {
     try {
-      const data = await request<any[]>({ endpoint: "/api/quick-replies", method: "GET" });
+      const endpoint = withQuery("/api/quick-replies", {
+        sessionId: sessionId && sessionId !== "current" ? sessionId : undefined,
+      });
+      const data = await request<any[]>({ endpoint, method: "GET" });
       return Array.isArray(data) ? data : [];
     } catch {
       return [];
