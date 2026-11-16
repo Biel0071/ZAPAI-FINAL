@@ -36,7 +36,6 @@ import {
   FileText,
   Image as ImageIcon,
   Gear,
-  ShoppingBag,
   ArrowsLeftRight,
   CircleNotch,
 } from "@phosphor-icons/react";
@@ -457,35 +456,91 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     if (!phone || !selectedConversation?.id) return () => { active = false; };
     const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId, phone: selectedConversation.phone };
     const matches = (data: Partial<FlowExecutionData> | null | undefined) => matchesConversationFlow(data, context);
+
     apiService.getActiveQuickReplyFlow(phone, context).then((res) => {
       if (active && matches(res?.flow)) setActiveFlowData(res.flow);
     }).catch((error) => console.warn("[FLOW_TIMELINE] active flow load failed", error));
+
+    const handleFlowDispatched = (e: Event) => {
+      const customEvent = e as CustomEvent<FlowExecutionData>;
+      if (customEvent.detail && matches(customEvent.detail)) {
+        setActiveFlowData(customEvent.detail);
+      }
+    };
+    window.addEventListener("flow:dispatched", handleFlowDispatched);
+
     const socket = getSharedSocket();
-    if (!socket) return () => { active = false; };
-    const started = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] started", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, nextSendAt: data.nextSendAt ?? prev?.nextSendAt ?? null })); } };
-    const updated = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] updated", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, nextSendAt: data.nextSendAt ?? prev?.nextSendAt ?? null })); } };
-    const paused = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] paused", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: true, status: "paused" })); } };
-    const resumed = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] resumed", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: false, status: "running" })); } };
-    const ended = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] completed", data); setActiveFlowData(null); } };
+    if (!socket) {
+      return () => {
+        active = false;
+        window.removeEventListener("flow:dispatched", handleFlowDispatched);
+      };
+    }
+
+    const started = (data: FlowExecutionData) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] started", data);
+        setActiveFlowData((prev) => ({ ...(prev || {}), ...data, nextSendAt: data.nextSendAt ?? prev?.nextSendAt ?? null, status: "running" }));
+      }
+    };
+    const updated = (data: FlowExecutionData) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] updated", data);
+        setActiveFlowData((prev) => ({ ...(prev || {}), ...data, nextSendAt: data.nextSendAt ?? prev?.nextSendAt ?? null, status: "running" }));
+      }
+    };
+    const paused = (data: any) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] paused", data);
+        setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: true, status: "paused" }));
+      }
+    };
+    const resumed = (data: any) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] resumed", data);
+        setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: false, status: "running" }));
+      }
+    };
+    const ended = (data: any) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] completed", data);
+        setActiveFlowData((prev) => (prev ? { ...prev, currentStep: prev.totalSteps, status: "completed", nextSendAt: null } : null));
+        setTimeout(() => {
+          setActiveFlowData((prev) => (prev?.status === "completed" ? null : prev));
+        }, 2500);
+      }
+    };
+    const cancelled = (data: any) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] cancelled", data);
+        setActiveFlowData((prev) => (prev ? { ...prev, status: "cancelled", nextSendAt: null } : null));
+        setTimeout(() => {
+          setActiveFlowData((prev) => (prev?.status === "cancelled" ? null : prev));
+        }, 1200);
+      }
+    };
+
     socket.on("flow:started", started);
     socket.on("flow:step_updated", updated);
     socket.on("flow:paused", paused);
     socket.on("flow:resumed", resumed);
-    socket.on("flow:cancelled", ended);
+    socket.on("flow:cancelled", cancelled);
     socket.on("flow:finished", ended);
+
     return () => {
       active = false;
+      window.removeEventListener("flow:dispatched", handleFlowDispatched);
       socket.off("flow:started", started);
       socket.off("flow:step_updated", updated);
       socket.off("flow:paused", paused);
       socket.off("flow:resumed", resumed);
-      socket.off("flow:cancelled", ended);
+      socket.off("flow:cancelled", cancelled);
       socket.off("flow:finished", ended);
     };
   }, [selectedConversation?.id, selectedConversation?.phone, selectedConversation?.sessionId]);
 
   // While a quick-reply flow is running, resync the real timer/steps every 3s (socket events can be missed).
-  const hasActiveFlow = Boolean(activeFlowData);
+  const hasActiveFlow = Boolean(activeFlowData && activeFlowData.status !== "completed");
   useEffect(() => {
     const phone = selectedConversation?.phone;
     if (!hasActiveFlow || !phone || !selectedConversation?.id) return;
@@ -497,10 +552,12 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         if (matchesConversationFlow(res?.flow, context)) {
           setActiveFlowData((prev) => ({ ...(prev || {}), ...res.flow }));
         } else if (res && !res.flow) {
-          // Grace period: do not immediately clear if flow started less than 8s ago
+          // Do not erase flow while still executing steps; only clear after completion or 45s inactivity
           setActiveFlowData((prev) => {
             if (!prev) return null;
-            if (Date.now() - (prev.startedAt || 0) < 8000) return prev;
+            if (prev.status === "completed") return null;
+            if (prev.totalSteps > 0 && prev.currentStep >= prev.totalSteps) return null;
+            if (Date.now() - (prev.startedAt || 0) < 45000) return prev;
             return null;
           });
         }
@@ -518,6 +575,19 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     if (!selectedConversation?.phone || !isWhatsappConnected) throw new Error("Conecte o WhatsApp antes de enviar.");
     if (quickReplyDispatchRef.current) throw new Error("Aguarde o envio atual.");
     quickReplyDispatchRef.current = true;
+    const rawStepsCount = customSteps?.length || (item.steps?.length ? item.steps.length : (item.items?.length ? item.items.length : 1));
+    setActiveFlowData({
+      chatId: selectedConversation.phone,
+      conversationId: selectedConversation.id,
+      sessionId: selectedConversation.sessionId,
+      flowName: item.title || "Resposta rápida",
+      currentStep: 0,
+      totalSteps: rawStepsCount,
+      startedAt: Date.now(),
+      nextSendAt: Date.now() + (customDelayMs || 2000),
+      stepDelaySeconds: Math.round((customDelayMs || 2000) / 1000),
+      status: "running",
+    });
     try {
       await sendQuickReply(item, customDelayMs, customSteps);
       // Do not rely only on the socket event: fetch the running flow so the banner always appears.
@@ -1698,28 +1768,15 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               <div className="flex items-center gap-1.5 min-w-0 truncate">
                 <Robot className="h-3.5 w-3.5 text-primary shrink-0" />
                 <span className="truncate">
-                  Automação pausada na loja. Você pode responder ou usar sugestões.
+                  Automação pausada na loja. Você pode responder manualmente.
                 </span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-6 rounded px-2 text-[10px] font-semibold border-primary/30 text-primary hover:bg-primary/10 transition-all shrink-0"
-                  onClick={() => {
-                    setRightPanelTab("ai");
-                    setRightPanelCollapsed(false);
-                    if (isTabletLayout || isMobile) setShowLeadPanel(true);
-                  }}
-                >
-                  Sugestões
-                </Button>
                 <button
                   type="button"
                   onClick={() => setDismissedBanners((prev) => ({ ...prev, ai_paused: true }))}
                   className="text-muted-foreground hover:text-foreground p-0.5 rounded shrink-0 transition-colors"
-                  aria-label="Dispensar aviso de IA pausada"
+                  aria-label="Dispensar aviso de automação pausada"
                 >
                   <X className="h-3 w-3" />
                 </button>

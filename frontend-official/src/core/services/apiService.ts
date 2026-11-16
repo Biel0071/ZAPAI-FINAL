@@ -5,7 +5,7 @@ import { reportFrontendIssue } from "@/core/runtime/services/frontendHealthServi
 import { slog } from "@/core/runtime/logs/structuredLogger";
 import { notify } from "@/core/services/notifyService";
 import { API_BASE_URL, API_ORIGIN } from "@/core/lib/backendConfig";
-import { ADMIN_AUTH_CHANGED_EVENT, clearAdminAuthSession } from "@/core/lib/adminAuthSession";
+import { ADMIN_AUTH_CHANGED_EVENT, clearAdminAuthSession, loadAdminAuthSession } from "@/core/lib/adminAuthSession";
 import { generateUuid } from "@/core/lib/utils";
 import axios from "axios";
 
@@ -97,6 +97,7 @@ export interface Conversation {
   status?: "online" | "offline" | "typing" | "open" | "archived" | "pending_human" | "closed_won" | "intervencao_humana" | string;
   tags?: string[];
   whatsappLabels?: string[];
+  whatsapp_labels?: string[];
   pinnedQuickReplies?: string[];
   pinned_quick_replies?: string[];
   isAI?: boolean;
@@ -114,6 +115,8 @@ export interface Conversation {
   humanActive?: boolean;
   assignedAgentName?: string;
   agent_name?: string;
+  mappedPhone?: string | null;
+  mapped_phone?: string | null;
   isBlocked?: boolean;
   assigned_to?: string;
   lid?: string;
@@ -137,6 +140,7 @@ export interface ChatMessage {
   createdAt?: string;
   timestamp?: string | number;
   status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry" | "error" | "blocked" | "received";
+  ack?: number;
   direction?: "incoming" | "outgoing" | string;
   phone?: string;
   sessionId?: string;
@@ -496,7 +500,7 @@ export interface PersistedMessagePayload {
   status?: "sent" | "delivered" | "read";
   caption?: string;
   mediaType?: "image" | "video" | "audio" | "file" | "sticker";
-  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
   mediaPath?: string | null;
   mediaUrl?: string | null;
   url?: string | null;
@@ -591,12 +595,13 @@ type RawConversation = {
   status?: "online" | "offline" | "typing";
   tags?: string[];
   whatsappLabels?: string[];
+  whatsapp_labels?: string[];
   pinnedQuickReplies?: string[];
   pinned_quick_replies?: string[];
   isAI?: boolean;
-  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
-  messageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
-  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
+  messageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
   aiEnabled?: boolean;
   ai_enabled?: boolean;
   summary?: string;
@@ -607,6 +612,8 @@ type RawConversation = {
   assigned_to?: string;
   agent_name?: string;
   assignedAgentName?: string;
+  mappedPhone?: string | null;
+  mapped_phone?: string | null;
   is_pinned?: boolean;
   pinned?: boolean;
   pinned_at?: string | null;
@@ -633,9 +640,10 @@ type RawMessage = {
   time?: string;
   timestamp?: string | number;
   status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry";
+  ack?: number;
   isAI?: boolean;
-  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
-  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
+  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
   mediaPath?: string;
   media_path?: string;
   mediaUrl?: string;
@@ -1034,7 +1042,7 @@ export function normalizeConversation(item: RawConversation, index: number = 0):
       : (Array.isArray(item.pinned_quick_replies) ? item.pinned_quick_replies.map(String) : []),
     isAI: item.isAI ?? false,
     lastMessageType:
-      normalizedType === "image" || normalizedType === "video" || normalizedType === "audio" || normalizedType === "file" || normalizedType === "sticker" || normalizedType === "document" || normalizedType === "media"
+      normalizedType === "image" || normalizedType === "video" || normalizedType === "audio" || normalizedType === "file" || normalizedType === "sticker" || normalizedType === "document" || normalizedType === "media" || normalizedType === "product" || normalizedType === "order"
         ? (normalizedType === "document" || normalizedType === "media" ? "file" : normalizedType)
         : "text",
     aiEnabled: item.aiEnabled ?? item.ai_enabled ?? true,
@@ -2493,7 +2501,7 @@ export const apiService = {
   },
   createCampaign: (payload: Partial<CampaignRecord> & Record<string, unknown>) =>
     request<CampaignRecord>({ endpoint: "/api/campaigns", method: "POST", body: payload }),
-  parseContext: async (formData: FormData) => axios.post(`${API_BASE_URL}/api/campaigns/parse-context`, formData, {
+  parseContext: async (formData: FormData) => axios.post(`${API_BASE_URL}/campaigns/parse-context`, formData, {
     headers: {
       ...await buildApiHeaders(),
       "Content-Type": "multipart/form-data",
@@ -2546,9 +2554,9 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: `/api/contacts/${encodeURIComponent(phone)}/block`, method: "POST" }),
   unblockContact: (phone: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/contacts/${encodeURIComponent(phone)}/unblock`, method: "POST" }),
-  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean; pinnedQuickReplies?: string[]; pinned_quick_replies?: string[] }) =>
+  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean; pinnedQuickReplies?: string[]; pinned_quick_replies?: string[]; whatsappLabels?: string[]; whatsapp_labels?: string[] }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
-  updateConversationMeta: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean; pinnedQuickReplies?: string[]; pinned_quick_replies?: string[] }) =>
+  updateConversationMeta: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean; pinnedQuickReplies?: string[]; pinned_quick_replies?: string[]; whatsappLabels?: string[]; whatsapp_labels?: string[] }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
   createConversation: (payload: { phone: string; name?: string; sessionId?: string }) => {
     invalidateCache("conversations");
@@ -2774,7 +2782,7 @@ export const apiService = {
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const res = await fetch(`${BACKEND_BASE_URL}/api/products/upload-image`, {
+    const res = await fetch(`${API_BASE_URL}/products/upload-image`, {
       method: "POST",
       headers,
       body: formData,

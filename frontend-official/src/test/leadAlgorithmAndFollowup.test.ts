@@ -103,10 +103,9 @@ describe("Lead Algorithm & Store Evolution Algorithms (Store Standard + Per-Lead
     expect(prompt).toContain("Tijolo Baiano");
   });
 
-  it("configures ZAI exclusively as system assistant disabled by default with customizable personality and mascot models", async () => {
+  it("keeps one ZAI system mascot and configurable personality, with the side panel disabled by default", async () => {
     const {
       DEFAULT_ZAI_ASSISTANT_CONFIG,
-      ZAI_MASCOT_MODELS,
       ZAI_PERSONALITY_TONES,
       setLocalZaiAssistantConfig,
       getZaiAssistantConfig,
@@ -115,7 +114,6 @@ describe("Lead Algorithm & Store Evolution Algorithms (Store Standard + Per-Lead
     window.localStorage.removeItem("zai_system_assistant_config_v1");
     expect(DEFAULT_ZAI_ASSISTANT_CONFIG.enabled).toBe(false);
     expect(DEFAULT_ZAI_ASSISTANT_CONFIG.role).toBe("system_assistant_only");
-    expect(ZAI_MASCOT_MODELS.length).toBeGreaterThanOrEqual(5);
     expect(ZAI_PERSONALITY_TONES.length).toBeGreaterThanOrEqual(4);
 
     const updated = setLocalZaiAssistantConfig({
@@ -128,7 +126,7 @@ describe("Lead Algorithm & Store Evolution Algorithms (Store Standard + Per-Lead
       },
     });
     expect(updated.enabled).toBe(true);
-    expect(updated.mascotAvatarUrl).toBe("/assets/mascot/mascot_laptop_working.png");
+    expect(updated.mascotAvatarUrl).toBe("/assets/mascot/zaibot_avatar.png");
     expect(getZaiAssistantConfig().personality.tone).toBe("analitico_dados");
     window.localStorage.removeItem("zai_system_assistant_config_v1");
   });
