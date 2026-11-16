@@ -126,6 +126,7 @@ const KNOWN_MEMORY_CATEGORIES = [
 
 export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, selectedAgent, isSessionConnected: propIsSessionConnected, initialSubTab = "hub" }: EvolutionTabProps = {}) {
   const storeSessions = useAppStore((state) => state.sessions);
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
   const hasLiveSession = storeSessions.length > 0
     ? storeSessions.some((s) => s.connected || s.status === "connected")
     : true;
@@ -353,7 +354,8 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
     }
     setMemoryLoading(true);
     try {
-      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(agentKey)}&limit=80`);
+      const sessionQuery = activeSessionId && activeSessionId !== "all" ? `&sessionId=${encodeURIComponent(activeSessionId)}` : "";
+      const res = await requestApiEndpoint<any>(`/api/ai/memory/graph?agentKey=${encodeURIComponent(agentKey)}&limit=80${sessionQuery}`);
       if (requestId !== memoryRequestId.current) return;
       if (res?.success === false) throw new Error(res.error || "Falha ao consultar memórias.");
       const graph = res?.data || res;
@@ -408,7 +410,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
     } finally {
       if (requestId === memoryRequestId.current) setMemoryLoading(false);
     }
-  }, []);
+  }, [activeSessionId]);
 
   useEffect(() => {
     if (selectedAgentKey) {
@@ -861,7 +863,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
         <div className="h-[76px] p-3 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
           <div className="space-y-0.5">
             <span className="text-[11px] font-medium text-muted-foreground block">
-              Objeções Aprendidas
+              Objeções Aprendidas (loja)
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
@@ -877,7 +879,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
         <div className="h-[76px] p-3 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
           <div className="space-y-0.5">
             <span className="text-[11px] font-medium text-muted-foreground block">
-              Atendimentos Analisados
+              Msgs de Operadores (loja)
             </span>
             <div className="flex items-baseline gap-2">
               <strong className="text-xl font-bold font-mono text-foreground">
@@ -894,7 +896,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
       {/* 4 CAMPOS DE EVOLUÇÃO DE IA CONSOLIDADOS & DATE FILTER BAR */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card/80 border border-border/70 max-w-full overflow-x-auto no-scrollbar flex-nowrap shrink-0">
-          {/* CAMPO 1: PAINEL DE NÍVEL & XP */}
+          {/* CAMPO 1: MATURIDADE & DESEMPENHO */}
           <button
             type="button"
             onClick={() => setEvolutionSubTab("hub")}
@@ -906,7 +908,7 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
             )}
           >
             <Zap className="h-4 w-4 text-purple-400" />
-            <span>Painel de Nível & XP</span>
+            <span>Maturidade & Desempenho</span>
           </button>
 
           {/* CAMPO 2: CÉREBRO & MEMÓRIA ATIVA */}
@@ -1006,19 +1008,20 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
         </div>
       </div>
 
-      {/* MODE 0: PAINEL DE EVOLUÇÃO & XP (HUB GAMIFICADO DE MATURIDADE) */}
+      {/* MODE 0: PAINEL DE EVOLUÇÃO (HUB DE APRENDIZADO E DIRETRIZES) */}
       {evolutionSubTab === "hub" && (
-        hasEvolutionData ? (
+        (selectedAgentKey || currentAgent) ? (
           <AttendantEvolutionHub
-            agentKey={selectedAgentKey}
+            agentKey={selectedAgentKey || currentAgent?.key || currentAgent?.id || "camila"}
             agentName={currentAgent?.name || "Atendente"}
             agentRole={currentAgent?.role || "Atendente Virtual"}
             avatarConfig={currentAvatarConfig}
+            isActive={Boolean(currentAgent) && currentAgent?.active !== false}
             onRefresh={() => selectedAgentKey && loadAgentData(selectedAgentKey)}
           />
         ) : (
           <Card className="p-5 text-sm text-muted-foreground border-border/70 bg-card/60">
-            {isLoading ? "Carregando evolução..." : "Sem dados de evolução disponíveis para este agente."}
+            {isLoading ? "Carregando evolução..." : "Nenhum atendente selecionado."}
           </Card>
         )
       )}
@@ -1201,13 +1204,13 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
 
                 <div className="text-center space-y-2 w-full max-w-xs">
                   <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/40 text-xs px-3 py-1 uppercase font-bold tracking-wider">
-                    Nível {humanStats.level ?? "—"}: {humanStats.levelTitle || "—"}
+                    {humanStats.levelTitle || "Atendimento Comercial"}
                   </Badge>
                   <div className="space-y-1 pt-1">
                     <div className="flex justify-between text-[11px] text-muted-foreground">
-                      <span>Progresso do Nível</span>
+                      <span>Calibração Operacional</span>
                       <span className="font-mono font-bold text-foreground">
-                        {humanStats.totalXp == null ? "—" : humanStats.totalXp.toLocaleString("pt-BR")} / {humanStats.nextLevelXp == null ? "—" : humanStats.nextLevelXp.toLocaleString("pt-BR")} XP
+                        {humanStats.totalXp == null ? "—" : humanStats.totalXp.toLocaleString("pt-BR")} / {humanStats.nextLevelXp == null ? "—" : humanStats.nextLevelXp.toLocaleString("pt-BR")} pts
                       </span>
                     </div>
                     {humanStats.progressPct == null ? (
@@ -1535,13 +1538,13 @@ export function EvolutionTab({ agentKey, onSelectAgent, agents: initialAgents, s
 
             <div className="text-center space-y-2 w-full max-w-xs">
               <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/40 text-xs px-3 py-1 uppercase font-bold tracking-wider">
-                Nível {humanStats.level ?? "—"}: {humanStats.levelTitle || "—"}
+                {humanStats.levelTitle || "Atendimento Comercial"}
               </Badge>
               <div className="space-y-1 pt-1">
                 <div className="flex justify-between text-[11px] text-muted-foreground">
-                  <span>Progresso do Nível</span>
+                  <span>Calibração Operacional</span>
                   <span className="font-mono font-bold text-foreground">
-                    {humanStats.totalXp == null ? "—" : humanStats.totalXp.toLocaleString("pt-BR")} / {humanStats.nextLevelXp == null ? "—" : humanStats.nextLevelXp.toLocaleString("pt-BR")} XP
+                    {humanStats.totalXp == null ? "—" : humanStats.totalXp.toLocaleString("pt-BR")} / {humanStats.nextLevelXp == null ? "—" : humanStats.nextLevelXp.toLocaleString("pt-BR")} pts
                   </span>
                 </div>
                 {humanStats.progressPct == null ? (

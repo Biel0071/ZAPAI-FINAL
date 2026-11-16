@@ -291,6 +291,69 @@ async function getMessagesByConversation(conversationId, options = {}) {
 
   let queryText = '';
   if (convIdIdx) {
+    // Fast path: query directly by indexed conversation_id first (executes in <2ms)
+    const primaryValues = [companyId, resolvedConvId];
+    let fastBeforeClause = '';
+    if (before && !Number.isNaN(before.getTime())) {
+      primaryValues.push(before.toISOString());
+      if (beforeId) {
+        primaryValues.push(beforeId);
+        fastBeforeClause = ` AND (m.created_at, m.id) < ($3::timestamp, $4::integer)`;
+      } else {
+        fastBeforeClause = ` AND m.created_at < ($3::timestamp)`;
+      }
+    }
+    primaryValues.push(limit);
+    const fastLimitIdx = primaryValues.length;
+
+    const fastQuery = `
+      SELECT * FROM (
+        SELECT m.id,
+               COALESCE(m.conversation_id, $2) AS conversation_id,
+               COALESCE(m.sender, CASE WHEN m.from_me THEN 'agent' ELSE 'client' END) AS sender,
+               COALESCE(m.media_type, m.type, 'text') AS type,
+               COALESCE(m.content, m.text, '') AS content,
+               COALESCE(m.media_path, m.media_url) AS media_url,
+               COALESCE(m.timestamp, m.created_at) AS timestamp,
+               COALESCE(m.status, CASE WHEN m.from_me THEN 'sent' ELSE 'received' END) AS status,
+               m.created_at,
+               m.session_id,
+               m.phone,
+               m.text,
+               m.media_type,
+               m.media_path,
+               m.from_me,
+               m.whatsapp_message_id,
+               m.remote_jid,
+               m.participant_jid,
+               m.message_origin
+        FROM messages m
+        WHERE m.company_id = $1
+          AND m.conversation_id = $2
+          ${fastBeforeClause}
+        ORDER BY m.created_at DESC, m.id DESC
+        LIMIT $${fastLimitIdx}
+      ) recent
+      ORDER BY recent.created_at ASC, recent.id ASC
+    `;
+
+    try {
+      const fastRes = await db.query(fastQuery, primaryValues);
+      if (fastRes.rows.length > 0) {
+        const seen = new Set();
+        const deduplicated = [];
+        for (const row of fastRes.rows) {
+          const key = row.whatsapp_message_id || `id-${row.id}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            deduplicated.push(row);
+          }
+        }
+        return deduplicated.map(mapMessage);
+      }
+    } catch (_) {}
+
+    // Fallback path: if conversation_id had 0 messages (e.g. unlinked session / orphan messages)
     const jidIdx = jidList.length > 0 ? (values.push(jidList), values.length) : null;
     const aliasIdx = aliases.length > 0 ? (values.push(aliases), values.length) : null;
     const fallbackWhere = [];

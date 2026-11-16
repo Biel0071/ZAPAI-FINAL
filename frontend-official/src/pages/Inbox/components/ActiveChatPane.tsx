@@ -90,6 +90,12 @@ import { useToast } from "@/state/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import type { ChatMessage, Conversation } from "@/core/services/apiService";
 import { useAppStore, type AIResponseProgress } from "@/state/stores/appStore";
+
+function getActiveSessionIdentity() {
+  const { sessions, activeSessionId } = useAppStore.getState();
+  const session = sessions.find((s) => s.id === activeSessionId) || sessions[0];
+  return { name: session?.pushName || session?.name || "", phone: session?.phone || "" };
+}
 import type { ComposerAttachment, PreviewMediaState, QuickReplyItem } from "../types";
 import {
   toConversationDateLabel,
@@ -864,6 +870,39 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const { pinnedIds, togglePin } = usePinnedActions();
 
+  const insertStorePixMessage = useCallback(async () => {
+    const storeSessionId = useAppStore.getState().activeSessionId || selectedConversation?.sessionId || undefined;
+    try {
+      const result = await apiService.getSessionPix({ sessionId: storeSessionId });
+      if (!result.configured) {
+        toast({
+          title: "PIX da loja não cadastrado",
+          description: "Cadastre a chave em Atendente IA › Loja e dados comerciais deste WhatsApp.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const pixMsg = [
+        "💳 *PAGAMENTO VIA PIX*",
+        `Favorecido: ${result.pix.merchantName}`,
+        `Chave PIX: ${result.pix.key}`,
+        "",
+        "PIX copia e cola:",
+        result.payload,
+        "",
+        "_Por favor, envie o comprovante após a transferência._",
+      ].join("\n");
+      setMessageInput((prev) => (prev ? `${prev}\n\n${pixMsg}` : pixMsg));
+      messageInputRef.current?.focus();
+    } catch (error) {
+      toast({
+        title: "Não foi possível gerar o PIX",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  }, [selectedConversation?.sessionId, setMessageInput, toast]);
+
   const handleAttachmentAction = useCallback((actionId: string) => {
     switch (actionId) {
       case "catalogo": {
@@ -880,12 +919,9 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       case "quick_replies":
         setIsQuickReplyModalOpen(true);
         break;
-      case "pix": {
-        const pixMsg = `💳 *CHAVE PIX PARA PAGAMENTO*\n━━━━━━━━━━━━━━━━━━━━━━\nDepósito Vista Alegre\nChave CNPJ / Celular: 3193672075\nFavorecido: Depósito Vista Alegre Materiais\n━━━━━━━━━━━━━━━━━━━━━━\n_Por favor, envie o comprovante após a transferência._`;
-        setMessageInput((prev) => (prev ? `${prev}\n\n${pixMsg}` : pixMsg));
-        messageInputRef.current?.focus();
+      case "pix":
+        void insertStorePixMessage();
         break;
-      }
       case "documento":
         if (fileInputRef.current) {
           fileInputRef.current.accept = ".pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -912,7 +948,8 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         }
         break;
       case "contato": {
-        const contactCard = `👤 *CONTATO COMERCIAL*\n━━━━━━━━━━━━━━━━━━━━━━\nDepósito Vista Alegre\nWhatsApp: (31) 9367-2075\nAtendimento e Entregas em toda Grande BH`;
+        const session = getActiveSessionIdentity();
+        const contactCard = ["👤 *CONTATO COMERCIAL*", "━━━━━━━━━━━━━━━━━━━━━━", session.name, session.phone && `WhatsApp: ${session.phone}`].filter(Boolean).join("\n");
         setMessageInput((prev) => (prev ? `${prev}\n\n${contactCard}` : contactCard));
         messageInputRef.current?.focus();
         break;
@@ -934,7 +971,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       default:
         break;
     }
-  }, []);
+  }, [insertStorePixMessage]);
 
   useEffect(() => {
     if (!selectedConversation?.id) return;

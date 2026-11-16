@@ -15,7 +15,7 @@
 
 import React, { useMemo } from "react";
 import { AgentAvatarConfig, AnimationState, StoreBranding, resolveHairColorForHair } from "./AvatarDefinition";
-import { normalizeAvatarForRenderer, resolveSpriteForAvatar } from "./CharacterFactory";
+import { normalizeAvatarForRenderer, resolveBaseSpriteForAvatar, resolveSpriteForAvatar } from "./CharacterFactory";
 import { cn } from "@/core/lib/utils";
 import {
   Sparkle,
@@ -150,49 +150,6 @@ const CHIBI_SPRITE_ANCHORS: Record<string, { neckX: number; chinY: number; width
   sprite_r3_c9: { neckX: 67, chinY: 96, width: 112 },
   sprite_r3_c10: { neckX: 56, chinY: 96, width: 121 },
   sprite_r3_c11: { neckX: 56, chinY: 96, width: 121 },
-};
-
-const CHIBI_HAIR_SPRITES: Record<"female" | "male", Record<string, string>> = {
-  female: {
-    hair_01: "sprite_r2_c1",
-    hair_02: "sprite_r2_c7",
-    hair_03: "sprite_r2_c3",
-    hair_04: "sprite_r2_c4",
-    hair_05: "sprite_r2_c5",
-    hair_06: "sprite_r2_c6",
-    hair_07: "sprite_r2_c2",
-    hair_08: "sprite_r2_c9",
-    hair_09: "sprite_r2_c8",
-    hair_10: "sprite_r2_c10",
-    hair_11: "sprite_r2_c6",
-    hair_12: "sprite_r2_c9",
-    hair_13: "sprite_r3_c8",
-    hair_14: "sprite_r2_c6",
-    hair_15: "sprite_r2_c9",
-    hair_16: "sprite_r2_c7",
-    hair_17: "sprite_r2_c6",
-    hair_18: "sprite_r2_c2",
-  },
-  male: {
-    hair_01: "sprite_r1_c1",
-    hair_02: "sprite_r1_c8",
-    hair_03: "sprite_r1_c3",
-    hair_04: "sprite_r1_c4",
-    hair_05: "sprite_r1_c1",
-    hair_06: "sprite_r1_c7",
-    hair_07: "sprite_r1_c2",
-    hair_08: "sprite_r1_c3",
-    hair_09: "sprite_r1_c5",
-    hair_10: "sprite_r1_c10",
-    hair_11: "sprite_r1_c4",
-    hair_12: "sprite_r1_c6",
-    hair_13: "sprite_r3_c7",
-    hair_14: "sprite_r1_c4",
-    hair_15: "sprite_r1_c6",
-    hair_16: "sprite_r1_c8",
-    hair_17: "sprite_r1_c10",
-    hair_18: "sprite_r1_c9",
-  },
 };
 
 const CHIBI_OUTFIT_SPRITES: {
@@ -413,20 +370,17 @@ function ModularLayerAvatar({
   const isPosing = movement3D === "pose";
   const isSpinning = movement3D === "spin360";
 
-  // Priority base sprite: use catalogSpriteId if provided, or resolve from configuration
-  const canonicalBaseSprite = avatar.catalogSpriteId || resolveSpriteForAvatar(avatar, true);
+  // Hair is selected from a complete catalog sprite so the hair, head and face stay in one
+  // coherent pixel-art style. Transparent generated cutouts are intentionally not composed
+  // over these baked sprites; clothing remains independently applied through the body layer.
+  const composedHairSprite = resolveSpriteForAvatar({ body: avatar.body, base: avatar.base, hair: hairId }, true);
+  const canonicalBaseSprite = composedHairSprite || avatar.baseSpriteId || resolveBaseSpriteForAvatar(avatar);
 
   // Modular resolution:
   // When specific pieces (hair, outfit) are chosen, resolve them to their corresponding sprite
   // so pieces are truly independent and swappable without clashing or forcing single static overrides.
-  const hasSpecificHair = Boolean(avatar.hair);
   const hasSpecificOutfit = Boolean(avatar.outfit || avatar.clothing);
 
-  let hairSpriteId = hasSpecificHair
-    ? (CHIBI_HAIR_SPRITES[genderKey][hairId] || canonicalBaseSprite || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"))
-    : (canonicalBaseSprite || CHIBI_HAIR_SPRITES[genderKey][hairId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"));
-
-  const isLongHair = isFemale && (hairId === "hair_01" || hairId === "hair_03" || hairId === "hair_07" || hairId === "hair_08" || hairId === "hair_09" || hairId === "hair_10" || hairId === "hair_11" || hairId === "hair_12" || hairId === "hair_13");
 
   let bodySpriteId = hasSpecificOutfit
     ? ((hasTablet
@@ -446,16 +400,10 @@ function ModularLayerAvatar({
     bodySpriteId = genderKey === "male" ? "sprite_r1_c9" : "sprite_r2_c6";
   }
 
-  if (cropFocus === "hair" || cropFocus === "face" || cropFocus === "accessory-head") {
-    bodySpriteId = hairSpriteId;
-  }
-  if (cropFocus === "outfit" || cropFocus === "accessory-body") {
-    hairSpriteId = bodySpriteId;
-  }
+  if (!hasSpecificOutfit && (cropFocus === "hair" || cropFocus === "face" || cropFocus === "accessory-head")) bodySpriteId = canonicalBaseSprite;
 
   const baseSpriteId = canonicalBaseSprite || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
   const baseImg = getAlignedSpriteCoords(baseSpriteId);
-  const hairImg = getAlignedSpriteCoords(hairSpriteId);
   const bodyImg = getAlignedSpriteCoords(bodySpriteId);
 
   // Unique clipPath IDs per instance prefix
@@ -491,35 +439,9 @@ function ModularLayerAvatar({
           <stop offset="100%" stopColor={hairColor.shadow} />
         </linearGradient>
 
-        {/* 1. Back Hair Clip (ponytails & long hair flowing behind left shoulder) */}
-        <clipPath id={`clip-back-hair-${uid}`}>
-          <path
-            d={
-              hairSpriteId === bodySpriteId
-                ? "M 2 35 L 86 35 L 86 105 L 58 125 L 58 166 L 2 166 Z"
-                : "M 2 35 L 72 35 L 72 95 L 48 96 L 38 106 L 2 106 Z"
-            }
-          />
-        </clipPath>
-
-        {/* 2. Body & Outfit Clip (starts at y=95 to prevent chin/beard bleed, and masks upper shoulder perimeter to prevent foreign baked hair leaks) */}
+        {/* Body & outfit region below the selected composed head. */}
         <clipPath id={`clip-body-${uid}`}>
-          {hairSpriteId === bodySpriteId ? (
-            <path d="M 12 95 L 138 95 L 138 227 L 12 227 Z" />
-          ) : (
-            <path d="M 50 95 L 70 96.5 L 90 95 L 90 120 L 138 120 L 138 227 L 12 227 L 12 120 L 50 120 Z" />
-          )}
-        </clipPath>
-
-        {/* 3. Head & Hair Crown Clip (down to y=96 to preserve chin, earlobes, and hair locks cleanly) */}
-        <clipPath id={`clip-head-${uid}`}>
-          <path
-            d={
-              isLongHair
-                ? "M 0 0 L 140 0 L 140 96 L 96 96 L 94 105 L 82 102 L 82 96 L 70 96.5 L 55 96 L 0 96 Z"
-                : "M 0 0 L 140 0 L 140 96 L 85 96 L 70 96.5 L 55 96 L 0 96 Z"
-            }
-          />
+          <path d="M 50 95 L 70 96.5 L 90 95 L 90 120 L 138 120 L 138 227 L 12 227 L 12 120 L 50 120 Z" />
         </clipPath>
       </defs>
 
@@ -624,8 +546,8 @@ function ModularLayerAvatar({
           id="character-3d-rig"
           transform={`translate(${70 * (1 - turnScaleX) + turnShiftX}, 0) scale(${turnScaleX}, 1)`}
         >
-          {/* Base Sprite Rendering: 100% Unified Master-Quality Chibi Render (Zero Splicing Gaps or Floating Artifacts) */}
-          <g id="layer-unified-base">
+          {/* Composed catalog fallback: head and hair come from one complete character sprite. */}
+          <g id="layer-unified-base" data-composed-hair={hairId}>
             <image
               href={baseImg.href}
               x={baseImg.x}
@@ -635,14 +557,29 @@ function ModularLayerAvatar({
             />
           </g>
 
+          {/* Modular Outfit Layer: composite SVG layer swapping clothes dynamically */}
+          {bodySpriteId !== baseSpriteId && (
+            <g id="layer-modular-outfit" clipPath={`url(#clip-body-${uid})`}>
+              <image
+                href={bodyImg.href}
+                x={bodyImg.x}
+                y={bodyImg.y}
+                width={bodyImg.width}
+                height={bodyImg.height}
+              />
+            </g>
+          )}
+
           {/* Semantic Layer Tags for Test Selectors & State Contracts */}
           <g id="layer-outfit" data-outfit-id={outfitId} aria-hidden="true" />
           <g id="layer-hair" data-hair-id={hairId} aria-hidden="true" />
 
           {/* Tailored Dark Charcoal Blazer Lapel & V-Insert Overlay for outfit_05 */}
           {outfitId === "outfit_05" && !isBackView && (
-            <g id="outfit-05-blazer-detail" opacity="0">
+            <g id="outfit-05-blazer-detail">
               <polygon points="56,96 68,122 61,123 51,98" fill="#18181b" stroke={primaryBrandColor} strokeWidth="0.9" />
+              <polygon points="84,96 72,122 79,123 89,98" fill="#18181b" stroke={primaryBrandColor} strokeWidth="0.9" />
+              <polygon points="63,96 70,116 77,96" fill="#0f172a" />
             </g>
           )}
 
@@ -666,46 +603,59 @@ function ModularLayerAvatar({
               zero foreign hair clipping, flawless skin blending, and stable swappability. */}
           {!isBackView && cropFocus !== "outfit" && (
             <g id="layer-face">
-              {/* Semantic elements for test contracts (kept in DOM with opacity="0" so pure authentic artist pixel-art renders with zero vector distortion) */}
+              {/* face_01: Cordial & Empático */}
               {faceId === "face_01" && (
-                <g id="face-01-features" opacity="0">
-                  <circle cx="62" cy="81" r="3.2" fill={skin.blush} />
-                  <circle cx="85" cy="81" r="3.2" fill={skin.blush} />
+                <g id="face-01-features" opacity="0.9">
+                  <circle cx="62" cy="81" r="3.2" fill={skin.blush} opacity="0.75" />
+                  <circle cx="85" cy="81" r="3.2" fill={skin.blush} opacity="0.75" />
+                  <path d="M 69.5 83.5 Q 73.5 86 77.5 83.5" stroke="#9a3412" strokeWidth="0.9" fill="none" strokeLinecap="round" />
                 </g>
               )}
 
+              {/* face_02: Confiante & Seguro */}
               {faceId === "face_02" && (
-                <g id="face-02-features" opacity="0">
+                <g id="face-02-features" opacity="0.95">
                   <circle cx="65.5" cy="73.5" r="1.4" fill="#38bdf8" />
                   <circle cx="83.5" cy="73.5" r="1.4" fill="#38bdf8" />
+                  <path d="M 70 84 Q 74 85.5 78 83" stroke="#9a3412" strokeWidth="0.9" fill="none" strokeLinecap="round" />
                 </g>
               )}
 
+              {/* face_03: Carismático & Alegre */}
               {faceId === "face_03" && (
-                <g id="face-03-features" opacity="0">
-                  <circle cx="61.5" cy="81" r="3.5" fill={skin.blush} />
-                  <circle cx="85.5" cy="81" r="3.5" fill={skin.blush} />
+                <g id="face-03-features" opacity="0.95">
+                  <circle cx="61.5" cy="81" r="3.5" fill={skin.blush} opacity="0.8" />
+                  <circle cx="85.5" cy="81" r="3.5" fill={skin.blush} opacity="0.8" />
+                  <path d="M 68.5 83 Q 73.5 87.5 78.5 83 Z" fill="#b91c1c" stroke="#881337" strokeWidth="0.8" />
                 </g>
               )}
 
+              {/* face_04: Expressivo Comercial */}
               {faceId === "face_04" && (
-                <g id="face-04-features" opacity="0">
+                <g id="face-04-features" opacity="0.95">
                   <circle cx="65.5" cy="73.5" r="1.5" fill="#10b981" />
                   <circle cx="83.5" cy="73.5" r="1.5" fill="#10b981" />
+                  <circle cx="62" cy="81" r="2.8" fill={skin.blush} opacity="0.65" />
+                  <circle cx="85" cy="81" r="2.8" fill={skin.blush} opacity="0.65" />
+                  <path d="M 69.5 83.5 Q 73.5 86 77.5 83.5" stroke="#9a3412" strokeWidth="0.9" fill="none" strokeLinecap="round" />
                 </g>
               )}
 
+              {/* face_05: Analítico & Sereno */}
               {faceId === "face_05" && (
-                <g id="face-05-features" opacity="0">
+                <g id="face-05-features" opacity="0.95">
                   <circle cx="65" cy="73.5" r="1.2" fill="#64748b" />
                   <circle cx="83" cy="73.5" r="1.2" fill="#64748b" />
+                  <line x1="69.5" y1="84.5" x2="77.5" y2="84.5" stroke="#9a3412" strokeWidth="0.9" strokeLinecap="round" />
                 </g>
               )}
 
+              {/* face_06: Foco Operacional */}
               {faceId === "face_06" && (
-                <g id="face-06-features" opacity="0">
+                <g id="face-06-features" opacity="0.95">
                   <circle cx="65.5" cy="74" r="1.3" fill="#f59e0b" />
                   <circle cx="83.5" cy="74" r="1.3" fill="#f59e0b" />
+                  <path d="M 69.5 84 Q 73.5 85.5 77.5 84" stroke="#9a3412" strokeWidth="0.9" fill="none" strokeLinecap="round" />
                 </g>
               )}
 
@@ -713,23 +663,26 @@ function ModularLayerAvatar({
               {faceId === "face_07" && (
                 <>
                   {!isFemale && (
-                    <g id="face-07-beard" opacity="0">
-                      <path d="M 62 90 Q 74 97 86 90 Q 82 96 74 97.5 Q 66 96 62 90 Z" fill={hairColor.shadow} />
+                    <g id="face-07-beard" opacity="0.9">
+                      <path d="M 66 89 Q 73.5 96 81 89 Q 78 95 73.5 95.5 Q 69 95 66 89 Z" fill={hairColor.shadow} />
                     </g>
                   )}
-                  <g id="face-07-intellectual-frames" opacity="0">
-                    <circle cx="65.5" cy="73.5" r="5.5" fill="rgba(255,255,255,0.12)" stroke="#334155" strokeWidth="1.2" />
-                    <circle cx="83.5" cy="73.5" r="5.5" fill="rgba(255,255,255,0.12)" stroke="#334155" strokeWidth="1.2" />
-                    <line x1="71" y1="73.5" x2="78" y2="73.5" stroke="#334155" strokeWidth="1.2" />
+                  <g id="face-07-intellectual-frames" opacity="0.95">
+                    <circle cx="65.5" cy="73.5" r="5.5" fill="rgba(255,255,255,0.18)" stroke="#334155" strokeWidth="1.2" />
+                    <circle cx="81.5" cy="73.5" r="5.5" fill="rgba(255,255,255,0.18)" stroke="#334155" strokeWidth="1.2" />
+                    <line x1="71" y1="73.5" x2="76" y2="73.5" stroke="#334155" strokeWidth="1.2" />
                   </g>
                 </>
               )}
 
               {/* face_08: Óculos Escuros Modernos — Postura marcante com óculos de sol wayfarer */}
               {faceId === "face_08" && (
-                <g id="face-08-sunglasses" opacity="0">
-                  <polygon points="57,69 72,69 70.5,78.5 59,78.5" fill="#09090b" stroke="#18181b" strokeWidth="0.8" />
-                  <polygon points="76,69 91,69 89,78.5 77.5,78.5" fill="#09090b" stroke="#18181b" strokeWidth="0.8" />
+                <g id="face-08-sunglasses" opacity="0.95">
+                  <polygon points="59,69 72,69 71,78.5 60.5,78.5" fill="#09090b" stroke="#18181b" strokeWidth="0.8" />
+                  <polygon points="75,69 88,69 86.5,78.5 76,78.5" fill="#09090b" stroke="#18181b" strokeWidth="0.8" />
+                  <line x1="72" y1="70" x2="75" y2="70" stroke="#09090b" strokeWidth="1.2" />
+                  <line x1="61" y1="71" x2="68" y2="75" stroke="#e2e8f0" strokeWidth="0.8" opacity="0.4" />
+                  <line x1="77" y1="71" x2="84" y2="75" stroke="#e2e8f0" strokeWidth="0.8" opacity="0.4" />
                 </g>
               )}
             </g>
@@ -737,18 +690,21 @@ function ModularLayerAvatar({
 
           {/* ── CHIBI LAYER F: ACCESSORIES (Headset, Glasses, Badge, Tablet, Watch) ─ */}
           <g id="layer-accessories">
-            {/* Executive Glasses (acc_04) — semantic marker */}
+            {/* Executive Glasses (acc_04) */}
             {hasGlasses && !isBackView && (
-              <g id="acc-glasses" opacity="0">
-                <rect x="58.5" y="69" width="13" height="9" rx="2" fill="#0f172a" />
-                <rect x="76.5" y="69" width="13" height="9" rx="2" fill="#0f172a" />
+              <g id="acc-glasses" opacity="0.95">
+                <rect x="60" y="69.5" width="11" height="8" rx="1.5" fill="rgba(255,255,255,0.15)" stroke="#0f172a" strokeWidth="1.2" />
+                <rect x="76" y="69.5" width="11" height="8" rx="1.5" fill="rgba(255,255,255,0.15)" stroke="#0f172a" strokeWidth="1.2" />
+                <line x1="71" y1="72" x2="76" y2="72" stroke="#0f172a" strokeWidth="1.2" />
               </g>
             )}
 
-            {/* Headset ZAI Wireless Pro (acc_02) — subtle status indicator */}
+            {/* Headset ZAI Wireless Pro (acc_02) */}
             {hasHeadset && cropFocus !== "outfit" && cropFocus !== "accessory-body" && (
-              <g id="acc-headset" opacity="0">
-                <circle cx="64.5" cy="87.5" r="2.4" fill="#00f090" />
+              <g id="acc-headset" opacity="0.95">
+                <path d="M 52 70 Q 48 82 60 87" fill="none" stroke="#0f172a" strokeWidth="1.6" strokeLinecap="round" />
+                <circle cx="60" cy="87" r="2.2" fill="#00f090" />
+                <circle cx="60" cy="87" r="1" fill="#ffffff" />
               </g>
             )}
 
@@ -921,7 +877,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
 
   const isOperating = currentState !== "OFFLINE";
   const isAlert = currentState === "ALERT" || currentState === "ERROR";
-  const spriteId = avatar?.catalogSpriteId || resolveSpriteForAvatar(avatar || {}, false);
+  const spriteId = avatar?.baseSpriteId || resolveBaseSpriteForAvatar(avatar || {});
   const spriteUrl = `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
 
   return (

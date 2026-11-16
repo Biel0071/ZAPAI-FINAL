@@ -1,5 +1,6 @@
 const conversationRepository = require('../../data/repositories/conversationRepository');
 const messageRepository = require('../../data/repositories/messageRepository');
+const storePaymentSettings = require('../../../services/payments/storePaymentSettings');
 const whatsappService = require('../../../services/whatsappService');
 const sessionManager = require('../../../services/sessionManager');
 const { registerOutgoingMessage } = require('./messagesController');
@@ -117,8 +118,12 @@ function trimMessage(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
-async function loadConversationForOperation(conversationId) {
-  const conversation = await conversationRepository.getConversationById(conversationId);
+function getRequestCompanyId(req) {
+  return String(req?.authTenantId || req?.auth?.tenantId || req?.auth?.companyId || 'default').trim();
+}
+
+async function loadConversationForOperation(conversationId, companyId) {
+  const conversation = await conversationRepository.getConversationById(conversationId, companyId);
 
   if (!conversation) {
     const error = new Error('Conversation not found.');
@@ -617,7 +622,7 @@ async function setConversationHandoff(req, res) {
     const { conversationId } = req.params;
     const { mode, timeoutMs } = req.body || {};
     const store = getStore(req);
-    const conversation = await loadConversationForOperation(conversationId);
+    const conversation = await loadConversationForOperation(conversationId, getRequestCompanyId(req));
 
     if (mode === 'human') {
       conversationRuntimeService.setHumanTakeover(store, conversationId, timeoutMs);
@@ -665,7 +670,7 @@ async function getConversationRuntime(req, res) {
 async function generateProfileCard(req, res) {
   try {
     const { conversationId } = req.params;
-    const conversation = await loadConversationForOperation(conversationId);
+    const conversation = await loadConversationForOperation(conversationId, getRequestCompanyId(req));
     const messages = await messageRepository.findByConversationId(conversationId, req.authTenantId);
     const latestMessages = (Array.isArray(messages) ? messages : []).slice(-8);
 
@@ -794,7 +799,7 @@ async function confirmAndFinalizeSheet(req, res) {
 
     let sentMessage = null;
     if (autoSend && result.sheet?.summary_text) {
-      const conversation = await loadConversationForOperation(conversationId);
+      const conversation = await loadConversationForOperation(conversationId, companyId);
       const confirmationMsg = [
         result.sheet.summary_text,
         '',
@@ -936,11 +941,24 @@ async function generateBilling(req, res) {
       });
     }
 
-    const conversation = await loadConversationForOperation(conversationId);
+    const conversation = await loadConversationForOperation(conversationId, getRequestCompanyId(req));
     const store = getStore(req);
     const salesStore = getSalesStore(store);
     const billingId = buildBillingToken(conversationId);
-    const paymentCode = `PIX-${billingId.toUpperCase()}`;
+    const { pix } = await storePaymentSettings.resolvePixConfig({
+      companyId: getRequestCompanyId(req),
+      sessionId: conversation.session_id,
+    });
+    if (!pix) {
+      return res.status(400).json({
+        error: 'PIX não configurado para a loja deste WhatsApp. Cadastre em Atendente IA › Loja e dados comerciais.',
+        success: false,
+      });
+    }
+    const paymentCode = storePaymentSettings.buildStorePixPayload(pix, {
+      amount,
+      txid: billingId.replace(/[^A-Za-z0-9]/g, '').slice(-25),
+    });
     const billing = {
       id: billingId,
       amount,
@@ -961,8 +979,11 @@ async function generateBilling(req, res) {
     const messageText = [
       `Perfeito! Segue sua cobranca de ${billing.amountLabel}.`,
       `Descricao: ${description}`,
-      `Link de pagamento: ${paymentUrl}`,
-      `Codigo PIX: ${paymentCode}`,
+      `Favorecido: ${pix.merchantName}`,
+      `Chave PIX: ${pix.key}`,
+      '',
+      'PIX copia e cola:',
+      paymentCode,
     ].join('\n');
 
     let sentMessage = null;
@@ -1141,6 +1162,10 @@ async function updateConversationMeta(req, res) {
     'lead_temperature',
     'funnel_stage',
     'tags',
+    'whatsapp_labels',
+    'whatsappLabels',
+    'pinned_quick_replies',
+    'pinnedQuickReplies',
     'summary',
     'agent_name',
     'aiEnabled',
@@ -1156,6 +1181,14 @@ async function updateConversationMeta(req, res) {
     if (typeof req.body[field] !== 'undefined') {
       fields[field] = req.body[field];
     }
+  }
+
+  if (Array.isArray(fields.whatsappLabels) && !fields.whatsapp_labels) {
+    fields.whatsapp_labels = fields.whatsappLabels;
+  }
+
+  if (Array.isArray(fields.pinnedQuickReplies) && !fields.pinned_quick_replies) {
+    fields.pinned_quick_replies = fields.pinnedQuickReplies;
   }
 
   try {

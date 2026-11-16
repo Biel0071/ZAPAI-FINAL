@@ -16,7 +16,7 @@ export default function CompanyRegistration() {
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/company-registration`, {
+      const response = await fetch(`${API_BASE_URL}/auth/company-registration`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, companyName: form.get("companyName"), responsibleName: form.get("responsibleName"), username: form.get("username"), email: form.get("email"), password: form.get("password") }),
       });

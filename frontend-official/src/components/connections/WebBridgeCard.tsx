@@ -282,7 +282,7 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
           <div>
             <p className="text-[10px] text-muted-foreground uppercase font-medium">Número Vinculado</p>
             <p className="font-semibold text-foreground truncate mt-0.5">
-              {bridgeState.phone ? `+${bridgeState.phone}` : "+55 31 9367-2075"}
+              {bridgeState.phone ? `+${bridgeState.phone}` : "—"}
             </p>
           </div>
           <div>
@@ -355,8 +355,8 @@ export const WebBridgeCard: React.FC<WebBridgeCardProps> = ({
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-2.5 py-1 rounded-xl bg-background/50 border border-border/60">
-            <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-            <span>Sincronização contínua ativa</span>
+            <CheckCircle className={isConnected ? "h-3.5 w-3.5 text-emerald-400" : "h-3.5 w-3.5 text-muted-foreground"} />
+            <span>{isConnected ? "Sincronização contínua ativa" : "Sincronização pausada (desconectado)"}</span>
           </div>
 
           <Button

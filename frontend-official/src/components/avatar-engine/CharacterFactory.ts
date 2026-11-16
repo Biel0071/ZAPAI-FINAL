@@ -19,7 +19,6 @@ import {
   WORK_OBJECTS,
   POSTURES,
   AVATAR_STYLES,
-  resolveItemSpriteForGender,
   resolveHairColorForHair,
 } from "./AvatarDefinition";
 
@@ -40,11 +39,11 @@ const RENDERER_HAIR_ALIASES: Record<string, string> = {
   male_textured_crop: "hair_05",
   male_cap_hair: "hair_05",
   male_curly_brown: "hair_09",
-  male_anime_silver: "hair_08",
+  male_anime_silver: "hair_15",
   male_afro_curls: "hair_06",
-  male_professor_beard: "hair_05",
-  male_dark_shades: "hair_05",
-  male_red_hoodie: "hair_08",
+  male_professor_beard: "hair_16",
+  male_dark_shades: "hair_18",
+  male_red_hoodie: "hair_17",
 };
 
 const RENDERER_OUTFIT_ALIASES: Record<string, string> = {
@@ -100,6 +99,7 @@ export function normalizeAvatarForRenderer(avatar: Partial<AgentAvatarConfig>): 
 
   return {
     ...avatar,
+    baseSpriteId: avatar.baseSpriteId || resolveBaseSpriteForAvatar({ ...avatar, hair: finalHair }),
     hair: finalHair,
     hairColor: resolveHairColorForHair(avatar.hair || finalHair, avatar.hairColor, isFemale),
     face: /^face_0[1-8]$/.test(resolvedFace) ? resolvedFace : "face_01",
@@ -256,6 +256,16 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   return "sprite_r1_c1";
 }
 
+/** Resolves the stable face/body base while excluding the independently rendered hairstyle. */
+export function resolveBaseSpriteForAvatar(avatar: Partial<AgentAvatarConfig>): string {
+  return resolveSpriteForAvatar({
+    ...avatar,
+    hair: "",
+    catalogSpriteId: undefined,
+    baseSpriteId: undefined,
+  }, true);
+}
+
 /**
  * Applies a complete style preset to an avatar while preserving personal customizations.
  */
@@ -301,7 +311,8 @@ export function applyStylePreset(
     },
   };
 
-  updated.catalogSpriteId = resolveItemSpriteForGender(style, updated.body) || resolveSpriteForAvatar(updated, true);
+  updated.baseSpriteId = resolveSpriteForAvatar(updated, true);
+  updated.catalogSpriteId = updated.baseSpriteId;
   return updated;
 }
 
@@ -410,7 +421,8 @@ export function createAgentAvatar(params: {
   };
 
   // Resolve matching sprite
-  avatarConfig.catalogSpriteId = resolveSpriteForAvatar(avatarConfig);
+  avatarConfig.baseSpriteId = resolveBaseSpriteForAvatar(avatarConfig);
+  avatarConfig.catalogSpriteId = avatarConfig.baseSpriteId;
 
   return avatarConfig;
 }
@@ -429,7 +441,8 @@ export function equipItem(
     return {
       ...avatar,
       clothing: item,
-      catalogSpriteId: resolveSpriteForAvatar({ ...avatar, clothing: item, catalogSpriteId: undefined }, true),
+      baseSpriteId: resolveBaseSpriteForAvatar({ ...avatar, clothing: item }),
+      catalogSpriteId: resolveBaseSpriteForAvatar({ ...avatar, clothing: item }),
     };
   }
 
@@ -437,7 +450,8 @@ export function equipItem(
     return {
       ...avatar,
       workObject: item,
-      catalogSpriteId: resolveSpriteForAvatar({ ...avatar, workObject: item, catalogSpriteId: undefined }, true),
+      baseSpriteId: resolveBaseSpriteForAvatar({ ...avatar, workObject: item }),
+      catalogSpriteId: resolveBaseSpriteForAvatar({ ...avatar, workObject: item }),
     };
   }
 
@@ -446,7 +460,8 @@ export function equipItem(
       ...avatar,
       glasses: item,
       accessories: { ...updatedAccessories, glasses: item },
-      catalogSpriteId: resolveSpriteForAvatar({ ...avatar, glasses: item, catalogSpriteId: undefined }, true),
+      baseSpriteId: resolveBaseSpriteForAvatar({ ...avatar, glasses: item }),
+      catalogSpriteId: resolveBaseSpriteForAvatar({ ...avatar, glasses: item }),
     };
   }
 
@@ -490,15 +505,16 @@ export function unequipItem(
     headset: slot === "headset" ? "none" : avatar.headset,
     badge: slot === "badge" ? false : avatar.badge,
     workObject: slot === "workObject" ? "hands_in_pockets" : avatar.workObject,
-    catalogSpriteId: resolveSpriteForAvatar(
-      {
-        ...avatar,
-        glasses: slot === "glasses" ? "none" : avatar.glasses,
-        workObject: slot === "workObject" ? "hands_in_pockets" : avatar.workObject,
-        catalogSpriteId: undefined,
-      },
-      true
-    ),
+    baseSpriteId: resolveBaseSpriteForAvatar({
+      ...avatar,
+      glasses: slot === "glasses" ? "none" : avatar.glasses,
+      workObject: slot === "workObject" ? "hands_in_pockets" : avatar.workObject,
+    }),
+    catalogSpriteId: resolveBaseSpriteForAvatar({
+      ...avatar,
+      glasses: slot === "glasses" ? "none" : avatar.glasses,
+      workObject: slot === "workObject" ? "hands_in_pockets" : avatar.workObject,
+    }),
   };
 }
 
@@ -536,6 +552,7 @@ export function randomizeAvatar(current: AgentAvatarConfig, storeDNA?: StoreVisu
     },
   };
 
-  randomized.catalogSpriteId = resolveSpriteForAvatar({ ...randomized, catalogSpriteId: undefined }, true);
+  randomized.baseSpriteId = resolveBaseSpriteForAvatar(randomized);
+  randomized.catalogSpriteId = randomized.baseSpriteId;
   return randomized;
 }

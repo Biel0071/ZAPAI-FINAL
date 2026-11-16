@@ -80,6 +80,21 @@ async function logAdminAction(req, action, details = {}) {
   });
 }
 
+async function logPlatformTemplateAction(req, action, targetId, version = null) {
+  await auditLogRepository.createAuditLog({
+    tenantId: '__platform__',
+    actorUsername: req.auth?.username || req.auth?.sub || 'unknown',
+    actorRole: req.auth?.role || 'unknown',
+    actorTenantId: req.authTenantId || req.auth?.tenantId || null,
+    action,
+    targetType: 'agent_prompt_template',
+    targetId: targetId || null,
+    ipAddress: req.ip || null,
+    userAgent: req.headers?.['user-agent'] || null,
+    metadata: version === null ? {} : { version },
+  });
+}
+
 function signHs256Jwt(payload, secret) {
   const header = { alg: 'HS256', typ: 'JWT' };
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -1003,5 +1018,86 @@ async function getMasterVersions(req, res) {
     return res.status(500).json({ error: 'Failed to retrieve version history.' });
   }
 }
+
+router.get('/master/agent-templates', requireMasterAdmin, async (req, res) => {
+  try {
+    const templateRepo = require('../../data/repositories/agentPromptTemplateRepository');
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+    const data = await templateRepo.listPlatform({ limit, offset, niche: req.query.niche, status: req.query.status });
+    await logPlatformTemplateAction(req, 'platform_agent_templates_listed', null);
+    return res.json({ success: true, data, pagination: { limit, offset, count: data.length } });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Não foi possível consultar os templates da plataforma.' });
+  }
+});
+
+router.post('/master/agent-templates', requireMasterAdmin, async (req, res) => {
+  try {
+    const templateRepo = require('../../data/repositories/agentPromptTemplateRepository');
+    const data = await templateRepo.createTemplate({
+      scope: templateRepo.PLATFORM_SCOPE,
+      templateKey: req.body?.templateKey,
+      niche: req.body?.niche,
+      title: req.body?.title,
+      description: req.body?.description,
+      promptText: req.body?.promptText,
+      requiredFields: req.body?.requiredFields,
+      unresolvedFacts: req.body?.unresolvedFacts,
+      guardrails: req.body?.guardrails,
+      createdBy: req.auth?.username || req.auth?.sub,
+    });
+    await logPlatformTemplateAction(req, 'platform_agent_template_created', data.id, 1);
+    return res.status(201).json({ success: true, data });
+  } catch (error) {
+    const status = /obrigat|inválid|deve ter|limite|não podem/i.test(error.message) ? 400 : 500;
+    return res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/master/agent-templates/:templateId/versions', requireMasterAdmin, async (req, res) => {
+  try {
+    const templateRepo = require('../../data/repositories/agentPromptTemplateRepository');
+    const data = await templateRepo.createDraftVersion({ scope: templateRepo.PLATFORM_SCOPE, templateId: req.params.templateId, createdBy: req.auth?.username || req.auth?.sub });
+    await logPlatformTemplateAction(req, 'platform_agent_template_draft_created', req.params.templateId, data.version);
+    return res.status(201).json({ success: true, data });
+  } catch (error) {
+    return res.status(error.message.includes('não encontrado') ? 404 : 500).json({ success: false, error: error.message });
+  }
+});
+
+router.put('/master/agent-templates/:templateId/versions/:versionId', requireMasterAdmin, async (req, res) => {
+  try {
+    const templateRepo = require('../../data/repositories/agentPromptTemplateRepository');
+    const data = await templateRepo.updateDraftVersion({ scope: templateRepo.PLATFORM_SCOPE, templateId: req.params.templateId, versionId: req.params.versionId, input: req.body || {} });
+    await logPlatformTemplateAction(req, 'platform_agent_template_draft_updated', req.params.templateId, data.version);
+    return res.json({ success: true, data });
+  } catch (error) {
+    return res.status(error.message.includes('não encontrado') ? 404 : 400).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/master/agent-templates/:templateId/versions/:versionId/publish', requireMasterAdmin, async (req, res) => {
+  try {
+    const templateRepo = require('../../data/repositories/agentPromptTemplateRepository');
+    const data = await templateRepo.publishVersion({ scope: templateRepo.PLATFORM_SCOPE, templateId: req.params.templateId, versionId: req.params.versionId });
+    await logPlatformTemplateAction(req, 'platform_agent_template_published', req.params.templateId, data.version);
+    return res.json({ success: true, data });
+  } catch (error) {
+    return res.status(error.message.includes('não encontrado') ? 404 : 400).json({ success: false, error: error.message });
+  }
+});
+
+router.delete('/master/agent-templates/:templateId', requireMasterAdmin, async (req, res) => {
+  try {
+    const templateRepo = require('../../data/repositories/agentPromptTemplateRepository');
+    const archived = await templateRepo.archiveTemplate({ scope: templateRepo.PLATFORM_SCOPE, templateId: req.params.templateId });
+    if (!archived) return res.status(404).json({ success: false, error: 'Template não encontrado.' });
+    await logPlatformTemplateAction(req, 'platform_agent_template_archived', req.params.templateId);
+    return res.json({ success: true });
+  } catch (_) {
+    return res.status(500).json({ success: false, error: 'Não foi possível arquivar o template.' });
+  }
+});
 
 module.exports = router;

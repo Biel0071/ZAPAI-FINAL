@@ -132,6 +132,7 @@ export function ZaiAssistantComposer({
           contactPhone: selectedConversation.contactPhone,
           recentMessages,
           sessionId: selectedConversation.sessionId || undefined,
+          prewarm: true,
         });
         if (active && res) {
           if (res.detectedContext) setDetectedContext(res.detectedContext);

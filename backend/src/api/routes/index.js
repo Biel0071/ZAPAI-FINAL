@@ -85,6 +85,10 @@ function registerRoutes(app, options = {}) {
   app.use(require('../middleware/adminCompanyContext').adminCompanyContext);
   app.use(require('../middleware/companyEntitlements').companyEntitlements);
   app.use('/api', companyManagementRouter);
+  app.use('/api/api', companyManagementRouter);
+  app.use('/', companyManagementRouter);
+  app.use('/', require('./agentPromptTemplates'));
+  app.use('/api', require('./agentPromptTemplates'));
   app.use('/api/ai/history', require('../../ai/evolutionary/historyRoutes').createHistoryRouter());
 
   // System routes (protected by requireJwtAuth)

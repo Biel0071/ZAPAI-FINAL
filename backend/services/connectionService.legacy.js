@@ -222,21 +222,6 @@ function mapSession(session = {}, sessionId = DEFAULT_SESSION) {
             personalityType: matched.personalityType || 'comercial',
           };
         }
-        if (cleanAgents.length === 1) {
-          const first = cleanAgents[0];
-          return {
-            key: first.key,
-            name: first.name,
-            role: first.role || 'Atendente',
-            status: first.active === false ? 'paused' : (first.status || 'active'),
-            active: first.active !== false,
-            avatar: first.avatar || (first.character?.gender === 'male' ? '/assets/avatar_factory/catalog/sprite_r1_c1_clean.png' : '/assets/avatar_factory/catalog/sprite_r2_c1_clean.png'),
-            character: first.character,
-            appearance: first.appearance,
-            storeId: first.storeId || null,
-            personalityType: first.personalityType || 'comercial',
-          };
-        }
       } catch (err) {}
       return null;
     })(),
@@ -313,7 +298,7 @@ async function listConnections(companyId) {
           sessionName: wbId === 'main' ? 'WhatsApp Principal (Web)' : `WhatsApp Web ${wbId}`,
           status: 'connected',
           connected: true,
-          phone: wbState.phone || '553193672075',
+          phone: wbState.phone || null,
           whatsAppName: 'WhatsApp Web Nativo',
           systemConnected: true,
           engine: 'WHATSAPP_WEB_BRIDGE',
@@ -337,7 +322,7 @@ async function getConnectionStatus(sessionId = DEFAULT_SESSION) {
         status: 'connected',
         connected: true,
         systemConnected: true,
-        phone: wbState.phone || '553193672075',
+        phone: wbState.phone || null,
         whatsAppName: 'WhatsApp Web Nativo',
         health: 'healthy',
         qrReady: false,
@@ -346,14 +331,7 @@ async function getConnectionStatus(sessionId = DEFAULT_SESSION) {
         lastError: null,
         logs: [],
         engine: 'WHATSAPP_WEB_BRIDGE',
-        linkedAgent: {
-          key: 'camila',
-          name: 'Camila',
-          role: 'Consultora de Vendas',
-          status: 'active',
-          active: true,
-          avatar: '/assets/avatar_factory/catalog/sprite_r2_c1_clean.png',
-        },
+        linkedAgent: null,
       };
     } else if (wbState && wbState.status === 'waiting_scan' && wbState.qrImage) {
       return {

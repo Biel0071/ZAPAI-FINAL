@@ -125,7 +125,18 @@ export function setLocalZaiAssistantConfig(next: Partial<ZaiAssistantConfig>): Z
   return merged;
 }
 
-export async function fetchZaiAssistantConfigFromApi(): Promise<ZaiAssistantConfig> {
+const CONFIG_FETCH_DEDUPE_MS = 15_000;
+let configFetchCache: { at: number; promise: Promise<ZaiAssistantConfig> } | null = null;
+
+export function fetchZaiAssistantConfigFromApi(): Promise<ZaiAssistantConfig> {
+  const now = Date.now();
+  if (configFetchCache && now - configFetchCache.at < CONFIG_FETCH_DEDUPE_MS) return configFetchCache.promise;
+  const promise = loadZaiAssistantConfigFromApi();
+  configFetchCache = { at: now, promise };
+  return promise;
+}
+
+async function loadZaiAssistantConfigFromApi(): Promise<ZaiAssistantConfig> {
   try {
     const response = await fetch(`${API_BASE_URL}/ai/evolution/zai-assistant-config`, {
       method: "GET",
@@ -162,6 +173,7 @@ export async function saveZaiAssistantConfigToApi(
       throw new Error(`Falha ao salvar configuração do ZAI (HTTP ${response.status}).`);
     }
     const json = await response.json() as { data?: Partial<ZaiAssistantConfig> };
+    configFetchCache = null;
     return setLocalZaiAssistantConfig(json?.data ?? merged);
   } catch (error) {
     setLocalZaiAssistantConfig(previous);

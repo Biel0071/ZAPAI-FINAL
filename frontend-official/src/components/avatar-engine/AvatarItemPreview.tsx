@@ -1,6 +1,7 @@
 import React from "react";
 import { cn } from "@/core/lib/utils";
 import { ZaiAvatarRenderer } from "./ZaiAvatarRenderer";
+import { resolveBaseSpriteForAvatar } from "./CharacterFactory";
 
 export type AvatarPreviewFocus =
   | "hair"
@@ -65,7 +66,7 @@ export const AvatarItemPreview: React.FC<AvatarItemPreviewProps> = React.memo(({
       face: isMale ? "face_02" : "face_01",
       outfit: "outfit_01",
       clothing: "outfit_01",
-      catalogSpriteId: spriteRef || (isMale ? "sprite_r1_c1" : "sprite_r2_c1"),
+      catalogSpriteId: isMale ? "sprite_r1_c1" : "sprite_r2_c1",
       headset: "none",
       glasses: "none",
       workObject: "none",
@@ -99,6 +100,8 @@ export const AvatarItemPreview: React.FC<AvatarItemPreviewProps> = React.memo(({
         base.style = itemId;
       }
     }
+    base.baseSpriteId = resolveBaseSpriteForAvatar(base);
+    base.catalogSpriteId = base.baseSpriteId;
     return base;
   }, [itemId, gender, spriteRef]);
 

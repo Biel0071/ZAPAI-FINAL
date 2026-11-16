@@ -63,19 +63,25 @@ export const HighlightedMessageText = memo(function HighlightedMessageText({
   );
 });
 
+export function getNameInitials(name: string | null | undefined, fallback: string): string {
+  if (!name || typeof name !== "string") return fallback;
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.match(/[\p{L}\p{N}]/u)?.[0] ?? "")
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return initials || fallback;
+}
+
 export function getInitials(name?: string | null): string {
   if (!name || typeof name !== "string") return "C";
   const trimmed = name.trim();
   if (trimmed.startsWith("Cliente WhatsApp")) return "CW";
   if (/^[+\d\s().-]+$/.test(trimmed)) return "WA";
-  return (
-    trimmed
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((word) => word[0]?.toUpperCase() ?? "")
-      .join("") || "C"
-  );
+  return getNameInitials(trimmed, "C");
 }
 
 export function formatTime(value?: string | number): string {
@@ -187,7 +193,7 @@ export function formatContactPhone(phone: string, isGroup?: boolean): {
   }
   const clean = raw.replace(/@.*$/, "").replace(/\D/g, "");
   const isLid = raw.includes("@lid") || (clean.length >= 14 && clean.length <= 16 && !clean.startsWith("55"));
-  const display = formatPhoneNumber(phone);
+  const display = isLid ? "Número oculto pelo WhatsApp" : formatPhoneNumber(phone);
   return { display, isLid, isGroup: false, raw, shortId: clean.slice(-4) };
 }
 

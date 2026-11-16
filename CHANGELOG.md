@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — PIX da loja e correções da auditoria
+
+- PIX por loja: cadastro em Atendente IA › Loja e dados comerciais; gerador BR Code padrão BACEN com CRC16; atalho PIX do Inbox, cobrança da conversa e `PaymentEngine` usam o cadastro e recusam quando não há PIX.
+- Endpoints `GET|PUT /api/stores/:id/payment-settings`, `DELETE /api/stores/:id/payment-settings/pix`, `GET /api/stores/payment/pix`. `PUT /api/stores/:id` preserva `settings` quando omitido.
+- Operações por conversa passam a exigir a empresa autenticada; criação de cobrança usa o tenant da autenticação.
+- Evolução: XP, conversas e fechamentos por atendente; métricas da loja rotuladas; sem medalhas, pontuações ou diretrizes ativas inventadas.
+- Conexões só mostram atendente com vínculo explícito; pré-aquecimento do compositor IA não gera mais 409; requisições repetidas de health/config/evolução deduplicadas.
+- UI: abas de Atendentes sem truncar, seções numeradas, campo de chave oculto para Provedor ZAI, iniciais com emoji, LID como "Número oculto", perfil master com papel exibido.
+
+## Unreleased — auditoria geral de atendentes e instâncias
+
+- Inbox descarta contadores da instância anterior ao trocar de WhatsApp e ignora respostas atrasadas de outra sessão.
+- Atalhos "PIX" e "Contato" do Inbox, catálogo e cards de conexão não usam mais nome, telefone ou chave PIX fixos de uma loja.
+- Atendentes: card "WhatsApp do atendimento" segue a instância ativa; gênero do avatar ignora acentos; objetivo em texto livre aparece como "Objetivo Personalizado" sem ser sobrescrito.
+- Evolução mostra "IA PAUSADA"/"Pausado" quando o atendente está pausado.
+- Relatório completo em `docs/reports/2026-11-16-bug-tracking.md`.
+## Unreleased — templates de prompt versionados
+
+- Templates de atendente passam por `draft`/`published`/`archived`, guardam a origem da versão no agente e só aparecem no wizard quando publicados; a publicação rejeita fatos comerciais pendentes e campos dinâmicos fora da lista permitida.
+- Master administra versões globais com auditoria. Administradores da empresa podem clonar padrões, revisar uma cópia própria e vincular apenas versões publicadas à loja selecionada; a edição global não altera cópias existentes.
+- Endpoints autenticados: `GET /api/ai/prompt-templates`, `POST /api/ai/prompt-templates`, `POST /api/ai/prompt-templates/:templateId/clone-platform`, `POST|PUT /api/ai/prompt-templates/:templateId/versions[/:versionId]`, `POST /api/ai/prompt-templates/:templateId/versions/:versionId/publish`, `GET|PUT /api/ai/stores/:storeId/prompt-template`; rotas de plataforma ficam sob `/api/admin/master/agent-templates`.
+- Migration 056 cria catálogo, versões e vínculo tenant/store com chaves compatíveis às tabelas de loja; testes de integração exercitam publicação, escopo cruzado e vínculo.
+
 ## Unreleased — empresas, licenças e Configurações
 
 - Configurações usam seções internas agrupadas; somente master acessa o hub da plataforma e o contexto de outra empresa é validado pelo backend antes de consultas tenant-scoped.

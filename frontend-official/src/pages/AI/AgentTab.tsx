@@ -62,27 +62,6 @@ import { AgentWorkspace } from "@/components/ai/workspace/AgentWorkspace";
 import { AvatarEditorModal } from "@/components/avatar-engine/AvatarEditorModal";
 import { cn } from "@/core/lib/utils";
 
-export const PROMPT_TEMPLATES = [
-  {
-    title: "Vendas & Conversão",
-    desc: "Focado em entender a necessidade, tirar dúvidas e levar ao fechamento rápido.",
-    prompt:
-      "Você é o especialista de vendas e consultoria da nossa loja. Seu objetivo é entender com gentileza a necessidade do cliente, esclarecer dúvidas com clareza e conduzir naturalmente para a compra ou orçamento. Seja objetivo, amigável e use emojis com moderação.",
-  },
-  {
-    title: "Suporte & Atendimento Humanizado",
-    desc: "Focado em acolhimento, resolução de problemas e respostas empáticas.",
-    prompt:
-      "Você é o atendente de suporte ao cliente. Seu papel é acolher o cliente, compreender o problema informado, oferecer soluções práticas e claras passo a passo. Priorize a empatia e confirme se o problema foi resolvido antes de encerrar.",
-  },
-  {
-    title: "Agendamentos & Consultoria",
-    desc: "Focado em coletar dados, verificar horários disponíveis e confirmar compromissos.",
-    prompt:
-      "Você é o assistente de agendamentos e recepção. Apresente os serviços disponíveis, solicite o nome completo, serviço desejado e melhor período para atendimento. Confirme os dados antes de finalizar o agendamento.",
-  },
-];
-
 export const OBJECTIVES = [
   {
     id: "fechamento",
@@ -113,6 +92,13 @@ export const OBJECTIVES = [
     badge: "Reuniões",
   },
 ];
+
+export function resolveObjectiveDef(objective?: string | null) {
+  const match = OBJECTIVES.find((o) => o.id === objective);
+  if (match) return match;
+  if (!objective?.trim()) return OBJECTIVES[0];
+  return { id: "custom", title: "Objetivo Personalizado", icon: Target, desc: objective.trim(), badge: "Texto próprio" };
+}
 
 export const TONE_OPTIONS = [
   { id: "friendly", label: "Amigável & Caloroso", desc: "Tom acolhedor e próximo com uso moderado de emojis" },
@@ -320,7 +306,8 @@ export function AgentTab({
   const [agentTone, setAgentTone] = useState("friendly");
   const [responseStyle, setResponseStyle] = useState("short_natural");
   const [selectedObjective, setSelectedObjective] = useState<string>("fechamento");
-  const [prompt, setPrompt] = useState(PROMPT_TEMPLATES[0].prompt);
+  const [prompt, setPrompt] = useState("");
+  const [promptTemplates, setPromptTemplates] = useState<any[]>([]);
   const [temperature, setTemperature] = useState(0.7);
   const [responseDelay, setResponseDelay] = useState(2);
 
@@ -343,6 +330,13 @@ export function AgentTab({
   const [showApiKey, setShowApiKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    apiService.getPromptTemplates().then((result) => {
+      const rows = Array.isArray(result) ? result : Array.isArray((result as any)?.data) ? (result as any).data : [];
+      setPromptTemplates(rows.filter((template: any) => template.status === "published"));
+    }).catch(() => setPromptTemplates([]));
+  }, []);
 
   // Digital Team & Modals State
   const [agentsList, setAgentsList] = useState<any[]>(agents || []);
@@ -531,7 +525,7 @@ export function AgentTab({
     const version = ++testVersion.current;
     const agentKey = selectedAgentKey;
     try {
-      const activeObjDef = OBJECTIVES.find((o) => o.id === selectedObjective);
+      const activeObjDef = resolveObjectiveDef(selectedObjective);
       const enhancedPrompt = `${prompt}
 \n[DIRETRIZES DE PERSONALIDADE]
 Objetivo Atual: ${activeObjDef?.title || "Vendas"} (${activeObjDef?.desc || ""})
@@ -666,7 +660,7 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
     };
   }, [selectedAgentKey, characterMode, agentsList, aiEnabled, agentName, agentRole, prompt, agentTone, selectedObjective]);
 
-  const currentObjectiveDef = OBJECTIVES.find((o) => o.id === selectedObjective) || OBJECTIVES[0];
+  const currentObjectiveDef = resolveObjectiveDef(selectedObjective);
   const currentToneDef = TONE_OPTIONS.find((t) => t.id === agentTone) || TONE_OPTIONS[0];
 
   /* -------------------------------------------------------------
@@ -994,14 +988,14 @@ Tom: ${agentTone}. Estilo: ${responseStyle}.`;
             {/* Modelos Prontos */}
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-muted-foreground font-medium hidden sm:inline">Templates:</span>
-              {PROMPT_TEMPLATES.map((tmpl, idx) => (
+              {promptTemplates.map((tmpl) => (
                 <Button
-                  key={idx}
+                  key={`${tmpl.id}:${tmpl.version_id}`}
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setPrompt(tmpl.prompt);
+                    setPrompt(tmpl.prompt_text);
                     toast({ title: `Modelo "${tmpl.title}" aplicado.` });
                   }}
                   className="h-7 px-2 text-[11px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"

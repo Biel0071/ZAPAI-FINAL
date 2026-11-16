@@ -29,6 +29,7 @@ router.post('/ai/compose', async (req, res) => {
       currentDraft,
       action,
       recentMessages,
+      prewarm,
     } = req.body || {};
 
     const companyId = req.authTenantId;
@@ -155,7 +156,10 @@ Gere a versão final da mensagem para o atendente enviar ao cliente:`;
     const agents = await agentService.listAgents(companyId);
     const agent = agents.find(item => item.key === conversation.agent_name || item.name === conversation.agent_name)
       || (!conversation.agent_name ? agents.find(item => item.active !== false && item.sessionIds?.includes(conversation.session_id)) : null);
-    if (!agent) return res.status(409).json({ success: false, error: 'Selecione um agente para esta conversa.' });
+    if (!agent) {
+      if (prewarm) return res.status(200).json({ success: true, message: '', detectedContext, suggestions, reason: 'NO_AGENT' });
+      return res.status(409).json({ success: false, error: 'Selecione um agente para esta conversa.' });
+    }
     const result = await testAIConnection({ store: req.app.locals.store, companyId, sessionId: conversation.session_id, agentKey: agent.key, message: userMessage, prompt: (agent.personality || '') + '\n\n' + COMPOSE_SYSTEM_PROMPT, history: Array.isArray(recentMessages) ? recentMessages.map(item => ({ role: item.role === 'assistant' ? 'assistant' : 'user', content: item.content || '' })) : [] });
 
     const generatedMessage = result?.response || '';

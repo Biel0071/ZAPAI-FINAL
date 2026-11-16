@@ -61,6 +61,9 @@ function normalizeAgent(agent = {}) {
     storeId: String(agent.storeId || agent.store_id || '').trim() || null,
     inheritStoreProfile: agent.inheritStoreProfile !== false,
     storeOverrides: typeof agent.storeOverrides === 'object' && agent.storeOverrides !== null ? agent.storeOverrides : {},
+    promptTemplate: typeof agent.promptTemplate === 'object' && agent.promptTemplate !== null
+      ? { id: String(agent.promptTemplate.id || ''), versionId: String(agent.promptTemplate.versionId || ''), version: Number(agent.promptTemplate.version) || null }
+      : null,
     segment: String(agent.segment || '').slice(0,200),
     serviceType: String(agent.serviceType || '').slice(0,200),
     name: String(agent.name || key).trim(),
@@ -336,27 +339,39 @@ async function mutateAgents(companyId, change, reason) {
   }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
 }
 async function createAgent(payload={},tenantId) {
-  const unassignedDraft = payload.active === false && Array.isArray(payload.sessionIds) && payload.sessionIds.length === 0;
-  if (!unassignedDraft) await validateSessions(tenantId,payload.sessionIds);
-  const next=normalizeAgent({...payload,active:payload.active===true});
-  return mutateAgents(tenantId,async(all,client)=>{
-    if(all.some(a=>a.key===next.key))throw new Error('Atendente já existe.');
-    for(const sessionId of next.sessionIds || []) await preserveSessionOwnership(all,next,sessionId,tenantId,client);
-    all.push(next);return next;
-  },'configuration');
+  const sessionIds = Array.isArray(payload.sessionIds) ? payload.sessionIds : [];
+  if (payload.active !== false && sessionIds.length === 0) {
+    throw new Error('Selecione pelo menos um WhatsApp antes de ativar o atendente.');
+  }
+  if (sessionIds.length > 0) {
+    await validateSessions(tenantId, sessionIds);
+  }
+  const next = normalizeAgent({ ...payload, sessionIds, active: payload.active !== false });
+  return mutateAgents(tenantId, async (all, client) => {
+    if (all.some(a => a.key === next.key)) throw new Error('Atendente já existe.');
+    for (const sessionId of next.sessionIds || []) await preserveSessionOwnership(all, next, sessionId, tenantId, client);
+    all.push(next);
+    await require('../../../data/repositories/attendantRepository').syncAgent(tenantId, next, null, client);
+    return next;
+  }, 'configuration');
 }
 async function updateAgent(agentKey,payload={},tenantId) {
   return mutateAgents(tenantId,async (all,client)=>{
     const index=all.findIndex(a=>a.key===agentKey);if(index<0)throw new Error('Atendente não encontrado.');
-    const next=normalizeAgent({...all[index],...payload,key:agentKey});
+    const previous = all[index];
+    const next=normalizeAgent({...previous,...payload,key:agentKey});
     if (payload.sessionIds !== undefined) {
-      await validateSessions(tenantId,next.sessionIds,client);
+      if (Array.isArray(next.sessionIds) && next.sessionIds.length > 0) {
+        await validateSessions(tenantId,next.sessionIds,client);
+      }
       for(const sessionId of all[index].sessionIds || []) {
         if(!next.sessionIds.includes(sessionId)) await preserveSessionOwnership(all,null,sessionId,tenantId,client,false);
       }
       for(const sessionId of next.sessionIds) await preserveSessionOwnership(all,next,sessionId,tenantId,client);
     }
-    all[index]=next;return next;
+    all[index]=next;
+    await require('../../../data/repositories/attendantRepository').syncAgent(tenantId, next, previous, client);
+    return next;
   },'configuration');
 }
 async function setAgentActive(agentKey, active, tenantId) {
@@ -366,6 +381,7 @@ async function setAgentActive(agentKey, active, tenantId) {
   const updatedAgent = await mutateAgents(normalizedTenantId, async (all, client) => {
     const index = all.findIndex(a => a.key === agentKey);
     if (index < 0) throw new Error('Atendente não encontrado.');
+    const previous = all[index];
 
     let sessionIds = all[index].sessionIds;
     if (isActive && (!Array.isArray(sessionIds) || sessionIds.length === 0)) {
@@ -382,6 +398,7 @@ async function setAgentActive(agentKey, active, tenantId) {
       key: agentKey,
     });
     all[index] = next;
+    await require('../../../data/repositories/attendantRepository').syncAgent(normalizedTenantId, next, previous, client);
     return next;
   }, 'status_toggle');
 
@@ -403,7 +420,9 @@ async function setAgentActive(agentKey, active, tenantId) {
 async function deleteAgent(agentKey,tenantId){
   return mutateAgents(tenantId,async(all,client)=>{
     const index=all.findIndex(agent=>agent.key===agentKey);if(index<0)throw new Error('Atendente não encontrado.');
-    for(const sessionId of all[index].sessionIds || []) await preserveSessionOwnership(all,null,sessionId,tenantId,client,false);
+    const removed = all[index];
+    for(const sessionId of removed.sessionIds || []) await preserveSessionOwnership(all,null,sessionId,tenantId,client,false);
+    await require('../../../data/repositories/attendantRepository').deleteAttendant(tenantId, agentKey, client);
     return all.splice(index,1)[0];
   },'deleted');
 }
@@ -464,7 +483,9 @@ async function publishHistoryCandidate({ companyId, sessionId, draftId, reviewed
 
 
 async function validateSessions(companyId,sessionIds,client) {
-  if (!Array.isArray(sessionIds) || !sessionIds.length || sessionIds.length > 50) throw new Error('Selecione pelo menos um WhatsApp.');
+  if (!Array.isArray(sessionIds)) throw new Error('Sessões inválidas.');
+  if (sessionIds.length === 0) return;
+  if (sessionIds.length > 50) throw new Error('Limite de WhatsApp excedido.');
   const memory = require('../../../../services/aiMemoryEngine');
   for (const sessionId of sessionIds) {
     try {
@@ -558,6 +579,23 @@ async function assignAgentToSession({ companyId, agentKey, sessionId }) {
 
     await preserveSessionOwnership(agents, target, sessionId, normalizedTenantId, client);
     if (target) target.sessionIds = [...new Set([...(target.sessionIds || []), sessionId])];
+    const attendantRepo = require('../../../data/repositories/attendantRepository');
+    if (target) {
+      const attendant = await attendantRepo.upsertAttendant(normalizedTenantId, {
+        ...target,
+        avatar_url: target.avatar,
+        avatar_config: target.avatarConfig,
+      }, client);
+      const profile = (await client.query(
+        'SELECT store_id FROM session_ai_profiles WHERE company_id=$1 AND session_id=$2',
+        [normalizedTenantId, sessionId]
+      )).rows[0];
+      const storeId = profile?.store_id || target.storeId || null;
+      if (storeId) await attendantRepo.assignToStore(normalizedTenantId, storeId, attendant.id, false, client);
+      await attendantRepo.assignToConnection(normalizedTenantId, sessionId, attendant.id, storeId, true, client);
+    } else {
+      await attendantRepo.removeSessionAssignments(normalizedTenantId, sessionId, client);
+    }
     return target;
   }, 'connection_assignment');
 
@@ -640,7 +678,7 @@ async function evolveSessionStyles() {
   }
 }
 
-async function updateAgentAvatar(tenantId, key, avatarConfig, personalityVisual) {
+async function updateAgentAvatar(tenantId, key, avatarConfigOrPayload, personalityVisualParam) {
   const normalizedTenantId = normalizeTenantId(tenantId);
   const agents = await listAgents(normalizedTenantId);
   const normalizedKey = String(key || '').trim().toLowerCase();
@@ -649,19 +687,56 @@ async function updateAgentAvatar(tenantId, key, avatarConfig, personalityVisual)
     throw new Error(`Agente "${key}" não encontrado.`);
   }
 
+  const isPayload = avatarConfigOrPayload && typeof avatarConfigOrPayload === 'object' && ('avatarConfig' in avatarConfigOrPayload || 'avatar' in avatarConfigOrPayload);
+  const avatarConfig = isPayload ? (avatarConfigOrPayload.avatarConfig || {}) : (avatarConfigOrPayload || {});
+  const personalityVisual = isPayload ? (avatarConfigOrPayload.personalityVisual || personalityVisualParam) : personalityVisualParam;
+  const newAvatar = isPayload && avatarConfigOrPayload.avatar ? avatarConfigOrPayload.avatar : (avatarConfig.catalogSpriteId ? `/assets/avatar_factory/catalog/${avatarConfig.catalogSpriteId}_clean.png` : existing.avatar);
+  const appearance = isPayload ? avatarConfigOrPayload.appearance : undefined;
+  const character = isPayload ? avatarConfigOrPayload.character : undefined;
+
+  const mergedAvatarConfig = {
+    ...(existing.avatarConfig || {}),
+    ...avatarConfig,
+  };
+
   const updatedAgent = {
     ...existing,
-    avatarConfig: {
-      ...(existing.avatarConfig || {}),
-      ...(avatarConfig || {}),
-    },
+    avatar: newAvatar || existing.avatar,
+    avatarConfig: mergedAvatarConfig,
     personalityVisual: personalityVisual ? {
       ...(existing.personalityVisual || {}),
       ...personalityVisual,
     } : existing.personalityVisual,
+    appearance: {
+      ...(existing.appearance || {}),
+      ...(appearance || {}),
+      outfit: mergedAvatarConfig.outfit || mergedAvatarConfig.clothing || existing.appearance?.outfit,
+      hair: mergedAvatarConfig.hair || existing.appearance?.hair,
+      face: mergedAvatarConfig.face || existing.appearance?.face,
+      style: mergedAvatarConfig.style || existing.appearance?.style,
+    },
+    character: {
+      ...(existing.character || {}),
+      ...(character || {}),
+      clothingStyle: mergedAvatarConfig.outfit || mergedAvatarConfig.clothing || existing.character?.clothingStyle,
+    },
   };
 
-  return updateAgent(key, updatedAgent, normalizedTenantId);
+  const result = await updateAgent(key, updatedAgent, normalizedTenantId);
+
+  const attendantRepo = require('../../../data/repositories/attendantRepository');
+  await attendantRepo.upsertAttendant(normalizedTenantId, {
+    key: normalizedKey,
+    name: updatedAgent.name,
+    role: updatedAgent.role,
+    avatar_url: updatedAgent.avatar,
+    avatar_config: updatedAgent.avatarConfig,
+    appearance: updatedAgent.appearance,
+    character: updatedAgent.character,
+    settings: { personalityVisual: updatedAgent.personalityVisual },
+  });
+
+  return result;
 }
 
 async function equipAgentItem(tenantId, key, slot, item) {

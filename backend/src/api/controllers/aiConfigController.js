@@ -134,25 +134,8 @@ async function createAIAgent(req, res) {
     }
 
     const companyId = getCompanyId(req);
-    if (!payload.sessionIds || !Array.isArray(payload.sessionIds) || payload.sessionIds.length === 0) {
-      try {
-        const { pool } = require('../../infrastructure/config/database');
-        const rows = (await pool.query('SELECT session_id FROM sessions WHERE company_id=$1', [companyId])).rows;
-        if (rows.length > 0) {
-          payload.sessionIds = rows.map(r => r.session_id);
-        } else {
-          const placeholder = `main_${companyId}`;
-          await pool.query(
-            `INSERT INTO sessions (company_id, session_id, session_name, status, connected, created_at, updated_at)
-             VALUES ($1, $2, $2, 'disconnected', false, NOW(), NOW())
-             ON CONFLICT (session_id) DO NOTHING`,
-            [companyId, placeholder]
-          ).catch(() => {});
-          payload.sessionIds = [placeholder];
-        }
-      } catch (_) {
-        payload.sessionIds = [`main_${companyId}`];
-      }
+    if (!Array.isArray(payload.sessionIds)) {
+      payload.sessionIds = [];
     }
 
     const agent = await aiAgentService.createAgent(payload, companyId);
@@ -206,9 +189,15 @@ async function updateAIAgentAvatar(req, res) {
   try {
     const key = req.params?.key;
     const companyId = getCompanyId(req);
-    const { avatarConfig, personalityVisual } = req.body || {};
+    const { avatarConfig, personalityVisual, avatar, appearance, character } = req.body || {};
 
-    const updated = await aiAgentService.updateAgentAvatar(companyId, key, avatarConfig, personalityVisual);
+    const updated = await aiAgentService.updateAgentAvatar(companyId, key, {
+      avatarConfig,
+      personalityVisual,
+      avatar,
+      appearance,
+      character,
+    });
     return res.status(200).json({ success: true, agent: updated, message: 'Avatar do agente atualizado com sucesso.' });
   } catch (error) {
     return res.status(400).json({ success: false, error: error.message || 'Falha ao atualizar avatar do agente.' });
@@ -767,6 +756,16 @@ async function getMemoryGraph(req, res) {
     const agentKey = req.query.agentKey || 'camila';
     const limit = Number(req.query.limit) || 60;
     const sessionId = req.query.sessionId || null;
+    const agentService = require('../../ai/agents/services/aiAgentService');
+    const agents = await agentService.listAgents(companyId);
+    const agent = agents.find((item) => String(item.key) === String(agentKey));
+    if (!agent) return res.status(404).json({ success: false, error: 'Atendente não encontrado nesta empresa.' });
+    if (sessionId) {
+      await require('../../ai/agents/services/aiMemoryEngine').assertSession(companyId, sessionId);
+      if (!Array.isArray(agent.sessionIds) || !agent.sessionIds.includes(String(sessionId))) {
+        return res.status(403).json({ success: false, error: 'Atendente não está vinculado a esta conexão.' });
+      }
+    }
     const agentMemoryGraphService = require('../../../services/agentMemoryGraphService');
     const snapshot = await agentMemoryGraphService.getGraphSnapshot(agentKey, companyId, limit, sessionId);
     return res.status(200).json({ success: true, data: snapshot });

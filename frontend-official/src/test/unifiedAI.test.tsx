@@ -12,6 +12,7 @@ vi.mock("@/state/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
 // Mock apiService
 vi.mock("@/core/services/apiService", () => ({
   apiService: {
+    getPromptTemplates: vi.fn().mockResolvedValue([]),
     getCompanyEntitlements: vi.fn().mockResolvedValue({ company: { id: "default", name: "Default" }, legacyAccess: true, modules: ["inbox", "contacts", "campaigns"], numberLimit: null, license: null }),
     getAIStatus: vi.fn().mockResolvedValue({ enabled: true }),
     updateAIStatus: vi.fn().mockResolvedValue({ success: true }),
@@ -207,8 +208,8 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
 
     const text = document.body.textContent || "";
     expect(text).toContain("Evolução & Memória do Atendente");
-    expect(text).toContain("Painel de Nível & XP");
-    expect(text).toContain("Progresso para o Próximo Nível");
+    expect(text).toContain("Memórias e métricas registradas pelo sistema para este atendente.");
+    expect(text).toContain("Memórias Ativas");
   });
 
   it("sidebar has the unified attendants entry and stores without duplicate navigation", async () => {

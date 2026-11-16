@@ -34,12 +34,14 @@ import {
   Pencil,
   Phone,
   Pin,
+  PinOff,
   Plus,
   Rocket,
   Search,
   Send,
   Shield,
   ShoppingBag,
+  Smartphone,
   Star,
   Store,
   Tag,
@@ -102,6 +104,10 @@ import {
 import { cn } from "@/core/lib/utils";
 import { QuickResponseModal } from "./QuickResponseModal";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useUserRole } from "@/state/hooks/useUserRole";
+import { useAppStore } from "@/state/stores/appStore";
+
+const remoteMediaCache = new Map<string, { media: ChatMessage[]; cachedAt: number }>();
 
 interface SidebarPanelProps {
   isOpen?: boolean;
@@ -481,6 +487,73 @@ export const SidebarPanel = memo(function SidebarPanel({
   const [updatingFunnel, setUpdatingFunnel] = useState(false);
   const [showSystemTags, setShowSystemTags] = useState(false);
 
+  const { role } = useUserRole();
+  const isAdmin = role === "admin" || role === "master";
+  const sessions = useAppStore((state) => state.sessions);
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
+  const [adminSelectedSession, setAdminSelectedSession] = useState<string>("current");
+
+  const availableSessions = useMemo(() => {
+    return (sessions || []).filter((s) => Boolean(s && s.id));
+  }, [sessions]);
+
+  // Contact pinned quick replies
+  const conversationPinnedIds: string[] = useMemo(() => {
+    const list =
+      (selectedConversation as any)?.pinnedQuickReplies ||
+      (selectedConversation as any)?.pinned_quick_replies;
+    return Array.isArray(list) ? list : [];
+  }, [
+    (selectedConversation as any)?.pinnedQuickReplies,
+    (selectedConversation as any)?.pinned_quick_replies,
+    selectedConversation?.id,
+  ]);
+
+  const [contactPinnedIds, setContactPinnedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setContactPinnedIds(conversationPinnedIds);
+  }, [conversationPinnedIds, selectedConversation?.id]);
+
+  const handleTogglePinToContact = async (replyId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!selectedConversation?.id) {
+      notify.info("Selecione uma conversa para vincular esta resposta.");
+      return;
+    }
+
+    const isAlreadyPinned = contactPinnedIds.includes(replyId);
+    const nextPinned = isAlreadyPinned
+      ? contactPinnedIds.filter((id) => id !== replyId)
+      : [...contactPinnedIds, replyId];
+
+    setContactPinnedIds(nextPinned);
+
+    if (setConversations) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConversation.id
+            ? { ...c, pinnedQuickReplies: nextPinned, pinned_quick_replies: nextPinned }
+            : c
+        )
+      );
+    }
+
+    try {
+      await apiService.updateConversationMeta(selectedConversation.id, {
+        pinnedQuickReplies: nextPinned,
+      });
+      notify.success(
+        isAlreadyPinned
+          ? "Resposta desvinculada deste contato."
+          : "Resposta vinculada com sucesso a este contato!"
+      );
+    } catch (err) {
+      console.error("[SidebarPanel] Falha ao atualizar respostas vinculadas:", err);
+      notify.error("Não foi possível salvar o vínculo com o contato.");
+    }
+  };
+
   const isCustomerPresenceOnline = Boolean(
     isCustomerOnline ||
     selectedConversation?.status === "online" ||
@@ -555,13 +628,31 @@ export const SidebarPanel = memo(function SidebarPanel({
   }, [loadRealLabels, selectedConversation?.sessionId]);
 
   const handleToggleRealLabel = async (labelName: string) => {
-    const isSelected = (selectedConversation?.tags || []).some(
-      (t) => t.toLowerCase() === labelName.toLowerCase()
+    if (!selectedConversation?.id) return;
+    const isSelected = activeWhatsAppLabels.some(
+      (t) => t.toLowerCase().trim() === labelName.toLowerCase().trim()
     );
-    if (isSelected) {
-      handleRemoveTagFromSelectedConversation(labelName);
-    } else {
-      await handleAddTagToSelectedConversation(labelName);
+    const nextLabels = isSelected
+      ? activeWhatsAppLabels.filter((t) => t.toLowerCase().trim() !== labelName.toLowerCase().trim())
+      : [...activeWhatsAppLabels, labelName];
+
+    if (setConversations) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConversation.id
+            ? { ...c, whatsappLabels: nextLabels, whatsapp_labels: nextLabels }
+            : c
+        )
+      );
+    }
+
+    try {
+      await apiService.patchConversation(selectedConversation.id, {
+        whatsappLabels: nextLabels,
+      });
+      notify.success(isSelected ? `Etiqueta "${labelName}" desvinculada.` : `Etiqueta "${labelName}" aplicada!`);
+    } catch {
+      notify.error("Não foi possível atualizar a etiqueta no WhatsApp.");
     }
   };
 
@@ -912,6 +1003,31 @@ export const SidebarPanel = memo(function SidebarPanel({
 
   const filteredReplies = useMemo(() => {
     return (quickReplies || []).filter((reply) => {
+      // Session filter
+      if (!isAdmin) {
+        // Normal user only sees active session + global
+        const itemSession = (reply as any).sessionId ? String((reply as any).sessionId).trim() : null;
+        const isGlobal = (reply as any).scopeLevel === "global" || !itemSession;
+        if (activeSessionId && itemSession && itemSession !== activeSessionId && !isGlobal) {
+          return false;
+        }
+      } else {
+        // Admin user filter
+        if (adminSelectedSession === "current" && activeSessionId) {
+          const itemSession = (reply as any).sessionId ? String((reply as any).sessionId).trim() : null;
+          const isGlobal = (reply as any).scopeLevel === "global" || !itemSession;
+          if (itemSession && itemSession !== activeSessionId && !isGlobal) {
+            return false;
+          }
+        } else if (adminSelectedSession !== "all" && adminSelectedSession !== "current") {
+          const itemSession = (reply as any).sessionId ? String((reply as any).sessionId).trim() : null;
+          const isGlobal = (reply as any).scopeLevel === "global" || !itemSession;
+          if (itemSession !== adminSelectedSession && !isGlobal) {
+            return false;
+          }
+        }
+      }
+
       // Search query
       const matchesSearch = `${reply.title} ${reply.text}`
         .toLocaleLowerCase()
@@ -938,7 +1054,12 @@ export const SidebarPanel = memo(function SidebarPanel({
 
       return true;
     });
-  }, [quickReplies, responseSearchQuery, quickReplyCategory, qrPillFilter, qrTypeFilter]);
+  }, [quickReplies, responseSearchQuery, quickReplyCategory, qrPillFilter, qrTypeFilter, isAdmin, adminSelectedSession, activeSessionId]);
+
+  const pinnedRepliesForContact = useMemo(() => {
+    if (!contactPinnedIds.length) return [];
+    return (quickReplies || []).filter((r) => contactPinnedIds.includes(r.id));
+  }, [quickReplies, contactPinnedIds]);
 
   // Group quick replies by category for intermediate-level view
   const groupedReplies = useMemo(() => {
@@ -1067,30 +1188,39 @@ export const SidebarPanel = memo(function SidebarPanel({
   const [loadingMedia, setLoadingMedia] = useState(false);
 
   useEffect(() => {
-    if (!selectedConversation?.id) {
+    const convId = selectedConversation?.id ? String(selectedConversation.id) : null;
+    if (!convId) {
       setRemoteMediaMessages([]);
       return;
     }
+
+    const cached = remoteMediaCache.get(convId);
+    if (cached && Date.now() - cached.cachedAt < 120_000) {
+      setRemoteMediaMessages(cached.media);
+      return;
+    }
+
     let isCancelled = false;
-    const fetchConversationMedia = async () => {
+    const timer = setTimeout(async () => {
       setLoadingMedia(true);
       try {
         const data = await requestApiEndpoint<{ success?: boolean; media?: any[] }>(
-          `/api/conversations/${encodeURIComponent(selectedConversation.id)}/media`
+          `/api/conversations/${encodeURIComponent(convId)}/media`
         ).catch(() => null);
         if (!isCancelled && Array.isArray(data?.media)) {
           setRemoteMediaMessages(data.media);
+          remoteMediaCache.set(convId, { media: data.media, cachedAt: Date.now() });
         }
       } catch (err) {
         // Silent fallback in test/mock environments
       } finally {
         if (!isCancelled) setLoadingMedia(false);
       }
-    };
+    }, 250);
 
-    fetchConversationMedia();
     return () => {
       isCancelled = true;
+      clearTimeout(timer);
     };
   }, [selectedConversation?.id]);
 
@@ -1224,20 +1354,60 @@ export const SidebarPanel = memo(function SidebarPanel({
     return name || (rawPhone ? formatPhoneNumber(rawPhone) : "Contato");
   }, [selectedConversation?.contactName, selectedConversation?.phone]);
 
-  // Split official/user tags from internal AI classifier tags
-  const { officialOrCustomTags, aiSystemTags } = useMemo(() => {
-    const all = Array.isArray(selectedConversation?.tags) ? selectedConversation.tags : [];
-    const official: string[] = [];
-    const ai: string[] = [];
-    for (const t of all) {
-      if (SYSTEM_TAG_TRANSLATIONS[t.toLowerCase()]) {
-        ai.push(t);
+  // Split official WhatsApp labels from internal AI classifier tags
+  const { activeWhatsAppLabels, aiSystemTags } = useMemo(() => {
+    // 1. Gather all tags and labels from conversation
+    const rawConvLabels: string[] = Array.isArray(selectedConversation?.whatsappLabels) && selectedConversation.whatsappLabels.length > 0
+      ? selectedConversation.whatsappLabels
+      : (Array.isArray((selectedConversation as any)?.whatsapp_labels) && (selectedConversation as any).whatsapp_labels.length > 0
+          ? (selectedConversation as any).whatsapp_labels
+          : []);
+
+    const allTags = Array.isArray(selectedConversation?.tags) ? selectedConversation.tags : [];
+    
+    // 2. Identify known system AI tags
+    const aiTags: string[] = [];
+    const fromTagsOfficial: string[] = [];
+    
+    for (const t of allTags) {
+      const lower = String(t).toLowerCase().trim();
+      const isAiTag = Boolean(
+        SYSTEM_TAG_TRANSLATIONS[lower] ||
+        ["price_request", "warm", "cold", "hot", "send_price", "price_sent", "ficha_gerada", "question", "educate", "out_of_context", "handover_human", "new_lead", "closed", "ready_to_buy", "purchase_intent", "close_sale"].includes(lower)
+      );
+      
+      const matchesRealLabel = realLabels.some((lbl) => lbl.name.toLowerCase().trim() === lower);
+      
+      if (matchesRealLabel) {
+        fromTagsOfficial.push(t);
+      } else if (isAiTag) {
+        aiTags.push(t);
       } else {
-        official.push(t);
+        fromTagsOfficial.push(t);
       }
     }
-    return { officialOrCustomTags: official, aiSystemTags: ai };
-  }, [selectedConversation?.tags]);
+
+    // Merge and deduplicate official WhatsApp labels case-insensitively
+    const seen = new Map<string, string>();
+    for (const name of [...rawConvLabels, ...fromTagsOfficial]) {
+      const lower = String(name).toLowerCase().trim();
+      const isAi = Boolean(
+        SYSTEM_TAG_TRANSLATIONS[lower] ||
+        ["price_request", "warm", "cold", "hot", "send_price", "price_sent", "ficha_gerada", "question", "educate", "out_of_context", "handover_human", "new_lead", "closed", "ready_to_buy", "purchase_intent", "close_sale"].includes(lower)
+      );
+      if (isAi || !lower) continue;
+      
+      // Prefer the official casing from realLabels if available
+      const matchedReal = realLabels.find((lbl) => lbl.name.toLowerCase().trim() === lower);
+      const canonicalName = matchedReal?.name || name;
+      
+      if (!seen.has(lower)) {
+        seen.set(lower, canonicalName);
+      }
+    }
+
+    return { activeWhatsAppLabels: Array.from(seen.values()), aiSystemTags: aiTags };
+  }, [selectedConversation?.whatsappLabels, (selectedConversation as any)?.whatsapp_labels, selectedConversation?.tags, realLabels]);
 
   const panelContent = !isWhatsappConnected ? (
     <div className="flex h-full min-h-0 w-full flex-col items-center justify-center p-6 text-center text-muted-foreground select-none">
@@ -1537,7 +1707,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                       <span>
                         {showDetailedPresence
                           ? (isCustomerPresenceOnline ? "Online agora" : (lastSeenLabel ? `Visto: ${lastSeenLabel}` : "Visto recentemente"))
-                          : (isCustomerPresenceOnline ? "Online" : "Offline")}
+                          : (isCustomerPresenceOnline ? "Online" : (lastSeenLabel ? `Visto: ${lastSeenLabel}` : "Visto recentemente"))}
                       </span>
                     </button>
                     <span className="text-muted-foreground/40">•</span>
@@ -1629,9 +1799,9 @@ export const SidebarPanel = memo(function SidebarPanel({
                   <div className="flex items-center gap-1.5">
                     <Tag className="h-3.5 w-3.5 text-primary" />
                     <p className="text-xs font-bold text-foreground">Etiquetas WhatsApp</p>
-                    {officialOrCustomTags.length > 0 && (
+                    {activeWhatsAppLabels.length > 0 && (
                       <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/25">
-                        {officialOrCustomTags.length}
+                        {activeWhatsAppLabels.length}
                       </span>
                     )}
                   </div>
@@ -1705,8 +1875,8 @@ export const SidebarPanel = memo(function SidebarPanel({
                               <div className="py-4 text-center text-xs text-muted-foreground">Nenhuma etiqueta encontrada.</div>
                             ) : (
                               realLabels.map((lbl) => {
-                                const isSelected = (selectedConversation?.tags || []).some(
-                                  (t) => t.toLowerCase() === lbl.name.toLowerCase()
+                                const isSelected = activeWhatsAppLabels.some(
+                                  (t) => t.toLowerCase().trim() === lbl.name.toLowerCase().trim()
                                 );
                                 const isEditing = editingLabelId === lbl.id;
 
@@ -1883,10 +2053,10 @@ export const SidebarPanel = memo(function SidebarPanel({
 
                 {/* Badges de Etiquetas Reais do WhatsApp com Cores Oficiais */}
                 <div className="pt-0.5">
-                  {officialOrCustomTags.length > 0 ? (
+                  {activeWhatsAppLabels.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
-                      {officialOrCustomTags.map((tag) => {
-                        const matched = realLabels.find((l) => l.name.toLowerCase() === tag.toLowerCase());
+                      {activeWhatsAppLabels.map((tag) => {
+                        const matched = realLabels.find((l) => l.name.toLowerCase().trim() === tag.toLowerCase().trim());
                         const customHex = matched?.color_hex;
                         return (
                           <span
@@ -1909,9 +2079,9 @@ export const SidebarPanel = memo(function SidebarPanel({
                             <span className="font-semibold">{tag}</span>
                             <button
                               type="button"
-                              onClick={() => handleRemoveTagFromSelectedConversation(tag)}
-                              className="hover:opacity-80 p-0.5 rounded-full hover:bg-background/20"
-                              title={`Remover ${tag}`}
+                              onClick={() => handleToggleRealLabel(tag)}
+                              className="hover:opacity-80 p-0.5 rounded-full hover:bg-background/20 cursor-pointer"
+                              title={`Remover etiqueta ${tag}`}
                             >
                               <X className="h-2.5 w-2.5" />
                             </button>
@@ -1923,10 +2093,26 @@ export const SidebarPanel = memo(function SidebarPanel({
                     <button
                       type="button"
                       onClick={() => setTagPickerOpen(true)}
-                      className="w-full py-2 px-3 rounded-lg border border-dashed border-border/70 hover:border-primary/50 bg-muted/20 hover:bg-primary/5 transition-all flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
+                      className="w-full py-2 px-3 rounded-lg border border-dashed border-border/70 hover:border-primary/50 bg-muted/20 hover:bg-primary/5 transition-all flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary cursor-pointer"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       <span>Adicionar etiqueta do WhatsApp</span>
+                    </button>
+                  )}
+
+                  {/* Redirecionamento limpo para os padrões de IA na Ficha do Contato */}
+                  {aiSystemTags.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => window.dispatchEvent(new CustomEvent("zapflow:open-lead-modal"))}
+                      className="w-full mt-2.5 py-1.5 px-2.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[11px] font-medium flex items-center justify-between transition-colors group cursor-pointer"
+                      title="Padrões e tags identificados pelo algoritmo de IA nesta conversa"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="h-3 w-3 text-emerald-400 group-hover:scale-110 transition-transform" />
+                        <span>{aiSystemTags.length} Padrões de IA no Contato</span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground group-hover:text-foreground">Ver na Ficha &rarr;</span>
                     </button>
                   )}
                 </div>
@@ -1994,6 +2180,34 @@ export const SidebarPanel = memo(function SidebarPanel({
                 {onRetryQuickReplyCategoryAppearance && <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-[11px]" onClick={() => void onRetryQuickReplyCategoryAppearance().catch(() => undefined)}>Tentar novamente</Button>}
               </div>
             )}
+            {/* Admin Connection Filter */}
+            {isAdmin && (
+              <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-muted/40 border border-border/50 text-xs mb-1">
+                <div className="flex items-center gap-1.5 text-muted-foreground shrink-0 font-medium text-[11px]">
+                  <Smartphone className="h-3.5 w-3.5 text-primary" />
+                  <span>Conexão:</span>
+                </div>
+                <select
+                  value={adminSelectedSession}
+                  onChange={(e) => setAdminSelectedSession(e.target.value)}
+                  className="flex-1 bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary truncate"
+                  aria-label="Filtrar respostas rápidas por conexão"
+                >
+                  <option value="current">
+                    Este WhatsApp ({activeSessionId || "atual"})
+                  </option>
+                  <option value="all">
+                    ✦ Todos os WhatsApps (Todas as conexões)
+                  </option>
+                  {availableSessions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name || s.id} ({s.phone || s.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Top Filter Pills */}
             <div className="space-y-2">
               <div className="flex flex-wrap gap-1">
@@ -2150,6 +2364,63 @@ export const SidebarPanel = memo(function SidebarPanel({
                 <ImportWhatsappQuickRepliesDialog />
               </div>
             </div>
+
+            {/* Seção de Respostas Vinculadas a este Contato */}
+            {pinnedRepliesForContact.length > 0 && (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-2.5 shadow-sm space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                    <Pin className="h-3.5 w-3.5 fill-emerald-400 text-emerald-400 -rotate-45" />
+                    Vinculadas ao Contato ({pinnedRepliesForContact.length})
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/80">Fixas para este lead</span>
+                </div>
+                <div className="space-y-1.5">
+                  {pinnedRepliesForContact.map((reply) => (
+                    <div
+                      key={`contact-pinned-${reply.id}`}
+                      className="group relative flex items-center justify-between rounded-lg border border-emerald-500/20 bg-background/80 p-2 hover:border-emerald-500/40 transition-colors"
+                    >
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-foreground truncate">{reply.title}</span>
+                          {reply.category && (
+                            <span className="rounded bg-muted px-1.5 py-0.2 text-[9px] text-muted-foreground uppercase">{reply.category}</span>
+                          )}
+                          {(reply as any).sessionId && (
+                            <span className="rounded bg-primary/10 text-primary px-1 text-[9px] font-mono">{(reply as any).sessionId}</span>
+                          )}
+                        </div>
+                        <p className="line-clamp-1 text-[11px] text-muted-foreground/90 mt-0.5">{reply.text}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                          title="Desvincular deste contato"
+                          onClick={(e) => void handleTogglePinToContact(reply.id, e)}
+                        >
+                          <PinOff className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="default"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium gap-1"
+                          title="Enviar para este contato"
+                          onClick={() => void sendQuickReply(reply, 0)}
+                        >
+                          <Send className="h-3 w-3" />
+                          <span>Enviar</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Replies List */}
             {quickRepliesLoading ? (
@@ -2358,6 +2629,11 @@ export const SidebarPanel = memo(function SidebarPanel({
                                   <span className="truncate text-xs font-semibold text-foreground/95 shrink-0 max-w-[55%]">
                                     {reply.title || reply.text}
                                   </span>
+                                  {(reply as any).sessionId && (
+                                    <span className="rounded bg-primary/10 text-primary px-1 text-[9px] font-mono shrink-0">
+                                      {(reply as any).sessionId}
+                                    </span>
+                                  )}
                                   <span className="truncate text-[11px] text-muted-foreground font-normal">
                                     {reply.isFlow ? "Fluxo sequencial" : getQuickReplyPreviewText(reply, variableContext)}
                                   </span>
@@ -2390,6 +2666,10 @@ export const SidebarPanel = memo(function SidebarPanel({
                                     <DropdownMenuItem onClick={() => setPreviewReply(reply)}>
                                       <Eye className="mr-2 h-3.5 w-3.5" />
                                       Editar e enviar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={(e) => void handleTogglePinToContact(reply.id, e)}>
+                                      <Pin className="mr-2 h-3.5 w-3.5 text-emerald-400" />
+                                      {contactPinnedIds.includes(reply.id) ? "Desvincular deste contato" : "Vincular a este contato"}
                                     </DropdownMenuItem>
 
                                     <DropdownMenuSeparator />
@@ -2462,6 +2742,35 @@ export const SidebarPanel = memo(function SidebarPanel({
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top">Prévia / Rascunho</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+
+                                {/* Pin to Contact Button */}
+                                <TooltipProvider delayDuration={150}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className={cn(
+                                          "h-6 w-6 transition-colors",
+                                          contactPinnedIds.includes(reply.id)
+                                            ? "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                                            : "text-muted-foreground/60 hover:text-emerald-400 hover:bg-emerald-500/10"
+                                        )}
+                                        aria-label={contactPinnedIds.includes(reply.id) ? "Desvincular deste contato" : "Vincular a este contato"}
+                                        onClick={(e) => void handleTogglePinToContact(reply.id, e)}
+                                      >
+                                        {contactPinnedIds.includes(reply.id) ? (
+                                          <Pin className="h-3 w-3 fill-emerald-400 -rotate-45" />
+                                        ) : (
+                                          <Pin className="h-3 w-3 -rotate-45" />
+                                        )}
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      {contactPinnedIds.includes(reply.id) ? "Desvincular deste contato" : "Vincular a este contato"}
+                                    </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
 

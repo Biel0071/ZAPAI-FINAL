@@ -92,15 +92,17 @@ import {
 } from "lucide-react";
 import {
   OBJECTIVES,
+  resolveObjectiveDef,
   TONE_OPTIONS,
   PROVIDER_OPTIONS,
-  PROMPT_TEMPLATES,
   QUICK_TEST_PROMPTS,
   getProviderDef,
 } from "@/pages/AI/AgentTab";
 import { ProviderLogo } from "@/components/ai/ProviderLogo";
+import { StorePromptTemplatePanel } from "@/components/ai/StorePromptTemplatePanel";
+import { StorePixPanel } from "@/components/stores/StorePixPanel";
 import { useUserRole } from "@/state/hooks/useUserRole";
-import { createAgentAvatar, buildStoreVisualDNA, resolveSpriteForAvatar, applyStylePreset } from "@/components/avatar-engine/CharacterFactory";
+import { createAgentAvatar, buildStoreVisualDNA, resolveSpriteForAvatar, resolveBaseSpriteForAvatar, applyStylePreset } from "@/components/avatar-engine/CharacterFactory";
 import {
   AVATAR_HAIRS,
   AVATAR_FACES,
@@ -116,9 +118,9 @@ import {
   type AgentAvatarConfig,
 } from "@/components/avatar-engine/AvatarDefinition";
 import { AvatarItemPreview } from "@/components/avatar-engine/AvatarItemPreview";
+import { EvolutionTab } from "@/pages/AI/EvolutionTab";
 const CommercialPanel = React.lazy(() => import("@/components/evolution/HistoryBootstrapPanel").then(module => ({ default: module.HistoryBootstrapPanel })));
 const AgentTab = React.lazy(() => import("@/pages/AI/AgentTab").then(module => ({ default: module.AgentTab })));
-const EvolutionTab = React.lazy(() => import("@/pages/AI/EvolutionTab").then(module => ({ default: module.EvolutionTab })));
 const MemoryView = React.lazy(() => import("@/pages/Memory").then(module => ({ default: module.default })));
 
 export interface SandboxChatMessage {
@@ -401,6 +403,9 @@ export default function AttendantsPage() {
   const requestVersion = useRef(0);
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<string>("all");
   const selectedWhatsApp = searchParams.get("sessionId") || "";
+  const attendanceSessionId = selectedWhatsApp || (activeSessionId && activeSessionId !== "all" ? activeSessionId : "");
+  const attendanceConnection = sessions.find(s => (s.sessionId || s.id) === attendanceSessionId) || null;
+  const selectedStoreForWhatsApp = stores.find((store) => store.numbers?.some((number: any) => number.sessionId === selectedWhatsApp)) || null;
   const [switchingAttendant, setSwitchingAttendant] = useState(false);
   const [commercialOpen, setCommercialOpen] = useState(searchParams.get("section") === "business");
   useEffect(() => { if (searchParams.get("section") === "business") setCommercialOpen(true); }, [searchParams]);
@@ -585,9 +590,27 @@ export default function AttendantsPage() {
   };
 
   const getAssignedStore = (agent: any) => {
+    if (!agent) return null;
+    if (selectedStoreFilter && selectedStoreFilter !== "all") {
+      const selected = stores.find((s) => s.id === selectedStoreFilter);
+      if (selected) return selected;
+    }
+    if (agent.sessionIds?.length) {
+      for (const sessId of agent.sessionIds) {
+        const found = stores.find((store) => store.numbers?.some((number: any) => number.sessionId === sessId));
+        if (found) return found;
+      }
+    }
+    if (agent.storeId) {
+      const found = stores.find((store) => store.id === agent.storeId);
+      if (found) return found;
+    }
     const session = getAssignedSession(agent);
-    if (session) return stores.find((store) => store.numbers?.some((number: any) => number.sessionId === session.sessionId)) || null;
-    return stores.find((store) => store.id === agent?.storeId) || null;
+    if (session) {
+      const found = stores.find((store) => store.numbers?.some((number: any) => number.sessionId === session.sessionId));
+      if (found) return found;
+    }
+    return null;
   };
 
   const getPresence = (agent: any) => {
@@ -749,7 +772,8 @@ export default function AttendantsPage() {
       if (overrides.body) updatedConfig.base = overrides.body === "male" ? "male" : "female";
       if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "female";
 
-      const updatedSprite = overrides.catalogSpriteId || resolveSpriteForAvatar({ ...updatedConfig, catalogSpriteId: undefined }, true);
+      const updatedSprite = resolveBaseSpriteForAvatar(updatedConfig);
+      updatedConfig.baseSpriteId = updatedSprite;
       updatedConfig.catalogSpriteId = updatedSprite;
       const avatarUrl = `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`;
 
@@ -777,7 +801,8 @@ export default function AttendantsPage() {
         if (overrides.clothing) updatedConfig.outfit = overrides.clothing;
         if (overrides.body) updatedConfig.base = overrides.body === "male" ? "male" : "female";
         if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "female";
-        const updatedSprite = overrides.catalogSpriteId || resolveSpriteForAvatar({ ...updatedConfig, catalogSpriteId: undefined }, true);
+        const updatedSprite = resolveBaseSpriteForAvatar(updatedConfig);
+        updatedConfig.baseSpriteId = updatedSprite;
         updatedConfig.catalogSpriteId = updatedSprite;
         const avatarUrl = `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`;
         return { ...a, avatarConfig: updatedConfig, avatar: avatarUrl };
@@ -802,24 +827,43 @@ export default function AttendantsPage() {
         storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
         gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
       });
-      const spriteId = configToSave.catalogSpriteId || resolveSpriteForAvatar(configToSave, true);
-      const fullConfig: AgentAvatarConfig = {
+      const resolvedOutfit = previewAgent.avatarConfig?.outfit || previewAgent.avatarConfig?.clothing || configToSave.outfit || "outfit_01";
+      const resolvedHair = previewAgent.avatarConfig?.hair || configToSave.hair || "hair_01";
+      const resolvedFace = previewAgent.avatarConfig?.face || configToSave.face || "face_01";
+      const resolvedStyle = previewAgent.avatarConfig?.style || configToSave.style || "style_vendas";
+
+      const configForSprite = {
         ...configToSave,
-        hair: previewAgent.avatarConfig?.hair || configToSave.hair,
-        face: previewAgent.avatarConfig?.face || configToSave.face || "face_01",
-        outfit: previewAgent.avatarConfig?.outfit || previewAgent.avatarConfig?.clothing || configToSave.outfit,
-        clothing: previewAgent.avatarConfig?.outfit || previewAgent.avatarConfig?.clothing || configToSave.clothing,
-        accessories: previewAgent.avatarConfig?.accessories || configToSave.accessories,
-        style: previewAgent.avatarConfig?.style || configToSave.style || "style_vendas",
+        ...previewAgent.avatarConfig,
+        outfit: resolvedOutfit,
+        clothing: resolvedOutfit,
+        hair: resolvedHair,
+        face: resolvedFace,
+        style: resolvedStyle,
+        catalogSpriteId: undefined,
+      };
+      const spriteId = resolveBaseSpriteForAvatar(configForSprite);
+      const fullConfig: AgentAvatarConfig = {
+        ...configForSprite,
         rotationY: previewAgent.avatarConfig?.rotationY ?? studioRotationYRef.current,
         movement3D: previewAgent.avatarConfig?.movement3D ?? studioMovement3DRef.current,
         catalogSpriteId: spriteId,
+        baseSpriteId: spriteId,
       };
       const avatarUrl = `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
 
       const res = await apiService.updateAgentAvatar(previewAgent.key, {
         avatarConfig: fullConfig,
         avatar: avatarUrl,
+        appearance: {
+          outfit: resolvedOutfit,
+          hair: resolvedHair,
+          face: resolvedFace,
+          style: resolvedStyle,
+        },
+        character: {
+          clothingStyle: resolvedOutfit,
+        },
       });
       if (res?.success === false) throw new Error(res.message || "Falha ao salvar avatar");
 
@@ -962,7 +1006,8 @@ export default function AttendantsPage() {
   const [selectedTone, setSelectedTone] = useState<string>("friendly");
   const [responseStyle, setResponseStyle] = useState<string>("short_natural");
   const [temperature, setTemperature] = useState<number>(0.3);
-  const [agentPrompt, setAgentPrompt] = useState<string>(PROMPT_TEMPLATES[0].prompt);
+  const [agentPrompt, setAgentPrompt] = useState<string>("Atenda com clareza e acolhimento. Use apenas fatos comerciais confirmados no perfil da loja; quando faltar informação, peça confirmação ou encaminhe para uma pessoa.");
+  const [promptTemplates, setPromptTemplates] = useState<any[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("vps_engine");
   const [selectedModel, setSelectedModel] = useState<string>("qwen2.5:3b");
   const [apiKey, setApiKey] = useState<string>("");
@@ -970,6 +1015,13 @@ export default function AttendantsPage() {
   const [isSavingAgent, setIsSavingAgent] = useState<boolean>(false);
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
   const [connectionTestResult, setConnectionTestResult] = useState<any>(null);
+
+  useEffect(() => {
+    apiService.getPromptTemplates().then((result) => {
+      const rows = Array.isArray(result) ? result : Array.isArray((result as any)?.data) ? (result as any).data : [];
+      setPromptTemplates(rows.filter((template: any) => template.status === "published"));
+    }).catch(() => setPromptTemplates([]));
+  }, []);
 
   // Sync state when previewAgent changes
   useEffect(() => {
@@ -1101,7 +1153,7 @@ export default function AttendantsPage() {
     }
   };
 
-  const currentObjectiveDef = OBJECTIVES.find((o) => o.id === selectedObjective) || OBJECTIVES[0];
+  const currentObjectiveDef = resolveObjectiveDef(selectedObjective);
   const currentToneDef = TONE_OPTIONS.find((t) => t.id === selectedTone) || TONE_OPTIONS[0];
   const currentProviderDef = getProviderDef(selectedProvider);
 
@@ -1384,7 +1436,7 @@ export default function AttendantsPage() {
     if (!previewAgent) return null;
     const isExplicitMale = previewAgent.avatarConfig?.body === "male" || previewAgent.avatarConfig?.base === "male";
     const isExplicitFemale = previewAgent.avatarConfig?.body === "female" || previewAgent.avatarConfig?.base === "female";
-    const nameLower = String(previewAgent.name || previewAgent.key || "").toLowerCase();
+    const nameLower = `${previewAgent.name || ""} ${previewAgent.key || ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const defaultGender: "male" | "female" = isExplicitMale
       ? "male"
       : isExplicitFemale
@@ -1393,7 +1445,10 @@ export default function AttendantsPage() {
       ? "male"
       : "female";
 
-    let resolvedInlineAvatar = previewAgent.avatarConfig || createAgentAvatar({
+    const savedAvatar = previewAgent.avatarConfig;
+    let resolvedInlineAvatar = savedAvatar
+      ? (savedAvatar.body || savedAvatar.base ? savedAvatar : { ...savedAvatar, body: defaultGender, base: defaultGender })
+      : createAgentAvatar({
       agentId: previewAgent.key || previewAgent.name,
       name: previewAgent.name,
       role: previewAgent.role,
@@ -1403,7 +1458,7 @@ export default function AttendantsPage() {
     });
     const inlineGender: "male" | "female" =
       resolvedInlineAvatar.body === "male" || resolvedInlineAvatar.base === "male" ? "male" : "female";
-    const inlineSpriteId = resolveSpriteForAvatar(resolvedInlineAvatar, false);
+    const inlineSpriteId = resolveBaseSpriteForAvatar(resolvedInlineAvatar);
     const isAgentActive =
       previewAgent.active !== false &&
       (aiStatus?.active !== false && (aiStatus?.enabled ?? aiStatus?.ai) !== false);
@@ -1463,7 +1518,8 @@ export default function AttendantsPage() {
                         hair: "hair_01",
                         face: "face_01",
                         hairColor: resolveHairColorForHair("hair_01", resolvedInlineAvatar.hairColor, true),
-                        catalogSpriteId: resolveSpriteForAvatar(updated, true),
+                        baseSpriteId: resolveBaseSpriteForAvatar(updated),
+                        catalogSpriteId: resolveBaseSpriteForAvatar(updated),
                       });
                     }}
                     className={cn(
@@ -1494,7 +1550,8 @@ export default function AttendantsPage() {
                         hair: "hair_05",
                         face: "face_01",
                         hairColor: resolveHairColorForHair("hair_05", resolvedInlineAvatar.hairColor, false),
-                        catalogSpriteId: resolveSpriteForAvatar(updated, true),
+                        baseSpriteId: resolveBaseSpriteForAvatar(updated),
+                        catalogSpriteId: resolveBaseSpriteForAvatar(updated),
                       });
                     }}
                     className={cn(
@@ -1672,7 +1729,7 @@ export default function AttendantsPage() {
           <div className="rounded-xl border border-border/60 bg-card/60 p-3 max-h-[280px] overflow-y-auto scrollbar-zai">
             {studioCategory === "hair" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {AVATAR_HAIRS.map((h) => {
+                {AVATAR_HAIRS.filter((h) => h.gender === "all" || h.gender === inlineGender).map((h) => {
                   const currentHair = previewAgent?.avatarConfig?.hair;
                   const isSelected =
                     currentHair === h.id ||
@@ -1699,7 +1756,6 @@ export default function AttendantsPage() {
                           base: inlineGender,
                           hair: h.id,
                           hairColor,
-                          catalogSpriteId: resolvedHairSprite,
                         });
                       }}
                       className={cn(
@@ -1748,7 +1804,6 @@ export default function AttendantsPage() {
                           body: inlineGender,
                           base: inlineGender,
                           face: f.id,
-                          catalogSpriteId: resolvedFaceSprite,
                         });
                       }}
                       className={cn(
@@ -1799,7 +1854,6 @@ export default function AttendantsPage() {
                           base: inlineGender,
                           outfit: o.id,
                           clothing: o.id,
-                          catalogSpriteId: resolvedOutfitSprite,
                         });
                       }}
                       className={cn(
@@ -1907,7 +1961,6 @@ export default function AttendantsPage() {
                           headset: updatedHeadset,
                           glasses: updatedGlasses,
                           workObject: updatedWorkObject,
-                          catalogSpriteId: resolvedAccSprite,
                         });
                       }}
                       className={cn(
@@ -1950,7 +2003,6 @@ export default function AttendantsPage() {
                         handleUpdateAvatar({
                           ...updated,
                           style: st.id,
-                          catalogSpriteId: resolvedStyleSprite,
                         });
                       }}
                       className={cn(
@@ -2278,12 +2330,12 @@ export default function AttendantsPage() {
         <div className="space-y-1.5 pt-1">
           <span className="text-[11px] font-semibold text-muted-foreground">Modelos Base de Atendimento:</span>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {PROMPT_TEMPLATES.map((tmpl, idx) => (
+            {promptTemplates.map((tmpl) => (
               <button
-                key={idx}
+                key={`${tmpl.id}:${tmpl.version_id}`}
                 type="button"
                 onClick={() => {
-                  setAgentPrompt(tmpl.prompt);
+                  setAgentPrompt(tmpl.prompt_text);
                   notify.info(`Modelo "${tmpl.title}" aplicado ao prompt.`);
                 }}
                 className="p-2 rounded-xl border border-border/60 bg-background/60 hover:bg-card hover:border-emerald-500/40 text-left transition-all cursor-pointer group"
@@ -2295,7 +2347,7 @@ export default function AttendantsPage() {
                   <Wand2 className="h-3 w-3 text-muted-foreground group-hover:text-emerald-400" />
                 </div>
                 <p className="text-[10px] text-muted-foreground line-clamp-1 leading-relaxed">
-                  {tmpl.desc}
+                  {tmpl.description || tmpl.niche}
                 </p>
               </button>
             ))}
@@ -2312,7 +2364,7 @@ export default function AttendantsPage() {
           <div className="space-y-0.5">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
               <Cpu className="h-4 w-4 text-emerald-400" />
-              <span>Provedores de IA & Modelos</span>
+              <span>Motor de IA deste atendente</span>
             </h4>
             <p className="text-xs text-muted-foreground">
               Configure o motor neural e a chave de API que processará as respostas deste atendente.
@@ -2449,12 +2501,12 @@ export default function AttendantsPage() {
           </div>
 
           {/* API Key */}
-          <div className="space-y-1.5">
+          <div className={cn("space-y-1.5", selectedProvider === "vps_engine" && "hidden")}>
             <label className="text-xs font-semibold text-foreground">Chave de API (Opcional)</label>
             <div className="relative">
               <Input
                 type={showApiKey ? "text" : "password"}
-                placeholder="sk-proj-..."
+                placeholder={selectedProvider === "openai" ? "sk-..." : "Cole a chave do provedor"}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 className="h-10 rounded-xl bg-background/70 border-border/70 text-xs pr-10"
@@ -2592,12 +2644,8 @@ export default function AttendantsPage() {
         <div className="flex flex-wrap items-center gap-1.5 pb-1 min-w-0 w-full max-w-full">
           <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Perguntas rápidas:</span>
           {[
-            "Quanto custa o cimento?",
-            "Tem promoção por quantidade?",
-            "Tem alguma ideia para minha obra?",
-            "Qual o prazo de entrega?",
+            ...QUICK_TEST_PROMPTS,
             "Qual é o catálogo?",
-            "Formas de pagamento?"
           ].map((q, idx) => (
             <button
               key={idx}
@@ -3076,6 +3124,23 @@ export default function AttendantsPage() {
                     const isSelected = previewAgent?.key === agent.key;
                     const assignedSession = getAssignedSession(agent);
                     const assignedStore = getAssignedStore(agent);
+                    const allAssignedSessions = (agent.sessionIds || []).filter((id: string) => {
+                      if (selectedStoreFilter && selectedStoreFilter !== "all") {
+                        const storeOfSession = stores.find((s) => s.numbers?.some((number: any) => number.sessionId === id));
+                        if (storeOfSession && storeOfSession.id !== selectedStoreFilter) return false;
+                      }
+                      return true;
+                    }).map((id: string) => {
+                      const saved = sessions.find((s) => s.sessionId === id || s.id === id);
+                      const live = liveSessions.find((s) => s.id === id);
+                      return {
+                        ...saved,
+                        sessionId: id,
+                        sessionName: saved?.sessionName || id,
+                        status: live?.status || saved?.status || "unknown",
+                        phone: saved?.phone_number || saved?.phone,
+                      };
+                    });
                     const isActive = agent.active !== false;
                     const isConnected = assignedSession?.status === "connected" || assignedSession?.status === "open";
                     const presence = getPresence(agent);
@@ -3151,36 +3216,38 @@ export default function AttendantsPage() {
                                     <span className="truncate max-w-[180px] font-semibold">{assignedStore?.name || "Sem loja vinculada"}</span>
                                   </div>
 
-                                  {/* WhatsApp Chip */}
-                                  <div
-                                    className={cn(
-                                      "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium border",
-                                      assignedSession
-                                        ? isConnected
-                                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                                          : "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                                        : "border-border/60 bg-muted/30 text-muted-foreground"
-                                    )}
-                                    title={assignedSession ? `WhatsApp: ${assignedSession.sessionName || assignedSession.sessionId}` : "Nenhum WhatsApp vinculado"}
-                                  >
-                                    <WhatsappLogo
-                                      weight="fill"
-                                      className={cn(
-                                        "h-3.5 w-3.5 shrink-0",
-                                        assignedSession ? (isConnected ? "text-emerald-400" : "text-amber-400") : "text-muted-foreground"
-                                      )}
-                                    />
-                                    {assignedSession ? (
-                                      <span className="truncate max-w-[150px]">
-                                        {assignedSession.phone || assignedSession.sessionName || assignedSession.sessionId}
-                                      </span>
-                                    ) : (
+                                  {/* WhatsApp Chips (Support multiple numbers) */}
+                                  {allAssignedSessions.length > 0 ? (
+                                    allAssignedSessions.map((sess: any) => {
+                                      const isConn = sess.status === "connected" || sess.status === "open";
+                                      return (
+                                        <div
+                                          key={sess.sessionId}
+                                          className={cn(
+                                            "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium border",
+                                            isConn
+                                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                                              : "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                                          )}
+                                          title={`WhatsApp: ${sess.sessionName || sess.sessionId}`}
+                                        >
+                                          <WhatsappLogo
+                                            weight="fill"
+                                            className={cn("h-3.5 w-3.5 shrink-0", isConn ? "text-emerald-400" : "text-amber-400")}
+                                          />
+                                          <span className="truncate max-w-[150px]">
+                                            {sess.phone || sess.sessionName || sess.sessionId}
+                                          </span>
+                                          <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", isConn ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+                                        </div>
+                                      );
+                                    })
+                                  ) : (
+                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium border border-border/60 bg-muted/30 text-muted-foreground">
+                                      <WhatsappLogo weight="fill" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                       <span className="italic text-[11px]">Sem WhatsApp</span>
-                                    )}
-                                    {assignedSession && (
-                                      <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", isConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
-                                    )}
-                                  </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -3349,9 +3416,9 @@ export default function AttendantsPage() {
         </section>
 
         {/* UNIFIED STREAMLINED CONTROL BAR: TABS + VIEW MODES + SAVE (EXACTLY 2 ROWS ON MOBILE) */}
-        <div className="p-2 sm:p-2.5 rounded-2xl border border-border/70 bg-card/80 backdrop-blur shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2.5">
+        <div className="p-2 sm:p-2.5 rounded-2xl border border-border/70 bg-card/80 backdrop-blur shadow-sm flex flex-col xl:flex-row xl:items-center xl:justify-between gap-2 xl:gap-2.5">
           {/* Row 1 on Mobile (50/50 split width): Navigation Submenus */}
-          <div className="grid grid-cols-2 gap-1.5 w-full sm:w-auto p-0.5 rounded-xl bg-background/60 border border-border/60">
+          <div className="grid grid-cols-2 gap-1.5 w-full xl:w-auto p-0.5 rounded-xl bg-background/60 border border-border/60">
             <button
               type="button"
               onClick={() => handleTabChange("attendants")}
@@ -3392,7 +3459,7 @@ export default function AttendantsPage() {
 
           {/* Row 2 on Mobile: View Mode Switcher + Action Buttons */}
           {activeTab === "attendants" && (
-            <div className="flex items-center justify-between gap-1.5 w-full sm:w-auto sm:ml-auto">
+            <div className="flex flex-wrap items-center justify-between gap-1.5 w-full xl:w-auto xl:ml-auto">
               {/* Mode Switcher */}
               <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-background/60 border border-border/60 shrink-0">
                 <button
@@ -3463,24 +3530,22 @@ export default function AttendantsPage() {
             />
           </div>
         ) : (activeTab === "evolution" || activeTab === "memory") ? (
-          <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6">
-            <React.Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Carregando memória & evolução cognitiva...</div>}>
-              {(() => {
-                const previewSession =
-                  sessions.find((s) => s.id === previewAgent?.sessionId || s.sessionId === previewAgent?.sessionId || s.id === selectedWhatsApp) ||
-                  liveSessions.find((s) => s.id === previewAgent?.sessionId || s.sessionId === previewAgent?.sessionId || s.id === selectedWhatsApp);
-                const isSessionOnline = Boolean(previewSession && (previewSession.connected || previewSession.status === "connected"));
-                return (
-                  <EvolutionTab
-                    agentKey={previewAgent?.key}
-                    selectedAgent={previewAgent}
-                    onSelectAgent={(key) => setPreviewAgent(agents.find((a) => (a.key || a.id) === key) || null)}
-                    agents={agents}
-                    isSessionConnected={isSessionOnline}
-                  />
-                );
-              })()}
-            </React.Suspense>
+          <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6 animate-in fade-in duration-150">
+            {(() => {
+              const previewSession =
+                sessions.find((s) => s.id === previewAgent?.sessionId || s.sessionId === previewAgent?.sessionId || s.id === selectedWhatsApp) ||
+                liveSessions.find((s) => s.id === previewAgent?.sessionId || s.sessionId === previewAgent?.sessionId || s.id === selectedWhatsApp);
+              const isSessionOnline = Boolean(previewSession && (previewSession.connected || previewSession.status === "connected"));
+              return (
+                <EvolutionTab
+                  agentKey={previewAgent?.key}
+                  selectedAgent={previewAgent}
+                  onSelectAgent={(key) => setPreviewAgent(agents.find((a) => (a.key || a.id) === key) || null)}
+                  agents={agents}
+                  isSessionConnected={isSessionOnline}
+                />
+              );
+            })()}
           </div>
         ) : (
           <>
@@ -3613,7 +3678,7 @@ export default function AttendantsPage() {
                           </div>
                           <div className="min-w-0">
                             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                              <span>Avatar Studio<span className="sr-only"> 2.5D</span></span>
+                              <span>1. Avatar Studio<span className="sr-only"> 2.5D</span></span>
                             </CardTitle>
                           </div>
                         </div>
@@ -3784,7 +3849,7 @@ export default function AttendantsPage() {
                   <span>WhatsApp do atendimento</span>
                 </label>
                 {(() => {
-                  const activeConn = (selectedWhatsApp ? sessions.find(s => (s.sessionId || s.id) === selectedWhatsApp) : sessions[0]) || null;
+                  const activeConn = attendanceConnection;
                   if (!activeConn) return null;
                   const isConn = activeConn.status === "connected" || activeConn.status === "open";
                   return (
@@ -3798,7 +3863,7 @@ export default function AttendantsPage() {
 
               {/* Active Connection Highlight Card */}
               {(() => {
-                const activeConn = (selectedWhatsApp ? sessions.find(s => (s.sessionId || s.id) === selectedWhatsApp) : sessions[0]) || null;
+                const activeConn = attendanceConnection;
                 if (!activeConn) return null;
                 const isConn = activeConn.status === "connected" || activeConn.status === "open";
                 return (
@@ -3815,7 +3880,7 @@ export default function AttendantsPage() {
                           <span className={cn("h-2 w-2 rounded-full", isConn ? "bg-emerald-400 animate-pulse ring-2 ring-emerald-500/30" : "bg-amber-400")} />
                         </div>
                         <p className="text-[11px] text-emerald-400 font-mono font-medium truncate mt-0.5">
-                          {activeConn.phone || "+55 (31) 9367-2075"}
+                          {activeConn.phone || "—"}
                         </p>
                       </div>
                     </div>
@@ -3885,6 +3950,8 @@ export default function AttendantsPage() {
                 <CommercialPanel key={selectedWhatsApp} requestedMode="store" initialSessionId={selectedWhatsApp} onCommercialSaved={fetchData} lockSession />
               </React.Suspense>
             </details>}
+            {selectedWhatsApp && selectedStoreForWhatsApp && <StorePixPanel key={`pix-${selectedStoreForWhatsApp.id}`} storeId={selectedStoreForWhatsApp.id} storeName={selectedStoreForWhatsApp.name} />}
+            {selectedWhatsApp && selectedStoreForWhatsApp && <StorePromptTemplatePanel key={selectedStoreForWhatsApp.id} storeId={selectedStoreForWhatsApp.id} />}
             {!selectedWhatsApp && searchParams.get("section") === "business" && <p className="text-sm text-muted-foreground">Selecione o WhatsApp acima para configurar a loja e os dados comerciais.</p>}
           </>
         )}
@@ -4113,9 +4180,9 @@ export default function AttendantsPage() {
           store={getAssignedStore(avatarEditorAgent)}
           runtimeState={getPresence(avatarEditorAgent).state}
           onSave={(updatedAvatar) => {
-            const spriteId = updatedAvatar.catalogSpriteId || resolveSpriteForAvatar(updatedAvatar, true);
+            const spriteId = updatedAvatar.baseSpriteId || resolveBaseSpriteForAvatar(updatedAvatar);
             const avatarUrl = `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
-            const fullConfig = { ...updatedAvatar, catalogSpriteId: spriteId };
+            const fullConfig = { ...updatedAvatar, baseSpriteId: spriteId, catalogSpriteId: spriteId };
             setAgents((prev) =>
               prev.map((a) =>
                 a.key === avatarEditorAgent.key

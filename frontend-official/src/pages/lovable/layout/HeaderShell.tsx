@@ -176,12 +176,12 @@ export function HeaderShell({
             </Button>
           ) : null}
           {sessions && sessions.length > 0 && (
-            <div className="flex-1 sm:flex-initial flex items-center gap-1.5 justify-center sm:justify-start">
+            <div className="flex-1 sm:flex-initial min-w-0 flex items-center gap-1.5 justify-center sm:justify-start">
               <select
                 aria-label="Filtrar por conexão"
                 value={activeSessionId || (sessions.find((s) => s.status === "connected" || s.connected)?.id) || sessions[0]?.id || "main"}
                 onChange={(e) => setActiveSessionId(e.target.value)}
-                className="h-7 sm:h-8 max-w-[130px] sm:max-w-[170px] md:max-w-[210px] lg:max-w-xs truncate rounded-xl border border-border/65 bg-background/80 px-2 py-0 text-[11px] sm:text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm shrink-0"
+                className="h-7 sm:h-8 max-w-[130px] sm:max-w-[170px] md:max-w-[180px] xl:max-w-xs truncate min-w-0 rounded-xl border border-border/65 bg-background/80 px-2 py-0 text-[11px] sm:text-xs font-semibold text-foreground/90 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-primary backdrop-blur-sm"
               >
                 {sessions.map((session) => {
                   const isOnline = session.status === "connected" || session.connected === true;

@@ -9,6 +9,7 @@ import {
   CLOTHING_STYLES,
   AVATAR_HAIRS,
   AVATAR_OUTFITS,
+  getAvatarHairOptions,
 } from "../components/avatar-engine/AvatarDefinition";
 
 describe("Campaign Business Hours & Human Cadence Gates", () => {
@@ -52,6 +53,35 @@ describe("Avatar Studio 360 & Dynamic Poses", () => {
   it("provides distinct clothing styles for corporate attendants", () => {
     expect(CLOTHING_STYLES.length).toBeGreaterThan(0);
     expect(AVATAR_OUTFITS.length).toBeGreaterThan(0);
+  });
+
+  it("offers only hair styles for the selected avatar gender", () => {
+    expect(getAvatarHairOptions("female").every((item) => item.gender === "female" || item.gender === "all")).toBe(true);
+    expect(getAvatarHairOptions("male").every((item) => item.gender === "male" || item.gender === "all")).toBe(true);
+    expect(getAvatarHairOptions("female").some((item) => item.id === "hair_05")).toBe(false);
+    expect(getAvatarHairOptions("male").some((item) => item.id === "hair_01")).toBe(false);
+  });
+
+  it("uses composed hair catalog sprites without mismatched transparent overlays", () => {
+    const render = (hair: string) => renderToStaticMarkup(
+      React.createElement(ZaiAvatarRenderer, {
+        avatar: { body: "female", hair, outfit: "outfit_03", clothing: "outfit_03" },
+        size: "workspace",
+        state: "WAITING",
+      })
+    );
+    const ponytail = render("hair_01");
+    const bob = render("hair_02");
+    const baseHref = (markup: string) => markup.match(/id="layer-unified-base"[^>]*>[\\s\\S]*?<image href="([^"]+)"/)?.[1];
+    const outfitHref = (markup: string) => markup.match(/id="layer-modular-outfit"[^>]*>[\\s\\S]*?<image href="([^"]+)"/)?.[1];
+
+    expect(baseHref(ponytail)).toContain("sprite_r2_c1_clean.png");
+    expect(baseHref(bob)).toContain("sprite_r2_c7_clean.png");
+    expect(baseHref(ponytail)).not.toBe(baseHref(bob));
+    expect(outfitHref(ponytail)).toBe(outfitHref(bob));
+    expect(ponytail).not.toContain("/assets/avatar_factory/hair/");
+    expect(bob).not.toContain("layer-modular-hair");
+    expect(bob).toContain('data-outfit-id="outfit_03"');
   });
 
   it("supports standing WAITING pose during creation and WORKING pc pose when active", () => {

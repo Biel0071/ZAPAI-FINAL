@@ -134,19 +134,29 @@ test('6. EventNormalizer standardizes and deduplicates incoming and outgoing eve
   eventNormalizer.off('MessageReceived', listener);
 });
 
-test('7. PaymentEngine creates Pix charge and verifies Webhook confirmation', async () => {
+test('7. PaymentEngine refuses Pix without store config and confirms charges via Webhook', async () => {
+  await assert.rejects(
+    paymentEngine.createPayment({
+      companyId: 'tenant-without-pix-config',
+      amount: 150.0,
+      customerPhone: '553198346078',
+      customerName: 'Carlos Silva',
+      description: '1 Milheiro de Tijolo 8 Furos',
+    }),
+    /PIX não configurado/
+  );
+
   const payment = await paymentEngine.createPayment({
-    companyId: 'default',
+    companyId: 'tenant-without-pix-config',
     amount: 150.0,
+    method: 'boleto',
     customerPhone: '553198346078',
-    customerName: 'Carlos Silva',
-    description: '1 Milheiro de Tijolo 8 Furos',
   });
 
   assert.ok(payment.paymentId.startsWith('pay_'));
   assert.equal(payment.amount, 150.0);
   assert.equal(payment.status, 'pending');
-  assert.ok(payment.pixCode.includes('DEPOSITO VISTA ALEGRE'));
+  assert.equal(payment.pixCode, null);
 
   // Webhook confirmation
   const webhookResult = await paymentEngine.handleWebhook({

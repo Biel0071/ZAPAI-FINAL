@@ -203,6 +203,7 @@ const MOCK_CONNECTIONS = [
 vi.mock("@/core/services/apiService", () => ({
   apiService: {
     getAIAgents: vi.fn(),
+    getPromptTemplates: vi.fn().mockResolvedValue([]),
     getStores: vi.fn(),
     getConnections: vi.fn(),
     getAIStatus: vi.fn().mockResolvedValue({ enabled: true }),

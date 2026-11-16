@@ -75,14 +75,15 @@ class OrchestratorController {
    */
   async createPayment(req, res) {
     try {
-      const companyId = req.user?.companyId || req.body.companyId || 'default';
+      const companyId = String(req.authTenantId || req.user?.company_id || req.user?.companyId || 'default');
       const payment = await orchestrator.paymentEngine.createPayment({
         ...req.body,
         companyId,
       });
       return res.status(201).json({ success: true, payment });
     } catch (err) {
-      return res.status(500).json({ success: false, error: err.message });
+      const status = /não configurado|inválid|obrigatóri|greater than zero/i.test(err.message) ? 400 : 500;
+      return res.status(status).json({ success: false, error: err.message });
     }
   }
 

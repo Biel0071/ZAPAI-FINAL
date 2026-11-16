@@ -139,7 +139,7 @@ export interface AttendantEvolutionProfile {
   nextLevelXp: number;
   progressPct: number;
   evolutionScore: number;
-  naturalnessScore: number;
+  naturalnessScore: number | null;
   conversionsCount: number;
   objectionsLearned: number;
   totalAnalyzed: number;
@@ -157,6 +157,7 @@ export interface AttendantEvolutionHubProps {
   agentName?: string;
   agentRole?: string;
   avatarConfig?: any;
+  isActive?: boolean;
   onRefresh?: () => void;
   className?: string;
 }
@@ -211,6 +212,7 @@ export function AttendantEvolutionHub({
   agentName = "Camila Santos",
   agentRole = "Consultora de Vendas & Atendimento Especialista",
   avatarConfig,
+  isActive = false,
   onRefresh,
   className,
 }: AttendantEvolutionHubProps) {
@@ -252,59 +254,13 @@ export function AttendantEvolutionHub({
             currentLevelMinXp: hs.currentLevelMinXp || 0,
             nextLevelXp: hs.nextLevelXp || 1000,
             progressPct: hs.progressPct || 0,
-            evolutionScore: hs.evolutionScore || 85,
-            naturalnessScore: hs.naturalnessScore || 96,
+            evolutionScore: hs.evolutionScore ?? 0,
+            naturalnessScore: hs.naturalnessScore ?? null,
             conversionsCount: hs.conversionsCount || 0,
             objectionsLearned: hs.objectionsLearned || 0,
             totalAnalyzed: hs.totalAnalyzed || 0,
             scoredConversationsCount: hs.scoredConversationsCount || 0,
-            badges: [
-              {
-                id: "objection_master",
-                title: "Mestre em Objeções de Entrega",
-                description: "Supera com segurança dúvidas sobre pagamento na entrega com motorista",
-                icon: "ShieldCheck",
-                category: "objections",
-                unlocked: true,
-                progress: 100,
-              },
-              {
-                id: "pix_card_closer",
-                title: "Fechamento Rápido PIX & Cartão",
-                description: "Apresenta com precisão desconto de 5% no PIX ou em até 10x sem juros",
-                icon: "Zap",
-                category: "closing",
-                unlocked: true,
-                progress: 100,
-              },
-              {
-                id: "whatsapp_natural",
-                title: "WhatsApp Natural Anti-Robô",
-                description: "Comunicação fluida em 1 a 3 frases sem listas mecânicas ou introduções frias",
-                icon: "MessageCircle",
-                category: "naturalness",
-                unlocked: true,
-                progress: 92,
-              },
-              {
-                id: "logistics_router",
-                title: "Roteamento Logístico & Frete",
-                description: "Capta bairro e cidade para entrega ágil no mesmo dia ou em até 2 horas",
-                icon: "MapPin",
-                category: "logistics",
-                unlocked: true,
-                progress: 85,
-              },
-              {
-                id: "catalog_expert",
-                title: "Especialista em Catálogo",
-                description: "Domina medidas de churrasqueiras pré-moldadas e volume de cimento",
-                icon: "Layers",
-                category: "catalog",
-                unlocked: true,
-                progress: 100,
-              },
-            ],
+            badges: [],
             recentLogs: (fallback.history || []).slice(0, 20).map((h: any, idx: number) => ({
               id: h.id || idx,
               agentKey,
@@ -420,15 +376,15 @@ export function AttendantEvolutionHub({
                 <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl bg-[#091120] border-2 border-emerald-500/40 shadow-lg shadow-emerald-500/10 flex items-center justify-center overflow-hidden shrink-0">
                   <ZaiAvatarRenderer
                     avatar={resolvedAvatar}
-                    state="WORKING"
+                    state={isActive ? "WORKING" : "IDLE"}
                     size="md"
                     showAura={true}
                     showStatusBadge={false}
                     showBrandingLayer={false}
                   />
                 </div>
-                <Badge className="absolute -bottom-2 -right-1 bg-emerald-500 text-slate-950 font-black text-[10px] px-2 py-0.5 shadow-md border-none">
-                  IA ATIVA
+                <Badge className={cn("absolute -bottom-2 -right-1 text-slate-950 font-black text-[10px] px-2 py-0.5 shadow-md border-none", isActive ? "bg-emerald-500" : "bg-amber-400")}>
+                  {isActive ? "IA ATIVA" : "IA PAUSADA"}
                 </Badge>
               </div>
 
@@ -489,12 +445,12 @@ export function AttendantEvolutionHub({
               <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
                 <span className="text-foreground font-semibold">{profile?.scoredConversationsCount || profile?.conversionsCount || 0} atendimentos realizados</span>
                 <span>•</span>
-                <span className="text-emerald-400 font-semibold">{profile?.naturalnessScore || 96}% assertividade</span>
+                <span className="text-emerald-400 font-semibold">{profile?.naturalnessScore != null ? `${profile.naturalnessScore}% assertividade` : "assertividade sem dados"}</span>
               </div>
             </div>
 
             <Progress
-              value={profile?.naturalnessScore || 96}
+              value={profile?.naturalnessScore ?? 0}
               className="h-2.5 bg-muted/40 rounded-full overflow-hidden [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:via-teal-400 [&>div]:to-indigo-500"
             />
           </div>
@@ -507,9 +463,9 @@ export function AttendantEvolutionHub({
         <div className="p-3.5 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
           <div className="space-y-0.5">
             <span className="text-[11px] font-medium text-muted-foreground block">Status no WhatsApp</span>
-            <strong className="text-sm sm:text-base font-bold text-emerald-400 flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              Operando
+            <strong className={cn("text-sm sm:text-base font-bold flex items-center gap-1", isActive ? "text-emerald-400" : "text-amber-400")}>
+              <span className={cn("h-2 w-2 rounded-full", isActive ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+              {isActive ? "Operando" : "Pausado"}
             </strong>
           </div>
           <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
@@ -535,7 +491,7 @@ export function AttendantEvolutionHub({
           <div className="space-y-0.5">
             <span className="text-[11px] font-medium text-muted-foreground block">Naturalidade Anti-Robô</span>
             <strong className="text-xl font-bold font-mono text-foreground">
-              {profile?.naturalnessScore || 96}%
+              {profile?.naturalnessScore != null ? `${profile.naturalnessScore}%` : "—"}
             </strong>
           </div>
           <div className="h-9 w-9 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
@@ -602,8 +558,8 @@ export function AttendantEvolutionHub({
                       <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">
                         DIRETRIZ {tier.level}
                       </span>
-                      <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] px-1.5 py-0">
-                        ✓ Ativo
+                      <Badge className={cn("text-[9px] px-1.5 py-0 border", tier.isUnlocked ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" : "bg-muted/40 text-muted-foreground border-border/60")}>
+                        {tier.isUnlocked ? "✓ Ativo" : "Bloqueado"}
                       </Badge>
                     </div>
 

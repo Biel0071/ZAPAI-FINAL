@@ -19,6 +19,10 @@ try {
   execSync('ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@209.50.241.22 "mkdir -p /www/zapai/assets/catalog/real && cp -f /www/zapai/assets/catalog/bloco_10_100un*.png /www/zapai/assets/catalog/real/ 2>/dev/null; mkdir -p /opt/zapai/backend/assets/catalog/real && cp -f /www/zapai/assets/catalog/bloco_10_100un*.png /opt/zapai/backend/assets/catalog/ && cp -f /www/zapai/assets/catalog/bloco_10_100un*.png /opt/zapai/backend/assets/catalog/real/"', { stdio: 'inherit' });
 
   console.log('3. Uploading unified backend files...');
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/companyManagement.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/companyManagement.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/routes/index.js root@209.50.241.22:/opt/zapai/backend/src/api/routes/index.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/services/outboundQueueService.js root@209.50.241.22:/opt/zapai/backend/services/outboundQueueService.js', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/services/flowTrackerService.js root@209.50.241.22:/opt/zapai/backend/services/flowTrackerService.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/messageRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/messageRepository.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/conversationRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/conversationRepository.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/controllers/conversationsController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/conversationsController.js', { stdio: 'inherit' });
@@ -45,6 +49,8 @@ try {
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/data/repositories/attendantRepository.js root@209.50.241.22:/opt/zapai/backend/src/data/repositories/attendantRepository.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/services/ai.service.js root@209.50.241.22:/opt/zapai/backend/services/ai.service.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/api/controllers/aiController.js root@209.50.241.22:/opt/zapai/backend/src/api/controllers/aiController.js', { stdio: 'inherit' });
+  execSync('ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 root@209.50.241.22 "mkdir -p /opt/zapai/backend/src/ai/evolutionary"', { stdio: 'inherit' });
+  execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/src/ai/evolutionary/humanAttendanceLearner.js root@209.50.241.22:/opt/zapai/backend/src/ai/evolutionary/humanAttendanceLearner.js', { stdio: 'inherit' });
   execSync('scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 backend/migrations/053_create_attendants_multi_tenant_tables.js root@209.50.241.22:/opt/zapai/backend/migrations/053_create_attendants_multi_tenant_tables.js', { stdio: 'inherit' });
 
   console.log('4. Ensuring asset upload directories and restarting zapflow-api PM2 process on VPS...');

@@ -225,11 +225,8 @@ export default function Inbox() {
       onSelect: (id: string) => {
         const normalizedId = String(id);
         state.setSelectedConversationId(normalizedId);
-        void state.loadConversationMessages(normalizedId, { force: true }).finally(() => {
-          state.scrollToLatestMessage("auto");
-          window.setTimeout(() => state.scrollToLatestMessage("auto"), 120);
-          window.setTimeout(() => state.scrollToLatestMessage("auto"), 320);
-        });
+        state.scrollToLatestMessage("auto");
+        window.setTimeout(() => state.scrollToLatestMessage("auto"), 80);
         if (state.isMobile) {
           state.setMobileScreen("chat");
           useAppStore.getState().setIsMobileChatOpen(true);

@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowsClockwise, Cpu, HardDrives, Lightning, Network, Pulse, Timer } from "@phosphor-icons/react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { Header } from "@/components/layout/Header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ function statusClasses(status: NodeControlPlane["status"]) {
   if (status === "UNHEALTHY") return "bg-destructive/15 text-destructive";
   if (status === "DEGRADED") return "status-busy";
   if (status === "DEPLOYING" || status === "RESTARTING" || status === "RECOVERING") return "bg-info/15 text-info";
+  if (status === "UNKNOWN") return "bg-muted text-muted-foreground";
   return "status-offline";
 }
 
@@ -24,20 +24,19 @@ function serviceClasses(state: RuntimeServiceState) {
   return "bg-muted text-muted-foreground";
 }
 
-function trendData(node: NodeControlPlane) {
-  const cpu = node.metrics?.cpuPercent ?? 0;
-  const ram = node.metrics?.ramPercent ?? 0;
-  const disk = node.metrics?.diskPercent ?? 0;
-  return [
-    { t: "CPU", value: Math.max(cpu, 0) },
-    { t: "RAM", value: Math.max(ram, 0) },
-    { t: "Disco", value: Math.max(disk, 0) },
-  ];
-}
-
 function metric(value: number | null, suffix = "%") {
   if (value === null || Number.isNaN(value)) return "—";
   return `${Math.round(value)}${suffix}`;
+}
+
+function uptimeLabel(value: string | null) {
+  if (!value) return "—";
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds < 0) return value;
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return days ? `${days}d ${hours}h` : hours ? `${hours}h ${minutes}min` : `${minutes}min`;
 }
 
 function servicePill(label: string, value: RuntimeServiceState) {
@@ -53,23 +52,23 @@ export default function MasterNodes() {
 
   const clusterCards = useMemo(
     () => [
-      { label: "Total nodes", value: cluster?.totalNodes ?? 0, icon: Network },
-      { label: "Nodes online", value: cluster?.onlineNodes ?? 0, icon: Lightning },
-      { label: "Total sessões", value: cluster?.totalSessions ?? 0, icon: Pulse },
-      { label: "Mensagens", value: cluster?.totalMessages ?? 0, icon: Timer },
-      { label: "Queue", value: cluster?.queueSize ?? 0, icon: HardDrives },
-      { label: "Websocket", value: cluster?.websocketConnections ?? 0, icon: Cpu },
-      { label: "Nodes unhealthy", value: cluster?.unhealthyNodes ?? 0, icon: Pulse },
-      { label: "Deploys falhos", value: cluster?.failedDeploys ?? 0, icon: Lightning },
-      { label: "Redis MB", value: cluster?.redisUsageMb ?? 0, icon: HardDrives },
-      { label: "Postgres MB", value: cluster?.postgresUsageMb ?? 0, icon: HardDrives },
+      { label: "Total nodes", value: cluster?.totalNodes ?? null, icon: Network },
+      { label: "Nodes online", value: cluster?.onlineNodes, icon: Lightning },
+      { label: "Total sessões", value: cluster?.totalSessions, icon: Pulse },
+      { label: "Mensagens", value: cluster?.totalMessages, icon: Timer },
+      { label: "Queue", value: cluster?.queueSize, icon: HardDrives },
+      { label: "Websocket", value: cluster?.websocketConnections, icon: Cpu },
+      { label: "Nodes unhealthy", value: cluster?.unhealthyNodes, icon: Pulse },
+      { label: "Deploys falhos", value: cluster?.failedDeploys, icon: Lightning },
+      { label: "Redis MB", value: cluster?.redisUsageMb, icon: HardDrives },
+      { label: "Postgres MB", value: cluster?.postgresUsageMb, icon: HardDrives },
     ],
     [cluster],
   );
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto">
-      <Header title="Control Plane · Nodes" subtitle="Orquestração multi-VPS com monitoramento em tempo real" runtimeState="running" />
+      <Header title="Control Plane · Nodes" subtitle="Orquestração multi-VPS com monitoramento em tempo real" />
       <div className="page-container section-stack">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {clusterCards.map((item) => (
@@ -79,7 +78,7 @@ export default function MasterNodes() {
                   <p className="text-xs text-muted-foreground">{item.label}</p>
                   <item.icon className="h-4 w-4 text-primary" />
                 </div>
-                <p className="mt-2 text-2xl font-bold font-display">{item.value.toLocaleString("pt-BR")}</p>
+                <p className="mt-2 text-2xl font-bold font-display">{item.value == null ? "—" : item.value.toLocaleString("pt-BR")}</p>
               </CardContent>
             </Card>
           ))}
@@ -115,7 +114,7 @@ export default function MasterNodes() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className={`status-badge ${statusClasses(node.status)}`}>{node.status}</Badge>
-                          <Badge className={`status-badge ${node.health === "healthy" ? "status-online" : node.health === "unhealthy" ? "bg-destructive/15 text-destructive" : "status-offline"}`}>
+                          <Badge className={`status-badge ${node.health === "healthy" ? "status-online" : node.health === "unhealthy" ? "bg-destructive/15 text-destructive" : "bg-muted text-muted-foreground"}`}>
                             {node.health}
                           </Badge>
                         </div>
@@ -123,8 +122,8 @@ export default function MasterNodes() {
 
                       <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground sm:grid-cols-4">
                         <div>IP: <span className="text-foreground">{node.publicIp ?? "—"}</span></div>
-                        <div>Uptime: <span className="text-foreground">{node.uptime ?? "—"}</span></div>
-                        <div>Latência: <span className="text-foreground">{node.latencyMs ?? "—"}ms</span></div>
+                        <div>Uptime: <span className="text-foreground">{uptimeLabel(node.uptime)}</span></div>
+                        <div>Latência: <span className="text-foreground">{node.latencyMs == null ? "—" : `${node.latencyMs}ms`}</span></div>
                         <div>Sessões: <span className="text-foreground">{node.whatsappSessions ?? "—"}</span></div>
                         <div>Versão: <span className="text-foreground">{node.build.version ?? "—"}</span></div>
                         <div>Build: <span className="text-foreground">{node.build.buildHash ?? "—"}</span></div>
@@ -152,22 +151,6 @@ export default function MasterNodes() {
                           <p className="text-muted-foreground">Disco</p>
                           <p className="font-semibold text-foreground">{metric(node.metrics?.diskPercent ?? null)}</p>
                         </div>
-                      </div>
-
-                      <div className="mt-3 h-16 w-full rounded-md border border-border/70 bg-card/60 p-2">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={trendData(node)}>
-                            <XAxis dataKey="t" hide />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "hsl(var(--card))",
-                                border: "1px solid hsl(var(--border))",
-                                borderRadius: "8px",
-                              }}
-                            />
-                            <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.2)" strokeWidth={2} />
-                          </AreaChart>
-                        </ResponsiveContainer>
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">

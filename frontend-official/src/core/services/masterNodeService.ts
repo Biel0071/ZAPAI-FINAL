@@ -46,6 +46,7 @@ const DEPLOY_ACTIONS = {
 export type DeployAction = keyof typeof DEPLOY_ACTIONS;
 
 function toNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -81,6 +82,7 @@ function normalizeServiceState(value: unknown): RuntimeServiceState {
 }
 
 function normalizeLifecycleStatus(value: unknown): NodeLifecycleStatus {
+  if (typeof value !== "string" || !value.trim()) return "UNKNOWN";
   const normalized = String(value ?? "").trim().toLowerCase();
   if (["online", "running", "active", "ready"].includes(normalized)) return "ONLINE";
   if (["offline", "down", "stopped"].includes(normalized)) return "OFFLINE";
@@ -89,7 +91,7 @@ function normalizeLifecycleStatus(value: unknown): NodeLifecycleStatus {
   if (["restarting", "restart"].includes(normalized)) return "RESTARTING";
   if (["unhealthy", "failed", "error"].includes(normalized)) return "UNHEALTHY";
   if (["recovering", "healing"].includes(normalized)) return "RECOVERING";
-  return "OFFLINE";
+  return "UNKNOWN";
 }
 
 function normalizeHealth(value: unknown): NodeHealthState {
@@ -232,28 +234,36 @@ function mapNode(item: JsonRecord): NodeControlPlane {
   };
 }
 
-function aggregateCluster(nodes: NodeControlPlane[], payload: JsonRecord): ClusterOverview {
-  const totalSessions = nodes.reduce((acc, node) => acc + (node.whatsappSessions ?? 0), 0);
-  const queueSize = nodes.reduce((acc, node) => acc + (node.metrics?.queueSize ?? 0), 0);
-  const redisUsageMb = nodes.reduce((acc, node) => acc + (node.metrics?.redisMemoryMb ?? 0), 0);
+export function aggregateCluster(nodes: NodeControlPlane[], payload: JsonRecord): ClusterOverview {
+  const sumNodeMetric = (read: (node: NodeControlPlane) => number | null | undefined) => {
+    if (!nodes.length) return null;
+    const values = nodes.map(read);
+    return values.every((value): value is number => typeof value === "number" && Number.isFinite(value))
+      ? values.reduce((total, value) => total + value, 0)
+      : null;
+  };
 
   return {
     totalNodes: toNumber(payload.totalNodes ?? payload.nodes_total) ?? nodes.length,
-    onlineNodes: toNumber(payload.onlineNodes ?? payload.nodes_online) ?? nodes.filter((node) => node.status === "ONLINE").length,
-    totalSessions: toNumber(payload.totalSessions) ?? totalSessions,
-    totalMessages: toNumber(payload.totalMessages) ?? 0,
-    queueSize: toNumber(payload.queueSize) ?? queueSize,
-    websocketConnections: toNumber(payload.websocketConnections) ?? 0,
-    unhealthyNodes: toNumber(payload.unhealthyNodes ?? payload.nodes_degraded) ?? nodes.filter((node) => node.health === "unhealthy").length,
-    failedDeploys: toNumber(payload.failedDeploys) ?? 0,
-    redisUsageMb: toNumber(payload.redisUsageMb) ?? redisUsageMb,
-    postgresUsageMb: toNumber(payload.postgresUsageMb) ?? 0,
+    onlineNodes: toNumber(payload.onlineNodes ?? payload.nodes_online) ?? (nodes.every((node) => node.status !== "UNKNOWN")
+      ? nodes.filter((node) => node.status === "ONLINE").length
+      : null),
+    totalSessions: toNumber(payload.totalSessions) ?? sumNodeMetric((node) => node.whatsappSessions),
+    totalMessages: toNumber(payload.totalMessages),
+    queueSize: toNumber(payload.queueSize) ?? sumNodeMetric((node) => node.metrics?.queueSize),
+    websocketConnections: toNumber(payload.websocketConnections),
+    unhealthyNodes: toNumber(payload.unhealthyNodes ?? payload.nodes_degraded) ?? (nodes.every((node) => node.health !== "unknown")
+      ? nodes.filter((node) => node.health === "unhealthy").length
+      : null),
+    failedDeploys: toNumber(payload.failedDeploys),
+    redisUsageMb: toNumber(payload.redisUsageMb) ?? sumNodeMetric((node) => node.metrics?.redisMemoryMb),
+    postgresUsageMb: toNumber(payload.postgresUsageMb),
   };
 }
 
 export async function loadNodesControlPlane() {
   const [nodesPayload, clusterPayload, deploymentsPayload] = await Promise.all([
-    requestJson("/api/cluster/nodes", "GET").catch(() => ({ nodes: [] })),
+    requestJson("/api/cluster/nodes", "GET"),
     requestJson("/api/cluster/overview", "GET").catch(() => ({})),
     requestJson("/api/cluster/deployments", "GET").catch(() => []),
   ]);

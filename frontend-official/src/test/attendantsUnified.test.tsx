@@ -16,6 +16,7 @@ vi.mock("@/components/evolution/HistoryBootstrapPanel", () => ({ HistoryBootstra
 // Mock apiService
 vi.mock("@/core/services/apiService", () => ({
   apiService: {
+    getPromptTemplates: vi.fn().mockResolvedValue([]),
     getAIAgents: vi.fn().mockResolvedValue({
       success: true,
       agents: [

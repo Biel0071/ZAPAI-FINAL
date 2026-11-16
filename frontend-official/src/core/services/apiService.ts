@@ -75,6 +75,36 @@ function resolveAxiosEndpoint(endpoint: string): string {
   return normalized.startsWith("/api/") ? normalized.slice(4) : normalized;
 }
 
+const recentRequests = new Map<string, { at: number; promise: Promise<unknown> }>();
+
+function dedupeRequest<T>(key: string, load: () => Promise<T>, windowMs = 3000): Promise<T> {
+  const now = Date.now();
+  const cached = recentRequests.get(key);
+  if (cached && now - cached.at < windowMs) return cached.promise as Promise<T>;
+  const promise = load();
+  recentRequests.set(key, { at: now, promise });
+  promise.catch(() => recentRequests.delete(key));
+  return promise;
+}
+
+export type PixKeyType = "cpf" | "cnpj" | "phone" | "email" | "evp";
+
+export interface StorePixSettingsInput {
+  enabled: boolean;
+  keyType: PixKeyType;
+  key: string;
+  merchantName: string;
+  merchantCity: string;
+}
+
+export interface StorePixSettings extends StorePixSettingsInput {
+  updatedAt: string | null;
+}
+
+export type StorePixPayloadResponse =
+  | { configured: false; storeId: string | null }
+  | { configured: true; storeId: string; pix: StorePixSettings; payload: string; amount: number | null };
+
 export interface Conversation {
   name?: string;
   contactPhone?: string;
@@ -1304,7 +1334,7 @@ function is404Error(error: unknown): boolean {
 
 export const apiService = {
   async getHealth() {
-    return request<any>({ endpoint: "/api/health", method: "GET" });
+    return dedupeRequest("health", () => request<any>({ endpoint: "/api/health", method: "GET" }));
   },
 
   async getAdminUsers(): Promise<{ id: number; username: string; email: string | null; role: string }[]> {
@@ -1839,6 +1869,7 @@ export const apiService = {
     action?: string;
     recentMessages?: Array<{ role: string; content: string }>;
     sessionId?: string;
+    prewarm?: boolean;
   }) =>
     request<{
       message: string;
@@ -1911,7 +1942,7 @@ export const apiService = {
     }),
 
   getAgentEvolution: (agentKey: string) =>
-    request<{
+    dedupeRequest(`agent-evolution:${agentKey}`, () => request<{
       success: boolean;
       history: any[];
       stats: any;
@@ -1943,7 +1974,7 @@ export const apiService = {
     }>({
       endpoint: `/ai/agent-evolution/${encodeURIComponent(agentKey)}`,
       method: "GET",
-    }),
+    })),
 
   getAgentEvolutionProfile: (agentKey: string = "camila") =>
     request<{
@@ -2155,6 +2186,10 @@ export const apiService = {
     return request<{ success: boolean; agent: any }>({ endpoint: "/config/ai-agents", method: "POST", body: payload });
   },
 
+  async getPromptTemplates() {
+    return request<any[]>({ endpoint: "/ai/prompt-templates", method: "GET" });
+  },
+
   async updateAIAgent(key: string, payload: any) {
     return request<{ success: boolean; agent: any }>({ endpoint: `/config/ai-agents/${encodeURIComponent(key)}`, method: "PUT", body: payload });
   },
@@ -2225,6 +2260,30 @@ export const apiService = {
 
   async deleteStore(storeId: string) {
     return request<{ success: boolean; message?: string }>({ endpoint: `/stores/${encodeURIComponent(storeId)}`, method: "DELETE" });
+  },
+
+  async getStorePixSettings(storeId: string) {
+    return request<{ pix: StorePixSettings | null }>({ endpoint: `/stores/${encodeURIComponent(storeId)}/payment-settings`, method: "GET" });
+  },
+
+  async saveStorePixSettings(storeId: string, pix: StorePixSettingsInput) {
+    return request<{ success: boolean; pix: StorePixSettings; payload: string }>({
+      endpoint: `/stores/${encodeURIComponent(storeId)}/payment-settings`,
+      method: "PUT",
+      body: { pix },
+    });
+  },
+
+  async removeStorePixSettings(storeId: string) {
+    return request<{ success: boolean }>({ endpoint: `/stores/${encodeURIComponent(storeId)}/payment-settings/pix`, method: "DELETE" });
+  },
+
+  async getSessionPix(params: { sessionId?: string; storeId?: string; amount?: number }) {
+    const query = new URLSearchParams();
+    if (params.sessionId) query.set("sessionId", params.sessionId);
+    if (params.storeId) query.set("storeId", params.storeId);
+    if (params.amount && params.amount > 0) query.set("amount", String(params.amount));
+    return request<StorePixPayloadResponse>({ endpoint: `/stores/payment/pix?${query.toString()}`, method: "GET" });
   },
 
   async getConnections(options?: { throwOnError?: boolean }): Promise<any[]> {

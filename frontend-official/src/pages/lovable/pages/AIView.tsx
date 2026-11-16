@@ -310,42 +310,6 @@ const getAgentAvatarIcon = (avatarKey: string, className?: string) => {
   }
 };
 
-const PROMPT_TEMPLATES = [
-  {
-    id: "vendas",
-    title: "Vendas e Conversão",
-    category: "Vendas",
-    description: "Focado em qualificar leads rapidamente, oferecer alternativas e conduzir para o fechamento de pedidos dos produtos ou serviços da loja.",
-    prompt: `Você é o atendente de vendas desta loja.
-Foco principal: converter perguntas de preços em pedidos fechados.
-Regras:
-1. Sempre pergunte as quantidades e local de entrega antes de passar orçamento final.
-2. Seja prestativa, objetiva e comercial. Termine sempre com uma pergunta instigando a ação.`,
-  },
-  {
-    id: "suporte",
-    title: "Suporte Técnico e Dúvidas",
-    category: "Suporte",
-    description: "Focado em sanar dúvidas sobre produtos, serviços, logística e especificações da loja.",
-    prompt: `Você é o atendente de pós-venda e suporte desta loja.
-Foco principal: resolver problemas e tirar dúvidas técnicas sobre materiais de construção.
-Regras:
-1. Explique com calma os prazos de frete e especificações dos produtos da loja.
-2. Mantenha tom prestativo e calmo.`,
-  },
-  {
-    id: "cobranca",
-    title: "Cobrança e Financeiro",
-    category: "Financeiro",
-    description: "Focado em negociar faturas em aberto, enviar códigos Pix e orientar o cliente conforme as políticas financeiras da loja.",
-    prompt: `Você é o atendente do setor financeiro e cobrança desta loja.
-Foco principal: receber pagamentos e regularizar cadastros de faturamento.
-Regras:
-1. Seja educada mas firme. Envie a chave Pix cópia e cola quando solicitada.
-2. Agende o acerto na loja quando o cliente preferir pagamento presencial.`,
-  }
-];
-
 const PROVIDER_MODELS: Record<string, Array<{ value: string; label: string }>> = {
   openai: [
     { value: "gpt-4o-mini", label: "GPT-4o Mini (Recomendado/Rápido)" },
@@ -939,6 +903,7 @@ export function AIView(props: AIViewProps) {
 
   const [selectedProviderId, setSelectedProviderId] = useState<string>("");
   const [templateSearch, setTemplateSearch] = useState("");
+  const [promptTemplates, setPromptTemplates] = useState<any[]>([]);
   const [favoriteTemplates, setFavoriteTemplates] = useState<string[]>(() => {
     try {
       return JSON.parse(window.localStorage.getItem("zapai_favorite_prompt_templates") ?? "[]");
@@ -946,6 +911,13 @@ export function AIView(props: AIViewProps) {
       return [];
     }
   });
+
+  useEffect(() => {
+    apiService.getPromptTemplates().then((result) => {
+      const rows = Array.isArray(result) ? result : Array.isArray((result as any)?.data) ? (result as any).data : [];
+      setPromptTemplates(rows.filter((template: any) => template.status === "published"));
+    }).catch(() => setPromptTemplates([]));
+  }, []);
 
   const [lastUsedTemplateId, setLastUsedTemplateId] = useState<string | null>(() => {
     return window.localStorage.getItem("zapai_last_used_prompt_template");
@@ -1157,12 +1129,12 @@ export function AIView(props: AIViewProps) {
     });
   };
 
-  const filteredTemplates = PROMPT_TEMPLATES.filter((t) => {
+  const filteredTemplates = promptTemplates.filter((t) => {
     const q = templateSearch.toLowerCase();
     return (
       t.title.toLowerCase().includes(q) ||
-      t.category.toLowerCase().includes(q) ||
-      t.description.toLowerCase().includes(q)
+      String(t.niche || "").toLowerCase().includes(q) ||
+      String(t.description || "").toLowerCase().includes(q)
     );
   }).sort((a, b) => {
     const aFav = favoriteTemplates.includes(a.id) ? 1 : 0;
@@ -2478,7 +2450,7 @@ export function AIView(props: AIViewProps) {
           </div>
           <div>
             <span className="block text-muted-foreground text-[8px]">Empresa</span>
-            <span className="font-bold text-foreground">{agentFormCompany || "Vista Alegre"}</span>
+            <span className="font-bold text-foreground">{agentFormCompany || "—"}</span>
           </div>
         </div>
 
@@ -4365,7 +4337,7 @@ export function AIView(props: AIViewProps) {
                             <div>
                               <div className="flex items-center justify-between mb-1.5">
                                 <span className="font-semibold text-foreground">{template.title}</span>
-                                <Badge className="text-[8px] h-4">{template.category}</Badge>
+                                <Badge className="text-[8px] h-4">{template.niche}</Badge>
                               </div>
                               <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">{template.description}</p>
                             </div>
@@ -4374,7 +4346,7 @@ export function AIView(props: AIViewProps) {
                               size="sm"
                               className="w-full text-[10px] h-7"
                               onClick={() => {
-                                onPromptChange(template.prompt);
+                                onPromptChange(template.prompt_text);
                                 toast({ title: `Template "${template.title}" copiado. Cole no campo correspondente.` });
                               }}
                             >

@@ -542,6 +542,9 @@ async function learnFromInteraction({
 
   // Persiste nós individualmente para garantir atualização de peso e compatibilidade com o pool
   for (const [nodeKey, nodeType, label, content, searchable, properties] of nodes) {
+    const scopedProperties = activeSessionId
+      ? { ...(properties || {}), sessionId: String(activeSessionId) }
+      : (properties || {});
     await query(`
       INSERT INTO agent_memory_nodes (company_id, agent_key, node_key, node_type, label, content, searchable_text, properties, weight, created_at, last_seen_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, 1, $9, $9)
@@ -549,7 +552,7 @@ async function learnFromInteraction({
         SET content = EXCLUDED.content, searchable_text = EXCLUDED.searchable_text,
             properties = EXCLUDED.properties, weight = LEAST(100, agent_memory_nodes.weight + 1),
             last_seen_at = EXCLUDED.last_seen_at
-    `, [cleanCompany, normalizedAgent, nodeKey, nodeType, label, content, searchable, JSON.stringify(properties || {}), now]);
+    `, [cleanCompany, normalizedAgent, nodeKey, nodeType, label, content, searchable, JSON.stringify(scopedProperties), now]);
   }
 
   // Persiste nós de conceito
@@ -703,13 +706,16 @@ async function getGraphSnapshot(agentKey, companyId = 'default', limit = 50, ses
   const cleanCompany = String(companyId || 'default').trim();
   const normalizedAgent = normalizeKey(agentKey, 'agent');
 
-  // Assegura bootstrapping inicial em background sem travar requisições de snapshot
-  setImmediate(() => {
-    bootstrapAgentMemoryGraph({ agentKey: normalizedAgent, companyId: cleanCompany }).catch(() => {});
-  });
-
-  const sessionFilter = sessionId ? "AND (properties->>'sessionId' = $4 OR properties->>'sessionId' IS NULL OR node_type = 'agent')" : "";
+  // Nodes without explicit scope may contain legacy contact/conversation data.
+  // Hide them in a session view instead of treating missing scope as shared data.
+  const sessionFilter = sessionId ? "AND (properties->>'sessionId' = $4 OR node_type = 'agent')" : "";
   const params = sessionId ? [cleanCompany, normalizedAgent, limit, sessionId] : [cleanCompany, normalizedAgent, limit];
+
+  if (!sessionId) {
+    setImmediate(() => {
+      bootstrapAgentMemoryGraph({ agentKey: normalizedAgent, companyId: cleanCompany }).catch(() => {});
+    });
+  }
 
   const [nodesResult, edgesResult, statsResult] = await Promise.all([
     query(`
@@ -723,9 +729,20 @@ async function getGraphSnapshot(agentKey, companyId = 'default', limit = 50, ses
       SELECT source_key, target_key, relation, weight
       FROM agent_memory_edges
       WHERE company_id = $1 AND agent_key = $2
+        ${sessionId ? `AND EXISTS (
+          SELECT 1 FROM agent_memory_nodes n
+          WHERE n.company_id = agent_memory_edges.company_id AND n.agent_key = agent_memory_edges.agent_key
+            AND n.node_key = agent_memory_edges.source_key
+            AND (n.properties->>'sessionId' = $4 OR n.node_type = 'agent')
+        ) AND EXISTS (
+          SELECT 1 FROM agent_memory_nodes n
+          WHERE n.company_id = agent_memory_edges.company_id AND n.agent_key = agent_memory_edges.agent_key
+            AND n.node_key = agent_memory_edges.target_key
+            AND (n.properties->>'sessionId' = $4 OR n.node_type = 'agent')
+        )` : ''}
       ORDER BY weight DESC, last_seen_at DESC
       LIMIT $3
-    `, [cleanCompany, normalizedAgent, limit * 3]),
+    `, params),
     query(`
       SELECT 
         COUNT(*) FILTER (WHERE node_type = 'episode')::int AS episodes,
@@ -740,7 +757,8 @@ async function getGraphSnapshot(agentKey, companyId = 'default', limit = 50, ses
         COUNT(*)::int AS total
       FROM agent_memory_nodes
       WHERE company_id = $1 AND agent_key = $2
-    `, [cleanCompany, normalizedAgent]),
+        ${sessionId ? "AND (properties->>'sessionId' = $3 OR node_type = 'agent')" : ''}
+    `, sessionId ? [cleanCompany, normalizedAgent, sessionId] : [cleanCompany, normalizedAgent]),
   ]);
 
   const rawNodes = nodesResult.rows || [];

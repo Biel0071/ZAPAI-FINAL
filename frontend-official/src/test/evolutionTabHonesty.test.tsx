@@ -129,8 +129,8 @@ describe("EvolutionTab uses only returned memory and evolution data", () => {
       return Promise.resolve({ data: [] });
     });
     await renderEvolution({ agentKey: "agent-maria", agents: [{ key: "agent-maria", name: "Maria" }] });
-    expect(document.body.textContent).toContain("Objeções Aprendidas—");
-    expect(document.body.textContent).toContain("Atendimentos Analisados—");
+    expect(document.body.textContent).toContain("Objeções Aprendidas (loja)—");
+    expect(document.body.textContent).toContain("Msgs de Operadores (loja)—");
 
     mocks.requestApiEndpoint.mockImplementation((url: string) => {
       if (url.includes("/api/ai/memory/graph")) return Promise.resolve({ data: { nodes: [], edges: [] } });
@@ -138,8 +138,8 @@ describe("EvolutionTab uses only returned memory and evolution data", () => {
       return Promise.resolve({ data: [] });
     });
     await renderEvolution({ agentKey: "agent-zero", agents: [{ key: "agent-zero", name: "Zero" }] });
-    expect(document.body.textContent).toContain("Objeções Aprendidas0");
-    expect(document.body.textContent).toContain("Atendimentos Analisados0");
+    expect(document.body.textContent).toContain("Objeções Aprendidas (loja)0");
+    expect(document.body.textContent).toContain("Msgs de Operadores (loja)0");
   });
 
   it("uses confidence and relationships from the graph, including an explicit zero", async () => {

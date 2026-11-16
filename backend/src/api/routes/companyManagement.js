@@ -10,21 +10,46 @@ const roleOf = (req) => String(req.auth?.role || '').toLowerCase();
 const canManageCompany = (req) => (masterRoles.has(roleOf(req)) && (req.path === '/company/entitlements' || !req.adminCompanyContext)) || roleOf(req) === 'admin';
 
 router.get('/company/entitlements', async (req, res) => {
-  if (masterRoles.has(roleOf(req)) && !req.adminCompanyContext) return res.status(403).json({ error: 'Selecione uma empresa antes de consultar dados do tenant.' });
+  const isMaster = masterRoles.has(roleOf(req));
+  const tenantId = req.adminCompanyContext || req.authTenantId || 'default';
   try {
-    const company = await query('SELECT id, name, responsible_name, status, legacy_access, zai_enabled FROM companies WHERE id = $1', [req.authTenantId]);
-    if (!company.rowCount) return res.status(404).json({ error: 'Empresa não encontrada.' });
+    const company = await query('SELECT id, name, responsible_name, status, legacy_access, zai_enabled FROM companies WHERE id = $1', [tenantId]);
+    if (!company.rowCount) {
+      if (isMaster) {
+        return res.json({
+          company: { id: tenantId, name: 'Empresa Principal', status: 'active', legacy_access: true },
+          legacyAccess: true,
+          license: null,
+          modules: ['inbox', 'contacts', 'campaigns'],
+          numberLimit: null
+        });
+      }
+      return res.status(404).json({ error: 'Empresa não encontrada.' });
+    }
     const license = await query(`SELECT l.id, l.expires_at, p.name AS plan, p.modules, p.number_limit
       FROM company_licenses l JOIN license_plans p ON p.id = l.plan_id
       WHERE l.company_id = $1 AND l.redeemed_at IS NOT NULL AND l.revoked_at IS NULL
         AND (l.expires_at IS NULL OR l.expires_at > NOW()) AND p.active = true
-      ORDER BY l.redeemed_at DESC LIMIT 1`, [req.authTenantId]);
-    const legacy = company.rows[0].legacy_access;
-    return res.json({ company: company.rows[0], legacyAccess: legacy, license: license.rows[0] || null,
+      ORDER BY l.redeemed_at DESC LIMIT 1`, [tenantId]);
+    const legacy = isMaster || Boolean(company.rows[0].legacy_access);
+    return res.json({
+      company: company.rows[0],
+      legacyAccess: legacy,
+      license: license.rows[0] || null,
       modules: legacy ? ['inbox', 'contacts', 'campaigns'] : (license.rows[0]?.modules || []),
-      numberLimit: legacy ? null : (license.rows[0]?.number_limit ?? 0) });
+      numberLimit: legacy ? null : (license.rows[0]?.number_limit ?? 0)
+    });
   } catch (error) {
     console.error('[COMPANY] Failed to load entitlements:', error.message);
+    if (isMaster) {
+      return res.json({
+        company: { id: tenantId, name: 'Empresa Principal', status: 'active', legacy_access: true },
+        legacyAccess: true,
+        license: null,
+        modules: ['inbox', 'contacts', 'campaigns'],
+        numberLimit: null
+      });
+    }
     return res.status(503).json({ error: 'Não foi possível carregar a licença da empresa.' });
   }
 });

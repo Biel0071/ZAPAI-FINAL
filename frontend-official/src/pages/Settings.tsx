@@ -34,6 +34,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { apiService, type AIStatusResponse } from "@/core/services/apiService";
 import { useAdminAuth } from "@/state/hooks/useAdminAuth";
+import { useUserRole } from "@/state/hooks/useUserRole";
+
+const ROLE_LABELS: Record<string, string> = { master: "Master da plataforma", admin: "Administrador", user: "Operador" };
 import { notify } from "@/core/services/notifyService";
 import { UnderConstruction } from "@/components/layout/UnderConstruction";
 import { useTheme } from "next-themes";
@@ -195,6 +198,8 @@ export default function Settings() {
     finally { setIsSavingCompany(false); }
   };
 
+  const { role: sessionRole } = useUserRole();
+
   // Only backend-supported account fields can be saved.
   useEffect(() => {
     let isMounted = true;
@@ -204,8 +209,11 @@ export default function Settings() {
       try {
         const users = await apiService.getAdminUsers();
         const user = users.find(item => item.username === username);
-        if (isMounted && user) { setUserId(user.id); setProfileEmail(user.email || ''); setProfileRole(user.role || ''); }
-        else if (isMounted) setProfileError('O perfil não está disponível para edição nesta conta.');
+        if (isMounted && user) { setUserId(user.id); setProfileEmail(user.email || ''); setProfileRole(ROLE_LABELS[user.role] || user.role || ''); }
+        else if (isMounted) {
+          setProfileRole(ROLE_LABELS[sessionRole] || sessionRole);
+          setProfileError('Conta administrativa da plataforma: usuário e e-mail são gerenciados no servidor.');
+        }
       } catch {
         if (isMounted) setProfileError('Não foi possível carregar o perfil.');
       } finally {
@@ -214,7 +222,7 @@ export default function Settings() {
     };
     if (username) void loadProfile(); else setIsProfileLoading(false);
     return () => { isMounted = false; };
-  }, [username]);
+  }, [username, sessionRole]);
 
   // Load AI Global status
   useEffect(() => {

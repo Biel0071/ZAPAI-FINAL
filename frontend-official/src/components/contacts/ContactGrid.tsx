@@ -15,7 +15,7 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { TagIconBadge } from "@/components/inbox/TagIconBadge";
-import { getTagColor, formatContactPhone } from "@/pages/Inbox/utils";
+import { getTagColor, formatContactPhone, getNameInitials } from "@/pages/Inbox/utils";
 import { businessLabel } from '@/core/utils/tagEmojis';
 
 export interface ContactGridItem {
@@ -42,14 +42,7 @@ interface ContactGridProps {
 }
 
 function getInitials(name?: string | null): string {
-  if (!name || typeof name !== "string") return "?";
-  return name
-    .split(" ")
-    .map((entry) => entry[0])
-    .filter(Boolean)
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "?";
+  return getNameInitials(name, "?");
 }
 
 function formatUpdatedAt(value: string): string {

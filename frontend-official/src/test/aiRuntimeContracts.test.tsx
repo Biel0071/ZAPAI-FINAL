@@ -31,6 +31,7 @@ vi.mock("@phosphor-icons/react", () => ({
 vi.mock("@/core/services/apiService", () => ({
   requestApiEndpoint: vi.fn().mockResolvedValue([]),
   apiService: {
+    getPromptTemplates: vi.fn().mockResolvedValue([]),
     testAIMessage: vi.fn().mockResolvedValue({ success: true, result: { ok: true, response: "Resposta oficial do provedor.", responseTimeMs: 24 } }),
     getAIProviders: vi.fn().mockResolvedValue({ success: true, providers: [{ provider: "openai", name: "OpenAI", model: "gpt-4o-mini", enabled: true, configured: true }] }),
     toggleAIAgent: vi.fn().mockResolvedValue({ success: true }),

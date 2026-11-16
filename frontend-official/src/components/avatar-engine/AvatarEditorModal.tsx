@@ -26,6 +26,7 @@ import {
   WORK_OBJECTS,
   CLOTHING_STYLES,
   AVATAR_HAIRS,
+  getAvatarHairOptions,
   AVATAR_FACES,
   AVATAR_OUTFITS,
   AVATAR_ACCESSORIES,
@@ -41,6 +42,7 @@ import {
   randomizeAvatar,
   buildStoreVisualDNA,
   resolveSpriteForAvatar,
+  resolveBaseSpriteForAvatar,
   applyStylePreset,
 } from "./CharacterFactory";
 import { ZaiAvatarRenderer } from "./ZaiAvatarRenderer";
@@ -288,6 +290,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
       };
       return {
         ...updated,
+        baseSpriteId: resolveSpriteForAvatar(updated, true),
         catalogSpriteId: resolveSpriteForAvatar(updated, true),
       };
     });
@@ -302,6 +305,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
       };
       return {
         ...next,
+        baseSpriteId: resolveSpriteForAvatar(next, true),
         catalogSpriteId: resolveSpriteForAvatar(next, true),
       };
     });
@@ -744,7 +748,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                       Cortes Modulares ZAI
                     </Label>
                     <div className="grid grid-cols-2 gap-2.5">
-                      {AVATAR_HAIRS.map((h) => {
+                      {getAvatarHairOptions(avatar.body).map((h) => {
                         const display = resolveItemDisplayForGender(h, avatar.body);
                         const isSelected =
                           avatar.hair === h.id ||
@@ -763,7 +767,8 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                               };
                               return {
                                 ...next,
-                                catalogSpriteId: resolveSpriteForAvatar(next, true),
+                                baseSpriteId: resolveBaseSpriteForAvatar(next),
+                                catalogSpriteId: resolveBaseSpriteForAvatar(next),
                               };
                             })}
                             className={cn(

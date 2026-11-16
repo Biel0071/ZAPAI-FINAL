@@ -87,6 +87,9 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
     category: "Tijolos & Blocos",
     stock: 150,
     images: [
+      "/assets/catalog/bloco_10_100un.png",
+      "/assets/catalog/bloco_10_100un_2.png",
+      "/assets/catalog/bloco_10_100un_3.png",
       "/assets/catalog/real/bloco_10_100un.png",
       "/assets/catalog/real/bloco_10_100un_2.png",
       "/assets/catalog/real/bloco_10_100un_3.png"
@@ -353,6 +356,7 @@ export const FALLBACK_STORE_PRODUCTS: CatalogProduct[] = [
 export const getCatalogImageUrl = (raw?: string) => {
   if (!raw) return "";
   const base = raw.replace("/assets/catalog/real/", "/assets/catalog/");
+  return base.includes("?") ? base : `${base}?v=real_v4`;
   return base.includes("?") ? base : `${base}?v=real_v6_authentic`;
 };
 
@@ -394,7 +398,7 @@ export function formatMultiProductMessage(products: CatalogProduct[], customNote
   const lines: (string | null)[] = [
     `📦 *[CATÁLOGO WHATSAPP]*`,
     `━━━━━━━━━━━━━━━━━━━━`,
-    `*Depósito Vista Alegre — Produtos Selecionados:*`,
+    `*Produtos Selecionados:*`,
     ``,
   ];
 
@@ -564,7 +568,7 @@ export function CatalogSelectorPopover({
           }));
           setProducts(sortCatalogProducts(mapped));
         }
-      }).catch(() => {});
+      }).catch(() => { });
       return () => {
         openMounted = false;
       };
@@ -871,7 +875,7 @@ export function CatalogSelectorPopover({
             )}
           </div>
 
-          </div>
+        </div>
 
         {/* Product list with checkboxes */}
         <ScrollArea className="h-[340px] p-2 bg-[#111b21]">
