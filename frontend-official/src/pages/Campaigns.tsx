@@ -699,7 +699,7 @@ export default function Campaigns() {
   }, []);
 
   useEffect(() => {
-    const routeState = location.state as { reactivationContacts?: Array<{ id?: string; name?: string; phone?: string }> } | null;
+    const routeState = location.state as { reactivationContacts?: Array<{ id?: string; name?: string; phone?: string }>; reactivationSessionId?: string } | null;
     const requestedContacts = routeState?.reactivationContacts;
     if (!contactsLoaded || !Array.isArray(requestedContacts) || requestedContacts.length === 0) return;
 
@@ -722,6 +722,7 @@ export default function Campaigns() {
 
     resetComposer();
     setCreationMode("manual");
+    if (routeState.reactivationSessionId) useAppStore.getState().setActiveSessionId(routeState.reactivationSessionId);
     setContacts(mergedContacts);
     setSelectedContactIds(selectedKeys);
     navigate(location.pathname, { replace: true, state: null });

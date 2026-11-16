@@ -177,6 +177,7 @@ export default function Connections() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isSessionsLoading, setIsSessionsLoading] = useState(true);
+  const [numberLimit, setNumberLimit] = useState<number | null>(null);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [createStatus, setCreateStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [restartingSessionId, setRestartingSessionId] = useState<string | null>(null);
@@ -237,6 +238,12 @@ export default function Connections() {
   }, [storeSessions, allAgents]);
 
   const safeSessions = useMemo(() => (Array.isArray(sessions) ? sessions : []), [sessions]);
+  const isAtNumberLimit = numberLimit !== null && safeSessions.length >= numberLimit;
+  useEffect(() => {
+    let active = true;
+    void apiService.getCompanyEntitlements().then((result) => { if (active) setNumberLimit(result.numberLimit); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
   const sessionsRef = useRef<Session[]>(safeSessions);
   const creatingSessionsRef = useRef<Set<string>>(new Set());
 
@@ -415,6 +422,10 @@ export default function Connections() {
   }, [loadSessions]);
 
   const handleCreateSession = async () => {
+    if (isAtNumberLimit) {
+      notify.error("O limite de números WhatsApp do pacote foi atingido.");
+      return;
+    }
     const rawSessionName = newSessionName.trim();
     if (!rawSessionName || isCreating) return;
 
@@ -662,14 +673,14 @@ export default function Connections() {
     setReactivatingSessionId(normalizeSessionName(sessionId));
     setReviewError(null);
     try {
-      const response = await requestApiEndpoint<{ resumed: { queueItems: number; campaigns: number } }>(
+      const response = await requestApiEndpoint<{ resumed: { queueItems: number; campaigns: number; followups?: number } }>(
         `/api/outbound-queue/session/${encodeURIComponent(sessionId)}/resume`,
         "POST",
       );
-      const { queueItems = 0, campaigns = 0 } = response?.resumed || {};
-      notify.success(queueItems || campaigns
-        ? `Reativados: ${queueItems} tarefas e ${campaigns} campanhas.`
-        : "Não há tarefas ou campanhas pausadas para este número.");
+      const { queueItems = 0, campaigns = 0, followups = 0 } = response?.resumed || {};
+      notify.success(queueItems || campaigns || followups
+        ? `Reativados: ${queueItems} tarefas, ${campaigns} campanhas e ${followups} follow-ups.`
+        : "Não há tarefas, campanhas ou follow-ups pausados para este número.");
       setReviewSessionId(null);
       setReviewItems([]);
     } catch (error) {
@@ -738,7 +749,7 @@ export default function Connections() {
         subtitle="Gerencie suas sessões oficiais de WhatsApp em tempo real"
         actions={
           <>
-            <Button size="sm" className="rounded-xl shadow-glow" onClick={() => setIsActivationDialogOpen(true)}>
+            <Button size="sm" className="rounded-xl shadow-glow" onClick={() => setIsActivationDialogOpen(true)} disabled={isAtNumberLimit} title={isAtNumberLimit ? "Limite do pacote atingido" : "Nova conexão WhatsApp"}>
               <Plus weight="bold" className="h-4 w-4" />
               Nova Conexão
             </Button>
@@ -770,7 +781,7 @@ export default function Connections() {
                     title="Nenhuma sessão criada"
                     description="Crie a primeira sessão oficial do WhatsApp para habilitar QR, reconnect e realtime dentro do runtime consolidado."
                     action={
-                      <Button className="rounded-xl shadow-glow" onClick={() => setIsActivationDialogOpen(true)}>
+                      <Button className="rounded-xl shadow-glow" onClick={() => setIsActivationDialogOpen(true)} disabled={isAtNumberLimit}>
                         Criar primeira sessão
                       </Button>
                     }
@@ -1177,7 +1188,7 @@ export default function Connections() {
                 const selectedContacts = groupSessionAutomations(reviewItems)
                   .filter((contact) => selectedReviewContactKeys.includes(contact.key))
                   .map((contact) => ({ id: contact.items.find((item) => item.conversationId)?.conversationId || contact.phone, name: contact.name, phone: contact.phone }));
-                navigate("/campaigns", { state: { reactivationContacts: selectedContacts } });
+                navigate("/campaigns", { state: { reactivationContacts: selectedContacts, reactivationSessionId: reviewSessionId } });
                 setReviewSessionId(null);
               }}
             >
@@ -1239,7 +1250,7 @@ export default function Connections() {
                   {sessionNameError && <p className="text-xs text-destructive">{sessionNameError}</p>}
                 </div>
 
-                <Button className="w-full gap-2 rounded-xl" onClick={() => void handleCreateSession()} disabled={!newSessionName.trim() || isCreating}>
+                <Button className="w-full gap-2 rounded-xl" onClick={() => void handleCreateSession()} disabled={!newSessionName.trim() || isCreating || isAtNumberLimit}>
                   {isCreating ? <Spinner weight="bold" className="h-4 w-4 animate-spin" /> : <QrCode weight="bold" className="h-4 w-4" />}
                   {createStatus === "success" ? "Sessão criada" : createStatus === "error" ? "Falha na criação" : isCreating ? "Criando sessão..." : "Gerar QR oficial"}
                 </Button>

@@ -58,6 +58,9 @@ async function getSessionReviewItems({ companyId, sessionId, allowFollowups }) {
       contact.followupsSent = Math.max(contact.followupsSent, Number(item.followupsSent || 0));
       contact.conversationId = String(item.id);
     }
+
+    // Scheduled follow-ups become eligible only after this contact is approved.
+    // Reconstruct their sent count from persisted tags for the review screen.
   }
 
   return Array.from(contacts.values()).sort((a, b) => a.phone.localeCompare(b.phone));
@@ -102,14 +105,10 @@ async function updateSessionContactAutomation(req, res) {
         const followups = await aiFollowupEngine.listSessionFollowups({ companyId, sessionId });
         const matching = followups.filter((item) => normalizePhone(item.phone || item.remote_jid) === contactId);
         for (const followup of matching) {
-          const result = await aiFollowupEngine.executeAlgorithmicFollowupForLead({
-            conversationId: followup.id,
-            companyId,
-            sessionId,
-            attempt: Number(followup.followupsSent || 0) + 1,
-            allowSessionResume: true,
+          const resumed = await aiFollowupEngine.resumeFollowupForConversation({
+            conversationId: followup.id, companyId, sessionId,
           });
-          if (result?.ok) details.followups++;
+          if (resumed?.ok) details.followups++;
         }
       }
     } else {
@@ -141,13 +140,17 @@ async function resumeSessionAutomations(req, res) {
   try {
     const context = await getOwnedConnectedSession(companyId, sessionId);
     if (context.error) return res.status(context.error.status).json({ error: 'Conecte uma sessão ativa pertencente à empresa antes de reativar as automações.' });
-    await sessionManager.setSessionAutomationPaused(sessionId, false, companyId);
-    let resumed;
-    try {
-      resumed = await campaignDispatchEngine.resumeSessionAutomationSet({ companyId, sessionId, io: req.app.get('io') || global.io });
-    } catch (error) {
-      await sessionManager.setSessionAutomationPaused(sessionId, true, companyId).catch(() => {});
-      throw error;
+    const resumed = await campaignDispatchEngine.resumeSessionAutomationSet({ companyId, sessionId, io: req.app.get('io') || global.io });
+    if (context.session.automationPaused === true) {
+      const followups = await aiFollowupEngine.listSessionFollowups({ companyId, sessionId });
+      let resumedFollowups = 0;
+      for (const followup of followups) {
+        const result = await aiFollowupEngine.resumeFollowupForConversation({
+          conversationId: followup.id, companyId, sessionId,
+        });
+        if (result?.ok) resumedFollowups++;
+      }
+      resumed.followups = resumedFollowups;
     }
     return res.status(200).json({ resumed });
   } catch (error) {

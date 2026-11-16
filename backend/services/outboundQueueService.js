@@ -50,7 +50,7 @@ function scheduleNextWorkerTick() {
   let earliestDue = Infinity;
   for (const item of queueState.items) {
     if (item.state !== STATES.QUEUED && item.state !== STATES.FAILED) continue;
-    if (uncommittedItems.has(item.id) || item.isPaused) continue;
+    if (uncommittedItems.has(item.id) || (item.isPaused && item.sessionResumeApproved !== true)) continue;
     const dueAt = new Date(item.nextAttemptAt || item.createdAt).getTime();
     if (Number.isFinite(dueAt) && dueAt < earliestDue) {
       earliestDue = dueAt;
@@ -593,9 +593,9 @@ function pickNextProcessableItem() {
   for (const item of queueState.items) {
     // Cheap state check first: terminal items never need a session lookup.
     if (item.state !== STATES.QUEUED && item.state !== STATES.FAILED) continue;
-    if (uncommittedItems.has(item.id) || item.isPaused) continue;
+    if (uncommittedItems.has(item.id) || (item.isPaused && item.sessionResumeApproved !== true)) continue;
     const isManual = isExemptFromAutomationPause(item);
-    if (item.sessionPaused && !isManual) continue;
+    if (item.sessionPaused && item.sessionResumeApproved !== true && !isManual) continue;
 
     // Contact concurrency lock: don't start sending another item for this contact while one is processing
     const normalizedTarget = item.phone ? normalizePhone(item.phone) : null;
@@ -657,7 +657,9 @@ async function resumeSessionItems({ companyId, sessionId }) {
   for (const item of queueState.items) {
     if (String(item.companyId) !== String(companyId) || item.sessionId !== sessionId
       || !item.sessionPaused) continue;
-    item.sessionPaused = false;
+    // Approve each item individually while leaving the session itself paused.
+    item.sessionPaused = true;
+    item.sessionResumeApproved = true;
     if (!item.isPaused) item.state = STATES.QUEUED;
     item.nextAttemptAt = nowIso();
     item.updatedAt = nowIso();
@@ -898,9 +900,18 @@ function getActiveFlow({ companyId, sessionId, conversationId, phone }) {
     if (sessionId && item.sessionId && sessionId !== 'default' && item.sessionId !== 'default' && item.sessionId !== sessionId) return false;
     if (!item.metadata?.isFlowStep) return false;
     if (![STATES.QUEUED, STATES.PROCESSING, STATES.FAILED].includes(item.state) || item.cancelRequested) return false;
-    if (conversationId && String(item.metadata?.conversationId) !== String(conversationId)) return false;
-    if (targetPhone && normalizePhone(item.phone) !== targetPhone) return false;
-    if (!conversationId && !targetPhone) return false;
+    const convMatches = Boolean(conversationId && item.metadata?.conversationId && String(item.metadata.conversationId) === String(conversationId));
+    const rawItemPhone = String(item.phone || '').replace(/\D/g, '');
+    const rawTargetPhone = targetPhone || String(phone || '').replace(/\D/g, '');
+    const phoneMatches = Boolean(
+      (targetPhone && normalizePhone(item.phone) === targetPhone) ||
+      (rawItemPhone && rawTargetPhone && (
+        rawItemPhone === rawTargetPhone ||
+        rawItemPhone.endsWith(rawTargetPhone.slice(-8)) ||
+        rawTargetPhone.endsWith(rawItemPhone.slice(-8))
+      ))
+    );
+    if (!convMatches && !phoneMatches) return false;
     return true;
   });
   const newest = pending.slice().sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0];
@@ -1038,6 +1049,8 @@ async function processOneItem() {
         });
       }
       item.state = STATES.SENT;
+      item.sessionPaused = false;
+      item.sessionResumeApproved = false;
       item.sentAt = nowIso();
       item.updatedAt = nowIso();
       item.lastFailure = null;
@@ -1103,7 +1116,7 @@ async function processOneItem() {
       if (error?.code === 'SESSION_UNAVAILABLE') {
         item.state = STATES.QUEUED;
         item.sessionPaused = true;
-        item.sessionResumeApproved = false;
+        item.sessionResumeApproved = approvedSessionPause;
         item.nextAttemptAt = null;
         item.updatedAt = nowIso();
         item.lastFailure = sanitizeError(error);
