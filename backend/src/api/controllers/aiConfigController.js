@@ -761,7 +761,7 @@ async function getMemoryGraph(req, res) {
     const agent = agents.find((item) => String(item.key) === String(agentKey));
     if (!agent) return res.status(404).json({ success: false, error: 'Atendente não encontrado nesta empresa.' });
     if (sessionId) {
-      await require('../../ai/agents/services/aiMemoryEngine').assertSession(companyId, sessionId);
+      await aiMemoryEngine.assertSession(companyId, sessionId);
       if (!Array.isArray(agent.sessionIds) || !agent.sessionIds.includes(String(sessionId))) {
         return res.status(403).json({ success: false, error: 'Atendente não está vinculado a esta conexão.' });
       }
