@@ -1323,6 +1323,9 @@ export function useInboxState() {
     void loadInitial();
   }, [isOwnSessionConversation, loadConversationControls, markBackendOffline, markBackendOnline, refreshSessions, showErrorToast, setConversations, setSelectedConversationId, setSessions, refreshConversationCounts]);
 
+  const isOwnSessionConversationRef = useRef(isOwnSessionConversation);
+  isOwnSessionConversationRef.current = isOwnSessionConversation;
+
   const activeSessionReadyKey = useMemo(() => {
     const target = storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : "";
     const match = target ? sessions.find((s) => s && (s.id === target || s.name === target)) : null;
@@ -1368,7 +1371,7 @@ export function useInboxState() {
         if (isStale()) return;
         markBackendOnline();
         const sessionScoped = filterConversationsForSession(data, targetSession);
-        const visibleIncoming = sessionScoped.filter((c) => !isOwnSessionConversation(c));
+        const visibleIncoming = sessionScoped.filter((c) => !isOwnSessionConversationRef.current(c));
         const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, visibleIncoming);
         contactDirectoryRef.current = mergedDirectory;
         persistContactDirectory(mergedDirectory);
@@ -1385,7 +1388,7 @@ export function useInboxState() {
         if (sessionListRequestRef.current === requestScope) sessionListRequestRef.current = null;
         if (!isStale()) setLoadingConversations(false);
       });
-  }, [activeSessionReadyKey, isOwnSessionConversation, markBackendOnline, setConversations, setSelectedConversationId, refreshConversationCounts]);
+  }, [activeSessionReadyKey, markBackendOnline, setConversations, setSelectedConversationId, refreshConversationCounts]);
 
   // Carrega todas as conversas arquivadas completas sob demanda quando a aba "Arquivadas" é ativada
   useEffect(() => {
