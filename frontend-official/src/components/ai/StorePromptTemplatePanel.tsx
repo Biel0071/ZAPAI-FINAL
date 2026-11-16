@@ -19,9 +19,13 @@ type PromptTemplate = {
   guardrails?: unknown[];
 };
 
+function hasAdminCompanyContext() {
+  try { return Boolean(window.localStorage.getItem("zai_admin_company_context")); } catch { return false; }
+}
+
 export function StorePromptTemplatePanel({ storeId }: { storeId: string }) {
   const { role } = useUserRole();
-  const canManage = role === "admin" || role === "master";
+  const canManage = role === "admin" || (role === "master" && hasAdminCompanyContext());
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [linkedTemplateId, setLinkedTemplateId] = useState("");
   const [selectedPlatformId, setSelectedPlatformId] = useState("");
