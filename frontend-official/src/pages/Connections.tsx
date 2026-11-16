@@ -622,7 +622,10 @@ export default function Connections() {
         `/api/outbound-queue/session/${encodeURIComponent(sessionId)}/automations`,
         "GET",
       );
-      setReviewItems(Array.isArray(response?.items) ? response.items : []);
+      const nextItems = Array.isArray(response?.items) ? response.items : [];
+      setReviewItems(nextItems);
+      const visibleContactKeys = new Set(groupSessionAutomations(nextItems).map((contact) => contact.key));
+      setSelectedReviewContactKeys((current) => current.filter((key) => visibleContactKeys.has(key)));
     } catch (error) {
       setReviewError(error instanceof Error ? error.message : "Falha ao carregar as pendências deste número.");
     } finally {
@@ -1143,6 +1146,8 @@ export default function Connections() {
                 const followupsSent = contact.items.reduce((maximum, item) => Math.max(maximum, Number(item.followupsSent || 0)), 0);
                 const sources = Array.from(new Set(contact.items.flatMap((item) => item.sources || []).filter(Boolean)));
                 const campaignStates = Array.from(new Set(contact.items.flatMap((item) => item.campaignStates || []).filter(Boolean)));
+                const hasFollowup = sources.includes("Follow-up IA");
+                const hasTask = sources.some((source) => source !== "Campanha" && source !== "Follow-up IA");
                 const busy = contactActionKey === contact.key;
                 const selected = selectedReviewContactKeys.includes(contact.key);
                 return (
@@ -1160,8 +1165,8 @@ export default function Connections() {
                         <div className="truncate text-xs text-muted-foreground">{contact.phone || "Telefone indisponível"}</div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {campaignStates.map((state) => <Badge key={state} variant="secondary" className="text-[10px]">Campanha: {state}</Badge>)}
-                          <span className="self-center text-[10px] text-muted-foreground">Follow-ups enviados: {followupsSent}</span>
-                          <span className="self-center text-[10px] text-muted-foreground">Tentativas da tarefa: {queueAttempts}</span>
+                          <span className="self-center text-[10px] text-muted-foreground">Follow-ups enviados: {hasFollowup ? followupsSent : "—"}</span>
+                          <span className="self-center text-[10px] text-muted-foreground">Tentativas da tarefa: {hasTask ? queueAttempts : "—"}</span>
                           <span className="self-center text-[10px] text-muted-foreground">Origem: {sources.join(", ") || "—"}</span>
                         </div>
                       </div>

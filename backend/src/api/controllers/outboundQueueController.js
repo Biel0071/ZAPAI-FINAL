@@ -35,7 +35,7 @@ async function getSessionReviewItems({ companyId, sessionId, allowFollowups }) {
     if (!contact) continue;
     const source = String(item.metadata?.source || item.metadata?.systemTag || (item.metadata?.campaignId ? 'Campanha' : 'Fila'));
     if (!contact.sources.includes(source)) contact.sources.push(source);
-    contact.attempts += Number(item.attemptCount || 0);
+    contact.attempts = Math.max(contact.attempts, Number(item.attemptCount || 0));
     contact.name ||= String(item.metadata?.contactName || item.metadata?.name || '');
   }
 
