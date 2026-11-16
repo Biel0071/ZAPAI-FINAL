@@ -179,6 +179,7 @@ export function useInboxState() {
   const lastSentTextRef = useRef("");
   const [error, setError] = useState<string | null>(null);
   const lastCountsSessionRef = useRef<string | undefined>(undefined);
+  const sessionListRequestRef = useRef<string | null>(null);
   const [conversationCounts, setConversationCounts] = useState<{ total: number; active: number; archived: number; unread: number; ai_active: number } | null>(null);
   const refreshConversationCounts = useCallback(async (sessionId?: string) => {
     try {
@@ -1333,7 +1334,12 @@ export function useInboxState() {
     if (!hasLoadedInitialRef.current) return;
     const targetSession = storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : undefined;
 
-    let cancelled = false;
+    const requestScope = targetSession ?? "*";
+    if (sessionListRequestRef.current === requestScope) return;
+    const isStale = () => {
+      const current = useAppStore.getState().activeSessionId;
+      return (current && current !== "all" ? current : "*") !== requestScope;
+    };
     const currentSelectedId = selectedConversationRef.current?.id;
     const currentConv = currentSelectedId ? conversationsRef.current.find(c => String(c.id) === String(currentSelectedId)) : null;
     if (targetSession && currentConv && currentConv.sessionId && currentConv.sessionId !== targetSession) {
@@ -1352,13 +1358,14 @@ export function useInboxState() {
       return;
     }
 
+    sessionListRequestRef.current = requestScope;
     apiService
       .getConversations(true, {
         limit: CONVERSATIONS_PAGE_SIZE,
         sessionId: targetSession,
       })
       .then((data) => {
-        if (cancelled) return;
+        if (isStale()) return;
         markBackendOnline();
         const sessionScoped = filterConversationsForSession(data, targetSession);
         const visibleIncoming = sessionScoped.filter((c) => !isOwnSessionConversation(c));
@@ -1371,16 +1378,13 @@ export function useInboxState() {
         void refreshConversationCounts(targetSession);
       })
       .catch((err) => {
-        if (cancelled) return;
+        if (isStale()) return;
         console.warn("Failed to load conversations for session:", targetSession, err);
       })
       .finally(() => {
-        if (!cancelled) setLoadingConversations(false);
+        if (sessionListRequestRef.current === requestScope) sessionListRequestRef.current = null;
+        if (!isStale()) setLoadingConversations(false);
       });
-
-    return () => {
-      cancelled = true;
-    };
   }, [activeSessionReadyKey, isOwnSessionConversation, markBackendOnline, setConversations, setSelectedConversationId, refreshConversationCounts]);
 
   // Carrega todas as conversas arquivadas completas sob demanda quando a aba "Arquivadas" é ativada
