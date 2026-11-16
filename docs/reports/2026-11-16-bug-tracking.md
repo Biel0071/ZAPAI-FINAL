@@ -81,3 +81,19 @@ Removido do que aparece para todas as empresas: perguntas rápidas do Sandbox (c
 - Frontend: `tsc` OK · `vite build` OK · vitest 309/310 (o restante é timeout do teste de estresse sob carga; passa 3/3 isolado).
 - Backend: `pixBrCode` 4/4 · `humanLearningMetrics` 6/6 · `unifiedWhatsAppOrchestrator` 10/10 · `agentMemoryGraphService` 5/5 · `aiAgentAssignments` 30/30.
 - Smoke PIX no Postgres local: salva preservando settings, resolve loja pelo WhatsApp, CRC válido, isolamento entre empresas, remoção.
+
+## Deploy em produção — 16/11/2026
+
+Commits `a2985790` → `e35bb182` (branch `codex/professional-inbox-ai`), aplicados na VPS por checkout do commit + `npm run build` + `pm2 restart`. Migrations 056 e 057 aplicadas (057 reaplica de forma idempotente o schema de vínculos, pois a 053 tinha rodado numa versão antiga sem `is_primary`). Backup em `/opt/zapai_backups/deploy_20261116182340` e `..._182420` (código, `index.html`, tabelas de lojas/atendentes, fila de saída). Disco da VPS em 99% — sem espaço para dump completo do banco (18 GB).
+
+Encontrado e corrigido durante a validação:
+
+| ID | Bug | Correção |
+|---|---|---|
+| BUG-031 | Painel "Padrão de prompt da loja" pedia rascunhos como master sem empresa selecionada → 403 + toast. | Só pede rascunhos com contexto de empresa. |
+| BUG-032 | `GET /api/ai/memory/graph` 500: import com caminho errado de `aiMemoryEngine`. | Usa o módulo já importado. |
+| BUG-033 | **Inbox mostrava conversas de outra instância** (relato original): a hidratação do runtime carregava a "primeira sessão conectada" em vez da instância ativa e eventos de socket mesclavam conversas de outra instância. | Hidratação e refresh por socket respeitam a instância ativa. |
+| BUG-034 | WebBridge sobrescrevia a sessão `main` com telefone `null`, alterando a lista de números próprios a cada atualização. | Mantém o telefone conhecido da sessão. |
+| BUG-035 | Inbox recarregava lista + mensagens a cada troca de aba. | Só recarrega se a aba ficou oculta ≥ 15 s; lista recarrega apenas quando muda a instância escolhida. |
+
+Validado em produção: troca `main` ↔ `rh` mostra só dados da instância escolhida (18 × 6874 conversas), Evolução com "IA PAUSADA", João masculino, painel PIX da loja, sem respostas 4xx/5xx nas páginas visitadas.
