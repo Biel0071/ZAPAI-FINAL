@@ -1326,11 +1326,9 @@ export function useInboxState() {
   const isOwnSessionConversationRef = useRef(isOwnSessionConversation);
   isOwnSessionConversationRef.current = isOwnSessionConversation;
 
-  const activeSessionReadyKey = useMemo(() => {
-    const target = storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : "";
-    const match = target ? sessions.find((s) => s && (s.id === target || s.name === target)) : null;
-    return `${target}:${match ? String(isSessionActive(match)) : "unknown"}`;
-  }, [sessions, storeActiveSessionId]);
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
+  const activeSessionReadyKey = storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : "";
 
   // Re-fetch conversations strictly for current session when session filter changes
   useEffect(() => {
@@ -1354,7 +1352,7 @@ export function useInboxState() {
     }
     setLoadingConversations(true);
 
-    const targetSessionObj = targetSession ? sessions.find(s => s && (s.id === targetSession || s.name === targetSession)) : null;
+    const targetSessionObj = targetSession ? sessionsRef.current.find(s => s && (s.id === targetSession || s.name === targetSession)) : null;
     if (targetSessionObj && !isSessionActive(targetSessionObj)) {
       setConversations([]);
       setLoadingConversations(false);
