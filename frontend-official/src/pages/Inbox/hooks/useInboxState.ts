@@ -79,6 +79,7 @@ const MESSAGE_CACHE_TTL_MS = 60_000;
 const DRAFT_TTL_MS = 5 * 60 * 1000;
 const RUNTIME_RECONNECTED_EVENT = "runtime:reconnected";
 const OFFLINE_MESSAGE_POLL_INTERVAL_MS = 45_000;
+const VISIBILITY_REFRESH_MIN_HIDDEN_MS = 15_000;
 const OFFLINE_FALLBACK_SYNC_INTERVAL_MS = 60_000;
 const SOCKET_FORCE_RECONNECT_DEBOUNCE_MS = 15_000;
 
@@ -1844,8 +1845,16 @@ export function useInboxState() {
   }, [loadConversationMessages, selectedConversation?.id]);
 
   useEffect(() => {
+    let hiddenAt = 0;
     const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+        return;
+      }
       if (document.visibilityState === 'visible') {
+        const hiddenForMs = hiddenAt ? Date.now() - hiddenAt : 0;
+        hiddenAt = 0;
+        if (hiddenForMs < VISIBILITY_REFRESH_MIN_HIDDEN_MS) return;
         void handleRetryConversations();
         if (selectedConversation?.id) {
           void handleRetryMessages();
