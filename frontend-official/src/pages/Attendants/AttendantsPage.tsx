@@ -101,6 +101,7 @@ import {
 import { ProviderLogo } from "@/components/ai/ProviderLogo";
 import { StorePromptTemplatePanel } from "@/components/ai/StorePromptTemplatePanel";
 import { StorePixPanel } from "@/components/stores/StorePixPanel";
+import { supportsWebGL } from "@/components/avatar-engine/avatar3d/webglSupport";
 import { useUserRole } from "@/state/hooks/useUserRole";
 import { createAgentAvatar, buildStoreVisualDNA, resolveSpriteForAvatar, resolveBaseSpriteForAvatar, applyStylePreset } from "@/components/avatar-engine/CharacterFactory";
 import {
@@ -122,6 +123,7 @@ import { EvolutionTab } from "@/pages/AI/EvolutionTab";
 const CommercialPanel = React.lazy(() => import("@/components/evolution/HistoryBootstrapPanel").then(module => ({ default: module.HistoryBootstrapPanel })));
 const AgentTab = React.lazy(() => import("@/pages/AI/AgentTab").then(module => ({ default: module.AgentTab })));
 const MemoryView = React.lazy(() => import("@/pages/Memory").then(module => ({ default: module.default })));
+const ZaiAvatar3D = React.lazy(() => import("@/components/avatar-engine/avatar3d/ZaiAvatar3D"));
 
 export interface SandboxChatMessage {
   id: string;
@@ -1600,27 +1602,32 @@ export default function AttendantsPage() {
                 className="sr-only"
                 aria-hidden="true"
               />
-              <ZaiAvatarRenderer
-                avatar={{
-                  ...resolvedInlineAvatar,
-                  body: inlineGender,
-                  base: inlineGender,
-                  rotationY: studioRotationY,
-                  movement3D: studioMovement3D,
-                }}
-                renderStyle={resolvedInlineAvatar.renderStyle || "chibi_25d"}
-                state={
-                  isAgentActive && studioMovement3D === "idle" && !isStudioDragging
-                    ? (previewPresence?.state as string) === "TYPING" || (previewPresence?.state as string) === "TALKING"
-                      ? previewPresence.state
-                      : "WORKING"
-                    : "WAITING"
-                }
-                size="workspace"
-                rotationY={studioRotationY}
-                movement3D={studioMovement3D}
-                showStatusBadge={false}
-              />
+              {(() => {
+                const studioAvatar = { ...resolvedInlineAvatar, body: inlineGender, base: inlineGender, rotationY: studioRotationY, movement3D: studioMovement3D };
+                const flatAvatar = (
+                  <ZaiAvatarRenderer
+                    avatar={studioAvatar}
+                    renderStyle={resolvedInlineAvatar.renderStyle || "chibi_25d"}
+                    state={
+                      isAgentActive && studioMovement3D === "idle" && !isStudioDragging
+                        ? (previewPresence?.state as string) === "TYPING" || (previewPresence?.state as string) === "TALKING"
+                          ? previewPresence.state
+                          : "WORKING"
+                        : "WAITING"
+                    }
+                    size="workspace"
+                    rotationY={studioRotationY}
+                    movement3D={studioMovement3D}
+                    showStatusBadge={false}
+                  />
+                );
+                if (!supportsWebGL()) return flatAvatar;
+                return (
+                  <React.Suspense fallback={flatAvatar}>
+                    <ZaiAvatar3D avatar={studioAvatar} rotationY={studioRotationY} movement3D={studioMovement3D} controlled fallback={flatAvatar} className="absolute inset-0" />
+                  </React.Suspense>
+                );
+              })()}
             </div>
           </div>
 

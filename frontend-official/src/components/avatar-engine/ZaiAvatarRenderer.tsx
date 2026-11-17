@@ -17,6 +17,7 @@ import React, { useMemo } from "react";
 import { AgentAvatarConfig, AnimationState, StoreBranding, resolveHairColorForHair } from "./AvatarDefinition";
 import { normalizeAvatarForRenderer, resolveBaseSpriteForAvatar, resolveSpriteForAvatar } from "./CharacterFactory";
 import { cn } from "@/core/lib/utils";
+import { HAIR_PALETTES, SKIN_PALETTES, resolveAccessoryFlags, resolveOutfitId } from "./avatarLook";
 import {
   Sparkle,
   CheckCircle,
@@ -75,29 +76,6 @@ const STATE_LABELS: Record<AnimationState, string> = {
   OFFLINE: "Pausado",
 };
 
-// Skin tone palettes (crisp isometric shading)
-const SKIN_PALETTES: Record<string, { base: string; shadow: string; highlight: string; blush: string }> = {
-  fair: { base: "#ffe0bd", shadow: "#e2b88b", highlight: "#fff5ea", blush: "#fca5a5" },
-  peach: { base: "#f2c39f", shadow: "#bd805d", highlight: "#ffe2ca", blush: "#e89595" },
-  tan: { base: "#d89759", shadow: "#b57236", highlight: "#e5ab75", blush: "#fb7185" },
-  bronze: { base: "#aa6e39", shadow: "#844f22", highlight: "#c3834a", blush: "#e11d48" },
-  dark: { base: "#6d4323", shadow: "#4f2e14", highlight: "#87552e", blush: "#9f1239" },
-  deep_dark: { base: "#482a17", shadow: "#2e1809", highlight: "#5f3820", blush: "#881337" },
-};
-
-// Hair color palettes
-const HAIR_PALETTES: Record<string, { base: string; shadow: string; highlight: string }> = {
-  black: { base: "#18181b", shadow: "#09090b", highlight: "#3f3f46" },
-  dark_brown: { base: "#452d1a", shadow: "#2e1c0e", highlight: "#614128" },
-  auburn: { base: "#78350f", shadow: "#451a03", highlight: "#92400e" },
-  golden_blonde: { base: "#eab308", shadow: "#ca8a04", highlight: "#fde047" },
-  platinum: { base: "#cbd5e1", shadow: "#94a3b8", highlight: "#f1f5f9" },
-  neon_pink: { base: "#ec4899", shadow: "#be185d", highlight: "#f472b6" },
-  cyber_blue: { base: "#0284c7", shadow: "#0369a1", highlight: "#38bdf8" },
-  fiery_red: { base: "#dc2626", shadow: "#991b1b", highlight: "#ef4444" },
-  emerald: { base: "#059669", shadow: "#047857", highlight: "#10b981" },
-  lavender: { base: "#9333ea", shadow: "#7e22ce", highlight: "#c084fc" },
-};
 
 // Style accent palettes
 const STYLE_PALETTES: Record<string, { primary: string; aura: string; title: string }> = {
@@ -319,44 +297,9 @@ function ModularLayerAvatar({
   // Resolve Face (5th Category)
   const faceId = avatar.face || "face_01";
 
-  // Resolve Outfit with legacy alias support
-  const LEGACY_OUTFIT_MAP: Record<string, string> = {
-    polo_zai_black: "outfit_01",
-    polo_zai_white: "outfit_07",
-    shirt_formal_blue: "outfit_02",
-    tshirt_casual_dark: "outfit_03",
-    hoodie_zai_black: "outfit_04",
-    blazer_executive_dark: "outfit_05",
-    vest_operations: "outfit_06",
-    bomber_jacket_tech: "outfit_08",
-  };
-  const rawOutfit = avatar.outfit || avatar.clothing || "outfit_01";
-  const outfitId = LEGACY_OUTFIT_MAP[rawOutfit] || rawOutfit || "outfit_01";
+  const outfitId = resolveOutfitId(avatar);
 
-  // Resolve Accessories
-  const hasHeadset =
-    avatar.headset === "headset_zai_green" ||
-    (typeof avatar.accessories === "object" && (avatar.accessories as any)?.headset === "headset_zai_green") ||
-    (Array.isArray(avatar.accessories) && avatar.accessories.includes("acc_02"));
-
-  const hasBadge =
-    avatar.badge !== false &&
-    ((typeof avatar.accessories === "object" && (avatar.accessories as any)?.badge === "badge_zai_lanyard") ||
-      (Array.isArray(avatar.accessories) && avatar.accessories.includes("acc_03")));
-
-  const hasGlasses =
-    avatar.glasses === "glasses_square_exec" ||
-    avatar.glasses?.includes("glasses") ||
-    (typeof avatar.accessories === "object" && (avatar.accessories as any)?.glasses === "glasses_square_exec") ||
-    (Array.isArray(avatar.accessories) && avatar.accessories.includes("acc_04"));
-
-  const hasTablet =
-    avatar.workObject === "tablet_zai" ||
-    (Array.isArray(avatar.accessories) && avatar.accessories.includes("acc_05"));
-
-  const hasWatch =
-    (typeof avatar.accessories === "object" && (avatar.accessories as any)?.watch === "watch_zai_smart") ||
-    (Array.isArray(avatar.accessories) && avatar.accessories.includes("acc_06"));
+  const { headset: hasHeadset, badge: hasBadge, glasses: hasGlasses, tablet: hasTablet, watch: hasWatch } = resolveAccessoryFlags(avatar);
 
   // Resolve Style Preset
   const styleId = avatar.style || "style_vendas";

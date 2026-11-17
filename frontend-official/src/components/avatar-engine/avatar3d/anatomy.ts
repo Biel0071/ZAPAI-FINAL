@@ -1,0 +1,9 @@
+export const HEAD_CENTER_Y = 0.48;
+export const HEAD_RADIUS = 0.5;
+export const NECK_Y = 1.26;
+export const SHOULDER_Y = 1.14;
+export const SHOULDER_X = 0.33;
+export const HIP_Y = 0.6;
+export const HIP_X = 0.13;
+export const ARM_LENGTH = 0.34;
+export const LEG_LENGTH = 0.36;
