@@ -298,7 +298,8 @@ function ModularLayerAvatar({
   const skin = SKIN_PALETTES[skinKey] || SKIN_PALETTES.peach;
 
   // Normalize 3D rotation angle [0..359]
-  const angle = ((rotationY % 360) + 360) % 360;
+  // 2D catalog sprites have no side/back art; rotation stays frontal until the 3D engine renders it.
+  const angle = 0;
   const rad = (angle * Math.PI) / 180;
   const sinA = Math.sin(rad);
   const cosA = Math.cos(rad);
@@ -557,18 +558,6 @@ function ModularLayerAvatar({
             />
           </g>
 
-          {/* Modular Outfit Layer: composite SVG layer swapping clothes dynamically */}
-          {bodySpriteId !== baseSpriteId && (
-            <g id="layer-modular-outfit" clipPath={`url(#clip-body-${uid})`}>
-              <image
-                href={bodyImg.href}
-                x={bodyImg.x}
-                y={bodyImg.y}
-                width={bodyImg.width}
-                height={bodyImg.height}
-              />
-            </g>
-          )}
 
           {/* Semantic Layer Tags for Test Selectors & State Contracts */}
           <g id="layer-outfit" data-outfit-id={outfitId} aria-hidden="true" />

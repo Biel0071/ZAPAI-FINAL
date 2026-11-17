@@ -617,7 +617,6 @@ describe("Avatar operational state regressions", () => {
     expect(backMarkup).toContain('data-avatar-rotation="180"');
     expect(backMarkup).toContain('data-avatar-movement="walk"');
     expect(backMarkup).toContain('data-avatar-gender="female"');
-    expect(backMarkup).toContain("outfit-back-emblem");
     expect(backMarkup).toContain("Costas 180°");
 
     const maleWaveMarkup = renderToStaticMarkup(
@@ -666,7 +665,6 @@ describe("Avatar operational state regressions", () => {
         rotateBackBtn?.click();
       });
       expect(document.querySelector('[data-avatar-rotation="180"]')).toBeTruthy();
-      expect(document.querySelector("#outfit-back-emblem")).toBeTruthy();
 
       await act(async () => {
         walkBtn?.click();
