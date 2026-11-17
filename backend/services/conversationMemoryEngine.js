@@ -495,7 +495,13 @@ async function persistConversationMemory(memory, companyId = 'default') {
         metrics = EXCLUDED.metrics,
         messages = EXCLUDED.messages,
         last_updated = NOW(),
-        updated_at = NOW()`,
+        updated_at = NOW()
+      WHERE ai_conversation_memory.messages IS DISTINCT FROM EXCLUDED.messages
+        OR ai_conversation_memory.summary IS DISTINCT FROM EXCLUDED.summary
+        OR ai_conversation_memory.intent IS DISTINCT FROM EXCLUDED.intent
+        OR ai_conversation_memory.sentiment IS DISTINCT FROM EXCLUDED.sentiment
+        OR ai_conversation_memory.tags IS DISTINCT FROM EXCLUDED.tags
+        OR (ai_conversation_memory.metrics - 'memoriesUpdatedCount') IS DISTINCT FROM (EXCLUDED.metrics - 'memoriesUpdatedCount')`,
       [
         contactId,
         cleanCompany,
