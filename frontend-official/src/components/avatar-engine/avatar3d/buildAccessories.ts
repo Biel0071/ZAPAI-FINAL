@@ -11,12 +11,13 @@ const CARDBOARD = "#c08a4d";
 
 function headset(kit: MaterialKit, brand: string): THREE.Group {
   const set = group("acc-headset");
-  set.add(mesh(new THREE.TorusGeometry(0.56, 0.03, 8, 32, Math.PI), kit.toon(DARK), "headset-band", [0, C, 0]));
+  set.add(mesh(new THREE.TorusGeometry(0.6, 0.05, 10, 36, Math.PI), kit.toon(DARK), "headset-band", [0, C + 0.02, 0.02]));
   for (const side of [-1, 1]) {
-    set.add(mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 20), kit.toon(DARK), `headset-cup-${side}`, [0.54 * side, C - 0.02, 0], undefined, [0, 0, Math.PI / 2]));
-    set.add(mesh(new THREE.TorusGeometry(0.08, 0.018, 8, 20), kit.glow(brand), `headset-ring-${side}`, [0.585 * side, C - 0.02, 0], undefined, [0, Math.PI / 2, 0]));
+    set.add(mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.14, 24), kit.toon(DARK), `headset-cup-${side}`, [0.6 * side, C + 0.02, 0.06], undefined, [0, 0, Math.PI / 2]));
+    set.add(mesh(new THREE.TorusGeometry(0.115, 0.03, 8, 24), kit.glow(brand), `headset-ring-${side}`, [0.675 * side, C + 0.02, 0.06], undefined, [0, Math.PI / 2, 0]));
+    set.add(mesh(new THREE.CircleGeometry(0.07, 20), kit.glow(brand, 0.6), `headset-light-${side}`, [0.677 * side, C + 0.02, 0.06], undefined, [0, (Math.PI / 2) * side, 0]));
   }
-  set.add(mesh(new THREE.CapsuleGeometry(0.015, 0.3, 4, 8), kit.toon(DARK), "headset-mic", [-0.4, C - 0.2, 0.3], undefined, [0.4, -0.9, 1.1]));
+  set.add(mesh(new THREE.CapsuleGeometry(0.02, 0.3, 4, 8), kit.toon(DARK), "headset-mic", [-0.45, C - 0.2, 0.3], undefined, [0.4, -0.9, 1.1]));
   return set;
 }
 

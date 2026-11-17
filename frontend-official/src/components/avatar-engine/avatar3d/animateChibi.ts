@@ -24,13 +24,14 @@ export function animateChibi(rig: ChibiRig, hold: HoldPose, movement: Movement3D
   if (hold.left) rig.leftArm.rotation.set(-0.95, 0, -0.1);
   if (hold.right) rig.rightArm.rotation.set(-0.95, 0, 0.1);
 
+  rig.peace.visible = movement === "pose";
   if (movement === "wave") {
-    rig.rightArm.rotation.set(0, 0, 2.5 + Math.sin(t * 8) * 0.28);
+    rig.rightArm.rotation.set(1.15, 0, 2.75 + Math.sin(t * 8) * 0.3);
     rig.head.rotation.z = -0.08;
   }
   if (movement === "pose") {
-    if (!hold.left && !hold.both) rig.leftArm.rotation.set(0.1, 0, -0.75);
-    rig.rightArm.rotation.set(0, 0, 2.3);
-    rig.head.rotation.set(0.05, 0.15, -0.1);
+    if (!hold.left && !hold.both) rig.leftArm.rotation.set(0.15, 0, -0.55);
+    rig.rightArm.rotation.set(1.35, 0, 2.55 + Math.sin(t * 2) * 0.04);
+    rig.head.rotation.set(0.05, 0.12, -0.12);
   }
 }

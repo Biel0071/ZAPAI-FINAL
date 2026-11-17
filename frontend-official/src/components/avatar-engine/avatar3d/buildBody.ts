@@ -14,10 +14,12 @@ export type ChibiRig = {
   rightLeg: THREE.Group;
   leftHand: THREE.Object3D;
   rightHand: THREE.Object3D;
+  peace: THREE.Object3D;
 };
 
 const PANTS = "#1f2937";
 const HEAD_SCALE = 1.06;
+const STRIPED = new Set(["hoodie", "bomber", "jacket"]);
 const SHOE = "#f8fafc";
 
 function buildFaceDecal(look: AvatarLook3D, kit: MaterialKit): THREE.Group | null {
@@ -64,11 +66,21 @@ function buildArm(side: number, look: AvatarLook3D, kit: MaterialKit): { arm: TH
     arm.add(mesh(new THREE.CylinderGeometry(0.095, 0.09, 0.14, 16), kit.toon(look.outfit.body), "arm-sleeve", [0, -0.05, 0]));
   } else {
     arm.add(mesh(new THREE.TorusGeometry(0.072, 0.018, 8, 16), kit.toon(look.outfit.trim), "arm-cuff", [0, -ARM_LENGTH + 0.03, 0], undefined, [Math.PI / 2, 0, 0]));
+    if (STRIPED.has(look.outfit.kind)) {
+      [-0.1, -0.15].forEach((y, i) => arm.add(mesh(new THREE.TorusGeometry(0.079, 0.012, 6, 16), kit.toon(look.outfit.trim), `arm-stripe-${i}`, [0, y, 0], undefined, [Math.PI / 2, 0, 0])));
+    }
   }
   const hand = mesh(new THREE.SphereGeometry(0.085, 16, 12), kit.toon(look.skin), "hand", [0, -ARM_LENGTH - 0.02, 0]);
   arm.add(hand);
   arm.rotation.z = 0.12 * side;
   return { arm, hand };
+}
+
+function buildPeace(look: AvatarLook3D, kit: MaterialKit): THREE.Group {
+  const peace = group("hand-peace", [0, -ARM_LENGTH - 0.08, 0.02]);
+  [-1, 1].forEach((side) => peace.add(mesh(new THREE.CapsuleGeometry(0.026, 0.1, 4, 8), kit.toon(look.skin), `finger-${side}`, [0.035 * side, -0.07, 0], undefined, [0, 0, 0.22 * side])));
+  peace.visible = false;
+  return peace;
 }
 
 function buildLeg(side: number, kit: MaterialKit): THREE.Group {
@@ -101,11 +113,13 @@ export function buildBody(look: AvatarLook3D, kit: MaterialKit): ChibiRig {
 
   const left = buildArm(-1, look, kit);
   const right = buildArm(1, look, kit);
+  const peace = buildPeace(look, kit);
+  right.arm.add(peace);
   body.add(left.arm, right.arm);
 
   const leftLeg = buildLeg(-1, kit);
   const rightLeg = buildLeg(1, kit);
   root.add(leftLeg, rightLeg);
 
-  return { root, body, head, leftArm: left.arm, rightArm: right.arm, leftLeg, rightLeg, leftHand: left.hand, rightHand: right.hand };
+  return { root, body, head, leftArm: left.arm, rightArm: right.arm, leftLeg, rightLeg, leftHand: left.hand, rightHand: right.hand, peace };
 }

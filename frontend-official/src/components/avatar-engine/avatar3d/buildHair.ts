@@ -31,6 +31,21 @@ function bangs(kit: MaterialKit, look: AvatarLook3D): THREE.Mesh[] {
   ));
 }
 
+function sideVolume(kit: MaterialKit, look: AvatarLook3D): THREE.Mesh[] {
+  const strands: THREE.Mesh[] = [];
+  for (const side of [-1, 1]) {
+    [0, 1, 2].forEach((k) => {
+      const x = (0.4 + k * 0.06) * side;
+      const z = 0.18 - k * 0.2;
+      strands.push(mesh(
+        taperedStrand([[x * 0.8, C + 0.42, z], [x * 1.12, C + 0.05, z], [x * 1.05, C - 0.35, z + 0.04], [x * 1.18, C - 0.7, z - 0.02], [x * 1.05, C - 0.98, z]], 0.1 - k * 0.012, 0.2, 28),
+        kit.toon(k === 1 ? look.hairHighlight : look.hairColor), `hair-volume-${side}-${k}`,
+      ));
+    });
+  }
+  return strands;
+}
+
 function flowingTail(kit: MaterialKit, look: AvatarLook3D): THREE.Mesh[] {
   return [
     { dx: 0, r: 0.15, color: look.hairColor },
@@ -62,6 +77,7 @@ const STYLES: Record<HairStyle3D, (kit: MaterialKit, look: AvatarLook3D) => THRE
     nape(kit, look.hairColor),
     ...sideLocks(kit, look.hairColor),
     ...bangs(kit, look),
+    ...sideVolume(kit, look),
     mesh(new THREE.TorusGeometry(0.09, 0.035, 8, 16), kit.toon("#111827"), "hair-tie", [0, C + 0.42, -0.32], undefined, [0.9, 0, 0]),
     ...flowingTail(kit, look),
   ],

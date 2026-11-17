@@ -45,8 +45,8 @@ function createStage(brand: string) {
   scene.add(ground);
 
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
-  camera.position.set(0, 1.5, 7.2);
-  camera.lookAt(0, 1.24, 0);
+  camera.position.set(0, 1.55, 5.9);
+  camera.lookAt(0, 1.3, 0);
 
   const stage = new THREE.Group();
   scene.add(stage);
