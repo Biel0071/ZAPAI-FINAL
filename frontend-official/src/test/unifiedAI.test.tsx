@@ -54,6 +54,14 @@ vi.mock("@/core/services/apiService", () => ({
       },
       history: [{ id: 1, description: "Prompt refinado com sucesso", scoreChange: 5, createdAt: "Hoje" }],
     }),
+    getMemoryEvolutionOverview: vi.fn().mockResolvedValue({
+      success: true,
+      dataOrigin: { source: "PostgreSQL", updatedAt: "2026-11-18T12:00:00Z" },
+      accumulated: { conversationsTotal: 10, activeMemories: 4, objectionsIdentified: 2, strategiesActive: 1 },
+      periodMetrics: { conversationsAnalyzed: 5, aiTurnsExecuted: 8, customerContinuedTurns: 6, qualifiedLeads: 2, conversions: 1 },
+      pending: { identifiedCount: 1, awaitingApproval: 1 },
+      applied: { appliedImprovements: 1, rollbacksExecuted: 0 },
+    }),
     getAgentLearning: vi.fn().mockResolvedValue({
       success: true,
       pending: [{ id: 101, customerQuestion: "Vocês aceitam Pix parcelado?" }],
@@ -207,8 +215,8 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     });
 
     const text = document.body.textContent || "";
-    expect(text).toContain("Evolução & Memória do Atendente");
-    expect(text).toContain("Memórias e métricas registradas pelo sistema para este atendente.");
+    expect(text).toContain("Memória & Evolução");
+    expect(text).toContain("Governança real de memórias corporativas");
     expect(text).toContain("Memórias Ativas");
   });
 

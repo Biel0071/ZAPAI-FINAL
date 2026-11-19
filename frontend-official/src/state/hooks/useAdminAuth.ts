@@ -221,8 +221,11 @@ async function verifyCredentials(
 }
 
 export function useAdminAuth() {
-  const [session, setSession] = useState<AdminAuthSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<AdminAuthSession | null>(() => {
+    const current = loadAdminAuthSession();
+    return isAdminAuthSessionValid(current) ? current : null;
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const current = loadAdminAuthSession();
@@ -233,7 +236,9 @@ export function useAdminAuth() {
       return;
     }
 
-    clearAdminAuthSession();
+    if (current) {
+      clearAdminAuthSession();
+    }
     setSession(null);
     setIsLoading(false);
   }, []);

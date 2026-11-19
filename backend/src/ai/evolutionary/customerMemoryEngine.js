@@ -222,6 +222,39 @@ class CustomerMemoryEngine {
   }
 
   /**
+   * Shared tenant-scoped upsert helper for ai_context.
+   */
+  async upsertAiContextFacts(companyId, chatId, facts = {}) {
+    const cleanCompany = String(companyId || 'default').trim() || 'default';
+    const safeChatId = String(chatId || 'unknown').trim() || 'unknown';
+    const serialized = JSON.stringify(facts || {});
+    try {
+      await this.pool.query(
+        `INSERT INTO ai_context (chat_id, company_id, context_json, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (company_id, chat_id) DO UPDATE SET
+           context_json = COALESCE(ai_context.context_json, '{}'::jsonb) || $3::jsonb,
+           updated_at = NOW()`,
+        [safeChatId, cleanCompany, serialized]
+      );
+    } catch (err) {
+      const updated = await this.pool.query(
+        `UPDATE ai_context
+         SET context_json = COALESCE(context_json, '{}'::jsonb) || $1::jsonb, updated_at = NOW()
+         WHERE company_id = $2 AND chat_id = $3`,
+        [serialized, cleanCompany, safeChatId]
+      );
+      if (updated.rowCount === 0) {
+        await this.pool.query(
+          `INSERT INTO ai_context (chat_id, company_id, context_json, updated_at)
+           VALUES ($1, $2, $3, NOW())`,
+          [safeChatId, cleanCompany, serialized]
+        ).catch(() => {});
+      }
+    }
+  }
+
+  /**
    * Extract new customer facts from message text and update PostgreSQL
    */
   async extractAndSaveFacts({ companyId = 'default', phone = '', conversationId = null, messageText = '' }) {
@@ -233,27 +266,9 @@ class CustomerMemoryEngine {
     if (Object.keys(facts).length === 0) return;
 
     try {
-      // Upsert into ai_context
-      await this.pool.query(
-        `INSERT INTO ai_context (chat_id, company_id, context_json, updated_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (chat_id) DO UPDATE SET
-           context_json = COALESCE(ai_context.context_json, '{}'::jsonb) || $3::jsonb,
-           updated_at = NOW()`,
-        [cleanPhone || String(conversationId), cleanCompany, JSON.stringify(facts)]
-      );
-    } catch (err) {
-      // If no unique constraint on chat_id, update by where clause
-      try {
-        await this.pool.query(
-          `UPDATE ai_context 
-           SET context_json = COALESCE(context_json, '{}'::jsonb) || $1::jsonb, updated_at = NOW()
-           WHERE company_id = $2 AND chat_id = $3`,
-          [JSON.stringify(facts), cleanCompany, cleanPhone || String(conversationId)]
-        );
-      } catch (innerErr) {
-        console.warn('[CustomerMemoryEngine] extractAndSaveFacts warning:', innerErr.message);
-      }
+      await this.upsertAiContextFacts(cleanCompany, cleanPhone || String(conversationId || 'unknown'), facts);
+    } catch (innerErr) {
+      console.warn('[CustomerMemoryEngine] extractAndSaveFacts warning:', innerErr.message);
     }
   }
 
@@ -266,25 +281,9 @@ class CustomerMemoryEngine {
     const chatId = cleanPhone || String(conversationId || 'unknown');
 
     try {
-      await this.pool.query(
-        `INSERT INTO ai_context (chat_id, company_id, context_json, updated_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (chat_id) DO UPDATE SET
-           context_json = COALESCE(ai_context.context_json, '{}'::jsonb) || $3::jsonb,
-           updated_at = NOW()`,
-        [chatId, cleanCompany, JSON.stringify(facts)]
-      );
-    } catch (err) {
-      try {
-        await this.pool.query(
-          `UPDATE ai_context 
-           SET context_json = COALESCE(context_json, '{}'::jsonb) || $1::jsonb, updated_at = NOW()
-           WHERE company_id = $2 AND chat_id = $3`,
-          [JSON.stringify(facts), cleanCompany, chatId]
-        );
-      } catch (innerErr) {
-        console.warn('[CustomerMemoryEngine] saveCustomerFacts warning:', innerErr.message);
-      }
+      await this.upsertAiContextFacts(cleanCompany, chatId, facts);
+    } catch (innerErr) {
+      console.warn('[CustomerMemoryEngine] saveCustomerFacts warning:', innerErr.message);
     }
   }
 

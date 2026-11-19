@@ -112,6 +112,7 @@ const MasterDeployments = lazyWithRetry(() => import("./pages/MasterDeployments"
 const MasterLogs = lazyWithRetry(() => import("./pages/MasterLogs"), "master_logs");
 const MasterAdmins = lazyWithRetry(() => import("./pages/MasterAdmins"), "master_admins");
 const MasterVersions = lazyWithRetry(() => import("./pages/MasterVersions"), "master_versions");
+const MasterAIProviders = lazyWithRetry(() => import("./pages/MasterAIProviders"), "master_ai_providers");
 const Memory = lazyWithRetry(() => import("./pages/Memory"), "memory");
 const Tests = lazyWithRetry(() => import("./pages/Tests"), "tests");
 const Queue = lazyWithRetry(() => import("./pages/Queue"), "queue");
@@ -210,6 +211,7 @@ const App = () => {
                       <Route path="/deployments" element={<Navigate to="/settings?tab=deployments" replace />} />
                       <Route path="/logs" element={<Navigate to="/settings?tab=logs" replace />} />
                       <Route path="/versions" element={<Navigate to="/settings?tab=versions" replace />} />
+                      <Route path="/master/ai-providers" element={<ProtectedRoute minRole="master"><PageRouteBoundary pageName="Provedores & Modelos de IA"><MasterAIProviders /></PageRouteBoundary></ProtectedRoute>} />
                       <Route path="/admin" element={<Navigate to="/settings" replace />} />
                       <Route path="/system/runtime" element={<Navigate to="/settings?tab=diagnostics" replace />} />
                       <Route path="/system/performance" element={<Navigate to="/settings?tab=diagnostics" replace />} />

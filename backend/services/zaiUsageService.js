@@ -46,7 +46,23 @@ async function ensureTable() {
 
 function isAdminRole(role) {
   const norm = String(role || '').toLowerCase().trim();
-  return norm === 'admin' || norm === 'master' || norm === 'superadmin';
+  return norm === 'admin' || norm === 'master' || norm === 'master_admin' || norm === 'admin_master' || norm === 'superadmin' || norm === 'owner';
+}
+
+async function resolveCompanyDailyLimit(companyId = 'default') {
+  const fallback = Number(process.env.ZAI_FREE_DAILY_LIMIT || 50);
+  try {
+    const { query } = require('../src/infrastructure/config/database');
+    const res = await query(`SELECT daily_zai_limit, zai_enabled FROM ai_router_policies WHERE company_id = $1 LIMIT 1`, [String(companyId || 'default')]);
+    if (res.rows[0]) {
+      if (res.rows[0].zai_enabled === false) return 0;
+      const limit = Number(res.rows[0].daily_zai_limit);
+      if (Number.isFinite(limit) && limit >= 0) return limit;
+    }
+  } catch {
+    // fallback to env default
+  }
+  return fallback;
 }
 
 async function getUsage({ companyId = 'default', userId = 'default', role = 'user' }) {
@@ -64,7 +80,7 @@ async function getUsage({ companyId = 'default', userId = 'default', role = 'use
     };
   }
 
-  const freeLimit = Number(process.env.ZAI_FREE_DAILY_LIMIT || 50);
+  const freeLimit = await resolveCompanyDailyLimit(companyId);
   const today = getTodayString();
   const cacheKey = `${companyId}:${userId}:${today}`;
 
@@ -125,7 +141,7 @@ async function consumeUsage({ companyId = 'default', userId = 'default', role = 
     return { ok: true, isUnlimited: true, source: 'admin_bypass' };
   }
 
-  const freeLimit = Number(process.env.ZAI_FREE_DAILY_LIMIT || 50);
+  const freeLimit = await resolveCompanyDailyLimit(companyId);
   const today = getTodayString();
   const cacheKey = `${companyId}:${userId}:${today}`;
 

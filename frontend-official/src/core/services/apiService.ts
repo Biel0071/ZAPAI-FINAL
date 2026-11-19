@@ -157,6 +157,30 @@ export interface Conversation {
   pinned_at?: string | null;
   archived?: boolean;
   archived_at?: string | null;
+  hasContextToken?: boolean;
+  contextTokenMeta?: {
+    version?: number;
+    prunedMessagesCount?: number;
+    from?: string | null;
+    to?: string | null;
+    byteLength?: number;
+    updatedAt?: string | null;
+  } | null;
+}
+
+export interface ConversationContextCapsule {
+  active: boolean;
+  tokenPreview: string;
+  byteLength: number;
+  prunedMessagesCount: number;
+  from: string | null;
+  to: string | null;
+  intent: string;
+  stage: string;
+  commercial: Record<string, string>;
+  facts: Record<string, { value: string; label?: string; category?: string; importance?: number }>;
+  highlights: Array<{ r: "c" | "a"; d?: string; t: string }>;
+  summary: string;
 }
 
 export interface ChatMessage {
@@ -310,6 +334,21 @@ export interface AIConnectionTestResult {
   send_media?: { type?: string; value?: string; caption?: string };
   sendMedia?: { type?: string; value?: string; caption?: string };
   trigger_quick_reply?: string | number;
+  routingMode?: string;
+  credentialScope?: string;
+  estimatedCostUsd?: number;
+  fallbackActivated?: boolean;
+  parameterWarnings?: string[];
+  effectiveConfig?: {
+    personalityId?: string;
+    objectiveId?: string;
+    toneId?: string;
+    responseStyleId?: string;
+    temperature?: number;
+    maxTokens?: number;
+    routingMode?: string;
+    [key: string]: unknown;
+  };
   quotaInfo?: {
     isAdmin?: boolean;
     isUnlimited?: boolean;
@@ -649,6 +688,30 @@ type RawConversation = {
   pinned_at?: string | null;
   archived?: boolean;
   archived_at?: string | null;
+  hasContextToken?: boolean;
+  contextTokenMeta?: {
+    version?: number;
+    prunedMessagesCount?: number;
+    from?: string | null;
+    to?: string | null;
+    byteLength?: number;
+    updatedAt?: string | null;
+  } | null;
+}
+
+export interface ConversationContextCapsule {
+  active: boolean;
+  tokenPreview: string;
+  byteLength: number;
+  prunedMessagesCount: number;
+  from: string | null;
+  to: string | null;
+  intent: string;
+  stage: string;
+  commercial: Record<string, string>;
+  facts: Record<string, { value: string; label?: string; category?: string; importance?: number }>;
+  highlights: Array<{ r: "c" | "a"; d?: string; t: string }>;
+  summary: string;
 };
 
 type RawMessage = {
@@ -1715,17 +1778,20 @@ export const apiService = {
     throw lastError;
   },
 
-  async getContacts(forceRefresh = false, sessionId?: string | null) {
+  async getContacts(forceRefresh = false, sessionId?: string | null, scope: "recent" | "all" = "recent") {
     const authScope = getRequestAuthScope();
     const cleanSession = sessionId ? String(sessionId).trim() : null;
-    const cacheKey = cleanSession ? `contacts:${cleanSession}` : "contacts";
+    const normalizedScope = scope === "all" ? "all" : "recent";
+    const cacheKey = cleanSession ? `contacts:${cleanSession}:${normalizedScope}` : `contacts:${normalizedScope}`;
     if (!forceRefresh) {
       const cached = getCache<Contact[]>(cacheKey, authScope);
       if (cached) return cached;
     }
 
-    const queryParam = cleanSession ? `?sessionId=${encodeURIComponent(cleanSession)}` : "";
-    const data = await request<Contact[]>({ endpoint: `/api/contacts${queryParam}`, method: "GET" });
+    const params = new URLSearchParams();
+    if (cleanSession) params.set("sessionId", cleanSession);
+    params.set("scope", normalizedScope);
+    const data = await request<Contact[]>({ endpoint: `/api/contacts?${params.toString()}`, method: "GET" });
     setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
@@ -1836,12 +1902,57 @@ export const apiService = {
       body: { amount },
     }),
 
-  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; agent?: any; sessionId?: string; temperature?: number; responseStyle?: string; history?: any[]; maxWords?: number }) =>
+  testAIMessage: (payload: {
+    message: string;
+    prompt?: string;
+    model?: string;
+    providerId?: string;
+    routingMode?: string;
+    personalityPreset?: string;
+    objective?: string;
+    tone?: string;
+    agentKey?: string;
+    agentName?: string;
+    agent?: any;
+    sessionId?: string;
+    temperature?: number;
+    maxTokens?: number;
+    responseStyle?: string;
+    history?: any[];
+    maxWords?: number;
+  }) =>
     request<{ success?: boolean; result?: AIConnectionTestResult; error?: string }>({
       endpoint: "/ai/test",
       method: "POST",
       body: payload,
       timeoutMs: 90_000,
+    }),
+
+  compareAgentBehaviors: (payload: {
+    message: string;
+    agentKey?: string | null;
+    sessionId?: string | null;
+    history?: any[];
+    variants?: Array<{
+      label?: string;
+      agentName?: string;
+      personalityPreset: string;
+      objective?: string;
+      tone?: string;
+      responseStyle?: string;
+      temperature?: number;
+      maxTokens?: number;
+      routingMode?: string;
+      providerId?: string;
+      modelId?: string;
+      prompt?: string;
+    }>;
+  }) =>
+    request<{ success: boolean; message: string; variants: any[] }>({
+      endpoint: "/ai/test/compare",
+      method: "POST",
+      body: payload,
+      timeoutMs: 170_000,
     }),
 
   refinePrompt: (payload: { currentPrompt: string; instruction: string }) =>
@@ -2180,6 +2291,182 @@ export const apiService = {
 
   async getAIAgents() {
     return request<{ success: boolean; agents: any[] }>({ endpoint: "/config/ai-agents", method: "GET" });
+  },
+
+  async getAgentBehaviorCatalog() {
+    return request<{
+      success: boolean;
+      personalities: Array<{ id: string; label: string; summary: string; recommendedTone: string; recommendedResponseStyle: string; recommendedTemperature: number }>;
+      objectives: Array<{ id: string; label: string; summary: string }>;
+      tones: Array<{ id: string; label: string }>;
+      responseStyles: Array<{ id: string; label: string; maxWords: number; maxSentences: number; suggestedMaxTokens: number }>;
+    }>({ endpoint: "/config/ai-agents/behavior-catalog", method: "GET" });
+  },
+
+  async getAgentVersions(key: string, limit = 25) {
+    return request<{ success: boolean; versions: any[] }>({
+      endpoint: `/config/ai-agents/${encodeURIComponent(key)}/versions?limit=${limit}`,
+      method: "GET",
+    });
+  },
+
+  async rollbackAgentVersion(key: string, versionId: number | string) {
+    return request<{ success: boolean; agent: any; message?: string }>({
+      endpoint: `/config/ai-agents/${encodeURIComponent(key)}/versions/${encodeURIComponent(String(versionId))}/rollback`,
+      method: "POST",
+    });
+  },
+
+  async getAvailableAIProviders(agentKey?: string, refresh = false) {
+    const qs = new URLSearchParams();
+    if (agentKey) qs.set("agentKey", agentKey);
+    if (refresh) qs.set("refresh", "1");
+    return request<{ success: boolean; routingModes: string[]; policy: any; ollama: any; providers: any[]; credentials: any[] }>({
+      endpoint: `/config/ai-providers/available${qs.toString() ? `?${qs.toString()}` : ""}`,
+      method: "GET",
+    });
+  },
+
+  async getAICredentials(includeMaster = false) {
+    return request<{ success: boolean; credentials: any[]; auditLogs: any[] }>({
+      endpoint: `/config/ai-credentials${includeMaster ? "?includeMaster=1" : ""}`,
+      method: "GET",
+    });
+  },
+
+  async saveAICredential(payload: { scope?: "company" | "agent" | "master"; agentKey?: string; providerId: string; apiKey: string; defaultModel?: string; label?: string; enabled?: boolean }) {
+    return request<{ success: boolean; credential: any }>({ endpoint: "/config/ai-credentials", method: "POST", body: payload });
+  },
+
+  async revokeAICredential(id: number | string) {
+    return request<{ success: boolean; credential: any }>({ endpoint: `/config/ai-credentials/${encodeURIComponent(String(id))}`, method: "DELETE" });
+  },
+
+  async testAICredential(payload: { providerId: string; modelId?: string; apiKey?: string; scope?: string; agentKey?: string; credentialId?: number | string | null }) {
+    return request<{ success: boolean; ok: boolean; providerId: string; modelId: string; healthStatus: string; latencyMs?: number; error?: string; response?: string }>({
+      endpoint: "/config/ai-credentials/test",
+      method: "POST",
+      body: payload,
+      timeoutMs: 30_000,
+    });
+  },
+
+  async updateAIRouterPolicy(payload: { defaultMode?: string; fallbackEnabled?: boolean; zaiEnabled?: boolean; dailyZaiLimit?: number; preferredProviders?: string[] }) {
+    return request<{ success: boolean; policy: any }>({ endpoint: "/config/ai-router/policy", method: "PUT", body: payload });
+  },
+
+  async getMasterAIProvidersCatalog(companyId = "default", refresh = false) {
+    const qs = new URLSearchParams({ companyId });
+    if (refresh) qs.set("refresh", "1");
+    return request<{ success: boolean; routingModes: string[]; policy: any; ollama: any; providers: any[]; credentials: any[] }>({
+      endpoint: `/admin/master/ai-providers/catalog?${qs.toString()}`,
+      method: "GET",
+    });
+  },
+
+  async saveMasterAICredential(payload: { scope?: "master" | "company" | "agent"; companyId?: string; agentKey?: string; providerId: string; apiKey: string; defaultModel?: string; label?: string; enabled?: boolean }) {
+    return request<{ success: boolean; credential: any }>({ endpoint: "/admin/master/ai-providers/credentials", method: "POST", body: payload });
+  },
+
+  async revokeMasterAICredential(id: number | string, companyId = "default") {
+    return request<{ success: boolean; credential: any }>({ endpoint: `/admin/master/ai-providers/credentials/${encodeURIComponent(String(id))}?companyId=${encodeURIComponent(companyId)}`, method: "DELETE" });
+  },
+
+  async testMasterAIProvider(payload: { providerId: string; modelId?: string; apiKey?: string; scope?: string; companyId?: string; credentialId?: number | string | null }) {
+    return request<{ success: boolean; ok: boolean; providerId: string; modelId: string; healthStatus: string; latencyMs?: number; error?: string; response?: string }>({
+      endpoint: "/admin/master/ai-providers/test",
+      method: "POST",
+      body: payload,
+      timeoutMs: 30_000,
+    });
+  },
+
+  async updateMasterAIRouterPolicy(payload: { companyId?: string; defaultMode?: string; fallbackEnabled?: boolean; zaiEnabled?: boolean; dailyZaiLimit?: number; preferredProviders?: string[] }) {
+    return request<{ success: boolean; policy: any }>({ endpoint: "/admin/master/ai-providers/router-policy", method: "PUT", body: payload });
+  },
+
+  async getMasterAIAuditLog(companyId = "default", limit = 80) {
+    return request<{ success: boolean; logs: any[] }>({ endpoint: `/admin/master/ai-providers/audit-log?companyId=${encodeURIComponent(companyId)}&limit=${limit}`, method: "GET" });
+  },
+
+  async getMemoryEvolutionOverview(params: { agentKey?: string | null; sessionId?: string | null; period?: string; start?: string; end?: string } = {}) {
+    const qs = new URLSearchParams();
+    if (params.agentKey) qs.set("agentKey", params.agentKey);
+    if (params.sessionId) qs.set("sessionId", params.sessionId);
+    if (params.period) qs.set("period", params.period);
+    if (params.start) qs.set("start", params.start);
+    if (params.end) qs.set("end", params.end);
+    return request<{ success: boolean; [key: string]: any }>({ endpoint: `/ai/memory-evolution/overview?${qs.toString()}`, method: "GET" });
+  },
+
+  async listEnterpriseMemories(params: { agentKey?: string | null; sessionId?: string | null; category?: string | null; search?: string; status?: string; scope?: string; limit?: number } = {}) {
+    const qs = new URLSearchParams();
+    if (params.agentKey) qs.set("agentKey", params.agentKey);
+    if (params.sessionId) qs.set("sessionId", params.sessionId);
+    if (params.category) qs.set("category", params.category);
+    if (params.search) qs.set("search", params.search);
+    if (params.status) qs.set("status", params.status);
+    if (params.scope) qs.set("scope", params.scope);
+    if (params.limit) qs.set("limit", String(params.limit));
+    return request<{ success: boolean; categories: Record<string, string>; items: any[]; categoryCounts: Record<string, { total: number; active: number }> }>({
+      endpoint: `/ai/memory-evolution/memories?${qs.toString()}`,
+      method: "GET",
+    });
+  },
+
+  async createEnterpriseMemory(payload: { agentKey?: string; sessionId?: string | null; memoryScope?: "agent" | "session" | "company_shared"; category: string; title: string; content: string; confidence?: number }) {
+    return request<{ success: boolean; memory: any }>({ endpoint: "/ai/memory-evolution/memories", method: "POST", body: payload });
+  },
+
+  async updateEnterpriseMemory(id: number | string, payload: { title?: string; content?: string; category?: string; memoryScope?: string; status?: "active" | "disabled" }) {
+    return request<{ success: boolean; memory: any }>({ endpoint: `/ai/memory-evolution/memories/${encodeURIComponent(String(id))}`, method: "PATCH", body: payload });
+  },
+
+  async deleteEnterpriseMemory(id: number | string) {
+    return request<{ success: boolean }>({ endpoint: `/ai/memory-evolution/memories/${encodeURIComponent(String(id))}`, method: "DELETE" });
+  },
+
+  async getCognitiveEvolution(agentKey?: string | null, limit = 60) {
+    const qs = new URLSearchParams({ limit: String(limit) });
+    if (agentKey) qs.set("agentKey", agentKey);
+    return request<{ success: boolean; identified: any[]; pendingApproval: any[]; applied: any[]; history: any[]; versions: any[]; counts: any }>({
+      endpoint: `/ai/memory-evolution/cognitive?${qs.toString()}`,
+      method: "GET",
+    });
+  },
+
+  async approveEvolutionProposal(id: number | string) {
+    return request<{ success: boolean; proposal: any }>({ endpoint: `/ai/memory-evolution/proposals/${encodeURIComponent(String(id))}/approve`, method: "POST" });
+  },
+
+  async rejectEvolutionProposal(id: number | string) {
+    return request<{ success: boolean; proposal: any }>({ endpoint: `/ai/memory-evolution/proposals/${encodeURIComponent(String(id))}/reject`, method: "POST" });
+  },
+
+  async rollbackEvolutionProposal(id: number | string) {
+    return request<{ success: boolean; proposal: any }>({ endpoint: `/ai/memory-evolution/proposals/${encodeURIComponent(String(id))}/rollback`, method: "POST" });
+  },
+
+  async getResultsAndConversations(params: { agentKey?: string | null; sessionId?: string | null; period?: string; start?: string; end?: string; search?: string; limit?: number } = {}) {
+    const qs = new URLSearchParams();
+    if (params.agentKey) qs.set("agentKey", params.agentKey);
+    if (params.sessionId) qs.set("sessionId", params.sessionId);
+    if (params.period) qs.set("period", params.period);
+    if (params.start) qs.set("start", params.start);
+    if (params.end) qs.set("end", params.end);
+    if (params.search) qs.set("search", params.search);
+    if (params.limit) qs.set("limit", String(params.limit));
+    return request<{ success: boolean; period: any; metrics: any; byAlgorithm: any[]; conversations: any[] }>({
+      endpoint: `/ai/memory-evolution/results?${qs.toString()}`,
+      method: "GET",
+    });
+  },
+
+  async explainConversationDecision(conversationId: number | string) {
+    return request<{ success: boolean; [key: string]: any }>({
+      endpoint: `/ai/memory-evolution/conversations/${encodeURIComponent(String(conversationId))}/explain`,
+      method: "GET",
+    });
   },
 
   async createAIAgent(payload: any) {

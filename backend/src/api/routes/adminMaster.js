@@ -1100,4 +1100,128 @@ router.delete('/master/agent-templates/:templateId', requireMasterAdmin, async (
   }
 });
 
+// ============================================================
+// PROVEDORES & MODELOS DE IA — MASTER ENTERPRISE CONTROL PLANE
+// ============================================================
+
+router.get('/master/ai-providers/catalog', requireMasterAdmin, async (req, res) => {
+  try {
+    const aiModelRouter = require('../../../services/aiModelRouter');
+    const companyId = String(req.query.companyId || req.authTenantId || 'default').trim() || 'default';
+    const catalog = await aiModelRouter.getProviderCatalog({
+      companyId,
+      includeMaster: true,
+      forceDiscovery: req.query.refresh === '1' || req.query.refresh === 'true',
+    });
+    return res.status(200).json({ success: true, ...catalog });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao consultar catálogo de provedores.' });
+  }
+});
+
+router.post('/master/ai-providers/credentials', requireMasterAdmin, async (req, res) => {
+  try {
+    const aiCredentialVault = require('../../../services/aiCredentialVault');
+    const body = req.body || {};
+    const scope = aiCredentialVault.normalizeScope(body.scope || 'master');
+    const companyId = scope === 'master' ? '__master__' : (body.companyId || req.authTenantId || 'default');
+    const credential = await aiCredentialVault.saveCredential({
+      scope,
+      companyId,
+      agentKey: body.agentKey || '',
+      providerId: body.providerId,
+      apiKey: body.apiKey,
+      defaultModel: body.defaultModel || null,
+      label: body.label || null,
+      enabled: body.enabled !== false,
+      actor: req.auth || {},
+    });
+    await logAdminAction(req, 'ai_credential_saved', {
+      scope,
+      companyId,
+      providerId: credential.provider_id,
+      keyHint: credential.key_hint,
+    });
+    return res.status(200).json({ success: true, credential });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message || 'Falha ao salvar credencial.' });
+  }
+});
+
+router.delete('/master/ai-providers/credentials/:id', requireMasterAdmin, async (req, res) => {
+  try {
+    const aiCredentialVault = require('../../../services/aiCredentialVault');
+    const revoked = await aiCredentialVault.revokeCredential({
+      id: req.params.id,
+      companyId: req.query.companyId || req.authTenantId || 'default',
+      allowMaster: true,
+      actor: req.auth || {},
+    });
+    if (!revoked) return res.status(404).json({ success: false, error: 'Credencial não encontrada.' });
+    await logAdminAction(req, 'ai_credential_revoked', { id: req.params.id, providerId: revoked.provider_id, scope: revoked.scope });
+    return res.status(200).json({ success: true, credential: revoked });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message || 'Falha ao revogar credencial.' });
+  }
+});
+
+router.post('/master/ai-providers/test', requireMasterAdmin, async (req, res) => {
+  try {
+    const aiModelRouter = require('../../../services/aiModelRouter');
+    const body = req.body || {};
+    const result = await aiModelRouter.probeProvider({
+      providerId: body.providerId,
+      modelId: body.modelId || '',
+      apiKey: body.apiKey || '',
+      scope: body.scope || 'master',
+      companyId: body.companyId || req.authTenantId || 'default',
+      agentKey: body.agentKey || '',
+      credentialId: body.credentialId || null,
+      actor: req.auth || {},
+    });
+    return res.status(200).json({ success: result.ok, ...result });
+  } catch (error) {
+    return res.status(500).json({ success: false, ok: false, error: error.message || 'Falha no teste de conexão.' });
+  }
+});
+
+router.get('/master/ai-providers/router-policy', requireMasterAdmin, async (req, res) => {
+  try {
+    const aiModelRouter = require('../../../services/aiModelRouter');
+    const companyId = String(req.query.companyId || req.authTenantId || 'default').trim() || 'default';
+    const policy = await aiModelRouter.getRouterPolicy(companyId);
+    return res.status(200).json({ success: true, policy });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.put('/master/ai-providers/router-policy', requireMasterAdmin, async (req, res) => {
+  try {
+    const aiModelRouter = require('../../../services/aiModelRouter');
+    const body = req.body || {};
+    const companyId = String(body.companyId || req.authTenantId || 'default').trim() || 'default';
+    const policy = await aiModelRouter.upsertRouterPolicy(companyId, body, req.auth || {});
+    await logAdminAction(req, 'ai_router_policy_updated', { companyId, defaultMode: policy.defaultMode, zaiEnabled: policy.zaiEnabled });
+    return res.status(200).json({ success: true, policy });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/master/ai-providers/audit-log', requireMasterAdmin, async (req, res) => {
+  try {
+    const aiCredentialVault = require('../../../services/aiCredentialVault');
+    const companyId = String(req.query.companyId || req.authTenantId || 'default').trim() || 'default';
+    const logs = await aiCredentialVault.listAuditLogs({
+      companyId,
+      includeMaster: true,
+      limit: Number(req.query.limit) || 80,
+    });
+    return res.status(200).json({ success: true, logs });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;

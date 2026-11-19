@@ -244,9 +244,12 @@ router.get('/config/absence-message', aiConfigController.getAbsenceMessage);
 router.post('/config/absence-message', aiConfigController.saveAbsenceMessage);
 router.get('/config/advanced-ai', aiConfigController.getAdvancedAI);
 router.post('/config/advanced-ai', aiConfigController.saveAdvancedAI);
+router.get('/config/ai-agents/behavior-catalog', aiConfigController.getAgentBehaviorCatalog);
 router.get('/config/ai-agents', aiConfigController.getAIAgents);
 router.post('/config/ai-agents', aiConfigController.createAIAgent);
 router.put('/config/ai-agents/:key', aiConfigController.updateAIAgent);
+router.get('/config/ai-agents/:key/versions', aiConfigController.getAgentVersions);
+router.post('/config/ai-agents/:key/versions/:versionId/rollback', aiConfigController.rollbackAgentVersion);
 router.patch('/config/ai-agents/:key/active', aiConfigController.toggleAIAgent);
 router.delete('/config/ai-agents/:key', aiConfigController.deleteAIAgent);
 router.post('/config/ai-agents/:key/clone', aiConfigController.cloneAIAgent);
@@ -259,6 +262,12 @@ router.get('/config/ai/pipeline-logs', aiConfigController.getPipelineLogs);
 
 router.get('/config/user-providers', aiConfigController.getUserProviders);
 router.post('/config/user-providers', aiConfigController.saveUserProvider);
+router.get('/config/ai-providers/available', aiConfigController.getAvailableAIProviders);
+router.get('/config/ai-credentials', aiConfigController.getAICredentials);
+router.post('/config/ai-credentials', aiConfigController.saveAICredential);
+router.delete('/config/ai-credentials/:id', aiConfigController.revokeAICredential);
+router.post('/config/ai-credentials/test', aiConfigController.testAICredential);
+router.put('/config/ai-router/policy', aiConfigController.updateAIRouterPolicy);
 
 router.post('/config/ai/restart', async (req, res) => {
   try {

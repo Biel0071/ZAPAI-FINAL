@@ -456,59 +456,37 @@ class EvolutionaryAgentOrchestrator {
         lowerMsg.includes('demora quanto tempo');
 
       if (isAskingLocation) {
+        const storeAddr = store?.address || store?.location || 'nossa loja';
         responseText = hasPastBotMessages
-          ? `Nossa loja e centro de distribuição ficam em Minas Gerais (Região Metropolitana de BH/Betim/Contagem). Atendemos toda a nossa região com frete próprio e entregamos também em regiões vizinhas. Qual é a sua cidade ou bairro para eu consultar a rota para você?`
-          : `Olá! Aqui é a ${agentName}. Nossa loja e centro de distribuição ficam em Minas Gerais (Região Metropolitana de BH/Betim/Contagem). Atendemos toda a região metropolitana com entrega própria. Qual é a sua cidade ou bairro para eu consultar nossa rota de entrega?`;
-      } else if (isAdOrLeadTime) {
-        responseText = hasPastBotMessages
-          ? `Temos a Churrasqueira Trio a pronta entrega com saída rápida em até 2 a 4 dias úteis! O frete é grátis até 15km da loja. Qual é o seu bairro ou cidade para eu consultar a data exata do caminhão para você?`
-          : `Olá! Aqui é a ${agentName} da loja. Temos a Churrasqueira Trio a pronta entrega com saída rápida em até 2 a 4 dias úteis! O frete é grátis num raio de até 15km da loja. Qual é o seu bairro ou cidade para eu consultar a rota do caminhão para você?`;
-      } else if (lowerMsg.includes('frete') || lowerMsg.includes('entrega')) {
+          ? `Atendemos a região a partir de ${storeAddr}. Qual é a sua cidade ou bairro para eu consultar a rota e o frete para você?`
+          : `Olá! Aqui é ${agentName}${store?.name ? ` da ${store.name}` : ''}. Me informe sua cidade ou bairro para eu consultar a rota e o prazo de entrega.`;
+      } else if (isAdOrLeadTime || lowerMsg.includes('frete') || lowerMsg.includes('entrega')) {
         const topic = !neighborhood ? 'freight_location' : (!paymentPref ? 'payment' : 'closing_advance');
         const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
         responseText = hasPastBotMessages
-          ? `Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km da loja. ${nextCta}`
-          : `Olá! Aqui é a ${agentName} da loja. Nosso frete é grátis para pedidos acima de R$ 500 num raio de até 15km. ${nextCta}`;
-      } else if (extractedFacts.capacity || lowerMsg.includes('caixa') || lowerMsg.includes('litros') || lowerMsg.includes('reservatorio')) {
-        const capLabel = extractedFacts.capacity || evoData.customerContext?.capacity || "5 mil litros";
-        const topic = !neighborhood ? 'freight_location' : (!paymentPref ? 'payment' : 'closing_advance');
-        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
-        responseText = hasPastBotMessages
-          ? `Temos a caixa d'água de ${capLabel} em polietileno com tampa de rosca pronta para entrega. ${nextCta}`
-          : `Olá! Aqui é a ${agentName}. Temos a caixa d'água de ${capLabel} em polietileno com tampa de rosca pronta para entrega. ${nextCta}`;
+          ? `Vou consultar o prazo e o frete exatos conforme o catálogo oficial da loja. ${nextCta}`
+          : `Olá! Aqui é ${agentName}${store?.name ? ` da ${store.name}` : ''}. ${nextCta}`;
       } else if (extractedFacts.neighborhood || lowerMsg.includes('bairro') || lowerMsg.includes('cep')) {
         const bairro = extractedFacts.neighborhood || evoData.customerContext?.neighborhood || 'seu bairro';
         const topic = !paymentPref ? 'payment' : 'closing_advance';
         const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
         responseText = hasPastBotMessages
-          ? `Perfeito! Para entrega no ${bairro} temos rota rápida e conseguimos agilizar o frete. ${nextCta}`
-          : `Olá! Aqui é a ${agentName}. Para entrega no ${bairro} temos rota rápida e conseguimos agilizar o frete. ${nextCta}`;
+          ? `Perfeito! Anotei ${bairro} para verificar disponibilidade de rota e envio. ${nextCta}`
+          : `Olá! Aqui é ${agentName}${store?.name ? ` da ${store.name}` : ''}. Anotei ${bairro} para consultar o envio. ${nextCta}`;
       } else if (extractedFacts.paymentPreference || lowerMsg.includes('pix') || lowerMsg.includes('cartao') || lowerMsg.includes('cartão') || lowerMsg.includes('pagar')) {
         const isPix = lowerMsg.includes('pix') || (extractedFacts.paymentPreference && extractedFacts.paymentPreference.includes('PIX'));
         const topic = !neighborhood ? 'freight_location' : 'closing_advance';
         const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
         responseText = hasPastBotMessages
-          ? `Excelente! No ${isPix ? 'PIX' : 'cartão'} conseguimos as melhores condições comerciais à vista. ${nextCta}`
-          : `Olá! Aqui é a ${agentName}. No ${isPix ? 'PIX' : 'cartão'} conseguimos as melhores condições comerciais à vista. ${nextCta}`;
-      } else if (lowerMsg.includes('tijolo') || lowerMsg.includes('milheiro')) {
-        const topic = !neighborhood ? 'freight_location' : (!paymentPref ? 'payment' : 'closing_advance');
-        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
-        responseText = hasPastBotMessages
-          ? `O milheiro do tijolo 8 furos está saindo por R$ 720,00 (com desconto no PIX). ${nextCta}`
-          : `Olá! Aqui é a ${agentName}. O milheiro do tijolo 8 furos está saindo por R$ 720,00 (com desconto no PIX). ${nextCta}`;
-      } else if (lowerMsg.includes('churrasqueira') || lowerMsg.includes('trio')) {
-        const topic = !neighborhood ? 'freight_location' : (!paymentPref ? 'payment' : 'closing_advance');
-        const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, topic, knownPrefs);
-        responseText = hasPastBotMessages
-          ? `A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou parcelada (com desconto no PIX). ${nextCta}`
-          : `Olá! A Churrasqueira Trio pré-moldada completa sai por R$ 990,00 ou parcelada (com desconto no PIX). ${nextCta}`;
+          ? `Ótima escolha! Confirmamos as condições disponíveis no ${isPix ? 'PIX' : 'cartão'} conforme tabela oficial da loja. ${nextCta}`
+          : `Olá! Aqui é ${agentName}${store?.name ? ` da ${store.name}` : ''}. ${nextCta}`;
       } else {
         const nextCta = cta || aiAntiRepetitionService.getAlternativeCta(recentCtas, 'closing_advance', knownPrefs);
         const usedComCertezaRecently = recentBotReplies.some(r => r.text && r.text.toLowerCase().includes('com certeza'));
         const prefix = usedComCertezaRecently ? 'Perfeito!' : 'Com certeza!';
         responseText = hasPastBotMessages
           ? `${prefix} ${nextCta}`
-          : `Olá! Aqui é a ${agentName} da loja. ${nextCta}`;
+          : `Olá! Aqui é ${agentName}${store?.name ? ` da ${store.name}` : ''}. ${nextCta}`;
       }
     }
 
@@ -574,17 +552,28 @@ class EvolutionaryAgentOrchestrator {
       } catch (_) {}
     }
 
-    // Step 7: Asynchronously record Experience Event (Layer 4)
+    // Step 7: Asynchronously record Experience Event (Layer 4) with full explainability metadata
     this.experienceEngine.recordExperienceEvent({
       conversationId: convId,
       leadId: conversation?.lead_id || null,
       companyId: cleanCompany,
       customerUtterance: customerMessage,
       intentDetected: leadAnalysis?.intent || evoData.customerContext.leadIntent || 'general',
-      strategyApplied: evoData.activePlaybook?.slug || 'qualificacao_padrao',
+      strategyApplied: evoData.activePlaybook?.slug || aiResultData?.effectiveConfig?.objective || 'qualificacao_padrao',
       playbookId: evoData.activePlaybook?.id || null,
       aiReply: responseText,
       metadata: {
+        agentKey: agent?.key || null,
+        agentName: agent?.name || null,
+        provider: providerUsed,
+        model: modelUsed,
+        routingMode: aiResultData?.routingMode || agent?.routingMode || 'AUTO',
+        credentialScope: aiResultData?.credentialScope || null,
+        tokens: tokens.totalTokens || 0,
+        latencyMs: responseTimeMs,
+        effectiveConfig: aiResultData?.effectiveConfig || null,
+        recalledMemoryIds: aiResultData?.recalledMemoryIds || [],
+        officialKnowledgeKeys: evoData.officialKnowledgeKeys || [],
         playbookName: evoData.activePlaybook?.name,
         confidence: evoData.activePlaybook?.confidence,
         validationIssues: validation.issues,

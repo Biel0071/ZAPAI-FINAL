@@ -21,6 +21,7 @@ import {
   FileText,
   Flask,
   Pulse,
+  Cpu,
 } from "@phosphor-icons/react";
 import { Header } from "@/components/layout/Header";
 import SettingsView from "@/pages/lovable/pages/SettingsPageView";
@@ -62,6 +63,7 @@ const TestsPage = React.lazy(() => import("./Tests"));
 const DiagnosticsPage = React.lazy(() => import("@/core/runtime/diagnostics/Diagnostics"));
 const MasterCompaniesPage = React.lazy(() => import("./MasterCompanies"));
 const CompanyTeamPage = React.lazy(() => import("./CompanyTeam"));
+const MasterAIProvidersPage = React.lazy(() => import("./MasterAIProviders"));
 
 
 
@@ -78,8 +80,9 @@ function resolveAIEnabled(status: AIStatusResponse | null): boolean {
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { username, role, session } = useAdminAuth();
-  const canOpenPlatformHub = role === "master";
+  const { username, role, session, isLoading } = useAdminAuth();
+  const { role: sessionRole } = useUserRole();
+  const canOpenPlatformHub = role === "master" || sessionRole === "master";
   const [selectedCompanyContext, setSelectedCompanyContext] = useState(() => {
     try { return window.localStorage.getItem("zai_admin_company_context") || ""; } catch { return ""; }
   });
@@ -87,7 +90,7 @@ export default function Settings() {
   const settingsViewModel = useMemo(() => createSettingsLovableViewModel(), []);
   const tabParam = searchParams.get("tab") || searchParams.get("section");
 
-  const isMasterIndex = (idx: number) => idx >= 8 && idx <= 19;
+  const isMasterIndex = (idx: number) => (idx >= 8 && idx <= 19) || idx === 21;
   const isCompanyAdminSection = (idx: number) => [1, 2, 5].includes(idx);
   const canViewUserSection = (idx: number) => !isCompanyAdminSection(idx) || canOpenPlatformHub || role === "admin";
 
@@ -108,6 +111,7 @@ export default function Settings() {
   });
 
   useEffect(() => {
+    if (isLoading) return;
     if (tabParam) {
       const found = settingsViewModel.sections.findIndex((s) => s.id === tabParam);
       if (found !== -1) {
@@ -126,7 +130,7 @@ export default function Settings() {
         setSettingsMode(canOpenPlatformHub && isMasterIndex(found) ? "master" : "user");
       }
     }
-  }, [tabParam, settingsViewModel.sections, activeSection, canOpenPlatformHub, canViewUserSection, setSearchParams]);
+  }, [isLoading, tabParam, settingsViewModel.sections, activeSection, canOpenPlatformHub, canViewUserSection, setSearchParams]);
 
   const handleSectionChange = (index: number) => {
     setActiveSection(index);
@@ -198,12 +202,15 @@ export default function Settings() {
     finally { setIsSavingCompany(false); }
   };
 
-  const { role: sessionRole } = useUserRole();
-
   // Only backend-supported account fields can be saved.
   useEffect(() => {
     let isMounted = true;
     setUserId(null); setProfileEmail(''); setProfileRole(''); setProfileError(null);
+    if (canOpenPlatformHub || activeSection !== 0) {
+      setProfileRole(ROLE_LABELS[role] || ROLE_LABELS[sessionRole] || 'Master da plataforma');
+      setIsProfileLoading(false);
+      return () => { isMounted = false; };
+    }
     const loadProfile = async () => {
       setIsProfileLoading(true);
       try {
@@ -222,7 +229,7 @@ export default function Settings() {
     };
     if (username) void loadProfile(); else setIsProfileLoading(false);
     return () => { isMounted = false; };
-  }, [username, sessionRole]);
+  }, [username, sessionRole, role, canOpenPlatformHub, activeSection]);
 
   // Load AI Global status
   useEffect(() => {
@@ -532,7 +539,7 @@ export default function Settings() {
   const iconMap: Record<number, any> = useMemo(() => ({
     0: User, 1: Buildings, 2: Users, 3: Bell, 4: Shield, 5: CreditCard,
     6: Palette, 7: Globe, 8: Key, 9: Link, 10: Database,
-    11: Queue, 12: HardDrives, 13: Shield, 14: TrendUp, 15: GitCommit, 16: FileText, 17: Flask, 18: Pulse, 19: Buildings, 20: Robot,
+    11: Queue, 12: HardDrives, 13: Shield, 14: TrendUp, 15: GitCommit, 16: FileText, 17: Flask, 18: Pulse, 19: Buildings, 20: Robot, 21: Cpu,
   }), []);
 
   const userNavGroups = useMemo(() => [
@@ -563,7 +570,7 @@ export default function Settings() {
     },
     {
       title: "Diagnóstico & IA Sistema",
-      indices: [18, 17], // Diagnósticos, Central de Testes
+      indices: [21, 18, 17], // Provedores & Modelos IA, Diagnósticos, Central de Testes
     },
     { title: "Empresas e Licenças", indices: [19] },
   ], []);
@@ -919,12 +926,17 @@ export default function Settings() {
                   <CardHeader><CardTitle className="font-display">Integrações de API</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
                     <p className="text-sm text-muted-foreground">A emissão de chaves de acesso para integrações externas não está disponível neste sistema.</p>
-                    <Button variant="outline" onClick={() => navigate('/ai')}>Configurar provedor de IA</Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate(canOpenPlatformHub ? "/settings?tab=ai-providers" : "/attendants?step=provider")}
+                    >
+                      Configurar provedor de IA
+                    </Button>
                   </CardContent>
                 </Card>
               )}
 
-              {activeSection >= 11 && activeSection <= 19 && (
+              {((activeSection >= 11 && activeSection <= 19) || activeSection === 21) && (
                 <Card className="glass-card overflow-hidden w-full max-w-full min-w-0">
                   <React.Suspense fallback={<div className="flex h-32 items-center justify-center text-muted-foreground text-sm">Carregando painel...</div>}>
                     <style>{`
@@ -948,12 +960,13 @@ export default function Settings() {
                       {activeSection === 17 && <TestsPage />}
                       {activeSection === 18 && <DiagnosticsPage />}
                       {activeSection === 19 && <MasterCompaniesPage />}
+                      {activeSection === 21 && <MasterAIProvidersPage />}
                     </div>
                   </React.Suspense>
                 </Card>
               )}
 
-              {![0, 1, 2, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].includes(activeSection) && (
+              {![0, 1, 2, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].includes(activeSection) && (
                 <Card className="glass-card">
                   <UnderConstruction
                     title={settingsViewModel.sections[activeSection]?.label || "Módulo em Desenvolvimento"}

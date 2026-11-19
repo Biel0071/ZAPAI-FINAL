@@ -12,6 +12,7 @@ router.get('/ai/executive-insights', aiController.getExecutiveInsights);
 router.get('/ai/usage/zai', aiController.getZaiUsage);
 router.post('/ai/usage/zai/recharge', aiController.rechargeZaiUsage);
 router.post('/ai/test', aiController.testReply);
+router.post('/ai/test/compare', aiController.compareBehaviorReplies);
 router.post('/ai/refine-prompt', aiController.refinePrompt);
 router.post('/ai/transcribe', aiController.transcribe);
 router.post('/ai/providers/test', aiController.testProviders);
@@ -69,7 +70,8 @@ router.post('/ai/agent-learning/:id/apply', aiController.applyLearningAnswer);
 router.post('/ai/agent-learning/:id/ignore', aiController.ignoreLearningEvent);
 router.post('/ai/agent-evolve/sync-manual', async (req, res) => {
   try {
-    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || req.authTenantId || 'default';
+    const companyId = req.authTenantId;
+    if (!companyId) return res.status(401).json({ success: false, error: 'Authentication required' });
     const humanAttendanceLearner = require('../../ai/evolutionary/humanAttendanceLearner');
     const result = await humanAttendanceLearner.mineAndEvolveFromManualAttendance({ companyId, limit: Number(req.body?.limit) || 300 });
     res.json({ success: result.ok, ...result });
@@ -79,7 +81,8 @@ router.post('/ai/agent-evolve/sync-manual', async (req, res) => {
 });
 router.get('/ai/agent-evolve/learned-patterns', async (req, res) => {
   try {
-    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || req.authTenantId || 'default';
+    const companyId = req.authTenantId;
+    if (!companyId) return res.status(401).json({ success: false, error: 'Authentication required' });
     const humanAttendanceLearner = require('../../ai/evolutionary/humanAttendanceLearner');
     const patterns = await humanAttendanceLearner.getLearnedPatterns({ companyId });
     res.json({ success: true, data: patterns });

@@ -27,6 +27,7 @@ export function createSettingsLovableViewModel(): SettingsLovableViewModel {
       { id: "diagnostics", label: "Diagnóstico & Saúde" },
       { id: "companies-licenses", label: "Empresas e Licenças" },
       { id: "assistente-zai", label: "Assistente ZAI" },
+      { id: "ai-providers", label: "Provedores & Modelos IA" },
     ],
   };
 }

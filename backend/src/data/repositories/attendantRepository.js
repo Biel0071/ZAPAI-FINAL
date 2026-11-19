@@ -2,6 +2,12 @@
 
 const { query, pool } = require('../../infrastructure/config/database');
 const crypto = require('crypto');
+const { resolveObjectiveId, resolvePersonalityId } = require('../../ai/agents/engine/agentBehaviorCompiler');
+
+function clampStr(val, maxLen, fallback = '') {
+  const s = String(val ?? fallback).trim();
+  return s.length > maxLen ? s.slice(0, maxLen) : s;
+}
 
 function assignmentId(prefix, ...parts) {
   const digest = crypto.createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0, 40);
@@ -70,31 +76,70 @@ const attendantRepository = {
   },
 
   async upsertAttendant(companyId = 'default', data = {}, client = null) {
-    const id = data.id || assignmentId('attendant', companyId, data.key || Date.now());
-    const key = String(data.key || data.name || id).trim().toLowerCase().replace(/\s+/g, '-');
-    const name = data.name || key;
-    const role = data.role || 'Vendas';
-    const status = data.status || 'active';
+    const cleanCompanyId = clampStr(companyId, 64, 'default') || 'default';
+    const id = clampStr(data.id || assignmentId('attendant', cleanCompanyId, data.key || Date.now()), 64);
+    const key = clampStr(String(data.key || data.name || id).trim().toLowerCase().replace(/\s+/g, '-'), 64);
+    const name = clampStr(data.name || key, 128, key);
+    const role = clampStr(data.role || 'Vendas', 128, 'Vendas');
+    const status = clampStr(data.status || 'active', 32, 'active');
     const active = data.active !== false;
     const isPlatformAssistant = Boolean(data.is_platform_assistant || key === 'zaibot');
-    const personality = data.personality || data.prompt || 'Atendente da loja.';
-    const personalityType = data.personality_type || data.personalityType || 'comercial';
-    const prompt = data.prompt || personality;
-    const aiProvider = data.ai_provider || data.aiProvider || 'zai';
-    const aiModel = data.ai_model || data.aiModel || 'qwen2.5:3b';
+    const personality = String(data.personality || data.prompt || 'Atendente da loja.');
+    const rawPersonalityType = String(data.personality_type || data.personalityType || 'comercial').trim();
+    const personalityType = clampStr(rawPersonalityType, 64, 'comercial');
+    const prompt = String(data.prompt || personality);
+    const aiProvider = clampStr(data.ai_provider || data.aiProvider || data.providerId || data.provider || 'zai', 64, 'zai');
+    const aiModel = clampStr(data.ai_model || data.aiModel || data.modelId || data.model || 'qwen2.5:3b', 64, 'qwen2.5:3b');
     const temperature = typeof data.temperature === 'number' ? data.temperature : 0.70;
+    const rawConnId = data.whatsapp_connection_id || data.whatsappConnectionId || (Array.isArray(data.sessionIds) && data.sessionIds[0]) || null;
+    const whatsappConnectionId = rawConnId ? clampStr(rawConnId, 120) : null;
+    const rawTone = String(data.tone || 'acolhedor').trim();
+    const personalityPreset = clampStr(
+      resolvePersonalityId(data.personality_preset || data.personalityPreset, rawTone, rawPersonalityType),
+      64,
+      'consultivo_amigavel'
+    );
+    const rawObjective = String(data.objective || '').trim();
+    const objective = clampStr(resolveObjectiveId(rawObjective), 64, 'fechamento');
+    const tone = clampStr(rawTone || 'acolhedor', 64, 'acolhedor');
+    const responseStyle = clampStr(data.response_style || data.responseStyle || 'balanced', 64, 'balanced');
+    const maxTokens = Math.max(64, Number(data.max_tokens || data.maxTokens) || 600);
+    const routingMode = clampStr(String(data.routing_mode || data.routingMode || 'AUTO').toUpperCase(), 32, 'AUTO');
+    const systemPromptVersion = Math.max(1, Number(data.system_prompt_version || data.systemPromptVersion) || 1);
+    const knowledgeConfiguration = typeof data.knowledge_configuration === 'object' && data.knowledge_configuration !== null
+      ? data.knowledge_configuration
+      : (typeof data.knowledgeConfiguration === 'object' && data.knowledgeConfiguration !== null ? data.knowledgeConfiguration : {});
+    const enabledFeatures = typeof data.enabled_features === 'object' && data.enabled_features !== null
+      ? data.enabled_features
+      : (typeof data.enabledFeatures === 'object' && data.enabledFeatures !== null ? data.enabledFeatures : {});
+    const rawUpdatedBy = data.updated_by || data.updatedBy || null;
+    const updatedBy = rawUpdatedBy ? clampStr(rawUpdatedBy, 120) : null;
     const avatarUrl = data.avatar_url || data.avatarUrl || data.avatar || '';
     const avatarConfig = typeof data.avatar_config === 'object' ? data.avatar_config : (typeof data.avatarConfig === 'object' ? data.avatarConfig : {});
     const appearance = typeof data.appearance === 'object' ? data.appearance : {};
     const character = typeof data.character === 'object' ? data.character : {};
-    const settings = typeof data.settings === 'object' ? data.settings : {};
+    const baseSettings = typeof data.settings === 'object' && data.settings !== null ? { ...data.settings } : {};
+    if (rawObjective.length > 64) {
+      baseSettings.customObjective = rawObjective;
+    }
+    const settings = baseSettings;
 
     const res = await (client || { query }).query(
       `INSERT INTO digital_attendants (
         id, company_id, key, name, role, status, active, is_platform_assistant,
         personality, personality_type, prompt, ai_provider, ai_model, temperature,
+        whatsapp_connection_id, personality_preset, objective, tone, response_style,
+        max_tokens, routing_mode, system_prompt_version, knowledge_configuration,
+        enabled_features, updated_by,
         avatar_url, avatar_config, appearance, character, settings, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW())
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8,
+        $9, $10, $11, $12, $13, $14,
+        $15, $16, $17, $18, $19,
+        $20, $21, $22, $23::jsonb,
+        $24::jsonb, $25,
+        $26, $27, $28, $29, $30, NOW()
+      )
       ON CONFLICT (company_id, key) DO UPDATE SET
         name = EXCLUDED.name,
         role = EXCLUDED.role,
@@ -106,6 +151,17 @@ const attendantRepository = {
         ai_provider = EXCLUDED.ai_provider,
         ai_model = EXCLUDED.ai_model,
         temperature = EXCLUDED.temperature,
+        whatsapp_connection_id = COALESCE(EXCLUDED.whatsapp_connection_id, digital_attendants.whatsapp_connection_id),
+        personality_preset = EXCLUDED.personality_preset,
+        objective = EXCLUDED.objective,
+        tone = EXCLUDED.tone,
+        response_style = EXCLUDED.response_style,
+        max_tokens = EXCLUDED.max_tokens,
+        routing_mode = EXCLUDED.routing_mode,
+        system_prompt_version = EXCLUDED.system_prompt_version,
+        knowledge_configuration = digital_attendants.knowledge_configuration || EXCLUDED.knowledge_configuration,
+        enabled_features = digital_attendants.enabled_features || EXCLUDED.enabled_features,
+        updated_by = COALESCE(EXCLUDED.updated_by, digital_attendants.updated_by),
         avatar_url = CASE WHEN EXCLUDED.avatar_url <> '' THEN EXCLUDED.avatar_url ELSE digital_attendants.avatar_url END,
         avatar_config = digital_attendants.avatar_config || EXCLUDED.avatar_config,
         appearance = digital_attendants.appearance || EXCLUDED.appearance,
@@ -114,8 +170,11 @@ const attendantRepository = {
         updated_at = NOW()
       RETURNING *`,
       [
-        id, companyId, key, name, role, status, active, isPlatformAssistant,
+        id, cleanCompanyId, key, name, role, status, active, isPlatformAssistant,
         personality, personalityType, prompt, aiProvider, aiModel, temperature,
+        whatsappConnectionId, personalityPreset, objective, tone, responseStyle,
+        maxTokens, routingMode, systemPromptVersion, JSON.stringify(knowledgeConfiguration),
+        JSON.stringify(enabledFeatures), updatedBy,
         avatarUrl, JSON.stringify(avatarConfig), JSON.stringify(appearance), JSON.stringify(character), JSON.stringify(settings)
       ]
     );
@@ -151,8 +210,17 @@ const attendantRepository = {
       avatar_url: agent.avatar,
       avatar_config: agent.avatarConfig,
       personality_type: agent.personalityType,
-      ai_provider: agent.aiProvider,
-      ai_model: agent.aiModel,
+      personality_preset: agent.personalityPreset,
+      ai_provider: agent.providerId || agent.provider || agent.aiProvider,
+      ai_model: agent.modelId || agent.model || agent.aiModel,
+      whatsapp_connection_id: agent.whatsappConnectionId || (Array.isArray(agent.sessionIds) ? agent.sessionIds[0] : null),
+      response_style: agent.responseStyle,
+      max_tokens: agent.maxTokens,
+      routing_mode: agent.routingMode,
+      system_prompt_version: agent.systemPromptVersion,
+      knowledge_configuration: agent.knowledgeConfiguration,
+      enabled_features: agent.enabledFeatures,
+      updated_by: agent.updatedBy,
       is_platform_assistant: agent.isPlatformAssistant,
       settings: { ...(agent.settings || {}), personalityVisual: agent.personalityVisual || {}, promptTemplate: agent.promptTemplate || null },
     }, tx);

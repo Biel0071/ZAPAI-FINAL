@@ -95,6 +95,7 @@ function fixture({ agents, profiles = [], failProfile = false } = {}) {
       : name.endsWith('/config/database') ? database
       : name.endsWith('/aiMemoryEngine') ? memory
       : name.endsWith('/attendantRepository') ? attendantRepo
+      : name.endsWith('/agentBehaviorCompiler') ? require('../src/ai/agents/engine/agentBehaviorCompiler')
       : name === 'crypto' ? crypto : {},
   }, { filename: 'aiAgentService.js' });
   return {

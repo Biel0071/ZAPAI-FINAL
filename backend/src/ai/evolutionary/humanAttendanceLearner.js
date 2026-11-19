@@ -274,10 +274,11 @@ class HumanAttendanceLearner {
   }
 
   /**
-   * Promotes prominent learned topics into active ai_playbooks
+   * Queues prominent learned topics as controlled evolution proposals awaiting approval.
    */
   async synthesizePlaybooksFromLearnedTopics(companyId, topicsCount) {
     try {
+      const aiMemoryEvolutionService = require('../../../services/aiMemoryEvolutionService');
       for (const [topicKey, count] of Object.entries(topicsCount)) {
         if (count < 2) continue;
 
@@ -286,7 +287,7 @@ class HumanAttendanceLearner {
 
         // Retrieve top 2 golden replies for this topic
         const topReplies = await this.pool.query(
-          `SELECT ai_reply, customer_utterance FROM ai_experience_events
+          `SELECT ai_reply, customer_utterance, conversation_id FROM ai_experience_events
            WHERE company_id = $1 AND intent_detected = $2 AND strategy_applied = 'human_operator_golden_sample'
            ORDER BY id DESC LIMIT 2`,
           [companyId, topicKey]
@@ -295,31 +296,23 @@ class HumanAttendanceLearner {
         if (topReplies.rows.length === 0) continue;
 
         const goldenReply = topReplies.rows[0].ai_reply;
-        const slug = `auto_playbook_${topicKey}`;
-
-        await this.pool.query(
-          `INSERT INTO ai_playbooks (
-            company_id, name, slug, trigger_condition, goal, steps,
-            recommended_cta, confidence, continuity_boost_pct, status,
-            created_by, approved_by, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0.95, 25.0, 'approved', 'human_attendance_learner', 'auto_evolution', NOW(), NOW())
-          ON CONFLICT (company_id, slug) DO UPDATE SET
-            steps = EXCLUDED.steps,
-            recommended_cta = EXCLUDED.recommended_cta,
-            updated_at = NOW()`,
-          [
-            companyId,
-            `[Padrão Humano] ${classifier.label}`,
-            slug,
-            topicKey,
-            `Responder com tom natural de WhatsApp aprendido dos atendentes reais: ${classifier.label}`,
-            JSON.stringify([
-              { action: 'golden_sample', text: goldenReply },
-              { action: 'natural_cta', text: classifier.defaultCta }
-            ]),
-            classifier.defaultCta
-          ]
-        );
+        await aiMemoryEvolutionService.proposeEvolutionLearning({
+          companyId,
+          agentKey: 'camila',
+          patternType: `human_${topicKey}`,
+          title: `[Padrão Humano] ${classifier.label}`,
+          beforeBehavior: 'Resposta padrão sem amostra humana validada para este tópico',
+          afterBehavior: `Adotar abordagem humanizada observada no operador: ${goldenReply}`,
+          suggestedCta: classifier.defaultCta,
+          evidenceItems: topReplies.rows.map((r) => ({
+            conversationId: r.conversation_id,
+            customerUtterance: String(r.customer_utterance || '').slice(0, 180),
+            humanReply: String(r.ai_reply || '').slice(0, 180),
+          })),
+          impactMetrics: { observedOccurrences: count },
+          sourceRole: 'human_operator',
+          minConfirmationsForApproval: 2,
+        });
       }
     } catch (err) {
       console.warn('[HumanAttendanceLearner] synthesizePlaybooks error:', err.message);

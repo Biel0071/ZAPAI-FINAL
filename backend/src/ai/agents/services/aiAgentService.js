@@ -126,12 +126,38 @@ function normalizeAgent(agent = {}) {
       ? agent.stats
       : {},
     isPlatformAssistant: Boolean(agent.isPlatformAssistant || key === 'zaibot'),
-    responseStyle: String(agent.responseStyle || 'short_natural').trim(),
-    tone: String(agent.tone || 'professional').trim(),
-    objective: String(agent.objective || '').trim(),
+    personalityPreset: (() => {
+      const { resolvePersonalityId } = require('../engine/agentBehaviorCompiler');
+      return resolvePersonalityId(agent.personalityPreset || agent.personality_preset, agent.tone, agent.personalityType);
+    })(),
+    responseStyle: String(agent.responseStyle || agent.response_style || 'balanced').trim(),
+    tone: String(agent.tone || 'acolhedor').trim(),
+    objective: (() => {
+      const { resolveObjectiveId } = require('../engine/agentBehaviorCompiler');
+      return resolveObjectiveId(agent.objective);
+    })(),
+    ...(String(agent.objective || '').trim().length > 64 || agent.customObjective
+      ? { customObjective: String(agent.customObjective || agent.objective || '').trim() }
+      : {}),
     temperature: typeof agent.temperature === 'number'
       ? agent.temperature
       : (isNaN(Number(agent.temperature)) ? 0.7 : Number(agent.temperature)),
+    maxTokens: Math.max(64, Number(agent.maxTokens || agent.max_tokens) || 600),
+    providerId: String(agent.providerId || agent.provider || agent.aiProvider || agent.ai_provider || 'zai').trim().toLowerCase(),
+    provider: String(agent.providerId || agent.provider || agent.aiProvider || agent.ai_provider || 'zai').trim().toLowerCase(),
+    modelId: String(agent.modelId || agent.model || agent.aiModel || agent.ai_model || 'auto').trim(),
+    model: String(agent.modelId || agent.model || agent.aiModel || agent.ai_model || 'auto').trim(),
+    routingMode: String(agent.routingMode || agent.routing_mode || 'AUTO').trim().toUpperCase(),
+    whatsappConnectionId: String(agent.whatsappConnectionId || agent.whatsapp_connection_id || (Array.isArray(agent.sessionIds) && agent.sessionIds[0]) || '').trim() || null,
+    systemPromptVersion: Math.max(1, Number(agent.systemPromptVersion || agent.system_prompt_version) || 1),
+    knowledgeConfiguration: typeof (agent.knowledgeConfiguration || agent.knowledge_configuration) === 'object' && (agent.knowledgeConfiguration || agent.knowledge_configuration) !== null
+      ? (agent.knowledgeConfiguration || agent.knowledge_configuration)
+      : { inheritStoreKnowledge: agent.inheritStoreProfile !== false, sharedCompanyScopes: ['commercial_rules', 'products', 'pricing_conditions'] },
+    enabledFeatures: typeof (agent.enabledFeatures || agent.enabled_features) === 'object' && (agent.enabledFeatures || agent.enabled_features) !== null
+      ? (agent.enabledFeatures || agent.enabled_features)
+      : { autoReply: agent.active !== false, mediaReplies: true, followUp: agent.followUp?.active !== false, memoryEvolution: true },
+    updatedBy: String(agent.updatedBy || agent.updated_by || '').trim() || null,
+    updatedAt: agent.updatedAt || new Date().toISOString(),
     sector: String(agent.sector || agent.role || '').trim(),
     avatar: String(agent.avatar || '').trim(),
     hours: String(agent.hours || '').trim(),
@@ -321,24 +347,49 @@ async function listAgents(tenantId = DEFAULT_TENANT_ID) {
   return getAgentsSync(tenantId);
 }
 
-async function mutateAgents(companyId, change, reason) {
+async function mutateAgents(companyId, change, reason, options = {}) {
   if (!companyId) throw new Error('Empresa obrigatória.');
-  const {pool}=require('../../../infrastructure/config/database');
-  const client=await pool.connect();
+  const { pool } = require('../../../infrastructure/config/database');
+  const actorName = String(options.actorName || options.actor?.username || options.actor?.name || 'system').slice(0, 120);
+  const changeScope = String(options.changeScope || reason || 'configuration').slice(0, 32);
+  const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[settingsKey(companyId)]);
-    const row=(await client.query('SELECT value FROM system_settings WHERE key=$1 FOR UPDATE',[settingsKey(companyId)])).rows[0];
-    const all=row?.value ? JSON.parse(row.value) : [];
-    const result=await change(all,client);
-    await client.query(`INSERT INTO system_settings(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=NOW()`,[settingsKey(companyId),JSON.stringify(all)]);
-    if(reason && result) for(const sessionId of result.sessionIds || []) {
-      await client.query(`INSERT INTO ai_agent_versions(company_id,session_id,agent_key,snapshot,reason) VALUES($1,$2,$3,$4,$5)`,[companyId,sessionId,result.key,JSON.stringify(result),reason]);
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [settingsKey(companyId)]);
+    const row = (await client.query('SELECT value FROM system_settings WHERE key=$1 FOR UPDATE', [settingsKey(companyId)])).rows[0];
+    const all = row?.value ? JSON.parse(row.value) : [];
+    const result = await change(all, client);
+    await client.query(`INSERT INTO system_settings(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_at=NOW()`, [settingsKey(companyId), JSON.stringify(all)]);
+    if (reason && result) {
+      const targetSessions = Array.isArray(result.sessionIds) && result.sessionIds.length > 0 ? result.sessionIds : ['__global__'];
+      const verNum = Math.max(1, Number(result.systemPromptVersion) || 1);
+      for (const sessionId of targetSessions) {
+        await client.query(
+          `INSERT INTO ai_agent_versions(company_id, session_id, agent_key, snapshot, reason, version_number, change_scope, created_by)
+           VALUES($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [companyId, sessionId, result.key, JSON.stringify(result), reason, verNum, changeScope, actorName]
+        );
+      }
     }
-    await client.query('COMMIT'); resetCache(companyId);return result;
-  }catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+    await client.query('COMMIT');
+    resetCache(companyId);
+    try {
+      const aiSvc = require('../../../../services/ai.service');
+      if (typeof aiSvc.clearResponseCache === 'function') aiSvc.clearResponseCache();
+    } catch (_) {}
+    try {
+      const localBrain = require('../../../../services/aiLocalBrainService');
+      if (typeof localBrain.clearCache === 'function') localBrain.clearCache(companyId);
+    } catch (_) {}
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
-async function createAgent(payload={},tenantId) {
+async function createAgent(payload = {}, tenantId, options = {}) {
   const sessionIds = Array.isArray(payload.sessionIds) ? payload.sessionIds : [];
   if (payload.active !== false && sessionIds.length === 0) {
     throw new Error('Selecione pelo menos um WhatsApp antes de ativar o atendente.');
@@ -346,33 +397,43 @@ async function createAgent(payload={},tenantId) {
   if (sessionIds.length > 0) {
     await validateSessions(tenantId, sessionIds);
   }
-  const next = normalizeAgent({ ...payload, sessionIds, active: payload.active !== false });
+  const actorName = String(options.actor?.username || options.actor?.name || payload.updatedBy || 'system');
+  const next = normalizeAgent({ ...payload, sessionIds, active: payload.active !== false, updatedBy: actorName, systemPromptVersion: 1 });
   return mutateAgents(tenantId, async (all, client) => {
     if (all.some(a => a.key === next.key)) throw new Error('Atendente já existe.');
     for (const sessionId of next.sessionIds || []) await preserveSessionOwnership(all, next, sessionId, tenantId, client);
     all.push(next);
     await require('../../../data/repositories/attendantRepository').syncAgent(tenantId, next, null, client);
     return next;
-  }, 'configuration');
+  }, 'configuration', { actor: options.actor, actorName, changeScope: 'creation' });
 }
-async function updateAgent(agentKey,payload={},tenantId) {
-  return mutateAgents(tenantId,async (all,client)=>{
-    const index=all.findIndex(a=>a.key===agentKey);if(index<0)throw new Error('Atendente não encontrado.');
+async function updateAgent(agentKey, payload = {}, tenantId, options = {}) {
+  const actorName = String(options.actor?.username || options.actor?.name || payload.updatedBy || 'system');
+  return mutateAgents(tenantId, async (all, client) => {
+    const index = all.findIndex(a => a.key === agentKey); if (index < 0) throw new Error('Atendente não encontrado.');
     const previous = all[index];
-    const next=normalizeAgent({...previous,...payload,key:agentKey});
+    const nextVersion = (Number(previous.systemPromptVersion) || 1) + (options.bumpVersion === false ? 0 : 1);
+    const next = normalizeAgent({
+      ...previous,
+      ...payload,
+      key: agentKey,
+      systemPromptVersion: nextVersion,
+      updatedBy: actorName,
+      updatedAt: new Date().toISOString(),
+    });
     if (payload.sessionIds !== undefined) {
       if (Array.isArray(next.sessionIds) && next.sessionIds.length > 0) {
-        await validateSessions(tenantId,next.sessionIds,client);
+        await validateSessions(tenantId, next.sessionIds, client);
       }
-      for(const sessionId of all[index].sessionIds || []) {
-        if(!next.sessionIds.includes(sessionId)) await preserveSessionOwnership(all,null,sessionId,tenantId,client,false);
+      for (const sessionId of all[index].sessionIds || []) {
+        if (!next.sessionIds.includes(sessionId)) await preserveSessionOwnership(all, null, sessionId, tenantId, client, false);
       }
-      for(const sessionId of next.sessionIds) await preserveSessionOwnership(all,next,sessionId,tenantId,client);
+      for (const sessionId of next.sessionIds) await preserveSessionOwnership(all, next, sessionId, tenantId, client);
     }
-    all[index]=next;
+    all[index] = next;
     await require('../../../data/repositories/attendantRepository').syncAgent(tenantId, next, previous, client);
     return next;
-  },'configuration');
+  }, options.reason || 'configuration', { actor: options.actor, actorName, changeScope: options.changeScope || 'configuration' });
 }
 async function setAgentActive(agentKey, active, tenantId) {
   const isActive = Boolean(active);
@@ -628,7 +689,10 @@ async function restoreSessionStyle(companyId,sessionId,agentKey,versionId) {
       await client.query("UPDATE session_ai_profiles SET evolution_mode='paused' WHERE company_id=$1 AND session_id=ANY($2::text[])",[companyId,validSessions]);
       await client.query("DELETE FROM ai_session_agent_styles WHERE company_id=$1 AND agent_key=$2",[companyId,agentKey]);
       const index=all.findIndex(a=>a.key===agentKey);if(index<0)throw new Error('Atendente não encontrado.');
-      all[index]=normalizeAgent({...version.snapshot,key:agentKey,sessionIds:validSessions});return all[index];
+      const previous = all[index];
+      all[index]=normalizeAgent({...version.snapshot,key:agentKey,sessionIds:validSessions});
+      await require('../../../data/repositories/attendantRepository').syncAgent(companyId, all[index], previous, client);
+      return all[index];
     },'configuration_restore');
   }
   const c=await pool.connect();
@@ -678,7 +742,7 @@ async function evolveSessionStyles() {
   }
 }
 
-async function updateAgentAvatar(tenantId, key, avatarConfigOrPayload, personalityVisualParam) {
+async function updateAgentAvatar(tenantId, key, avatarConfigOrPayload, personalityVisualParam, options = {}) {
   const normalizedTenantId = normalizeTenantId(tenantId);
   const agents = await listAgents(normalizedTenantId);
   const normalizedKey = String(key || '').trim().toLowerCase();
@@ -697,6 +761,7 @@ async function updateAgentAvatar(tenantId, key, avatarConfigOrPayload, personali
   const mergedAvatarConfig = {
     ...(existing.avatarConfig || {}),
     ...avatarConfig,
+    version: Math.max(2, Number(avatarConfig?.version || existing.avatarConfig?.version || 2)),
   };
 
   const updatedAgent = {
@@ -710,7 +775,7 @@ async function updateAgentAvatar(tenantId, key, avatarConfigOrPayload, personali
     appearance: {
       ...(existing.appearance || {}),
       ...(appearance || {}),
-      outfit: mergedAvatarConfig.outfit || mergedAvatarConfig.clothing || existing.appearance?.outfit,
+      outfit: mergedAvatarConfig.upperBody || mergedAvatarConfig.outfit || mergedAvatarConfig.clothing || existing.appearance?.outfit,
       hair: mergedAvatarConfig.hair || existing.appearance?.hair,
       face: mergedAvatarConfig.face || existing.appearance?.face,
       style: mergedAvatarConfig.style || existing.appearance?.style,
@@ -718,11 +783,16 @@ async function updateAgentAvatar(tenantId, key, avatarConfigOrPayload, personali
     character: {
       ...(existing.character || {}),
       ...(character || {}),
-      clothingStyle: mergedAvatarConfig.outfit || mergedAvatarConfig.clothing || existing.character?.clothingStyle,
+      clothingStyle: mergedAvatarConfig.upperBody || mergedAvatarConfig.outfit || mergedAvatarConfig.clothing || existing.character?.clothingStyle,
     },
   };
 
-  const result = await updateAgent(key, updatedAgent, normalizedTenantId);
+  const result = await updateAgent(key, updatedAgent, normalizedTenantId, {
+    actor: options.actor,
+    reason: 'avatar_update',
+    changeScope: 'avatar',
+    bumpVersion: false,
+  });
 
   const attendantRepo = require('../../../data/repositories/attendantRepository');
   await attendantRepo.upsertAttendant(normalizedTenantId, {
@@ -737,6 +807,60 @@ async function updateAgentAvatar(tenantId, key, avatarConfigOrPayload, personali
   });
 
   return result;
+}
+
+async function listAgentVersions(companyId, agentKey, limit = 30) {
+  const normalizedTenantId = normalizeTenantId(companyId);
+  const normalizedKey = String(agentKey || '').trim().toLowerCase();
+  const { query } = require('../../../infrastructure/config/database');
+  const res = await query(
+    `SELECT id, company_id, session_id, agent_key, reason, version_number, change_scope, created_by, created_at,
+            jsonb_build_object(
+              'name', snapshot->>'name',
+              'personalityPreset', snapshot->>'personalityPreset',
+              'objective', snapshot->>'objective',
+              'tone', snapshot->>'tone',
+              'responseStyle', snapshot->>'responseStyle',
+              'temperature', snapshot->>'temperature',
+              'maxTokens', snapshot->>'maxTokens',
+              'providerId', COALESCE(snapshot->>'providerId', snapshot->>'provider'),
+              'modelId', COALESCE(snapshot->>'modelId', snapshot->>'model'),
+              'routingMode', snapshot->>'routingMode'
+            ) AS summary
+     FROM ai_agent_versions
+     WHERE company_id = $1 AND agent_key = $2
+     ORDER BY created_at DESC, id DESC
+     LIMIT $3`,
+    [normalizedTenantId, normalizedKey, Math.min(100, Math.max(1, Number(limit) || 30))]
+  );
+  return res.rows || [];
+}
+
+async function restoreAgentVersion(companyId, agentKey, versionId, actor = {}) {
+  const normalizedTenantId = normalizeTenantId(companyId);
+  const normalizedKey = String(agentKey || '').trim().toLowerCase();
+  const { query } = require('../../../infrastructure/config/database');
+  const res = await query(
+    `SELECT * FROM ai_agent_versions WHERE company_id = $1 AND agent_key = $2 AND id = $3 LIMIT 1`,
+    [normalizedTenantId, normalizedKey, Number(versionId)]
+  );
+  const row = res.rows[0];
+  if (!row || !row.snapshot) {
+    throw new Error('Versão do atendente não encontrada.');
+  }
+  const snap = row.snapshot;
+  const restoredPayload = snap.name
+    ? {
+        ...snap,
+        key: normalizedKey,
+      }
+    : validateStyle(snap);
+
+  return updateAgent(normalizedKey, restoredPayload, normalizedTenantId, {
+    actor,
+    reason: 'configuration_restore',
+    changeScope: 'rollback',
+  });
 }
 
 async function equipAgentItem(tenantId, key, slot, item) {
@@ -807,6 +931,8 @@ const serviceExports = {
   unequipAgentItem,
   setAgentActive,
   updateAgent,
+  listAgentVersions,
+  restoreAgentVersion,
   wait,
 };
 serviceExports.aiAgentService = serviceExports;

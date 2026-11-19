@@ -45,6 +45,7 @@ vi.mock("@/core/services/apiService", () => ({
     testVoiceSynthesis: vi.fn().mockResolvedValue({ success: true, voiceId: "zapflow-aurora", durationSeconds: 6 }),
     saveVoiceProfile: vi.fn().mockResolvedValue({ success: true }),
     getAgentEvolution: vi.fn().mockResolvedValue({}),
+    getMemoryEvolutionOverview: vi.fn().mockResolvedValue(null),
     getAgentLearning: vi.fn().mockResolvedValue({ pending: [] }),
     getLearnedPatterns: vi.fn().mockResolvedValue({ data: [] }),
     getStores: vi.fn().mockResolvedValue({ success: true, stores: [{ id: "loja-centro", name: "Loja Centro" }] }),
@@ -207,19 +208,28 @@ describe("Contratos reais da operação de IA", () => {
 
   it("não mostra dados de evolução fictícios na indisponibilidade do backend", async () => {
     await render(<EvolutionTab agents={[{ key: "camila", name: "Camila" }]} />);
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
     expect(document.body.textContent).not.toContain("18.722");
     expect(document.body.textContent).not.toContain("98% Naturalidade");
-    expect(document.body.textContent).toContain("Sem dados de evolução");
+    expect(document.body.textContent).toContain("Sem dados de evolução disponíveis");
   });
 
   it("distingue falha ao carregar padrões e permite tentar novamente", async () => {
-    vi.mocked(apiService.getLearnedPatterns)
+    vi.mocked(apiService.getMemoryEvolutionOverview)
       .mockRejectedValueOnce(new Error("Padrões indisponíveis"))
-      .mockResolvedValueOnce({ data: [] } as any);
+      .mockResolvedValueOnce({
+        success: true,
+        accumulated: { activeMemories: 0 },
+        periodMetrics: {},
+        pending: {},
+        applied: {},
+      } as any);
 
     await render(<EvolutionTab agents={[{ key: "camila", name: "Camila" }]} />);
-    expect(document.body.textContent).toContain("Não foi possível carregar métricas e padrões deste atendente");
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(document.body.textContent).toContain("Não foi possível carregar a visão geral de Memória & Evolução");
     await click("Tentar novamente");
-    expect(document.body.textContent).not.toContain("Não foi possível carregar métricas e padrões deste atendente");
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(document.body.textContent).not.toContain("Não foi possível carregar a visão geral de Memória & Evolução");
   });
 });
