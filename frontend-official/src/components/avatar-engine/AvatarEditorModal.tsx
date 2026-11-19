@@ -26,14 +26,25 @@ import {
   WORK_OBJECTS,
   CLOTHING_STYLES,
   AVATAR_HAIRS,
+  getAvatarHairOptions,
   AVATAR_FACES,
   AVATAR_OUTFITS,
   AVATAR_ACCESSORIES,
   AVATAR_STYLES,
+  SKIN_TONES,
+  HAIR_COLORS,
+  SLOT_LOWER_BODY_ITEMS,
+  SLOT_FOOTWEAR_ITEMS,
+  SLOT_UNIFORM_ITEMS,
+  FACIAL_HAIR_OPTIONS,
+  POSE_OPTIONS,
+  buildSlotUpdate,
+  normalizeAvatarComposition,
   resolveItemSpriteForGender,
-  resolveHairColorForHair,
   resolveItemDisplayForGender,
+  type PoseId,
 } from "./AvatarDefinition";
+import type { CameraPreset, ZaiAvatar3DHandle } from "./avatar3d/ZaiAvatar3D";
 import {
   createAgentAvatar,
   equipItem,
@@ -41,11 +52,15 @@ import {
   randomizeAvatar,
   buildStoreVisualDNA,
   resolveSpriteForAvatar,
+  resolveBaseSpriteForAvatar,
   applyStylePreset,
 } from "./CharacterFactory";
 import { ZaiAvatarRenderer } from "./ZaiAvatarRenderer";
 import { AvatarItemPreview } from "./AvatarItemPreview";
+import { supportsWebGL } from "./avatar3d/webglSupport";
 import { notify } from "@/core/services/notifyService";
+
+const ZaiAvatar3D = React.lazy(() => import("./avatar3d/ZaiAvatarStage"));
 import { apiService } from "@/core/services/apiService";
 import { cn } from "@/core/lib/utils";
 import {
@@ -138,20 +153,28 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
   const [previewMode, setPreviewMode] = useState<"illustration" | "layers">("layers");
   const [rotationY, setRotationY] = useState<number>(avatar.rotationY || 0);
   const [movement3D, setMovement3D] = useState<"idle" | "walk" | "wave" | "pose" | "spin360">(avatar.movement3D || "idle");
+  const [poseId, setPoseId] = useState<PoseId>((avatar.poseId as PoseId) || "pose_executive");
+  const [spinSpeed, setSpinSpeed] = useState<0.5 | 1 | 2>(1);
+  const [spinPaused, setSpinPaused] = useState<boolean>(false);
+  const [cameraPreset, setCameraPreset] = useState<CameraPreset>("full");
   const [isDragging, setIsDragging] = useState(false);
   const dragStartXRef = useRef<number>(0);
   const dragStartAngleRef = useRef<number>(0);
+  const latestSnapshotRef = useRef<string | undefined>(avatar.snapshotDataUrl);
+  const avatar3dRef = useRef<ZaiAvatar3DHandle | null>(null);
 
-  // Smooth continuous turntable auto-spin loop when movement3D === "spin360"
+  // Smooth continuous turntable auto-spin fallback only for 2D/fallback mode (WebGL spins inside ZaiAvatar3D ticker)
   useEffect(() => {
-    if (movement3D !== "spin360") return;
+    if (movement3D !== "spin360" || spinPaused) return;
+    if (supportsWebGL() && previewMode === "layers") return;
     let animFrame: number;
     let lastTime = performance.now();
     const spinLoop = (now: number) => {
       const dt = now - lastTime;
       if (!isDragging && dt >= 25) {
+        const degStep = Math.max(1, Math.round(spinSpeed * 1.5));
         setRotationY((prev) => {
-          const next = (prev + 1) % 360;
+          const next = (prev + degStep) % 360;
           setAvatar((curr) => ({ ...curr, rotationY: next }));
           return next;
         });
@@ -161,7 +184,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
     };
     animFrame = requestAnimationFrame(spinLoop);
     return () => cancelAnimationFrame(animFrame);
-  }, [movement3D, isDragging]);
+  }, [movement3D, isDragging, spinPaused, spinSpeed, previewMode]);
 
   // Stage Mouse & Touch Drag-to-Rotate Listeners
   const handleStageMouseDown = (e: React.MouseEvent) => {
@@ -251,6 +274,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
   const handleSetMovement3D = (mode: "idle" | "walk" | "wave" | "pose" | "spin360") => {
     setMovement3D(mode);
+    if (mode === "spin360") setSpinPaused(false);
     setAvatar((curr) => ({ ...curr, movement3D: mode }));
   };
 
@@ -266,6 +290,8 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
       setAvatar(normalized);
       setRotationY(normalized.rotationY || 0);
       setMovement3D(normalized.movement3D || "idle");
+      setPoseId((normalized.poseId as PoseId) || "pose_executive");
+      latestSnapshotRef.current = normalized.snapshotDataUrl;
       setPreviewMode("layers");
     }
   }, [open, agent, store, storeDNA]);
@@ -274,34 +300,35 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
   const availableHairstyles = avatar.body === "male" ? HAIRSTYLES_MALE : HAIRSTYLES_FEMALE;
 
   const handleGenderChange = (newGender: "male" | "female") => {
-    const newHair = newGender === "male" ? "hair_05" : "hair_01";
-    const newFace = "face_01";
-    const isFemale = newGender !== "male";
     setAvatar((prev) => {
-      const updated = {
+      const updated = buildSlotUpdate(prev, "gender", newGender);
+      const merged: AgentAvatarConfig = {
         ...prev,
+        ...updated,
         body: newGender,
         base: newGender,
-        hair: newHair,
-        face: newFace,
-        hairColor: resolveHairColorForHair(newHair, prev.hairColor, isFemale),
+        hair: prev.hair || updated.hair,
+        face: prev.face || updated.face,
+        outfit: prev.outfit || updated.outfit,
+        clothing: prev.clothing || updated.clothing,
       };
       return {
-        ...updated,
-        catalogSpriteId: resolveSpriteForAvatar(updated, true),
+        ...merged,
+        baseSpriteId: resolveSpriteForAvatar(merged, true),
+        catalogSpriteId: resolveSpriteForAvatar(merged, true),
       };
     });
   };
 
   const selectCatalogLook = (item: { id: string; spriteRef?: string }) => {
     setAvatar((prev) => {
-      const next = {
+      const next: AgentAvatarConfig = {
         ...prev,
         hair: item.id,
-        hairColor: resolveHairColorForHair(item.id, prev.hairColor, prev.body !== "male"),
       };
       return {
         ...next,
+        baseSpriteId: resolveSpriteForAvatar(next, true),
         catalogSpriteId: resolveSpriteForAvatar(next, true),
       };
     });
@@ -392,9 +419,12 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
       const agentKey = agent.key || agent.name;
       const spriteId = previewSpriteId;
       const avatarUrl = `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
+      const capturedSnapshot = avatar3dRef.current?.captureSnapshot("portrait") || latestSnapshotRef.current;
       const fullAvatarConfig: AgentAvatarConfig = {
         ...avatar,
+        poseId,
         catalogSpriteId: spriteId,
+        ...(capturedSnapshot ? { snapshotDataUrl: capturedSnapshot } : {}),
       };
       const payload = {
         avatarConfig: fullAvatarConfig,
@@ -518,22 +548,47 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
               >
                 {previewMode === "layers" ? (
                   <div
-                    className="relative mx-auto flex h-full w-full max-w-[220px] items-center justify-center transition-all duration-300"
+                    className="relative mx-auto flex h-full w-full max-w-[260px] items-center justify-center transition-all duration-300"
                     data-avatar-preview-focal-x={previewFocalX}
                     data-avatar-rotation={rotationY}
                     data-avatar-movement={movement3D}
                   >
-                    <ZaiAvatarRenderer
-                      avatar={avatar}
-                      renderStyle={avatar.renderStyle || "chibi_25d"}
-                      state={previewState}
-                      size="workspace"
-                      showAura={true}
-                      showStatusBadge={false}
-                      showBrandingLayer={false}
-                      rotationY={rotationY}
-                      movement3D={movement3D}
-                    />
+                    {(() => {
+                      const flatAvatar = (
+                        <ZaiAvatarRenderer
+                          avatar={avatar}
+                          renderStyle={avatar.renderStyle || "chibi_25d"}
+                          state={previewState}
+                          size="workspace"
+                          showAura={true}
+                          showStatusBadge={false}
+                          showBrandingLayer={false}
+                          rotationY={rotationY}
+                          movement3D={movement3D}
+                        />
+                      );
+                      if (!supportsWebGL()) return flatAvatar;
+                      return (
+                        <React.Suspense fallback={flatAvatar}>
+                          <ZaiAvatar3D
+                            avatar={avatar}
+                            rotationY={rotationY}
+                            movement3D={movement3D}
+                            operationalState={runtimeState}
+                            poseId={poseId}
+                            spinContinuous={movement3D === "spin360"}
+                            spinSpeed={spinSpeed * 0.95}
+                            spinPaused={isDragging || spinPaused}
+                            cameraPreset={cameraPreset}
+                            onReady={(handle) => { avatar3dRef.current = handle; }}
+                            onSnapshotReady={(dataUrl) => { latestSnapshotRef.current = dataUrl; }}
+                            controlled
+                            fallback={flatAvatar}
+                            className="absolute inset-0"
+                          />
+                        </React.Suspense>
+                      );
+                    })()}
 
                     {/* Hidden catalog image kept for test selectors expecting img */}
                     <img
@@ -607,8 +662,35 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
 
                 {/* 3D Dynamic Actions */}
 
-                <div className="flex items-center justify-center py-0.5 text-[10px] text-emerald-400/90 font-mono">
-                  <span>✦ Arraste com o mouse para girar livremente 360°</span>
+                <div className="flex items-center justify-between gap-2 py-0.5 text-[10px] text-emerald-400/90 font-mono">
+                  <span>✦ Arraste para girar 360°</span>
+                  <div className="flex items-center gap-1">
+                    {([
+                      { id: "full" as const, label: "Corpo" },
+                      { id: "portrait" as const, label: "Rosto" },
+                      { id: "reset" as const, label: "Reset" },
+                    ]).map((cam) => (
+                      <button
+                        key={cam.id}
+                        type="button"
+                        onClick={() => {
+                          setCameraPreset(cam.id);
+                          if (cam.id === "reset") {
+                            setRotationY(0);
+                            avatar3dRef.current?.resetCamera();
+                          }
+                        }}
+                        className={cn(
+                          "px-1.5 py-0.5 rounded text-[9px] border transition-colors",
+                          cameraPreset === cam.id
+                            ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-300"
+                            : "border-border/50 text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {cam.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* 5 Tripo3D Puppet Rig Movements */}
@@ -637,6 +719,67 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     </button>
                   ))}
                 </div>
+
+                {movement3D === "pose" && (
+                  <div className="grid grid-cols-4 gap-1 pt-1 border-t border-border/30">
+                    {POSE_OPTIONS.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setPoseId(p.id);
+                          setAvatar((curr) => ({ ...curr, poseId: p.id }));
+                        }}
+                        className={cn(
+                          "py-0.5 px-1 rounded text-[8px] font-semibold truncate transition-all",
+                          poseId === p.id
+                            ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/50"
+                            : "bg-muted/20 text-muted-foreground hover:text-foreground"
+                        )}
+                        title={p.description}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {movement3D === "spin360" && (
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/30">
+                    <button
+                      type="button"
+                      data-spin-pause-toggle="1"
+                      onClick={() => setSpinPaused((prev) => !prev)}
+                      className={cn(
+                        "px-2 py-0.5 rounded text-[9px] font-mono border cursor-pointer transition-colors",
+                        spinPaused
+                          ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
+                          : "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                      )}
+                    >
+                      {spinPaused ? "▶ Retomar" : "⏸ Pausar"}
+                    </button>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[8px] font-mono text-muted-foreground">Vel:</span>
+                      {([0.5, 1, 2] as const).map((spd) => (
+                        <button
+                          key={spd}
+                          type="button"
+                          data-spin-speed={spd}
+                          onClick={() => setSpinSpeed(spd)}
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[8px] font-mono border cursor-pointer transition-colors",
+                            spinSpeed === spd
+                              ? "bg-emerald-500/25 border-emerald-500/50 text-emerald-300 font-bold"
+                              : "bg-muted/20 border-border/50 text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {spd}x
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -720,22 +863,99 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Tom de Pele — sprite catalog is a single flattened image, not independently recolorable layers. */}
+                  {/* Tom de Pele Independente */}
                   <div>
-                    <Label className="text-xs font-bold text-foreground mb-2 block">Pele e expressão</Label>
-                    <p className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
-                      Visual completo · pele e expressão do modelo.
-                    </p>
+                    <Label className="text-xs font-bold text-foreground mb-2 block">Tom de Pele</Label>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                      {SKIN_TONES.map((tone) => (
+                        <button
+                          key={tone.id}
+                          type="button"
+                          onClick={() => setAvatar((prev) => buildSlotUpdate(prev, "skinTone", tone.id))}
+                          className={cn(
+                            "p-2 rounded-xl border flex flex-col items-center gap-1.5 transition-all",
+                            avatar.skin === tone.id
+                              ? "border-emerald-500 bg-emerald-500/10"
+                              : "border-border hover:border-border/80"
+                          )}
+                        >
+                          <span className="w-6 h-6 rounded-full border border-white/20 shadow-xs" style={{ backgroundColor: tone.hex }} />
+                          <span className="text-[10px] font-medium text-foreground truncate w-full text-center">{tone.name.split(" ")[0]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Cor do Cabelo Independente */}
+                  <div>
+                    <Label className="text-xs font-bold text-foreground mb-2 block">Cor do Cabelo</Label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {HAIR_COLORS.map((hc) => (
+                        <button
+                          key={hc.id}
+                          type="button"
+                          onClick={() => setAvatar((prev) => buildSlotUpdate(prev, "hairColor", hc.id))}
+                          className={cn(
+                            "p-2 rounded-xl border flex flex-col items-center gap-1 transition-all",
+                            avatar.hairColor === hc.id
+                              ? "border-emerald-500 bg-emerald-500/10"
+                              : "border-border hover:border-border/80"
+                          )}
+                          title={hc.name}
+                        >
+                          <span className="w-5 h-5 rounded-full border border-white/20" style={{ backgroundColor: hc.hex }} />
+                          <span className="text-[9px] text-muted-foreground truncate w-full text-center">{hc.name.split(" ")[0]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Barba Independente */}
+                  <div>
+                    <Label className="text-xs font-bold text-foreground mb-2 block">Barba & Bigode</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {FACIAL_HAIR_OPTIONS.map((fh) => (
+                        <button
+                          key={fh.id}
+                          type="button"
+                          onClick={() => setAvatar((prev) => buildSlotUpdate(prev, "facialHair", fh.id))}
+                          className={cn(
+                            "p-2 rounded-xl border text-left transition-all",
+                            (avatar.facialHair || "none") === fh.id
+                              ? "border-emerald-500 bg-emerald-500/10 text-foreground"
+                              : "border-border hover:border-border/80 text-muted-foreground"
+                          )}
+                        >
+                          <div className="text-xs font-bold text-foreground truncate">{fh.name}</div>
+                          <div className="text-[9px] text-muted-foreground truncate">{fh.description}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </TabsContent>
 
                 {/* 2. CABELO (Cortes & Cores) */}
                 <TabsContent value="hair" className="mt-0 space-y-5">
-                  {/* Hair color is baked into each full-body catalog sprite. */}
                   <div>
-                    <p className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
-                      A cor vem no modelo. Escolha um corte para trocar a prévia.
-                    </p>
+                    <Label className="text-xs font-bold text-foreground mb-2 block">Cor do Cabelo</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {HAIR_COLORS.map((hc) => (
+                        <button
+                          key={hc.id}
+                          type="button"
+                          onClick={() => setAvatar((prev) => buildSlotUpdate(prev, "hairColor", hc.id))}
+                          className={cn(
+                            "px-2 py-1 rounded-lg border flex items-center gap-1.5 text-[10px] transition-all",
+                            avatar.hairColor === hc.id
+                              ? "border-emerald-500 bg-emerald-500/15 text-foreground"
+                              : "border-border/70 text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <span className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: hc.hex }} />
+                          <span>{hc.name.split(" ")[0]}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Cortes Modulares ZAI (Topo da aba Cabelo) */}
@@ -744,7 +964,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                       Cortes Modulares ZAI
                     </Label>
                     <div className="grid grid-cols-2 gap-2.5">
-                      {AVATAR_HAIRS.map((h) => {
+                      {getAvatarHairOptions(avatar.body).map((h) => {
                         const display = resolveItemDisplayForGender(h, avatar.body);
                         const isSelected =
                           avatar.hair === h.id ||
@@ -756,14 +976,16 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             data-avatar-item={h.id}
                             type="button"
                             onClick={() => setAvatar((prev) => {
-                              const next = {
+                              const updated = buildSlotUpdate(prev, "hair_slot", h.id);
+                              const next: AgentAvatarConfig = {
                                 ...prev,
+                                ...updated,
                                 hair: h.id,
-                                hairColor: resolveHairColorForHair(h.id, prev.hairColor, prev.body !== "male"),
                               };
                               return {
                                 ...next,
-                                catalogSpriteId: resolveSpriteForAvatar(next, true),
+                                baseSpriteId: resolveBaseSpriteForAvatar(next),
+                                catalogSpriteId: resolveBaseSpriteForAvatar(next),
                               };
                             })}
                             className={cn(
@@ -774,7 +996,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                             )}
                           >
                             <div className="flex items-center gap-2.5">
-                              <AvatarItemPreview spriteRef={resolveItemSpriteForGender(h, avatar.body)} itemId={h.id} gender={avatar.body} focus="hair" title={display.title} />
+                              <AvatarItemPreview spriteRef={resolveItemSpriteForGender(h, avatar.body)} itemId={h.id} gender={avatar.body} hairColor={avatar.hairColor} skinTone={avatar.skin} focus="hair" title={display.title} />
                               <div className="min-w-0">
                                 <div className="text-xs font-bold text-foreground truncate">{display.title}</div>
                                 <div className="text-[10px] text-muted-foreground line-clamp-2">{display.description}</div>
@@ -798,10 +1020,9 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           data-avatar-item={h.id}
                           type="button"
                           onClick={() => setAvatar((prev) => {
-                            const next = {
+                            const next: AgentAvatarConfig = {
                               ...prev,
                               hair: h.id,
-                              hairColor: resolveHairColorForHair(h.id, prev.hairColor, prev.body !== "male"),
                             };
                             return {
                               ...next,
@@ -816,7 +1037,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           )}
                         >
                           <div className="flex items-center gap-2.5">
-                            <AvatarItemPreview spriteRef={resolveItemSpriteForGender(h, avatar.body)} itemId={h.id} gender={avatar.body} focus="hair" title={h.name} />
+                            <AvatarItemPreview spriteRef={resolveItemSpriteForGender(h, avatar.body)} itemId={h.id} gender={avatar.body} hairColor={avatar.hairColor} skinTone={avatar.skin} focus="hair" title={h.name} />
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-foreground truncate">{h.name}</div>
                               <div className="text-[10px] text-muted-foreground line-clamp-2">{h.description}</div>
@@ -833,7 +1054,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                   <Label className="text-xs font-bold text-foreground block">
                     Expressões Faciais
                   </Label>
-                  <p className="text-xs text-muted-foreground">Escolha a expressão que melhor reflete a postura do atendente.</p>
+                  <p className="text-xs text-muted-foreground">Altera apenas olhos, sobrancelhas e boca 3D sem forçar pele, óculos ou barba.</p>
                   <div className="grid grid-cols-2 gap-2.5">
                     {AVATAR_FACES.map((f) => (
                       <button
@@ -842,8 +1063,10 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         type="button"
                         onClick={() =>
                           setAvatar((prev) => {
-                            const next = {
+                            const updated = buildSlotUpdate(prev, "face_slot", f.id);
+                            const next: AgentAvatarConfig = {
                               ...prev,
+                              ...updated,
                               face: f.id,
                             };
                             return {
@@ -860,7 +1083,7 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                         )}
                       >
                         <div className="flex items-center gap-2.5">
-                          <AvatarItemPreview spriteRef={previewSpriteId || resolveItemSpriteForGender(f, avatar.body)} itemId={f.id} gender={avatar.body} focus="face" title={f.title} />
+                          <AvatarItemPreview spriteRef={previewSpriteId || resolveItemSpriteForGender(f, avatar.body)} itemId={f.id} gender={avatar.body} skinTone={avatar.skin} focus="face" title={f.title} />
                           <div className="min-w-0">
                             <div className="text-xs font-bold text-foreground truncate">{f.title}</div>
                             <div className="text-[10px] text-muted-foreground line-clamp-2">{f.description}</div>
@@ -871,8 +1094,8 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                   </div>
                 </TabsContent>
 
-                {/* 3. ROUPAS (Uniformes & Vestuário) */}
-                <TabsContent value="clothing" className="mt-0 space-y-4">
+                {/* 3. ROUPAS (Parte Superior, Calças, Calçados & Paleta) */}
+                <TabsContent value="clothing" className="mt-0 space-y-5">
                   <div>
                     <Label className="text-xs font-bold text-foreground block mb-1">
                       Roupas Modulares ZAI
@@ -886,7 +1109,8 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           type="button"
                           onClick={() => {
                             setAvatar((prev) => {
-                              const next = { ...prev, outfit: o.id, clothing: o.id };
+                              const updated = buildSlotUpdate(prev, "upper_body_slot", o.id);
+                              const next: AgentAvatarConfig = { ...prev, ...updated, outfit: o.id, clothing: o.id };
                               return {
                                 ...next,
                                 catalogSpriteId: resolveSpriteForAvatar(next, true),
@@ -912,6 +1136,102 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Parte Inferior (Calças & Saias) */}
+                  <div className="pt-3 border-t border-border/50">
+                    <Label className="text-xs font-bold text-foreground block mb-2">
+                      Parte Inferior (Calças & Saias)
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {SLOT_LOWER_BODY_ITEMS.map((l) => {
+                        const currentLower = normalizeAvatarComposition(avatar).lowerBody;
+                        return (
+                          <button
+                            key={l.id}
+                            data-avatar-item={l.id}
+                            type="button"
+                            onClick={() => setAvatar((prev) => ({ ...prev, ...buildSlotUpdate(prev, "lower_body_slot", l.id) }))}
+                            className={cn(
+                              "p-2.5 rounded-xl border text-left transition-all",
+                              currentLower === l.id
+                                ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                                : "border-border hover:border-border/80 text-muted-foreground"
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <AvatarItemPreview itemId={l.id} gender={avatar.body} focus="lower_body" title={l.name} />
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-foreground truncate">{l.name}</div>
+                                <div className="text-[10px] text-muted-foreground line-clamp-2">{l.description}</div>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Calçados */}
+                  <div className="pt-3 border-t border-border/50">
+                    <Label className="text-xs font-bold text-foreground block mb-2">
+                      Calçados
+                    </Label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {SLOT_FOOTWEAR_ITEMS.map((s) => {
+                        const currentShoe = normalizeAvatarComposition(avatar).footwear;
+                        return (
+                          <button
+                            key={s.id}
+                            data-avatar-item={s.id}
+                            type="button"
+                            onClick={() => setAvatar((prev) => ({ ...prev, ...buildSlotUpdate(prev, "footwear_slot", s.id) }))}
+                            className={cn(
+                              "p-2.5 rounded-xl border text-left transition-all",
+                              currentShoe === s.id
+                                ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                                : "border-border hover:border-border/80 text-muted-foreground"
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <AvatarItemPreview itemId={s.id} gender={avatar.body} focus="footwear" title={s.name} />
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-foreground truncate">{s.name}</div>
+                                <div className="text-[10px] text-muted-foreground line-clamp-2">{s.description}</div>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Paleta de Uniforme / Destaque da Loja */}
+                  <div className="pt-3 border-t border-border/50">
+                    <Label className="text-xs font-bold text-foreground block mb-2">
+                      Paleta de Cores do Uniforme
+                    </Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {SLOT_UNIFORM_ITEMS.map((u) => (
+                        <button
+                          key={u.id}
+                          data-avatar-item={u.id}
+                          type="button"
+                          onClick={() => setAvatar((prev) => ({ ...prev, ...buildSlotUpdate(prev, "uniform_slot", u.id) }))}
+                          className={cn(
+                            "p-2 rounded-xl border text-left transition-all flex items-center gap-2",
+                            avatar.uniform === u.id
+                              ? "border-emerald-500 bg-emerald-500/10"
+                              : "border-border hover:border-border/80 text-muted-foreground"
+                          )}
+                        >
+                          <AvatarItemPreview itemId={u.id} gender={avatar.body} focus="uniform" title={u.name} size="sm" />
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-bold text-foreground truncate">{u.name}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="pt-3 border-t border-border/50">
                     <Label className="text-xs font-bold text-foreground block mb-2">
                       Uniformes & Trajes Corporativos
@@ -923,7 +1243,8 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                           type="button"
                           onClick={() => {
                             setAvatar((prev) => {
-                              const next = { ...prev, clothing: c.id, outfit: c.id };
+                              const updated = buildSlotUpdate(prev, "upper_body_slot", c.id);
+                              const next: AgentAvatarConfig = { ...prev, ...updated, clothing: c.id, outfit: c.id };
                               return {
                                 ...next,
                                 catalogSpriteId: resolveSpriteForAvatar(next, true),
@@ -1081,72 +1402,49 @@ export const AvatarEditorModal: React.FC<AvatarEditorModalProps> = ({
                     </Label>
                     <div className="grid grid-cols-2 gap-2.5">
                       {AVATAR_ACCESSORIES.map((a) => {
+                        const sub = normalizeAvatarComposition(avatar).accessorySubSlots;
                         const isEquipped =
-                          (a.id === "acc_01" && (!avatar.headset || avatar.headset === "none") && (!avatar.glasses || avatar.glasses === "none")) ||
-                          (a.id === "acc_02" && avatar.headset === "headset_zai_green") ||
-                          (a.id === "acc_03" && avatar.accessories?.badge === "badge_zai_lanyard") ||
-                          (a.id === "acc_04" && (avatar.glasses === "glasses_square_exec" || avatar.glasses?.includes("glasses"))) ||
-                          (a.id === "acc_05" && avatar.workObject === "tablet_zai") ||
-                          (a.id === "acc_06" && avatar.accessories?.watch === "watch_zai_smart") ||
-                          (a.id === "acc_07" && avatar.glasses === "sunglasses_wayfarer") ||
-                          (a.id === "acc_08" && avatar.workObject === "coffee_cup") ||
-                          (a.id === "acc_09" && avatar.workObject === "boxes_delivery") ||
-                          (a.id === "acc_10" && avatar.workObject === "laptop_zai") ||
-                          (a.id === "acc_11" && avatar.accessories?.backpack === "backpack_tactical_black") ||
-                          (a.id === "acc_12" && avatar.accessories?.headwear === "hardhat_zai_white");
+                          (a.id === "acc_01" && Object.values(sub).every((v) => v === "none")) ||
+                          (a.id === "acc_02" && sub.headset === "headset_pro") ||
+                          (a.id === "acc_03" && sub.badge === "badge_lanyard") ||
+                          (a.id === "acc_04" && sub.eyewear === "eyewear_executive") ||
+                          (a.id === "acc_05" && sub.prop === "prop_tablet") ||
+                          (a.id === "acc_06" && sub.wrist === "wrist_smartwatch") ||
+                          (a.id === "acc_07" && sub.eyewear === "eyewear_wayfarer") ||
+                          (a.id === "acc_08" && sub.prop === "prop_coffee") ||
+                          (a.id === "acc_09" && sub.prop === "prop_boxes") ||
+                          (a.id === "acc_10" && sub.prop === "prop_laptop") ||
+                          (a.id === "acc_11" && sub.back === "back_backpack") ||
+                          (a.id === "acc_12" && sub.headwear === "headwear_hardhat");
                         return (
                           <button
                             key={a.id}
                             data-avatar-item={a.id}
                             type="button"
                             onClick={() => {
-                              const curAcc = { ...(avatar.accessories || {}) };
-                              let updHeadset = avatar.headset;
-                              let updGlasses = avatar.glasses;
-                              let updWorkObject = avatar.workObject;
-                              if (a.id === "acc_01") {
-                                updHeadset = "none";
-                                updGlasses = "none";
-                                updWorkObject = "none";
-                                curAcc.headset = "none";
-                                curAcc.badge = "none";
-                                curAcc.watch = "none";
-                                curAcc.glasses = "none";
-                                curAcc.backpack = "none";
-                                curAcc.headwear = "none";
-                              } else if (a.id === "acc_02") {
-                                updHeadset = updHeadset === "headset_zai_green" ? "none" : "headset_zai_green";
-                                curAcc.headset = updHeadset;
-                              } else if (a.id === "acc_03") {
-                                curAcc.badge = curAcc.badge === "badge_zai_lanyard" ? "none" : "badge_zai_lanyard";
-                              } else if (a.id === "acc_04") {
-                                updGlasses = updGlasses === "glasses_square_exec" ? "none" : "glasses_square_exec";
-                                curAcc.glasses = updGlasses;
-                              } else if (a.id === "acc_05") {
-                                updWorkObject = updWorkObject === "tablet_zai" ? "none" : "tablet_zai";
-                              } else if (a.id === "acc_06") {
-                                curAcc.watch = curAcc.watch === "watch_zai_smart" ? "none" : "watch_zai_smart";
-                              } else if (a.id === "acc_07") {
-                                updGlasses = updGlasses === "sunglasses_wayfarer" ? "none" : "sunglasses_wayfarer";
-                                curAcc.glasses = updGlasses;
-                              } else if (a.id === "acc_08") {
-                                updWorkObject = updWorkObject === "coffee_cup" ? "none" : "coffee_cup";
-                              } else if (a.id === "acc_09") {
-                                updWorkObject = updWorkObject === "boxes_delivery" ? "none" : "boxes_delivery";
-                              } else if (a.id === "acc_10") {
-                                updWorkObject = updWorkObject === "laptop_zai" ? "none" : "laptop_zai";
-                              } else if (a.id === "acc_11") {
-                                curAcc.backpack = curAcc.backpack === "backpack_tactical_black" ? "none" : "backpack_tactical_black";
-                              } else if (a.id === "acc_12") {
-                                curAcc.headwear = curAcc.headwear === "hardhat_zai_white" ? "none" : "hardhat_zai_white";
-                              }
-                              setAvatar((prev) => ({
-                                ...prev,
-                                accessories: curAcc,
-                                headset: updHeadset,
-                                glasses: updGlasses,
-                                workObject: updWorkObject,
-                              }));
+                              setAvatar((prev) => {
+                                if (a.id === "acc_01") {
+                                  return { ...prev, ...buildSlotUpdate(prev, "accessory_slot", "acc_01") };
+                                }
+                                const curSub = normalizeAvatarComposition(prev).accessorySubSlots;
+                                const subSlotMap: Record<string, { slot: "headset" | "badge" | "eyewear" | "prop" | "wrist" | "back" | "headwear"; target: string }> = {
+                                  acc_02: { slot: "headset", target: "headset_pro" },
+                                  acc_03: { slot: "badge", target: "badge_lanyard" },
+                                  acc_04: { slot: "eyewear", target: "eyewear_executive" },
+                                  acc_05: { slot: "prop", target: "prop_tablet" },
+                                  acc_06: { slot: "wrist", target: "wrist_smartwatch" },
+                                  acc_07: { slot: "eyewear", target: "eyewear_wayfarer" },
+                                  acc_08: { slot: "prop", target: "prop_coffee" },
+                                  acc_09: { slot: "prop", target: "prop_boxes" },
+                                  acc_10: { slot: "prop", target: "prop_laptop" },
+                                  acc_11: { slot: "back", target: "back_backpack" },
+                                  acc_12: { slot: "headwear", target: "headwear_hardhat" },
+                                };
+                                const mapping = subSlotMap[a.id];
+                                if (!mapping) return prev;
+                                const nextItem = curSub[mapping.slot] === mapping.target ? "none" : mapping.target;
+                                return { ...prev, ...buildSlotUpdate(prev, mapping.slot, nextItem) };
+                              });
                             }}
                             className={cn(
                               "p-2.5 rounded-xl border text-left transition-all",

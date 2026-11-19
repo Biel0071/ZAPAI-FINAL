@@ -79,6 +79,7 @@ const MESSAGE_CACHE_TTL_MS = 60_000;
 const DRAFT_TTL_MS = 5 * 60 * 1000;
 const RUNTIME_RECONNECTED_EVENT = "runtime:reconnected";
 const OFFLINE_MESSAGE_POLL_INTERVAL_MS = 45_000;
+const VISIBILITY_REFRESH_MIN_HIDDEN_MS = 15_000;
 const OFFLINE_FALLBACK_SYNC_INTERVAL_MS = 60_000;
 const SOCKET_FORCE_RECONNECT_DEBOUNCE_MS = 15_000;
 
@@ -163,7 +164,7 @@ export function useInboxState() {
   const [conversationSearchOpen, setConversationSearchOpen] = useState(false);
   const [conversationSearchQuery, setConversationSearchQuery] = useState("");
   const [activeConversationSearchIndex, setActiveConversationSearchIndex] = useState(0);
-  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [loadingConversations, setLoadingConversations] = useState(() => useAppStore.getState().conversations.length === 0);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [historySyncStatus, setHistorySyncStatus] = useState<"idle" | "requesting" | "requested" | "imported" | "error">("idle");
@@ -178,11 +179,15 @@ export function useInboxState() {
   const retrySendRequestIdsRef = useRef<Map<string, string>>(new Map());
   const lastSentTextRef = useRef("");
   const [error, setError] = useState<string | null>(null);
+  const lastCountsSessionRef = useRef<string | undefined>(undefined);
+  const sessionListRequestRef = useRef<string | null>(null);
   const [conversationCounts, setConversationCounts] = useState<{ total: number; active: number; archived: number; unread: number; ai_active: number } | null>(null);
   const refreshConversationCounts = useCallback(async (sessionId?: string) => {
     try {
       const counts = await apiService.getConversationCounts({ sessionId });
-      if (counts) setConversationCounts(counts);
+      const currentSession = useAppStore.getState().activeSessionId;
+      const scopedSession = currentSession && currentSession !== "all" ? currentSession : undefined;
+      if (counts && (!sessionId || sessionId === scopedSession)) setConversationCounts(counts);
     } catch (_err) {
       // Non-blocking
     }
@@ -620,7 +625,13 @@ export function useInboxState() {
   }, [conversations, rememberContacts]);
 
   const selectedConversation = useMemo(() => {
-    const match = conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
+    if (!selectedConversationId) return null;
+    const targetStr = String(selectedConversationId).trim();
+    const match = conversations.find((conversation) => {
+      const convIdStr = String(conversation.id ?? "").trim();
+      const chatIdStr = String(conversation.chatId ?? "").trim();
+      return convIdStr === targetStr || chatIdStr === targetStr;
+    }) ?? null;
     return isOwnSessionConversation(match) ? null : match;
   }, [conversations, isOwnSessionConversation, selectedConversationId]);
 
@@ -1225,7 +1236,13 @@ export function useInboxState() {
 
     const loadInitial = async () => {
       setError(null);
-      setLoadingConversations(true);
+      const initialPersisted = filterConversationsForSession(loadPersistedConversations(), null);
+      if (initialPersisted.length > 0 && useAppStore.getState().conversations.length === 0) {
+        setConversations(initialPersisted);
+        setLoadingConversations(false);
+      } else if (useAppStore.getState().conversations.length === 0) {
+        setLoadingConversations(true);
+      }
       setConversationsLoadFailed(false);
 
       try {
@@ -1307,33 +1324,53 @@ export function useInboxState() {
     void loadInitial();
   }, [isOwnSessionConversation, loadConversationControls, markBackendOffline, markBackendOnline, refreshSessions, showErrorToast, setConversations, setSelectedConversationId, setSessions, refreshConversationCounts]);
 
+  const isOwnSessionConversationRef = useRef(isOwnSessionConversation);
+  isOwnSessionConversationRef.current = isOwnSessionConversation;
+
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
+  const activeSessionReadyKey = storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : "";
+
   // Re-fetch conversations strictly for current session when session filter changes
   useEffect(() => {
     if (!hasLoadedInitialRef.current) return;
     const targetSession = storeActiveSessionId && storeActiveSessionId !== "all" ? storeActiveSessionId : undefined;
 
-    let cancelled = false;
-    // Reset open chat and messages immediately to avoid cross-session bleed
-    setSelectedConversationId(null);
+    const requestScope = targetSession ?? "*";
+    if (sessionListRequestRef.current === requestScope) return;
+    const isStale = () => {
+      const current = useAppStore.getState().activeSessionId;
+      return (current && current !== "all" ? current : "*") !== requestScope;
+    };
+    const currentSelectedId = selectedConversationRef.current?.id;
+    const currentConv = currentSelectedId ? conversationsRef.current.find(c => String(c.id) === String(currentSelectedId)) : null;
+    if (targetSession && currentConv && currentConv.sessionId && currentConv.sessionId !== targetSession) {
+      setSelectedConversationId(null);
+    }
+    if (lastCountsSessionRef.current !== targetSession) {
+      lastCountsSessionRef.current = targetSession;
+      setConversationCounts(null);
+    }
     setLoadingConversations(true);
 
-    const targetSessionObj = targetSession ? sessions.find(s => s && (s.id === targetSession || s.name === targetSession)) : null;
+    const targetSessionObj = targetSession ? sessionsRef.current.find(s => s && (s.id === targetSession || s.name === targetSession)) : null;
     if (targetSessionObj && !isSessionActive(targetSessionObj)) {
       setConversations([]);
       setLoadingConversations(false);
       return;
     }
 
+    sessionListRequestRef.current = requestScope;
     apiService
       .getConversations(true, {
         limit: CONVERSATIONS_PAGE_SIZE,
         sessionId: targetSession,
       })
       .then((data) => {
-        if (cancelled) return;
+        if (isStale()) return;
         markBackendOnline();
         const sessionScoped = filterConversationsForSession(data, targetSession);
-        const visibleIncoming = sessionScoped.filter((c) => !isOwnSessionConversation(c));
+        const visibleIncoming = sessionScoped.filter((c) => !isOwnSessionConversationRef.current(c));
         const mergedDirectory = mergeContactDirectory(contactDirectoryRef.current, visibleIncoming);
         contactDirectoryRef.current = mergedDirectory;
         persistContactDirectory(mergedDirectory);
@@ -1343,17 +1380,14 @@ export function useInboxState() {
         void refreshConversationCounts(targetSession);
       })
       .catch((err) => {
-        if (cancelled) return;
+        if (isStale()) return;
         console.warn("Failed to load conversations for session:", targetSession, err);
       })
       .finally(() => {
-        if (!cancelled) setLoadingConversations(false);
+        if (sessionListRequestRef.current === requestScope) sessionListRequestRef.current = null;
+        if (!isStale()) setLoadingConversations(false);
       });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [storeActiveSessionId, sessions, isOwnSessionConversation, markBackendOnline, setConversations, setSelectedConversationId, refreshConversationCounts]);
+  }, [activeSessionReadyKey, markBackendOnline, setConversations, setSelectedConversationId, refreshConversationCounts]);
 
   // Carrega todas as conversas arquivadas completas sob demanda quando a aba "Arquivadas" é ativada
   useEffect(() => {
@@ -1407,43 +1441,57 @@ export function useInboxState() {
     };
   }, [filter, storeActiveSessionId, isOwnSessionConversation, markBackendOnline, setConversations, setArchivedChatIds, refreshConversationCounts]);
 
-  const hydrateConversationHistoryForAnalysis = useCallback(async (conversationId: string, seedMessages: ChatMessage[]) => {
+  const hydrateAnalysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const hydrateConversationHistoryForAnalysis = useCallback((conversationId: string, seedMessages: ChatMessage[]) => {
     if (!seedMessages.length) return;
 
+    if (hydrateAnalysisTimeoutRef.current) {
+      clearTimeout(hydrateAnalysisTimeoutRef.current);
+      hydrateAnalysisTimeoutRef.current = null;
+    }
+
     const normalizedConversationId = String(conversationId);
-    let merged = seedMessages;
-    let before = seedMessages[0]?.timestamp || seedMessages[0]?.createdAt;
-    let beforeId = /^\d+$/.test(String(seedMessages[0]?.id || '')) ? String(seedMessages[0].id) : undefined;
 
-    for (let page = 0; page < 2; page += 1) {
-      if (!before) break;
+    // Defer pagination requests by 2.5s so switching contacts does not saturate the network
+    hydrateAnalysisTimeoutRef.current = setTimeout(async () => {
+      if (normalizeId(selectedConversationRef.current?.id) !== normalizeId(normalizedConversationId)) return;
 
-      const olderBatch = await apiService.getMessages(conversationId, {
-        limit: MESSAGE_PAGE_SIZE,
-        before,
-        beforeId,
-      });
+      let merged = seedMessages;
+      let before = seedMessages[0]?.timestamp || seedMessages[0]?.createdAt;
+      let beforeId = /^\d+$/.test(String(seedMessages[0]?.id || '')) ? String(seedMessages[0].id) : undefined;
 
-      if (!olderBatch.length) break;
+      for (let page = 0; page < 2; page += 1) {
+        if (!before) break;
+        if (normalizeId(selectedConversationRef.current?.id) !== normalizeId(normalizedConversationId)) break;
 
-      const normalizedBatch = olderBatch
-        .map((item) => ({ ...item, conversationId: item.conversationId ?? normalizedConversationId }))
-        .filter((item) => String(item.conversationId ?? "") === normalizedConversationId);
+        try {
+          const olderBatch = await apiService.getMessages(normalizedConversationId, {
+            limit: MESSAGE_PAGE_SIZE,
+            before,
+            beforeId,
+          });
 
-      if (!normalizedBatch.length) break;
+          if (!olderBatch.length) break;
 
-      merged = sortMessagesAsc(mergeMessagesById(merged, normalizedBatch));
-      before = normalizedBatch[0]?.timestamp || normalizedBatch[0]?.createdAt;
-      beforeId = /^\d+$/.test(String(normalizedBatch[0]?.id || '')) ? String(normalizedBatch[0].id) : undefined;
+          const normalizedBatch = olderBatch.map((item) => ({ ...item, conversationId: normalizedConversationId }));
+          if (!normalizedBatch.length) break;
 
-      if (olderBatch.length < MESSAGE_PAGE_SIZE) break;
-    }
+          merged = sortMessagesAsc(mergeMessagesById(merged, normalizedBatch));
+          before = normalizedBatch[0]?.timestamp || normalizedBatch[0]?.createdAt;
+          beforeId = /^\d+$/.test(String(normalizedBatch[0]?.id || '')) ? String(normalizedBatch[0].id) : undefined;
 
-    updateConversationMessageStore(conversationId, merged, merged.length >= MESSAGE_PAGE_SIZE);
+          if (olderBatch.length < MESSAGE_PAGE_SIZE) break;
+        } catch {
+          break;
+        }
+      }
 
-    if (String(selectedConversationRef.current?.id ?? "") === normalizedConversationId) {
-      setMessagesForConversation(normalizedConversationId, merged);
-    }
+      if (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
+        updateConversationMessageStore(normalizedConversationId, merged, merged.length >= MESSAGE_PAGE_SIZE);
+        setMessagesForConversation(normalizedConversationId, merged);
+      }
+    }, 2500);
   }, [setMessagesForConversation, updateConversationMessageStore]);
 
   const loadConversationMessages = useCallback(
@@ -1462,14 +1510,18 @@ export function useInboxState() {
         .map((item, index) => normalizeLoadedMessage(item, normalizedConversationId, index))
         .filter((item) => normalizeId(item.conversationId) === normalizeId(normalizedConversationId));
 
-      if (!options?.force && cached && Date.now() - cached.cachedAt < MESSAGE_CACHE_TTL_MS) {
+      const resolvedStoreId = resolveStoreConversationId(useAppStore.getState().conversations, normalizedConversationId);
+      const storeMessages = useAppStore.getState().messagesByConversationId[resolvedStoreId] || [];
+      const hasAnyMessages = (cached && cached.messages && cached.messages.length > 0) || storeMessages.length > 0 || persisted.length > 0;
+
+      if (!options?.force && cached && cached.messages && cached.messages.length > 0 && Date.now() - cached.cachedAt < MESSAGE_CACHE_TTL_MS) {
         if (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
-          const resolvedId = resolveStoreConversationId(useAppStore.getState().conversations, normalizedConversationId);
-          const currentStoreMessages = useAppStore.getState().messagesByConversationId[resolvedId] || [];
-          if (currentStoreMessages.length === 0) {
+          if (storeMessages.length === 0) {
             setMessagesForConversation(normalizedConversationId, cached.messages);
           }
           setHasMoreMessages(cached.hasMore);
+          setLoadingMessages(false);
+          setMessagesLoadFailed(false);
         }
         return;
       }
@@ -1477,11 +1529,8 @@ export function useInboxState() {
       // Show persisted messages as a skeleton ONLY if they belong to this exact conversation.
       // They will be replaced immediately once the server fetch completes.
       if (!cached && persisted.length > 0) {
-        const sortedPersisted = sortMessagesAsc(persisted);
-        const allBelongToConv = sortedPersisted.every(
-          (msg) => !msg.conversationId || normalizeId(msg.conversationId) === normalizeId(normalizedConversationId),
-        );
-        if (allBelongToConv && normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
+        const sortedPersisted = sortMessagesAsc(persisted.map((m) => ({ ...m, conversationId: normalizedConversationId })));
+        if (normalizeId(selectedConversationRef.current?.id) === normalizeId(normalizedConversationId)) {
           setMessagesForConversation(normalizedConversationId, sortedPersisted);
           setHasMoreMessages(sortedPersisted.length >= MESSAGE_PAGE_SIZE);
         }
@@ -1492,7 +1541,7 @@ export function useInboxState() {
       const requestStartState = useAppStore.getState();
       const requestStartConversationId = resolveStoreConversationId(requestStartState.conversations, normalizedConversationId);
       const messagesAtRequestStart = requestStartState.messagesByConversationId[requestStartConversationId] || [];
-      const shouldShowLoading = !options?.background && !(cached?.messages.length || persisted.length);
+      const shouldShowLoading = !options?.background && !hasAnyMessages;
       if (shouldShowLoading) {
         setLoadingMessages(true);
       }
@@ -1505,12 +1554,16 @@ export function useInboxState() {
         if (activeMessageRequestRef.current.get(normalizedConversationId) !== requestId) return;
 
         const normalizedData = Array.isArray(data)
-          ? data.map((item, index) => normalizeLoadedMessage(item, normalizedConversationId, index))
+          ? data.map((item, index) => {
+              const msg = normalizeLoadedMessage(item, normalizedConversationId, index);
+              return {
+                ...msg,
+                conversationId: normalizedConversationId,
+              };
+            })
           : [];
 
-        const sorted = sortMessagesAsc(
-          normalizedData.filter((item) => normalizeId(item.conversationId) === normalizeId(normalizedConversationId)),
-        );
+        const sorted = sortMessagesAsc(normalizedData);
         const latestStore = useAppStore.getState();
         const latestConversationId = resolveStoreConversationId(latestStore.conversations, normalizedConversationId);
         const currentStoreMessages = latestStore.messagesByConversationId[latestConversationId] || [];
@@ -1552,10 +1605,15 @@ export function useInboxState() {
       } catch (err) {
         markBackendOffline(err);
         if (activeMessageRequestRef.current.get(normalizedConversationId) !== requestId) return;
-        setMessagesLoadFailed(true);
-        const message = "Falha ao carregar mensagens. Tente novamente.";
-        setError(message);
-        showErrorToast(message);
+        const currentMessagesCount = (useAppStore.getState().messagesByConversationId[requestStartConversationId] || []).length;
+        if (currentMessagesCount === 0 && !hasAnyMessages) {
+          setMessagesLoadFailed(true);
+          const message = "Falha ao carregar mensagens. Tente novamente.";
+          setError(message);
+          showErrorToast(message);
+        } else {
+          console.warn("[INBOX] Background refresh failed, preserving existing messages:", err);
+        }
       } finally {
         if (activeMessageRequestRef.current.get(normalizedConversationId) === requestId) {
           activeMessageRequestRef.current.delete(normalizedConversationId);
@@ -1658,46 +1716,49 @@ export function useInboxState() {
 
     const resolvedId = resolveStoreConversationId(useAppStore.getState().conversations, normalizedId);
     const storeMessages = useAppStore.getState().messagesByConversationId[resolvedId] || [];
+    const cached = messageCacheRef.current.get(getConversationKey(activeConversation));
 
     if (storeMessages.length > 0) {
       messageIdsRef.current = new Set(storeMessages.map((m) => m.id));
-      const cached = messageCacheRef.current.get(getConversationKey(activeConversation));
       setHasMoreMessages(cached ? cached.hasMore : storeMessages.length >= MESSAGE_PAGE_SIZE);
+      setLoadingMessages(false);
+      setMessagesLoadFailed(false);
+    } else if (cached && cached.messages && cached.messages.length > 0) {
+      setMessagesForConversation(normalizedId, cached.messages);
+      setHasMoreMessages(cached.hasMore);
+      setLoadingMessages(false);
+      setMessagesLoadFailed(false);
+      messageIdsRef.current = new Set(cached.messages.map((m) => m.id));
     } else {
-      const cached = messageCacheRef.current.get(getConversationKey(activeConversation));
-      if (cached && cached.messages.length > 0) {
-        setMessagesForConversation(normalizedId, cached.messages);
-        setHasMoreMessages(cached.hasMore);
-        messageIdsRef.current = new Set(cached.messages.map((m) => m.id));
-      } else {
-        const persisted = loadPersistedConversationMessages({
-          conversationId: normalizedId,
-          sessionId: activeConversation.sessionId,
-          phone: activeConversation.phone,
-        })
-          .map((item, index) => normalizeLoadedMessage(item, normalizedId, index))
-          .filter((item) => normalizeId(item.conversationId) === normalizeId(normalizedId));
+      const persisted = loadPersistedConversationMessages({
+        conversationId: normalizedId,
+        sessionId: activeConversation.sessionId,
+        phone: activeConversation.phone,
+      })
+        .map((item, index) => normalizeLoadedMessage(item, normalizedId, index))
+        .filter((item) => normalizeId(item.conversationId) === normalizeId(normalizedId));
 
-        if (persisted.length > 0) {
-          const sorted = sortMessagesAsc(persisted);
-          setMessagesForConversation(normalizedId, sorted);
-          setHasMoreMessages(sorted.length >= MESSAGE_PAGE_SIZE);
-          messageIdsRef.current = new Set(sorted.map((m) => m.id));
-        } else {
-          setMessagesForConversation(normalizedId, []);
-          setHasMoreMessages(false);
-          setLoadingMessages(true);
-          messageIdsRef.current = new Set();
-        }
+      if (persisted.length > 0) {
+        const sorted = sortMessagesAsc(persisted);
+        setMessagesForConversation(normalizedId, sorted);
+        setHasMoreMessages(sorted.length >= MESSAGE_PAGE_SIZE);
+        setLoadingMessages(false);
+        setMessagesLoadFailed(false);
+        messageIdsRef.current = new Set(sorted.map((m) => m.id));
+      } else {
+        setMessagesForConversation(normalizedId, []);
+        setHasMoreMessages(false);
+        setLoadingMessages(true);
+        messageIdsRef.current = new Set();
       }
     }
 
     // Paint cached data first, then reconcile the selected conversation with
-    // the API. The cache TTL prevents duplicate requests when switching quickly.
-    void loadConversationMessagesRef.current(normalizedId);
+    // the API in the background. If messages already exist, revalidate silently without skeletons.
+    const hasExisting = storeMessages.length > 0 || (cached && cached.messages && cached.messages.length > 0);
+    void loadConversationMessagesRef.current(normalizedId, { background: hasExisting });
 
     autoScrollRef.current = true;
-    setLoadingMessages(false);
     setPendingBackgroundUpdates(0);
     setUnseenRealtimeCount(0);
     setActiveMessageMenuId(null);
@@ -1784,8 +1845,16 @@ export function useInboxState() {
   }, [loadConversationMessages, selectedConversation?.id]);
 
   useEffect(() => {
+    let hiddenAt = 0;
     const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+        return;
+      }
       if (document.visibilityState === 'visible') {
+        const hiddenForMs = hiddenAt ? Date.now() - hiddenAt : 0;
+        hiddenAt = 0;
+        if (hiddenForMs < VISIBILITY_REFRESH_MIN_HIDDEN_MS) return;
         void handleRetryConversations();
         if (selectedConversation?.id) {
           void handleRetryMessages();
@@ -1811,17 +1880,22 @@ export function useInboxState() {
         beforeId: /^\d+$/.test(String(messages[0]?.id || '')) ? String(messages[0].id) : undefined,
       });
 
+      const normalizedConversationId = String(selectedConversation.id);
       const normalizedOlderBatch = Array.isArray(olderBatch)
-        ? olderBatch.map((item, index) => normalizeLoadedMessage(item, String(selectedConversation.id), index))
+        ? olderBatch.map((item, index) => {
+            const msg = normalizeLoadedMessage(item, normalizedConversationId, index);
+            return {
+              ...msg,
+              conversationId: normalizedConversationId,
+            };
+          })
         : [];
 
       const nextHasMore = normalizedOlderBatch.length >= MESSAGE_PAGE_SIZE;
-      const normalizedConversationId = String(selectedConversation.id);
       setMessagesForConversation(normalizedConversationId, (prev) => {
         const seen = new Set(prev.map((item) => item.id));
         const merged = [
-          ...normalizedOlderBatch
-            .filter((item) => !seen.has(item.id) && normalizeId(item.conversationId) === normalizeId(normalizedConversationId)),
+          ...normalizedOlderBatch.filter((item) => !seen.has(item.id)),
           ...prev,
         ];
         const sorted = sortMessagesAsc(merged);
@@ -2215,6 +2289,95 @@ export function useInboxState() {
     const pendingTempIds = new Set<string>();
     let acceptedCount = 0;
 
+    const optimisticMessages: ChatMessage[] = currentAttachments.length
+      ? currentAttachments.map((attachment, index) => {
+          const tempId = `temp-media-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${index}`;
+          pendingTempIds.add(tempId);
+          return {
+            id: tempId,
+            conversationId: currentConversation.id,
+            content: attachment.caption || (index === 0 ? textToSend : ""),
+            fromMe: true,
+            createdAt: now,
+            status: "sending",
+            mediaType: attachment.mediaType,
+            url: attachment.previewUrl,
+          };
+        })
+      : [
+          (() => {
+            const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+            pendingTempIds.add(tempId);
+            return {
+              id: tempId,
+              conversationId: currentConversation.id,
+              content: textToSend,
+              fromMe: true,
+              createdAt: now,
+              status: "sending" as const,
+            };
+          })(),
+        ];
+
+    // ZERO-LATENCY INSTANT UI FEEDBACK (0ms): Clear composer and insert bubble immediately
+    const isOriginSelected = useAppStore.getState().activeConversationId === currentConversation.id;
+    if (isOriginSelected) {
+      messageInputStateRef.current = "";
+      attachmentsStateRef.current = [];
+      replyingToStateRef.current = null;
+      setMessageInput("");
+      setAttachments([]);
+      setReplyingTo(null);
+    }
+    persistDraftSnapshot(currentConversation.id, { draftMessage: "", draftMedia: [], draftReply: null, draftMentions: [] });
+    saveDraftToStorage(currentConversation.id, "");
+
+    // Clear typing status immediately upon sending a message
+    const storeState = useAppStore.getState();
+    storeState.updateTypingStatus(currentConversation.id, false);
+    if (currentConversation.chatId) {
+      storeState.updateTypingStatus(currentConversation.chatId, false);
+    }
+    if (currentConversation.phone) {
+      storeState.updateTypingStatus(currentConversation.phone, false);
+    }
+
+    setMessagesForConversation(currentConversation.id, (prev) => {
+      const next = sortMessagesAsc([...prev, ...optimisticMessages]);
+      updateConversationMessageStore(
+        currentConversation.id,
+        next,
+        messageCacheRef.current.get(currentConversation.id)?.hasMore ?? hasMoreMessages,
+      );
+      return next;
+    });
+
+    const pendingQueue = pendingOutgoingTempIdsRef.current.get(currentConversation.id) ?? [];
+    pendingOutgoingTempIdsRef.current.set(
+      currentConversation.id,
+      [...pendingQueue, ...optimisticMessages.map((item) => item.id)],
+    );
+
+    const optimisticLast = optimisticMessages[optimisticMessages.length - 1];
+    setConversations((prev) => {
+      const current = prev.find((item) => item.id === currentConversation.id);
+      if (!current) return prev;
+
+      const updated: Conversation = {
+        ...current,
+        lastMessage: optimisticLast?.content || textToSend || (currentAttachments[0]?.mediaType ? getMediaTypeLabel(currentAttachments[0].mediaType) : current.lastMessage || ""),
+        lastMessageFromMe: true,
+        lastMessageStatus: "sending",
+        lastMessageType: (optimisticLast?.mediaType === "document" || optimisticLast?.mediaType === "media" ? "file" : optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text") as any,
+        lastMessageAt: optimisticLast?.createdAt ?? now,
+        updatedAt: optimisticLast?.createdAt ?? now,
+      };
+
+      return [updated, ...prev.filter((item) => item.id !== currentConversation.id)];
+    });
+
+    scheduleScrollToBottom("smooth");
+
     try {
       // Always read latest sessions directly from the Zustand store to avoid stale closure
       const storeSessions = useAppStore.getState().sessions as unknown as SessionInfo[];
@@ -2231,105 +2394,12 @@ export function useInboxState() {
         const unavailableMessage = "Nenhuma sessão do WhatsApp está conectada. Reconecte uma sessão e tente novamente.";
         if (useAppStore.getState().activeConversationId === currentConversation.id) setError(unavailableMessage);
         showErrorToast(unavailableMessage);
-        return;
+        throw new Error(unavailableMessage);
       }
 
       const sessionIdToSend = resolvedActiveSession.id;
-
-      // Only clear the composer after a connected session has been resolved.
-      // Preserve edits and the next conversation's composer made during the await.
-      const isOriginSelected = useAppStore.getState().activeConversationId === currentConversation.id;
-      const currentDraft = isOriginSelected
-        ? { draftMessage: messageInputStateRef.current, draftMedia: attachmentsStateRef.current, draftReply: replyingToStateRef.current }
-        : composerDraftsRef.current.get(currentConversation.id);
-      const retainedText = currentDraft?.draftMessage === draftTextSnapshot ? "" : currentDraft?.draftMessage ?? "";
-      const retainedMedia = (currentDraft?.draftMedia ?? []).filter(attachment => !currentAttachments.some(sent => sent.id === attachment.id));
-      const retainedReply = currentDraft?.draftReply?.id === replyingToSnapshot?.id ? null : currentDraft?.draftReply ?? null;
-      persistDraftSnapshot(currentConversation.id, { draftMessage: retainedText, draftMedia: retainedMedia, draftReply: retainedReply, draftMentions: [] });
-      saveDraftToStorage(currentConversation.id, retainedText);
-      if (isOriginSelected) {
-        messageInputStateRef.current = retainedText;
-        attachmentsStateRef.current = retainedMedia;
-        replyingToStateRef.current = retainedReply;
-        setMessageInput(retainedText);
-        setAttachments(retainedMedia);
-        setReplyingTo(retainedReply);
-      }
-
       setPreferredSessionId(sessionIdToSend);
       localStorage.setItem("zapai_inbox_active_session", sessionIdToSend);
-
-      // Clear typing status immediately upon sending a message
-      const storeState = useAppStore.getState();
-      storeState.updateTypingStatus(currentConversation.id, false);
-      if (currentConversation.chatId) {
-        storeState.updateTypingStatus(currentConversation.chatId, false);
-      }
-      if (currentConversation.phone) {
-        storeState.updateTypingStatus(currentConversation.phone, false);
-      }
-
-      const optimisticMessages: ChatMessage[] = currentAttachments.length
-        ? currentAttachments.map((attachment, index) => {
-            const tempId = `temp-media-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${index}`;
-            pendingTempIds.add(tempId);
-            return {
-              id: tempId,
-              conversationId: currentConversation.id,
-              content: attachment.caption || (index === 0 ? textToSend : ""),
-              fromMe: true,
-              createdAt: now,
-              status: "sending",
-              mediaType: attachment.mediaType,
-              url: attachment.previewUrl,
-            };
-          })
-        : [
-            (() => {
-              const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-              pendingTempIds.add(tempId);
-              return {
-                id: tempId,
-                conversationId: currentConversation.id,
-                content: textToSend,
-                fromMe: true,
-                createdAt: now,
-                status: "sending" as const,
-              };
-            })(),
-          ];
-
-      setMessagesForConversation(currentConversation.id, (prev) => {
-        const next = sortMessagesAsc([...prev, ...optimisticMessages]);
-        updateConversationMessageStore(
-          currentConversation.id,
-          next,
-          messageCacheRef.current.get(currentConversation.id)?.hasMore ?? hasMoreMessages,
-        );
-        return next;
-      });
-
-      const pendingQueue = pendingOutgoingTempIdsRef.current.get(currentConversation.id) ?? [];
-      pendingOutgoingTempIdsRef.current.set(
-        currentConversation.id,
-        [...pendingQueue, ...optimisticMessages.map((item) => item.id)],
-      );
-
-      const optimisticLast = optimisticMessages[optimisticMessages.length - 1];
-      setConversations((prev) => {
-        const current = prev.find((item) => item.id === currentConversation.id);
-        if (!current) return prev;
-
-        const updated: Conversation = {
-          ...current,
-          lastMessage: optimisticLast?.content || textToSend || (currentAttachments[0]?.mediaType ? getMediaTypeLabel(currentAttachments[0].mediaType) : current.lastMessage || ""),
-          lastMessageType: optimisticLast?.mediaType === "document" || optimisticLast?.mediaType === "media" ? "file" : optimisticLast?.mediaType ?? currentAttachments[0]?.mediaType ?? "text",
-          lastMessageAt: optimisticLast?.createdAt ?? now,
-          updatedAt: optimisticLast?.createdAt ?? now,
-        };
-
-        return [updated, ...prev.filter((item) => item.id !== currentConversation.id)];
-      });
 
       console.log("[SEND] Sending loop starting...");
       for (let i = 0; i < optimisticMessages.length; i += 1) {
@@ -2558,9 +2628,9 @@ export function useInboxState() {
                 aiPausedUntil: reactivateAt,
                 ...(persistedEnabled
                   ? {
-                      status: conversation.status === "pending_human" || conversation.status === "intervencao_humana" ? "open" : conversation.status,
+                      status: (conversation.status as string) === "pending_human" || (conversation.status as string) === "intervencao_humana" ? "open" : conversation.status,
                       funnel_stage: conversation.funnel_stage === "intervencao_humana" ? "em_atendimento" : conversation.funnel_stage,
-                      funnelStage: conversation.funnelStage === "intervencao_humana" ? "em_atendimento" : conversation.funnelStage,
+                      funnelStage: (conversation as any).funnelStage === "intervencao_humana" ? "em_atendimento" : (conversation as any).funnelStage,
                       needsHuman: false,
                       needs_human: false,
                       tags: Array.isArray(conversation.tags)
@@ -3179,7 +3249,7 @@ export function useInboxState() {
           : c
       )
     );
-    void persistConversationMetadata(conversationId, { unread_count: nextUnread, unreadCount: nextUnread });
+    void persistConversationMetadata(conversationId, { unread_count: nextUnread, unreadCount: nextUnread } as any);
     toast({ title: nextUnread > 0 ? "Conversa marcada como não lida." : "Conversa marcada como lida." });
   }, [persistConversationMetadata, setConversations, toast]);
 
@@ -3321,8 +3391,9 @@ export function useInboxState() {
       setQuickRepliesLoading(true);
       setQuickRepliesError(false);
       try {
+        const targetSession = activeSession?.id || storeActiveSessionId || undefined;
         const [listResult, categoryAppearanceResult] = await Promise.allSettled([
-          apiService.getQuickReplies(),
+          apiService.getQuickReplies(targetSession),
           loadQuickReplyCategoryAppearance(),
         ]);
         if (categoryAppearanceResult.status === "rejected") {
@@ -3341,6 +3412,9 @@ export function useInboxState() {
             source: (qr.source === "whatsapp" ? "whatsapp" : "system") as "whatsapp" | "system",
             shortcut: qr.shortcut || undefined,
             tags: qr.tags || [],
+            sessionId: qr.sessionId || null,
+            storeId: qr.storeId || null,
+            scopeLevel: qr.scopeLevel || (qr.sessionId ? "session" : "global"),
           }));
           setQuickReplies(mapped);
         } else if (listResult.status === "rejected") throw listResult.reason;
@@ -3355,7 +3429,7 @@ export function useInboxState() {
     const reload = () => { void loadQuickReplies(); };
     window.addEventListener("zapai:quick-replies-reload", reload);
     return () => window.removeEventListener("zapai:quick-replies-reload", reload);
-  }, [loadQuickReplyCategoryAppearance]);
+  }, [loadQuickReplyCategoryAppearance, activeSession?.id, storeActiveSessionId]);
 
   const saveQuickReplyCategoryAppearance = async (category: string, appearance: { emoji: string; color: string }) => {
     const saved = await apiService.saveQuickReplyCategory(category, appearance);
@@ -3391,6 +3465,28 @@ export function useInboxState() {
       const retryKey = JSON.stringify([targetConversation.id, arg.id, overrideDelayMs, customSteps?.length]);
       const currentSendId = retryQuickReplyIdsRef.current.get(retryKey) ?? generateUuid();
       retryQuickReplyIdsRef.current.set(retryKey, currentSendId);
+
+      const rawStepsCount = customSteps?.length || (arg.steps?.length ? arg.steps.length : (arg.items?.length ? arg.items.length : 1));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("flow:dispatched", {
+            detail: {
+              chatId: targetConversation.phone,
+              conversationId: targetConversation.id,
+              sessionId: targetConversation.sessionId || preferredSessionId || "default",
+              flowRunId: currentSendId,
+              flowName: arg.title || (typeof arg.text === "string" ? arg.text : "Resposta rápida"),
+              currentStep: 0,
+              totalSteps: rawStepsCount,
+              startedAt: Date.now(),
+              nextSendAt: Date.now() + (overrideDelayMs ?? (arg.steps?.[1]?.delayMs ?? 2000)),
+              stepDelaySeconds: Math.round(((overrideDelayMs ?? (arg.steps?.[1]?.delayMs ?? 2000)) / 1000)),
+              status: "running",
+            },
+          })
+        );
+      }
+
       const response = await apiService.executeQuickReplyFlow(arg.id, {
         phone: targetConversation.phone,
         conversationId: targetConversation.id,

@@ -133,6 +133,53 @@ class CommerceController {
   }
 
   /**
+   * POST /api/commerce/send-catalog
+   */
+  async sendCatalog(req, res) {
+    try {
+      const { phone, remoteJid, conversationId, sessionId = 'main', caption } = req.body;
+      const companyId = req.user?.companyId || req.body?.companyId || 'default';
+
+      if (orchestrator.isEnabled) {
+        const result = await orchestrator.execute('SEND_CATALOG', {
+          phone,
+          remoteJid,
+          caption,
+        }, {
+          companyId,
+          conversationId,
+          sessionId,
+        });
+        return res.status(200).json(result.data || result);
+      }
+
+      const session = sessionManager.getSession(sessionId)
+        || (sessionManager.getConnectedSessionOrNull ? sessionManager.getConnectedSessionOrNull() : null)
+        || sessionManager.getSession('main')
+        || sessionManager.getSession('default');
+      if (!session || !session.sock) {
+        return res.status(409).json({ success: false, error: 'WhatsApp session is not connected.' });
+      }
+
+      const targetJid = remoteJid || (phone ? (phone.includes('@') ? phone : `${phone.replace(/\D/g, '')}@s.whatsapp.net`) : null);
+      if (!targetJid) {
+        return res.status(400).json({ success: false, error: 'Recipient phone or remoteJid is required.' });
+      }
+
+      const baileysCommerceAdapter = require('../../../services/commerce/BaileysCommerceAdapter');
+      const result = await baileysCommerceAdapter.sendCatalog(session.sock, targetJid, {
+        title: 'Catálogo de Produtos — Depósito Vista Alegre',
+        description: 'Tijolos, Cimentos, Telhas, Caixas d’Água e Agregados',
+      }, { sessionId, companyId, conversationId });
+
+      return res.status(200).json(result);
+    } catch (err) {
+      console.error('[COMMERCE-CONTROLLER] sendCatalog failed:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  /**
    * GET /api/commerce/orders
    */
   async listOrders(req, res) {

@@ -35,7 +35,8 @@ const DEFAULT_CONFIG = {
 let storeRef = null;
 let workerTimer = null;
 let workerWakeupTimer = null;
-let processingTick = false;
+let activeWorkers = 0;
+const MAX_CONCURRENT_DISPATCHES = Math.max(1, Number(process.env.OUTBOUND_QUEUE_CONCURRENCY) || 3);
 let persistLock = Promise.resolve();
 let enqueueLock = Promise.resolve();
 const uncommittedItems = new Set();
@@ -49,7 +50,7 @@ function scheduleNextWorkerTick() {
   let earliestDue = Infinity;
   for (const item of queueState.items) {
     if (item.state !== STATES.QUEUED && item.state !== STATES.FAILED) continue;
-    if (uncommittedItems.has(item.id) || item.isPaused) continue;
+    if (uncommittedItems.has(item.id) || (item.isPaused && item.sessionResumeApproved !== true)) continue;
     const dueAt = new Date(item.nextAttemptAt || item.createdAt).getTime();
     if (Number.isFinite(dueAt) && dueAt < earliestDue) {
       earliestDue = dueAt;
@@ -61,6 +62,9 @@ function scheduleNextWorkerTick() {
     workerWakeupTimer = setTimeout(() => {
       processOneItem().catch(err => console.error('[OUTBOUND_QUEUE] Wakeup tick failed:', err?.message || err));
     }, delay);
+    if (workerWakeupTimer && typeof workerWakeupTimer.unref === 'function') {
+      workerWakeupTimer.unref();
+    }
   }
 }
 
@@ -185,10 +189,26 @@ async function writeQueueFileAtomic() {
   pruneTerminalItems();
   // Serialize at write time so coalesced callers persist the latest state.
   const next = JSON.stringify(queueState) + '\n';
-  // Bugfix#4: atomic write (tmp + rename) so a crash never corrupts the queue.
-  const tmpPath = `${QUEUE_FILE_PATH}.${process.pid}.tmp`;
-  await fs.writeFile(tmpPath, next, 'utf8');
-  await fs.rename(tmpPath, QUEUE_FILE_PATH);
+  // Atomic write (unique tmp + rename with Windows retry) so crashes and collisions never corrupt the queue.
+  const tmpPath = `${QUEUE_FILE_PATH}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+  try {
+    await fs.writeFile(tmpPath, next, 'utf8');
+    try {
+      await fs.rename(tmpPath, QUEUE_FILE_PATH);
+    } catch (renameErr) {
+      if (['EPERM', 'EBUSY', 'EACCES'].includes(renameErr?.code)) {
+        await new Promise(r => setTimeout(r, 25));
+        await fs.rename(tmpPath, QUEUE_FILE_PATH);
+      } else {
+        throw renameErr;
+      }
+    }
+  } catch (err) {
+    if (typeof fs.unlink === 'function') {
+      await fs.unlink(tmpPath).catch(() => {});
+    }
+    throw err;
+  }
 }
 
 // While a write is in flight, all new callers share ONE trailing write that
@@ -573,9 +593,9 @@ function pickNextProcessableItem() {
   for (const item of queueState.items) {
     // Cheap state check first: terminal items never need a session lookup.
     if (item.state !== STATES.QUEUED && item.state !== STATES.FAILED) continue;
-    if (uncommittedItems.has(item.id) || item.isPaused) continue;
+    if (uncommittedItems.has(item.id) || (item.isPaused && item.sessionResumeApproved !== true)) continue;
     const isManual = isExemptFromAutomationPause(item);
-    if (item.sessionPaused && !isManual) continue;
+    if (item.sessionPaused && item.sessionResumeApproved !== true && !isManual) continue;
 
     // Contact concurrency lock: don't start sending another item for this contact while one is processing
     const normalizedTarget = item.phone ? normalizePhone(item.phone) : null;
@@ -637,7 +657,9 @@ async function resumeSessionItems({ companyId, sessionId }) {
   for (const item of queueState.items) {
     if (String(item.companyId) !== String(companyId) || item.sessionId !== sessionId
       || !item.sessionPaused) continue;
-    item.sessionPaused = false;
+    // Approve each item individually while leaving the session itself paused.
+    item.sessionPaused = true;
+    item.sessionResumeApproved = true;
     if (!item.isPaused) item.state = STATES.QUEUED;
     item.nextAttemptAt = nowIso();
     item.updatedAt = nowIso();
@@ -878,9 +900,18 @@ function getActiveFlow({ companyId, sessionId, conversationId, phone }) {
     if (sessionId && item.sessionId && sessionId !== 'default' && item.sessionId !== 'default' && item.sessionId !== sessionId) return false;
     if (!item.metadata?.isFlowStep) return false;
     if (![STATES.QUEUED, STATES.PROCESSING, STATES.FAILED].includes(item.state) || item.cancelRequested) return false;
-    if (conversationId && String(item.metadata?.conversationId) !== String(conversationId)) return false;
-    if (targetPhone && normalizePhone(item.phone) !== targetPhone) return false;
-    if (!conversationId && !targetPhone) return false;
+    const convMatches = Boolean(conversationId && item.metadata?.conversationId && String(item.metadata.conversationId) === String(conversationId));
+    const rawItemPhone = String(item.phone || '').replace(/\D/g, '');
+    const rawTargetPhone = targetPhone || String(phone || '').replace(/\D/g, '');
+    const phoneMatches = Boolean(
+      (targetPhone && normalizePhone(item.phone) === targetPhone) ||
+      (rawItemPhone && rawTargetPhone && (
+        rawItemPhone === rawTargetPhone ||
+        rawItemPhone.endsWith(rawTargetPhone.slice(-8)) ||
+        rawTargetPhone.endsWith(rawItemPhone.slice(-8))
+      ))
+    );
+    if (!convMatches && !phoneMatches) return false;
     return true;
   });
   const newest = pending.slice().sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))[0];
@@ -924,11 +955,9 @@ async function reprocessDeadLetterItem(id, options = {}) {
 }
 
 async function processOneItem() {
-  if (processingTick) {
+  if (activeWorkers >= MAX_CONCURRENT_DISPATCHES) {
     return;
   }
-
-  processingTick = true;
 
   try {
     const item = pickNextProcessableItem();
@@ -937,6 +966,7 @@ async function processOneItem() {
       return;
     }
 
+    activeWorkers++;
     item.state = STATES.PROCESSING;
     item.processingStartedAt = nowIso();
     item.updatedAt = nowIso();
@@ -1019,6 +1049,8 @@ async function processOneItem() {
         });
       }
       item.state = STATES.SENT;
+      item.sessionPaused = false;
+      item.sessionResumeApproved = false;
       item.sentAt = nowIso();
       item.updatedAt = nowIso();
       item.lastFailure = null;
@@ -1084,7 +1116,7 @@ async function processOneItem() {
       if (error?.code === 'SESSION_UNAVAILABLE') {
         item.state = STATES.QUEUED;
         item.sessionPaused = true;
-        item.sessionResumeApproved = false;
+        item.sessionResumeApproved = approvedSessionPause;
         item.nextAttemptAt = null;
         item.updatedAt = nowIso();
         item.lastFailure = sanitizeError(error);
@@ -1171,7 +1203,7 @@ async function processOneItem() {
       await saveQueueState();
     }
   } finally {
-    processingTick = false;
+    activeWorkers--;
     if (pickNextProcessableItem()) {
       queueMicrotask(() => {
         processOneItem().catch((error) => {
@@ -1194,6 +1226,9 @@ function startWorker() {
       console.error('[OUTBOUND_QUEUE] Worker cycle failed:', error?.message || error);
     });
   }, DEFAULT_CONFIG.pollMs);
+  if (workerTimer && typeof workerTimer.unref === 'function') {
+    workerTimer.unref();
+  }
 }
 
 function stopWorker() {
@@ -1223,7 +1258,7 @@ async function initializeOutboundQueue({ store }) {
 
 async function shutdownOutboundQueue() {
   stopWorker();
-  processingTick = false;
+  activeWorkers = 0;
   await saveQueueState();
 }
 

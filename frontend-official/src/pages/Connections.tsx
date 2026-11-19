@@ -45,6 +45,8 @@ import { useAppStore } from "@/state/stores/appStore";
 import { normalizeSession as backendNormalizeSession } from "@/core/services/normalizeSession";
 import { SafeRender } from "@/components/system/SafeRender";
 import { HistoryBootstrapPanel } from '@/components/evolution/HistoryBootstrapPanel';
+import { WebBridgeCard } from "@/components/connections/WebBridgeCard";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 type SessionAutomationItem = {
   id: string;
@@ -175,6 +177,7 @@ export default function Connections() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isSessionsLoading, setIsSessionsLoading] = useState(true);
+  const [numberLimit, setNumberLimit] = useState<number | null>(null);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [createStatus, setCreateStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [restartingSessionId, setRestartingSessionId] = useState<string | null>(null);
@@ -235,6 +238,12 @@ export default function Connections() {
   }, [storeSessions, allAgents]);
 
   const safeSessions = useMemo(() => (Array.isArray(sessions) ? sessions : []), [sessions]);
+  const isAtNumberLimit = numberLimit !== null && safeSessions.length >= numberLimit;
+  useEffect(() => {
+    let active = true;
+    void apiService.getCompanyEntitlements().then((result) => { if (active) setNumberLimit(result.numberLimit); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
   const sessionsRef = useRef<Session[]>(safeSessions);
   const creatingSessionsRef = useRef<Set<string>>(new Set());
 
@@ -249,18 +258,18 @@ export default function Connections() {
     setIsHistoryModalOpen(true);
   }, [activeSession, safeSessions]);
 
-  // Auto-open modal when connection connects
+  // Auto-close modal when connection connects
   useEffect(() => {
     safeSessions.forEach((s) => {
       const prev = prevSessionStatusesRef.current[s.id];
       if (prev && (prev === "connecting" || prev === "qr") && s.status === "connected") {
-        handleOpenHistoryModal(s.id, 'history');
         setIsActivationDialogOpen(false);
         setShowQRModal(false);
+        setActiveModalSessionId(null);
       }
       prevSessionStatusesRef.current[s.id] = s.status;
     });
-  }, [safeSessions, handleOpenHistoryModal]);
+  }, [safeSessions]);
  
   const [isLogsDialogOpen, setIsLogsDialogOpen] = useState(false);
   const [logsSessionId, setLogsSessionId] = useState<string | null>(null);
@@ -413,6 +422,10 @@ export default function Connections() {
   }, [loadSessions]);
 
   const handleCreateSession = async () => {
+    if (isAtNumberLimit) {
+      notify.error("O limite de números WhatsApp do pacote foi atingido.");
+      return;
+    }
     const rawSessionName = newSessionName.trim();
     if (!rawSessionName || isCreating) return;
 
@@ -529,11 +542,13 @@ export default function Connections() {
 
     try {
       // createSession points to /session/start, bypassing the forceNew: true destruction of /reconnect
+      setActiveModalSessionId(normalizedId);
+      setIsActivationDialogOpen(true);
+      setShowQRModal(true);
       const response = await apiService.createSession(sessionId);
       const qr = extractQrPayload(response as SessionEventPayload);
       if (qr) {
         useAppStore.getState().setLastQr(sessionId, qr);
-        setShowQRModal(true);
       }
       useAppStore.getState().upsertSession(
         backendNormalizeSession({ id: sessionId, status: qr ? "qr" : "connecting" })
@@ -607,7 +622,10 @@ export default function Connections() {
         `/api/outbound-queue/session/${encodeURIComponent(sessionId)}/automations`,
         "GET",
       );
-      setReviewItems(Array.isArray(response?.items) ? response.items : []);
+      const nextItems = Array.isArray(response?.items) ? response.items : [];
+      setReviewItems(nextItems);
+      const visibleContactKeys = new Set(groupSessionAutomations(nextItems).map((contact) => contact.key));
+      setSelectedReviewContactKeys((current) => current.filter((key) => visibleContactKeys.has(key)));
     } catch (error) {
       setReviewError(error instanceof Error ? error.message : "Falha ao carregar as pendências deste número.");
     } finally {
@@ -658,14 +676,14 @@ export default function Connections() {
     setReactivatingSessionId(normalizeSessionName(sessionId));
     setReviewError(null);
     try {
-      const response = await requestApiEndpoint<{ resumed: { queueItems: number; campaigns: number } }>(
+      const response = await requestApiEndpoint<{ resumed: { queueItems: number; campaigns: number; followups?: number } }>(
         `/api/outbound-queue/session/${encodeURIComponent(sessionId)}/resume`,
         "POST",
       );
-      const { queueItems = 0, campaigns = 0 } = response?.resumed || {};
-      notify.success(queueItems || campaigns
-        ? `Reativados: ${queueItems} tarefas e ${campaigns} campanhas.`
-        : "Não há tarefas ou campanhas pausadas para este número.");
+      const { queueItems = 0, campaigns = 0, followups = 0 } = response?.resumed || {};
+      notify.success(queueItems || campaigns || followups
+        ? `Reativados: ${queueItems} tarefas, ${campaigns} campanhas e ${followups} follow-ups.`
+        : "Não há tarefas, campanhas ou follow-ups pausados para este número.");
       setReviewSessionId(null);
       setReviewItems([]);
     } catch (error) {
@@ -734,7 +752,7 @@ export default function Connections() {
         subtitle="Gerencie suas sessões oficiais de WhatsApp em tempo real"
         actions={
           <>
-            <Button size="sm" className="rounded-xl shadow-glow" onClick={() => setIsActivationDialogOpen(true)}>
+            <Button size="sm" className="rounded-xl shadow-glow" onClick={() => setIsActivationDialogOpen(true)} disabled={isAtNumberLimit} title={isAtNumberLimit ? "Limite do pacote atingido" : "Nova conexão WhatsApp"}>
               <Plus weight="bold" className="h-4 w-4" />
               Nova Conexão
             </Button>
@@ -766,7 +784,7 @@ export default function Connections() {
                     title="Nenhuma sessão criada"
                     description="Crie a primeira sessão oficial do WhatsApp para habilitar QR, reconnect e realtime dentro do runtime consolidado."
                     action={
-                      <Button className="rounded-xl shadow-glow" onClick={() => setIsActivationDialogOpen(true)}>
+                      <Button className="rounded-xl shadow-glow" onClick={() => setIsActivationDialogOpen(true)} disabled={isAtNumberLimit}>
                         Criar primeira sessão
                       </Button>
                     }
@@ -982,6 +1000,22 @@ export default function Connections() {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="h-8 rounded-xl px-2.5 gap-1.5 text-[11px] border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const el = document.getElementById("webbridge-card-section");
+                                if (el) {
+                                  el.scrollIntoView({ behavior: 'smooth' });
+                                }
+                              }}
+                              title="Visualizar e gerenciar a Conexão 2 WebBridge (Commerce Engine)"
+                            >
+                              <WhatsappLogo className="h-3.5 w-3.5 text-emerald-400" />
+                              <span>Web Bridge</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="h-8 rounded-xl px-2.5 gap-1.5 text-[11px] border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1058,6 +1092,9 @@ export default function Connections() {
                     </Card>
                   );
                 })}
+
+                {/* 2ª Conexão: WebBridge Companion para Catálogo e Comércio Oficial */}
+                <WebBridgeCard sessionId="main" />
               </div>
             }
           />
@@ -1109,6 +1146,8 @@ export default function Connections() {
                 const followupsSent = contact.items.reduce((maximum, item) => Math.max(maximum, Number(item.followupsSent || 0)), 0);
                 const sources = Array.from(new Set(contact.items.flatMap((item) => item.sources || []).filter(Boolean)));
                 const campaignStates = Array.from(new Set(contact.items.flatMap((item) => item.campaignStates || []).filter(Boolean)));
+                const hasFollowup = sources.includes("Follow-up IA");
+                const hasTask = sources.some((source) => source !== "Campanha" && source !== "Follow-up IA");
                 const busy = contactActionKey === contact.key;
                 const selected = selectedReviewContactKeys.includes(contact.key);
                 return (
@@ -1126,8 +1165,8 @@ export default function Connections() {
                         <div className="truncate text-xs text-muted-foreground">{contact.phone || "Telefone indisponível"}</div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {campaignStates.map((state) => <Badge key={state} variant="secondary" className="text-[10px]">Campanha: {state}</Badge>)}
-                          <span className="self-center text-[10px] text-muted-foreground">Follow-ups enviados: {followupsSent}</span>
-                          <span className="self-center text-[10px] text-muted-foreground">Tentativas da tarefa: {queueAttempts}</span>
+                          <span className="self-center text-[10px] text-muted-foreground">Follow-ups enviados: {hasFollowup ? followupsSent : "—"}</span>
+                          <span className="self-center text-[10px] text-muted-foreground">Tentativas da tarefa: {hasTask ? queueAttempts : "—"}</span>
                           <span className="self-center text-[10px] text-muted-foreground">Origem: {sources.join(", ") || "—"}</span>
                         </div>
                       </div>
@@ -1154,7 +1193,7 @@ export default function Connections() {
                 const selectedContacts = groupSessionAutomations(reviewItems)
                   .filter((contact) => selectedReviewContactKeys.includes(contact.key))
                   .map((contact) => ({ id: contact.items.find((item) => item.conversationId)?.conversationId || contact.phone, name: contact.name, phone: contact.phone }));
-                navigate("/campaigns", { state: { reactivationContacts: selectedContacts } });
+                navigate("/campaigns", { state: { reactivationContacts: selectedContacts, reactivationSessionId: reviewSessionId } });
                 setReviewSessionId(null);
               }}
             >
@@ -1216,7 +1255,7 @@ export default function Connections() {
                   {sessionNameError && <p className="text-xs text-destructive">{sessionNameError}</p>}
                 </div>
 
-                <Button className="w-full gap-2 rounded-xl" onClick={() => void handleCreateSession()} disabled={!newSessionName.trim() || isCreating}>
+                <Button className="w-full gap-2 rounded-xl" onClick={() => void handleCreateSession()} disabled={!newSessionName.trim() || isCreating || isAtNumberLimit}>
                   {isCreating ? <Spinner weight="bold" className="h-4 w-4 animate-spin" /> : <QrCode weight="bold" className="h-4 w-4" />}
                   {createStatus === "success" ? "Sessão criada" : createStatus === "error" ? "Falha na criação" : isCreating ? "Criando sessão..." : "Gerar QR oficial"}
                 </Button>
@@ -1225,12 +1264,22 @@ export default function Connections() {
               isQrModalVisible && (
                 <div className="space-y-4 rounded-2xl border border-border/70 bg-background/50 p-4 text-center">
                   {showQrImage ? (
-                    <div className="qr-container mx-auto w-fit">
+                    <div className="qr-container mx-auto w-fit relative inline-flex items-center justify-center p-3 bg-white rounded-2xl shadow-xl border border-border">
                       <img
                         src={currentQrImage ?? undefined}
                         alt="QR Code da sessão WhatsApp"
-                        className="mx-auto block h-[260px] w-[260px] rounded-xl border border-border"
+                        className="mx-auto block h-[260px] w-[260px] rounded-xl object-contain"
                       />
+                      {/* Logo ZAI centralizado no meio do QR Code (Black and White) */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="h-14 w-14 rounded-2xl bg-white shadow-xl border-2 border-black/85 p-1.5 flex items-center justify-center">
+                          <BrandLogo
+                            size={38}
+                            variant="bw"
+                            className="object-contain"
+                          />
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="rounded-xl border border-border bg-muted/30 p-4 text-xs text-muted-foreground flex flex-col items-center justify-center min-h-[260px] gap-3">
@@ -1254,18 +1303,18 @@ export default function Connections() {
                 </div>
               )
             )}
-            {activeModalSessionId && currentQrSession?.status === 'connected' && <div className="space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-4">
-              <p className="font-semibold text-primary">WhatsApp conectado. Preparando histórico e memória.</p>
-              <p className="text-sm text-muted-foreground">{onboardingStatus ? `${onboardingStatus.imported.toLocaleString('pt-BR')} de ${onboardingStatus.total.toLocaleString('pt-BR')} mensagens importadas` : 'Aguardando o primeiro lote do WhatsApp...'}</p>
-              <div className="h-2 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${onboardingStatus?.total ? Math.min(100, onboardingStatus.imported / onboardingStatus.total * 100) : 0}%` }} /></div>
-              <p className="text-xs text-muted-foreground">{onboardingStatus?.pending || 0} mensagens aguardando. Você pode acompanhar o progresso ou abrir o painel completo.</p>
-              <div className="grid grid-cols-3 gap-2">
-                <Button variant="outline" className="h-auto min-h-16 flex-col gap-1 text-xs" onClick={() => chooseOnboardingMode('manual')}><PencilSimple className="h-6 w-6" />Manual</Button>
-                <Button variant="outline" className="h-auto min-h-16 flex-col gap-1 text-xs" onClick={() => chooseOnboardingMode('prompt')}><Sparkle className="h-6 w-6" />Com IA</Button>
-                <Button variant="outline" className="h-auto min-h-16 flex-col gap-1 text-xs" onClick={() => chooseOnboardingMode('history')}><Chats className="h-6 w-6" />Conversas</Button>
+            {activeModalSessionId && currentQrSession?.status === 'connected' && (
+              <div className="space-y-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                  <CheckCircle className="h-6 w-6" />
+                </div>
+                <p className="font-semibold text-emerald-400">WhatsApp Conectado com Sucesso!</p>
+                <p className="text-xs text-muted-foreground">Sessão ativa e sincronizada em segundo plano.</p>
+                <Button variant="default" className="w-full rounded-xl" onClick={() => { setIsActivationDialogOpen(false); setActiveModalSessionId(null); }}>
+                  Concluir
+                </Button>
               </div>
-              <Button variant="default" className="w-full shadow-glow" onClick={() => chooseOnboardingMode('history')}>Abrir Central de IA & Histórico</Button>
-            </div>}
+            )}
           </div>
         </DialogContent>
       </Dialog>

@@ -130,7 +130,7 @@ export function ConversationScoresSection({ agentKey = "camila", onJumpToInbox }
   const loadScores = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await requestApiEndpoint(
+      const res = await requestApiEndpoint<any>(
         `/api/ai/evolution/conversation-scores?agentKey=${encodeURIComponent(agentKey)}`
       );
       if (res?.data) {
@@ -169,10 +169,11 @@ export function ConversationScoresSection({ agentKey = "camila", onJumpToInbox }
   const handleSweep = async () => {
     setIsSweeping(true);
     try {
-      const res = await requestApiEndpoint("/api/ai/evolution/conversation-scores/sweep", {
-        method: "POST",
-        body: JSON.stringify({ limit: 50, agentKey }),
-      });
+      const res = await requestApiEndpoint<any>(
+        "/api/ai/evolution/conversation-scores/sweep",
+        "POST",
+        { limit: 50, agentKey }
+      );
       toast({
         title: "Varredura Concluída",
         description: `${res?.scoredCount ?? 0} conversas foram avaliadas com pontuação real!`,

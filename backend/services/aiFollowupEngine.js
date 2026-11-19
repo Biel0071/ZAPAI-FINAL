@@ -534,6 +534,29 @@ async function listSessionFollowups({ companyId, sessionId }) {
   });
 }
 
+async function resumeFollowupForConversation({ conversationId, companyId, sessionId }) {
+  if (!conversationId || !companyId || !sessionId) return { ok: false };
+  const { rows } = await query(
+    `SELECT c.id, c.tags
+     FROM conversations c LEFT JOIN leads l ON l.id = c.lead_id
+     WHERE c.id::text = $1 AND c.company_id = $2 AND c.session_id = $3
+       AND c.status = 'open' AND c.ai_enabled = true
+       AND NOT ('followup_esgotado' = ANY(COALESCE(c.tags, '{}')))
+       AND NOT ('followup_desativado' = ANY(COALESCE(c.tags, '{}')))
+     LIMIT 1`,
+    [String(conversationId), companyId, sessionId]
+  );
+  if (!rows[0]) return { ok: false, reason: 'followup_not_found' };
+  const tags = Array.isArray(rows[0].tags) ? rows[0].tags : [];
+  const followupsSent = tags.includes('followup_toque_3') ? 3
+    : tags.includes('followup_toque_2') ? 2
+      : tags.includes('followup_toque_1') ? 1 : 0;
+  return executeAlgorithmicFollowupForLead({
+    conversationId: String(conversationId), companyId, sessionId,
+    attempt: followupsSent + 1, allowSessionResume: true,
+  });
+}
+
 module.exports = {
   generateFollowupPlan,
   generateRecoveryApproach,
@@ -542,4 +565,5 @@ module.exports = {
   resetFollowupOnCustomerResponse,
   loadConversationWithHistory,
   listSessionFollowups,
+  resumeFollowupForConversation,
 };

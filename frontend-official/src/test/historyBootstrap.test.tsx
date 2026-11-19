@@ -13,7 +13,7 @@ async function renderPanel(compact = false) {
   root = createRoot(container);
   await act(async () => { root!.render(<HistoryBootstrapPanel compact={compact} />); });
 }
-const button = (text: string) => [...document.querySelectorAll('button')].find(b => b.textContent === text || b.querySelector('span')?.textContent === text)!;
+const button = (text: string) => [...document.querySelectorAll('button')].find(b => b.textContent === text || b.querySelector('span')?.textContent === text || b.textContent?.includes(text))!;
 const checkbox = () => document.querySelector<HTMLInputElement>('input[type=checkbox]')!;
 
 const candidate = { name: 'Camila', personality: 'Seja natural e consulte o catálogo oficial.', partial: true, pendingCommercial: ['Preço antigo: confirmar'], gaps: ['Autoria incerta'] };
@@ -76,7 +76,7 @@ async function fill(label:string,value:string) {
 }
 it('manual creation requires a complete preview and explicitly binds the selected WhatsApp',async()=>{
   mockApi();await renderPanel();
-  await act(async()=>button('Criar manualmente').click());
+  await act(async()=> (button('Criar manual') || button('Criar manualmente')).click());
   expect(button('Revisar e ativar atendente')).toBeDisabled();
   await fill('Nome do novo atendente','Joana');await fill('Instruções do novo atendente','Atenda suporte com clareza.');
   await act(async()=>button('Revisar e ativar atendente').click());

@@ -1,0 +1,889 @@
+[
+  {
+    "file": "components/avatar-engine/__tests__/avatarEngine.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [],
+    "suspiciousPatterns": [
+      {
+        "line": 409,
+        "type": "dispatchEvent-no-await",
+        "text": "?.dispatchEvent(new MouseEvent(\"click\", { bubbles: true }));"
+      },
+      {
+        "line": 532,
+        "type": "dispatchEvent-no-await",
+        "text": "?.dispatchEvent(new MouseEvent(\"mousedown\", { bubbles: true, button: 0 }));"
+      },
+      {
+        "line": 542,
+        "type": "dispatchEvent-no-await",
+        "text": "?.dispatchEvent(new MouseEvent(\"mousedown\", { bubbles: true, button: 0 }));"
+      },
+      {
+        "line": 552,
+        "type": "dispatchEvent-no-await",
+        "text": "?.dispatchEvent(new MouseEvent(\"mousedown\", { bubbles: true, button: 0 }));"
+      },
+      {
+        "line": 562,
+        "type": "dispatchEvent-no-await",
+        "text": "?.dispatchEvent(new MouseEvent(\"mousedown\", { bubbles: true, button: 0 }));"
+      }
+    ]
+  },
+  {
+    "file": "core/lib/utils.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "core/utils/tagEmojis.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/activeChatSheet.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { ActiveChatPane } from \"@/pages/Inbox/components/ActiveChatPane\""
+    ],
+    "suspiciousPatterns": [
+      {
+        "line": 81,
+        "type": "floating-promise",
+        "text": "vi.mocked(requestApiEndpoint).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));"
+      }
+    ]
+  },
+  {
+    "file": "test/aiMessageFeedback.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { AIMessageFeedback } from '@/components/inbox/AIMessageFeedback'"
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/aiRuntimeContracts.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { AgentProfileModal } from \"@/components/ai/AgentProfileModal\"",
+      "import { FlowsTab } from \"@/pages/AI/FlowsTab\"",
+      "import { OperationsTab } from \"@/pages/AI/OperationsTab\"",
+      "import { AgentCustomizerModal } from \"@/components/ai/AgentCustomizerModal\"",
+      "import { VoiceStudioDrawer } from \"@/components/ai/VoiceStudioDrawer\"",
+      "import { NewAgentWizardModal } from \"@/components/ai/NewAgentWizardModal\"",
+      "import { EvolutionTab } from \"@/pages/AI/EvolutionTab\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/apiAuthScope.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": [
+      {
+        "line": 33,
+        "type": "floating-promise",
+        "text": "transport.mockImplementation(() => new Promise(resolve => pending.push(resolve)));"
+      },
+      {
+        "line": 51,
+        "type": "floating-promise",
+        "text": "transport.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));"
+      },
+      {
+        "line": 71,
+        "type": "floating-promise",
+        "text": "transport.mockImplementation(() => new Promise(resolve => pending.push(resolve)));"
+      }
+    ]
+  },
+  {
+    "file": "test/apiServiceMessageTimestamps.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/attendantsComprehensiveSimulation.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import AttendantsPage from \"@/pages/Attendants/AttendantsPage\"",
+      "import { AgentTab } from \"@/pages/AI/AgentTab\"",
+      "import { SidebarPanel } from \"@/pages/Inbox/components/SidebarPanel\"",
+      "import { ZaiAvatarRenderer } from \"@/components/avatar-engine/ZaiAvatarRenderer\"",
+      "import { AvatarEditorModal } from \"@/components/avatar-engine/AvatarEditorModal\"",
+      "import { EXAMPLE_ATTENDANTS } from \"@/components/attendants/exampleAttendants\"",
+      "import { createAgentAvatar } from \"@/components/avatar-engine/CharacterFactory\"",
+      "import { TooltipProvider } from \"@/components/ui/tooltip\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/attendantsDesignSystemAndBrainGraph.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { AttendantItemCard } from \"@/components/attendants/AttendantItemCard\"",
+      "import { AddAttendantCard } from \"@/components/attendants/AddAttendantCard\"",
+      "import { EXAMPLE_ATTENDANTS } from \"@/components/attendants/exampleAttendants\"",
+      "import { MemoryDetailDrawer, type MemoryNodeData } from \"@/components/evolution/MemoryDetailDrawer\"",
+      "import { ActiveBrainGraph } from \"@/components/evolution/ActiveBrainGraph\"",
+      "import { Pagination } from \"@/components/ui/pagination\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/attendantsUnified.test.tsx",
+    "hasSetTimeout": true,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import AttendantsPage from \"@/pages/Attendants/AttendantsPage\"",
+      "import { AvatarEditorModal } from \"@/components/avatar-engine/AvatarEditorModal\"",
+      "import { TooltipProvider } from \"@/components/ui/tooltip\""
+    ],
+    "suspiciousPatterns": [
+      {
+        "line": 233,
+        "type": "floating-promise",
+        "text": "vi.mocked(apiService.testAIMessage).mockReturnValueOnce(new Promise(resolve => { resolveReply = resolve; }));"
+      },
+      {
+        "line": 294,
+        "text": "await new Promise((resolve) => setTimeout(resolve, 50));"
+      },
+      {
+        "line": 347,
+        "text": "await new Promise((resolve) => setTimeout(resolve, 50));"
+      },
+      {
+        "line": 370,
+        "text": "await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });"
+      }
+    ]
+  },
+  {
+    "file": "test/campaignBusinessHoursAndAvatar.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/commercialSession.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { HistoryBootstrapPanel } from '@/components/evolution/HistoryBootstrapPanel'"
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/conversationScoresInteractivity.test.tsx",
+    "hasSetTimeout": true,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { ConversationScoresSection } from \"@/components/evolution/ConversationScoresSection\""
+    ],
+    "suspiciousPatterns": [
+      {
+        "line": 113,
+        "text": "await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));"
+      },
+      {
+        "line": 136,
+        "text": "await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));"
+      },
+      {
+        "line": 144,
+        "text": "await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));"
+      }
+    ]
+  },
+  {
+    "file": "test/conversationSearch.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": true,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { useConversationSearch } from \"@/pages/Inbox/hooks/useInboxState\"",
+      "import Inbox from \"@/pages/Inbox\""
+    ],
+    "suspiciousPatterns": [
+      {
+        "line": 52,
+        "type": "floating-promise",
+        "text": "vi.mocked(apiService.getConversations).mockImplementation(() => new Promise(resolve => pending.push(resolve)));"
+      },
+      {
+        "line": 74,
+        "type": "floating-promise",
+        "text": "vi.mocked(apiService.getConversations).mockImplementationOnce(() => new Promise(done => { resolve = done; }));"
+      }
+    ]
+  },
+  {
+    "file": "test/dashboardTwoHubs.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import Dashboard from \"@/pages/Dashboard\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/evolutionTabHonesty.test.tsx",
+    "hasSetTimeout": true,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { EvolutionTab } from \"@/pages/AI/EvolutionTab\"",
+      "import { MemoryDetailDrawer } from \"@/components/evolution/MemoryDetailDrawer\""
+    ],
+    "suspiciousPatterns": [
+      {
+        "line": 74,
+        "text": "await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));"
+      },
+      {
+        "line": 197,
+        "text": "await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));"
+      }
+    ]
+  },
+  {
+    "file": "test/example.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/flowExecutionBanner.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": true,
+    "hasFakeTimers": true,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import {\n  FlowExecutionBanner,\n  computeProgressPercent,\n  computeRemainingSeconds,\n  formatCountdown,\n  getFlowDisplayName,\n  matchesConversationFlow,\n  type FlowExecutionData,\n} from \"@/pages/Inbox/components/FlowExecutionBanner\""
+    ],
+    "suspiciousPatterns": [
+      {
+        "line": 26,
+        "text": "vi.useFakeTimers({ toFake: [\"setInterval\", \"clearInterval\", \"Date\"] });"
+      }
+    ]
+  },
+  {
+    "file": "test/historyBootstrap.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { HistoryBootstrapPanel } from '@/components/evolution/HistoryBootstrapPanel'"
+    ],
+    "suspiciousPatterns": [
+      {
+        "line": 53,
+        "type": "dispatchEvent-no-await",
+        "text": "textarea.dispatchEvent(new Event('input', { bubbles: true }));"
+      },
+      {
+        "line": 74,
+        "type": "dispatchEvent-no-await",
+        "text": "input.dispatchEvent(new Event('input',{bubbles:true}));"
+      }
+    ]
+  },
+  {
+    "file": "test/importWhatsappQuickReplies.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [
+      "import { parseWhatsappQuickReplies } from \"@/pages/Inbox/components/ImportWhatsappQuickRepliesDialog\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/inboxCatalogPopover.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import {\n  CatalogSelectorPopover,\n  formatProductMessage,\n  OFFICIAL_STORE_CATALOG_URL,\n  FALLBACK_STORE_PRODUCTS,\n  type CatalogProduct,\n} from \"@/pages/Inbox/components/CatalogSelectorPopover\"",
+      "import { MessageRow } from \"@/pages/Inbox/components/MessageRow\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/inboxCircuitBreakerFlashingRed.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { ConversationRow } from \"@/pages/Inbox/components/ConversationRow\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/inboxDisparoCard.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { MessageRow } from \"@/pages/Inbox/components/MessageRow\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/inboxLabelsAndPinSync.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/inboxOrderCard.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { MessageRow } from \"@/pages/Inbox/components/MessageRow\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/inboxPanel.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { SidebarPanel } from \"@/pages/Inbox/components/SidebarPanel\"",
+      "import { QuickResponseModal } from \"@/pages/Inbox/components/QuickResponseModal\"",
+      "import { InboxView } from \"@/pages/lovable/pages/InboxView\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/inboxRealtimeSync.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [
+      "import {\n  mergeFetchedMessagesWithRealtimeUpdates,\n  shouldSyncInboxMessageDivergence,\n} from \"@/pages/Inbox/utils\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/inboxReconstruction.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { ActiveChatPane } from \"@/pages/Inbox/components/ActiveChatPane\"",
+      "import { ZaiAssistantComposer } from \"@/pages/Inbox/components/ZaiAssistantComposer\"",
+      "import { TagIconBadge } from \"@/components/inbox/TagIconBadge\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/inboxTimestamp.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [
+      "import { dedupeConversationsByScope, formatConversationTimestamp, parseChatsLoadedPayload } from \"@/pages/Inbox/utils\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/leadAlgorithmAndFollowup.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/leadDrawerProduction.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { LeadDrawer } from '@/components/contacts/LeadDrawer'"
+    ],
+    "suspiciousPatterns": [
+      {
+        "line": 27,
+        "type": "floating-promise",
+        "text": "vi.mocked(apiService.getConversationInsights).mockReturnValueOnce(new Promise(resolve => { complete = resolve; }) as never);"
+      }
+    ]
+  },
+  {
+    "file": "test/mediaAccess.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/messageDedupe.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/messageFooter.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { MessageRow } from '@/pages/Inbox/components/MessageRow'",
+      "import { formatTime } from '@/pages/Inbox/utils'"
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/messageOrdering.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [
+      "import { sortMessagesAsc } from '@/pages/Inbox/utils'"
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/mobileApp.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { MobileBottomNav } from \"@/components/layout/MobileBottomNav\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/productionPages.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import Settings from '@/pages/Settings'",
+      "import Contacts from '@/pages/Contacts'",
+      "import Connections from '@/pages/Connections'",
+      "import Campaigns from '@/pages/Campaigns'",
+      "import { ZaibotFloatingAssistant } from '@/components/ai/ZaibotFloatingAssistant'"
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/quickReplyCategoryAppearance.test.tsx",
+    "hasSetTimeout": true,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { SidebarPanel } from \"@/pages/Inbox/components/SidebarPanel\""
+    ],
+    "suspiciousPatterns": [
+      {
+        "line": 30,
+        "text": "async function click(element: HTMLElement) { await act(async () => { element.dispatchEvent(new MouseEvent(\"click\", { bubbles: true })); await new Promise(resolve => setTimeout(resolve, 0)); }); }"
+      },
+      {
+        "line": 36,
+        "type": "dispatchEvent-no-await",
+        "text": "input.dispatchEvent(new Event(\"change\", { bubbles: true }));"
+      }
+    ]
+  },
+  {
+    "file": "test/quickReplyFlowContext.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [
+      "import { matchesConversationFlow } from \"@/pages/Inbox/components/FlowExecutionBanner\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/requestCache.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/runtimeProviderHistoryRefresh.test.ts",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": false,
+    "hasRootUnmount": false,
+    "importedComponents": [],
+    "suspiciousPatterns": [
+      {
+        "line": 53,
+        "type": "floating-promise",
+        "text": "fetchMessages: () => new Promise((resolve) => { resolveFetch = resolve; }),"
+      }
+    ]
+  },
+  {
+    "file": "test/runtimeProviderRealtimeMessage.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/stackedTagsBadge.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { StackedTagsBadge } from \"@/components/inbox/StackedTagsBadge\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/storesPage.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import StoresPage from \"@/pages/Stores/StoresPage\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/unifiedAI.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import UnifiedAIPage from \"@/pages/AI\"",
+      "import { Sidebar } from \"@/components/layout/Sidebar\"",
+      "import { TooltipProvider } from \"@/components/ui/tooltip\""
+    ],
+    "suspiciousPatterns": [
+      {
+        "line": 282,
+        "type": "floating-promise",
+        "text": "vi.mocked(apiService.testAIMessage).mockReturnValueOnce(new Promise(resolve => { resolveReply = resolve; }));"
+      }
+    ]
+  },
+  {
+    "file": "test/waLabelsSlashBubble.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { buildSlashOptions, needsFlowPreview } from \"@/pages/Inbox/quickReplySlash\"",
+      "import { bubbleClassFor, isWhatsappDeviceMessage } from \"@/pages/Inbox/messageOrigin\"",
+      "import { WhatsappLabelBadges } from \"@/components/inbox/WhatsappLabelBadges\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/whatsappConversationMenu.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": false,
+    "hasBeforeEach": false,
+    "hasDispatchEvent": false,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { CollapsedConversationRow } from \"@/pages/Inbox/components/ChatListPanel\"",
+      "import { ConversationRow } from \"@/pages/Inbox/components/ConversationRow\""
+    ],
+    "suspiciousPatterns": []
+  },
+  {
+    "file": "test/zaiPlatformAssistant.test.tsx",
+    "hasSetTimeout": false,
+    "hasSetInterval": false,
+    "hasFakeTimers": false,
+    "hasAfterEach": true,
+    "hasBeforeEach": true,
+    "hasDispatchEvent": true,
+    "hasAct": true,
+    "hasRootUnmount": true,
+    "importedComponents": [
+      "import { ZaiPlatformAssistantView } from \"@/components/ai/ZaiPlatformAssistantView\""
+    ],
+    "suspiciousPatterns": []
+  }
+]

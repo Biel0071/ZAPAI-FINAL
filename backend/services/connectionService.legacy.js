@@ -3,6 +3,7 @@ const path = require('path');
 const sessionManager = require('./sessionManager');
 const sessionRepository = require('../src/data/repositories/sessionRepository');
 const outboundQueueService = require('./outboundQueueService');
+const { getSessionPath } = require('./whatsapp/connection/sessionPaths');
 
 const DEFAULT_SESSION = sessionManager.DEFAULT_SESSION || 'main';
 
@@ -75,6 +76,11 @@ function extractPhoneNumber(session) {
 function normalizeSession(session) {
   if (!session) return { status: 'disconnected', connected: false };
 
+  const isWebBridge = (
+    session.engine === 'WHATSAPP_WEB_BRIDGE' ||
+    session.engine === 'WEB_BRIDGE'
+  );
+
   const hasSocket = !!(
     session.sock &&
     session.sock.ws &&
@@ -82,12 +88,15 @@ function normalizeSession(session) {
   );
 
   const isReallyConnected = !!(
-    hasSocket &&
-    session.sock?.user &&
-    (session.connected === true ||
-     session.connection === 'open' ||
-     session.state === 'CONNECTED' ||
-     session.status === 'connected')
+    (isWebBridge && (session.status === 'connected' || session.connected === true || session.authenticated === true)) ||
+    (hasSocket &&
+      session.sock?.user &&
+      (session.connected === true ||
+       session.connection === 'open' ||
+       session.state === 'CONNECTED' ||
+       session.status === 'connected')) ||
+    (session.connected === true && session.status !== 'disconnected' && session.status !== 'error') ||
+    (session.status === 'connected' && !session.lastError && !session.lastDisconnectReason)
   );
 
   let status = 'disconnected';
@@ -120,14 +129,11 @@ function normalizeSession(session) {
     status = 'offline';
   } else {
     status = session.status || 'disconnected';
-    if (status === 'connected') {
-      status = 'disconnected';
-    }
   }
 
   return {
     status,
-    connected: isReallyConnected,
+    connected: status === 'connected',
   };
 }
 
@@ -216,21 +222,6 @@ function mapSession(session = {}, sessionId = DEFAULT_SESSION) {
             personalityType: matched.personalityType || 'comercial',
           };
         }
-        if (cleanAgents.length === 1) {
-          const first = cleanAgents[0];
-          return {
-            key: first.key,
-            name: first.name,
-            role: first.role || 'Atendente',
-            status: first.active === false ? 'paused' : (first.status || 'active'),
-            active: first.active !== false,
-            avatar: first.avatar || (first.character?.gender === 'male' ? '/assets/avatar_factory/catalog/sprite_r1_c1_clean.png' : '/assets/avatar_factory/catalog/sprite_r2_c1_clean.png'),
-            character: first.character,
-            appearance: first.appearance,
-            storeId: first.storeId || null,
-            personalityType: first.personalityType || 'comercial',
-          };
-        }
       } catch (err) {}
       return null;
     })(),
@@ -262,14 +253,16 @@ async function listConnections(companyId) {
     if (dbSession.status === 'deleted') continue;
     const id = dbSession.sessionId || dbSession.id;
     if (id) {
+      const isConn = dbSession.status === 'connected' || dbSession.connected === true;
       merged.set(id, {
         companyId,
         sessionId: id,
         sessionName: dbSession.sessionName || dbSession.name || id,
-        status: 'disconnected',
-        phone: dbSession.phone || null,
-        whatsAppName: dbSession.whatsappName || null,
-        systemConnected: false,
+        status: isConn ? 'connected' : (dbSession.status || 'disconnected'),
+        connected: isConn,
+        phone: dbSession.phone || dbSession.phone_number || null,
+        whatsAppName: dbSession.whatsappName || dbSession.whatsapp_name || null,
+        systemConnected: isConn,
       });
     }
   }
@@ -279,22 +272,83 @@ async function listConnections(companyId) {
     const existing = merged.get(id);
     if (companyId && !existing) continue;
     const realSession = getSessionCompat(id) || activeSession;
+    const isConn = realSession.status === 'connected' || realSession.connected === true || activeSession.status === 'connected' || activeSession.connected === true;
     merged.set(id, {
       ...realSession,
       companyId: companyId || realSession.companyId || (existing ? existing.companyId : null),
       sessionId: id,
       sessionName: existing?.sessionName || activeSession.sessionName || activeSession.name || id,
-      status: realSession.status || activeSession.status || 'disconnected',
+      status: isConn ? 'connected' : (realSession.status || activeSession.status || 'disconnected'),
+      connected: isConn,
       phone: realSession.phone || activeSession.phone || (existing ? existing.phone : null),
       whatsAppName: realSession.whatsAppName || activeSession.whatsAppName || existing?.whatsAppName || null,
       systemConnected: true,
     });
   }
 
+  // Unificação com Conexão Nativa WhatsApp Web (WebBridge)
+  try {
+    const webBridgeManager = require('./webbridge/WebBridgeSessionManager');
+    for (const [wbId, wbSession] of webBridgeManager.sessions.entries()) {
+      const wbState = webBridgeManager.getSessionState(wbId, companyId);
+      if (wbState && (wbState.authenticated || wbState.status === 'connected')) {
+        merged.set(wbId, {
+          companyId: companyId || 'default',
+          sessionId: wbId,
+          sessionName: wbId === 'main' ? 'WhatsApp Principal (Web)' : `WhatsApp Web ${wbId}`,
+          status: 'connected',
+          connected: true,
+          phone: wbState.phone || merged.get(wbId)?.phone || null,
+          whatsAppName: 'WhatsApp Web Nativo',
+          systemConnected: true,
+          engine: 'WHATSAPP_WEB_BRIDGE',
+        });
+      }
+    }
+  } catch (_) {}
+
   return Array.from(merged.values()).map((session) => mapSession(session, session.sessionId));
 }
 
 async function getConnectionStatus(sessionId = DEFAULT_SESSION) {
+  // 1. Checa primeiro a Conexão Nativa WhatsApp Web (WebBridge)
+  try {
+    const webBridgeManager = require('./webbridge/WebBridgeSessionManager');
+    const wbState = webBridgeManager.getSessionState(sessionId);
+    if (wbState && (wbState.authenticated || wbState.status === 'connected')) {
+      return {
+        sessionId,
+        sessionName: sessionId === 'main' ? 'WhatsApp Principal (Web)' : `WhatsApp Web ${sessionId}`,
+        status: 'connected',
+        connected: true,
+        systemConnected: true,
+        phone: wbState.phone || getSessionCompat(sessionId)?.phone || null,
+        whatsAppName: 'WhatsApp Web Nativo',
+        health: 'healthy',
+        qrReady: false,
+        qrCode: null,
+        qrImage: null,
+        lastError: null,
+        logs: [],
+        engine: 'WHATSAPP_WEB_BRIDGE',
+        linkedAgent: null,
+      };
+    } else if (wbState && wbState.status === 'waiting_scan' && wbState.qrImage) {
+      return {
+        sessionId,
+        sessionName: sessionId,
+        status: 'qr_ready',
+        connected: false,
+        systemConnected: true,
+        qrReady: true,
+        qrCode: wbState.ref,
+        qrImage: wbState.qrImage,
+        health: 'degraded',
+        engine: 'WHATSAPP_WEB_BRIDGE',
+      };
+    }
+  } catch (_) {}
+
   const session = getSessionCompat(sessionId);
   const creating = typeof sessionManager.isSessionCreating === 'function'
     ? sessionManager.isSessionCreating(sessionId)
@@ -305,10 +359,12 @@ async function getConnectionStatus(sessionId = DEFAULT_SESSION) {
       const persisted = await sessionRepository.getSessions(undefined, { activeOnly: false });
       const dbSession = persisted.find((s) => String(s.sessionId || s.id) === String(sessionId));
       if (dbSession) {
+        const isConn = dbSession.status === 'connected' || dbSession.connected === true;
         return {
           ...mapSession({
             ...dbSession,
-            status: 'disconnected',
+            status: isConn ? 'connected' : (dbSession.status || 'disconnected'),
+            connected: isConn,
           }, sessionId),
           qrReady: false,
           logs: [],
@@ -412,7 +468,9 @@ async function getConnectionQr(sessionId = DEFAULT_SESSION) {
     return { status: 'connected', qr: null };
   }
 
-  const qr = session?.qrCode || (typeof sessionManager.getSessionQr === 'function' ? sessionManager.getSessionQr(sessionId) : null);
+  const qr = session?.qrCode
+    || (typeof sessionManager.getLatestQr === 'function' ? sessionManager.getLatestQr() : null)
+    || (typeof sessionManager.getSessionQr === 'function' ? sessionManager.getSessionQr(sessionId) : null);
 
   if (!qr) {
     if (creating) {
@@ -427,8 +485,8 @@ async function getConnectionQr(sessionId = DEFAULT_SESSION) {
 
 async function getSessionHealth(sessionId = DEFAULT_SESSION) {
   const session = getSessionCompat(sessionId);
-  const SESSIONS_DIRECTORY = path.join(__dirname, '..', 'sessions');
-  const credsPath = path.join(SESSIONS_DIRECTORY, sessionId, 'creds.json');
+  const sessionPath = getSessionPath(sessionId);
+  const credsPath = path.join(sessionPath, 'creds.json');
   const hasCreds = fs.existsSync(credsPath);
 
   const websocketConnected = !!(

@@ -266,7 +266,8 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         ? initialStore.sessions.map(normalizeSession)
         : [];
       const activeSessionId = initialStore.activeSessionId;
-      const conversationSessionId = getPreferredConversationSessionId(knownSessions) || activeSessionId || undefined;
+      const scopedActiveSessionId = activeSessionId && activeSessionId !== "all" ? activeSessionId : undefined;
+      const conversationSessionId = scopedActiveSessionId || getPreferredConversationSessionId(knownSessions) || undefined;
 
       // These endpoints are independent. Running them together removes an
       // entire network round-trip from every initial load and reconnect.
@@ -345,7 +346,7 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
   // Debounced refresh for reconnect — avoid flooding API after brief disconnection
   const debouncedRefresh = useCallback(() => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    refreshTimerRef.current = setTimeout(() => void loadFromApi({ forceConversations: true }), 600);
+    refreshTimerRef.current = setTimeout(() => void loadFromApi({ forceConversations: true }), 1500);
   }, [loadFromApi]);
 
   // Debounced fetch for conversations when updates or missing conversations arrive
@@ -360,8 +361,10 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
         void apiService
           .getConversations(true, { limit: 100, sessionId: sessionId || undefined })
           .then((rows) => {
-            if (Array.isArray(rows) && rows.length > 0) {
-              useAppStore.getState().setConversations(rows);
+            const active = useAppStore.getState().activeSessionId;
+            const isOtherInstance = Boolean(sessionId && active && active !== "all" && active !== sessionId);
+            if (!isOtherInstance && Array.isArray(rows) && rows.length > 0) {
+              useAppStore.getState().upsertConversations(rows);
             }
           })
           .catch(() => {});

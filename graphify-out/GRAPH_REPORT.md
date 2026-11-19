@@ -1,16 +1,16 @@
-# Graph Report - ZAPAI-FINAL  (2026-10-20)
+# Graph Report - ZAPAI-FINAL  (2026-11-13)
 
 ## Corpus Check
-- 1166 files · ~7,746,406 words
+- 1634 files · ~9,667,660 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 9647 nodes · 17016 edges · 772 communities (611 shown, 161 thin omitted)
-- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 1454 edges (avg confidence: 0.54)
+- 13206 nodes · 21311 edges · 1105 communities (823 shown, 282 thin omitted)
+- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 1554 edges (avg confidence: 0.54)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b8234976`
+- Built from commit: `46ae3ed1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -648,6 +648,7 @@
 - 015_merge_duplicate_conversations.js
 - 016_merge_whatsapp_identity_aliases.js
 - 017_add_message_audit_logs.js
+- playwright.config.ts
 - create_campaign_for_user.js
 - setup.ts
 - sync-lovable.ps1
@@ -694,151 +695,474 @@
 - @supabase/supabase-js
 - tailwind-merge
 - zod
+- BRIEFING — 2026-11-04T03:27:10Z
+- BRIEFING — 2026-11-04T03:50:00Z
+- Milestone 1 Iteration 3 Explorer Report: Filesystem Side Effects & Verification Criteria
+- BRIEFING — 2026-11-04T02:47:00Z
+- BRIEFING — 2026-11-04T03:43:50Z
+- BRIEFING — 2026-11-04T04:49:15Z
+- Forensic Audit Report: Milestone 2 — Silent Automatic Background Synchronization
+- BRIEFING — 2026-11-04T05:52:00Z
+- BRIEFING — 2026-11-04T06:27:00Z
+- Regression Impact Evaluation & Verification Protocol Report — Milestone 3 Iteration 2
+- Milestone 3 Independent Quality & Adversarial Review Report
+- BRIEFING — 2026-11-04T06:15:00Z
+- BRIEFING — 2026-11-04T06:51:30Z
+- BRIEFING — 2026-11-04T01:45:00Z
+- Original User Request
+- BRIEFING — 2026-11-04T07:01:30Z
+- normalizeMediaReference
+- zaiUsageService.js
+- 2. Auditoria Individual das Tecnologias
+- form.tsx
+- TEST_READY.md — ZAPFLOW End-to-End Test Suite Declaration
+- BRIEFING — 2026-11-04T02:43:30Z
+- BRIEFING — 2026-11-04T02:56:00Z
+- BRIEFING — 2026-11-04T02:56:00Z
+- Milestone 1 Handoff Report: Session Persistence, Boot Auto-Restore & Real-Time Broadcasting (F1.2 & F1.4)
+- BRIEFING — 2026-11-04T00:27:00Z
+- Milestone 1 Iteration 2 Adversarial Challenge Report
+- BRIEFING — 2026-11-04T03:28:00Z
+- Milestone 1 Iteration 2 Challenger Report: Concurrency & Teardown
+- Handoff Report: Milestone 1 Iteration 2 Exploration & Fix Strategy
+- Milestone 1 Iteration 2 Exploration & Synthesis Handoff Report
+- BRIEFING — 2026-11-04T03:26:30Z
+- BRIEFING — 2026-11-04T03:28:00Z
+- BRIEFING — 2026-11-04T03:52:20Z
+- Handoff Report — Milestone 1 Iteration 3 Adversarial Challenger (m1_it3_challenger_1)
+- BRIEFING — 2026-11-04T03:49:30Z
+- BRIEFING — 2026-11-04T03:48:40Z
+- BRIEFING — 2026-11-04T03:48:30Z
+- BRIEFING — 2026-11-04T02:53:00Z
+- BRIEFING — 2026-11-04T02:55:00Z
+- Milestone 1 Implementation Handoff Report
+- Milestone 1 Iteration 2 Implementation Handoff Report
+- BRIEFING — 2026-11-04T04:45:00Z
+- Adversarial Challenger Handoff Report: Milestone 2 — Silent Background Sync Engine
+- BRIEFING — 2026-11-04T04:52:00Z
+- BRIEFING — 2026-11-04T04:47:30Z
+- BRIEFING — 2026-11-04T04:49:00Z
+- BRIEFING — 2026-11-04T04:41:00Z
+- Handoff Report: Milestone 2 — Silent Automatic Background Synchronization
+- BRIEFING — 2026-11-04T05:53:45Z
+- BRIEFING — 2026-11-04T05:48:30Z
+- Handoff Report: WebSocket Gateway Deduplication (F3.3) & Outbound Queue Performance (F3.4)
+- BRIEFING — 2026-11-04T06:28:30Z
+- BRIEFING — 2026-11-04T06:28:00Z
+- BRIEFING — 2026-11-04T06:26:00Z
+- BRIEFING — 2026-11-04T06:29:00Z
+- BRIEFING — 2026-11-04T05:51:00Z
+- BRIEFING — 2026-11-04T05:52:00Z
+- Milestone 3 Implementation & Quality Assurance Handoff Report
+- BRIEFING — 2026-11-04T06:42:00Z
+- BRIEFING — 2026-11-04T06:44:30Z
+- DISPATCH.md
+- bench-outbound-queue.js
+- OrderConfirmationEngine.js
+- PaymentEngine.js
+- humanDelays.test.js
+- CommerceController
+- ZAIController
+- Acceptance Criteria
+- Milestone 1 Forensic Audit & Adversarial Review Report
+- Empirical Adversarial Challenge Report — Milestone 1
+- Handoff Report — Feature F1.3 (Reconnection State Machine, Error Code Handling & Teardown Cleanup)
+- Milestone 1 Iteration 2 Review & Adversarial Challenge Report
+- Handoff Report: Milestone 2 Review & Adversarial Stress-Test
+- Handoff Report: Milestone 2 Review & Adversarial Challenge
+- summarize_analysis.js
+- BRIEFING — 2026-11-04T05:12:30Z
+- Final Independent Victory Audit Handoff Report
+- session_reset_and_qr.js
+- ConnectionOrchestrator.js
+- EventNormalizer
+- Project: ZAPFLOW Production Stabilization & Polish
+- BRIEFING — 2026-11-04T07:05:00Z
+- BRIEFING — 2026-11-04T01:59:00Z
+- BRIEFING — 2026-11-04T02:07:00Z
+- Handoff Report: Requirement R2 — Silent Automatic Background Synchronization
+- BRIEFING — 2026-11-04T02:15:00Z
+- BRIEFING — 2026-11-04T02:26:00Z
+- BRIEFING — 2026-11-04T02:27:00Z
+- BRIEFING — 2026-11-04T02:18:30Z
+- BRIEFING — 2026-11-04T03:02:45Z
+- BRIEFING — 2026-11-04T03:03:00Z
+- BRIEFING — 2026-11-04T03:05:00Z
+- BRIEFING — 2026-11-04T03:36:30Z
+- BRIEFING — 2026-11-04T03:38:15Z
+- BRIEFING — 2026-11-04T03:38:00Z
+- BRIEFING — 2026-11-04T03:20:00Z
+- BRIEFING — 2026-11-04T04:05:40Z
+- BRIEFING — 2026-11-04T04:03:00Z
+- BRIEFING — 2026-11-04T04:02:00Z
+- BRIEFING — 2026-11-04T05:05:00Z
+- BRIEFING — 2026-11-04T05:07:00Z
+- BRIEFING — 2026-11-04T05:12:00Z
+- BRIEFING — 2026-11-04T06:05:00Z
+- BRIEFING — 2026-11-04T06:06:30Z
+- BRIEFING — 2026-11-04T06:05:00Z
+- Handoff Report — Tier 5 Adversarial Coverage Hardening (Queues, Commerce & Teardown)
+- Master Orchestrator Handoff Report — ZAPFLOW Production Readiness
+- orchestrator_reality_audit.js
+- CloudAPIAdapter
+- WhatsAppWebAdapter
+- WhatsAppAutoSyncCoordinator
+- outboundActiveFlowTiming.test.js
+- 2. Fases de Execução do ZAI Engine
+- CERTIFICAÇÃO OFICIAL DE ENGENHARIA: WHATSAPP NATIVE COMMERCE
+- m2_manual_sync_ui_elimination.test.js
+- Handoff Report: Feature F1.1 (Canonical Session Path Alignment & Auto-Migration)
+- start_and_get_qr.js
+- CommerceEventRouter
+- NativeProductSender.js
+- HealthMonitor.js
+- WebBridgeStoreSync.js
+- 🛠️ Common Tasks Reference
+- Handoff Report — e2e_test_writer_1
+- Handoff Report: WhatsApp Session Instantiation and Connection Stability (Requirement R1)
+- Handoff Report — Requirement R3, Architecture, Performance, and Testing
+- Project Sentinel Final Handoff Report
+- check_dispatch_events.js
+- scan_rendered_components.js
+- TransportRegistry
+- ZAICommunicationEngine
+- createWhatsappLabel.test.js
+- ZAI Communication Engine — Protocol Capabilities & Commerce Specs
+- m2_challenger_frontend_ui_stress.test.js
+- Status: IN_PROGRESS
+- audit_test_files.js
+- check_timer_cleanups.js
+- save_qr.js
+- save_web_bridge_qr.js
+- test_zai_api.js
+- CatalogSyncEngine
+- MessageDispatcher
+- crossConversationMemory.js
+- eventLoopTeardownAdversarial.test.js
+- outboundQueueSaveCoalesce.test.js
+- 🎯 Documentation by Role
+- Troubleshooting
+- Relatório de Garantia de Qualidade (QA) - ZAPFLOW AI
+- dev-doctor.js
+- verify-inbox-catalog-card.js
+- run_all_e2e.js
+- Progress — m3_auditor_1
+- check_aftereach.js
+- CapabilityRegistry
+- OperationRouter
+- aiEvolutionOverviewHonesty.test.js
+- ZAI Communication Engine — Architecture Comparison
+- inspect_sm_vps.js
+- Progress — m1_challenger_2
+- Progress — m1_explorer_1
+- Progress — m1_it3_challenger_1
+- Progress — m1_worker_2
+- Progress Tracker — m1_worker_3
+- Progress — m2_explorer_2
+- DISPATCH.md
+- Progress — Milestone 3 Challenger 1
+- Progress Tracker - m3_challenger_2
+- Progress — m3_it2_auditor_1
+- print_component_timers.js
+- Gate Status — Milestone 3: Performance Optimization & Production Polish
+- Progress — Victory Auditor
+- give_agent_tip.js
+- seed_verified_real_products.js
+- manifest.json
+- manifest.json
+- manifest.json
+- manifest.json
+- 📄 Related Files (Not Docs)
+- 📞 Getting Help
+- 7. MODO PRODUÇÃO
+- MockResizeObserver
+- debug_conv_route.js
+- Progress — e2e_test_writer_1
+- Dispatch for Survey Explorer 2
+- Progress — explorer_survey_2
+- Dispatch for Survey Explorer 3
+- Progress Log — explorer_survey_3
+- Progress — Milestone 1 Forensic Audit
+- Progress — m1_challenger_1
+- Progress — m1_explorer_3
+- Progress Heartbeat - m1_it2_challenger_2
+- Progress — m1_it2_explorer_1
+- Progress — m1_it3_reviewer_1
+- Progress Tracker - m1_reviewer_2
+- Progress — Milestone 1 Implementation
+- DISPATCH.md
+- Progress Log — m2_explorer_1
+- Progress — m2_explorer_3
+- Progress — m2_reviewer_1
+- Progress — m2_worker_1
+- Progress Tracking - m3_explorer_2
+- Progress — m3_explorer_3
+- Progress — m3_it2_challenger_2
+- Progress Log — m3_it2_explorer_1
+- DISPATCH.md
+- Progress — m3_reviewer_2
+- Progress — m3_worker_1
+- Progress — Master Forensic Integrity Auditor
+- Progress — m_final_challenger_1
+- progress.md
+- catch_api_500.js
+- check_lid_db.js
+- find_jorge.js
+- get_vps_sessions.js
+- inspect_port_3001.js
+- inspect_vps_contacts.js
+- inspect_vps_lid.js
+- list_deposito_messages.js
+- test_reconnect_vps.js
+- update_db_products.js
+- test_api_platform_audio.js
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- DISPATCH.md
+- DISPATCH.md
+- progress.md
+- DISPATCH.md
+- compression
+- docx
+- multer
+- pg
+- sharp
+- test_playwright_launch.js
+- @emoji-mart/data
+- @radix-ui/react-dropdown-menu
+- @radix-ui/react-radio-group
+- @radix-ui/react-switch
+- @radix-ui/react-toast
+- react-window
+- recharts
+- vaul
+- deploy_vps_quick.js
+- check_creds.js
+- find_fenix_error.js
+- get_deposito_name.js
+- test_validate_main.js
 
 ## God Nodes (most connected - your core abstractions)
-1. `query()` - 252 edges
-2. `cn()` - 209 edges
-3. `error()` - 102 edges
-4. `Button` - 88 edges
-5. `useToast()` - 78 edges
-6. `Badge()` - 76 edges
-7. `apiService` - 67 edges
-8. `status()` - 61 edges
-9. `useInboxState()` - 59 edges
-10. `Card` - 54 edges
+1. `query()` - 282 edges
+2. `cn()` - 231 edges
+3. `error()` - 113 edges
+4. `Button` - 99 edges
+5. `Badge()` - 82 edges
+6. `useToast()` - 82 edges
+7. `apiService` - 80 edges
+8. `status()` - 63 edges
+9. `useInboxState()` - 58 edges
+10. `Card` - 56 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `main()` --indirect_call--> `row()`  [INFERRED]
-  backend/scripts/classify_today_leads.js → frontend-official/src/test/apiAuthScope.test.ts
-- `main()` --indirect_call--> `row()`  [INFERRED]
-  backend/scripts/inspect_today_leads_for_campaign.js → frontend-official/src/test/apiAuthScope.test.ts
 - `click()` --indirect_call--> `resolve()`  [INFERRED]
   frontend-official/src/test/quickReplyCategoryAppearance.test.tsx → backend/scripts/resolve-mappings.js
-- `analyzeConversation()` --indirect_call--> `error()`  [INFERRED]
-  frontend-official/src/core/services/conversationAnalyzer.ts → backend/services/runtimeLogger.js
 - `useInboxState()` --indirect_call--> `handler()`  [INFERRED]
   frontend-official/src/pages/Inbox/hooks/useInboxState.ts → backend/src/api/routes/system.js
+- `main()` --indirect_call--> `row()`  [INFERRED]
+  backend/scripts/classify_today_leads.js → frontend-official/src/test/apiAuthScope.test.ts
+- `inspectLogDetail()` --indirect_call--> `row()`  [INFERRED]
+  backend/scripts/inspect-ai-log-detail.js → frontend-official/src/test/apiAuthScope.test.ts
+- `main()` --indirect_call--> `row()`  [INFERRED]
+  backend/scripts/inspect_today_leads_for_campaign.js → frontend-official/src/test/apiAuthScope.test.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (772 total, 161 thin omitted)
+## Communities (1105 total, 282 thin omitted)
 
 ### Community 0 - "button.tsx"
-Cohesion: 0.03
-Nodes (87): FloatingMascotAssistant(), HELP, normalize(), AddAttendantCard(), AddAttendantCardProps, AttendantItemCard(), AIAssistantAvatar(), AIAssistantAvatarProps (+79 more)
+Cohesion: 0.02
+Nodes (136): FloatingMascotAssistant(), HELP, normalize(), AIAssistantAvatar(), AIAssistantAvatarProps, AICampaignModal(), CADENCE_PRESETS, CadencePresetConfig (+128 more)
 
 ### Community 1 - "cn"
-Cohesion: 0.05
-Nodes (85): AIAssistantGuideCard(), ROUTE_GUIDANCE, AIExecutiveInsightData, AIExecutiveInsightsCard(), AIExecutiveInsightsCardProps, BlockedContact, ACTION_META, AnalysisResult (+77 more)
+Cohesion: 0.03
+Nodes (158): AgentConfiguration, AgentCustomizerModal(), AgentCustomizerModalProps, AgentProfileModal(), AgentProfileModalProps, AILearningDashboard(), DigitalTeamView(), DigitalTeamViewProps (+150 more)
 
 ### Community 2 - "server.js"
-Cohesion: 0.04
-Nodes (57): AbsenceMessageSettings, activeRequests, AdvancedAISettings, AIConnectionTestResult, AILogEntry, AnalyticsSummary, api, BusinessHoursSettings (+49 more)
+Cohesion: 0.02
+Nodes (76): AIMessageFeedback(), AILovableSection, AILovableViewModel, createInboxLovableViewModel(), InboxLovableViewModel, AbsenceMessageSettings, activeRequests, AdvancedAISettings (+68 more)
 
 ### Community 3 - "sessionManager.legacy.js"
 Cohesion: 0.02
 Nodes (97): agentEvolutionCron, aiFollowupCron, aiIntelligenceService, aiMemoryEngine, { apiEnvelopeMiddleware, normalizeErrorMessage }, app, authRateLimiter, { backendLog, errorLog } (+89 more)
 
 ### Community 4 - "apiService.ts"
-Cohesion: 0.06
-Nodes (68): { activeSessions }, cleanupZombieSessions(), clearLatestQr(), clearReconnectTimer(), closeSocket(), createSession(), deleteSessionFolder(), disposeSession() (+60 more)
+Cohesion: 0.08
+Nodes (54): { activeSessions }, cleanupZombieSessions(), clearLatestQr(), clearReconnectTimer(), closeSocket(), {
+  computeReconnectBackoff,
+  MAX_RECONNECT_ATTEMPTS,
+}, createSession(), deleteSessionFolder() (+46 more)
 
 ### Community 5 - "aiController.js"
-Cohesion: 0.08
-Nodes (35): Copilot, ZaibotFloatingAssistant(), ZaibotFloatingAssistantProps, CopilotMessage, normalize(), SUGGESTIONS, ZaiPlatformAssistantView(), ZaiPlatformAssistantViewProps (+27 more)
+Cohesion: 0.10
+Nodes (30): buildFallbackConversationId(), clearDraftFromStorage(), ContactDirectory, ConversationFunnelInfo, ConversationFunnelState, dedupeConversationsByScope(), formatConversationTimestamp(), formatPlaybackTime() (+22 more)
 
 ### Community 6 - "Connections.tsx"
-Cohesion: 0.04
-Nodes (81): QRCode, toQrDataUrl(), sessionPhoneFromSock(), { activeSessions }, addMessageToRealtimeStore(), agentMemoryGraphService, aiDebounceMessages, aiDebounceTimers (+73 more)
+Cohesion: 0.03
+Nodes (71): QRCode, toQrDataUrl(), sessionPhoneFromSock(), { activeSessions }, agentMemoryGraphService, aiDebounceMessages, aiDebounceTimers, { buildInboundDebugPayload } (+63 more)
 
 ### Community 7 - "utils.ts"
-Cohesion: 0.03
-Nodes (97): AgentConfiguration, AgentCustomizerModal(), AgentCustomizerModalProps, AgentProfileModal(), AgentProfileModalProps, DigitalTeamView(), DigitalTeamViewProps, getAgentStatusBadge() (+89 more)
+Cohesion: 0.04
+Nodes (58): ProviderLogo(), CampaignPreview(), AgentRuntimeState, AICharacterViewer(), AICharacterViewerProps, ATTENDANT_PRESETS, AttendantConfig, AttendantAvatar() (+50 more)
 
 ### Community 8 - "campaignDispatchEngine.js"
 Cohesion: 0.05
-Nodes (64): aiIntelligenceService, aiLearningEngine, aiLogService, { analyzeDoc }, { analyzeErrorLogs }, { analyzeProject }, { analyzeRuntime }, { analyzeUIScreens } (+56 more)
+Nodes (72): geocodeAddress(), testAIConnection(), generateCompletePages(), aiIntelligenceService, aiLearningEngine, aiLogService, { analyzeDoc }, { analyzeErrorLogs } (+64 more)
 
 ### Community 9 - "Campaigns.tsx"
 Cohesion: 0.14
 Nodes (17): counters, getRate(), getStatus(), INBOUND_RATE_LIMIT, incrementCounter(), isMemoryPressure(), MEMORY_PRESSURE_MB, OUTBOUND_RATE_LIMIT (+9 more)
 
 ### Community 10 - "masterNodeService.ts"
-Cohesion: 0.10
-Nodes (26): { getEngineClient }, processIncomingMessage(), createFallbackEngine(), getEngineClient(), loadEngineFactory(), logFallbackInfo(), logUnavailableWarning(), shouldAllowEngineFallback() (+18 more)
+Cohesion: 0.12
+Nodes (16): conversationService, analyzeIncomingMessage(), conversationRepository, conversationRuntimeService, filterOwnSessionConversation(), getCompanyId(), getConversationMessages(), getConversationPhone() (+8 more)
 
 ### Community 11 - "stableSession.js"
 Cohesion: 0.03
-Nodes (73): check(), { query }, check(), { query }, check(), { query }, check(), { query } (+65 more)
+Nodes (98): check(), { query }, { query }, { query }, run(), check(), { query }, check() (+90 more)
 
 ### Community 12 - "sidebar.tsx"
 Cohesion: 0.05
-Nodes (40): Progress, Separator, SheetContent, SheetContentProps, SheetDescription, SheetFooter(), SheetHeader(), SheetOverlay (+32 more)
+Nodes (45): checkCanvasSupport(), imageCache, MemoryGraphViewer(), MemoryGraphViewerProps, Progress, Separator, SheetContent, SheetContentProps (+37 more)
 
 ### Community 13 - "DashboardView.tsx"
 Cohesion: 0.04
-Nodes (100): ContactGrid(), ContactGridItem, ContactGridProps, formatUpdatedAt(), getInitials(), ContactSegment, ContactSidebar(), ContactSidebarProps (+92 more)
+Nodes (116): ContactGrid(), ContactGridItem, ContactGridProps, formatUpdatedAt(), getInitials(), ContactSegment, ContactSidebar(), ContactSidebarProps (+108 more)
 
 ### Community 14 - "utils.tsx"
-Cohesion: 0.08
-Nodes (50): buildGlobalOverview(), buildMetrics(), EndpointProbeResult, extractDataObject(), extractStatus(), GitCommitRow, impersonateUser(), inferInfrastructure() (+42 more)
+Cohesion: 0.07
+Nodes (56): buildGlobalOverview(), buildMetrics(), EndpointProbeResult, extractDataObject(), extractStatus(), GitCommitRow, impersonateUser(), inferInfrastructure() (+48 more)
 
 ### Community 15 - "AIView.tsx"
-Cohesion: 0.14
-Nodes (21): AdminAuthSession, AdminSessionRole, getAdminAuthTenantId(), isAdminAuthSessionValid(), loadAdminAuthSession(), parseJwtPayload(), readStorage(), getCurrentTenantId() (+13 more)
+Cohesion: 0.06
+Nodes (52): main(), path, { pool }, main(), path, { pool }, AdminAuthSession, AdminSessionRole (+44 more)
 
 ### Community 16 - "normalizePhone"
 Cohesion: 0.04
 Nodes (46): 1. Activation Request, 1. Required Local Confirmation, 2. Desktop Confirmation Dialog, 2. Request Logging, 3. Audit Trail, 3. User Response Handling, 4. Frontend Polling, 4. IP Tracking (+38 more)
 
 ### Community 17 - "query"
-Cohesion: 0.10
-Nodes (25): ChatMessage, Conversation, ConversationControl, getConversationControl(), listConversationControls(), normalizeConversationControl(), upsertConversationControl(), ActiveChatPaneProps (+17 more)
+Cohesion: 0.07
+Nodes (28): ConversationControl, getConversationControl(), listConversationControls(), normalizeConversationControl(), upsertConversationControl(), ActiveChatPaneProps, QuickResponseModalProps, SidebarPanelProps (+20 more)
 
 ### Community 18 - "useAdminAuth.ts"
 Cohesion: 0.11
-Nodes (35): buildMediaMetadata(), canAccessMedia(), createMediaAccess(), crypto, deliverProtectedMedia(), downloadFromWhatsApp(), ensureDirectory(), extensionFromMimeType() (+27 more)
+Nodes (36): buildMediaMetadata(), cacheMetadata(), canAccessMedia(), createMediaAccess(), crypto, deliverProtectedMedia(), downloadFromWhatsApp(), ensureDirectory() (+28 more)
 
 ### Community 19 - "adminMasterService.ts"
 Cohesion: 0.24
 Nodes (10): Toast, ToastAction, ToastActionElement, ToastClose, ToastDescription, ToastProps, ToastTitle, toastVariants (+2 more)
 
 ### Community 20 - "ZapFlow System Startup Guide"
-Cohesion: 0.05
-Nodes (41): 1. **`docs/RUNTIME_MANAGEMENT.md`** (Comprehensive), 1. **RuntimeManager** (`services/runtimeManager.js`), 2. **`docs/FRONTEND_RECONNECTION.md`** (Developer Guide), 2. **RuntimeLogger** (`services/runtimeLogger.js`), 3. **Activation Services** (Updated), 3. **`docs/QUICK_START.md`** (Getting Started), 4. **`docs/ACTIVATION_SYSTEM.md`** (Existing Enhancement), ✅ Completed Implementation (+33 more)
+Cohesion: 0.07
+Nodes (27): Daily, 🚀 Deployment Checklist, 📁 File Manifest, Frontend Polling, Getting Help, Health Monitoring Loop, 🔄 How It Works, Implementation Summary - ZapFlow Runtime Management System (+19 more)
 
 ### Community 21 - "media-service.js"
 Cohesion: 0.07
-Nodes (49): attendantQualityDaemon, avatarCache, buildBillingToken(), clearConversationDraft(), confirmAndFinalizeSheet(), conversationRepository, conversationRuntimeService, createConversation() (+41 more)
+Nodes (51): attendantQualityDaemon, avatarCache, buildBillingToken(), clearConversationDraft(), confirmAndFinalizeSheet(), conversationRepository, conversationRuntimeService, createConversation() (+43 more)
 
 ### Community 22 - "ZapFlow Activation System Documentation"
 Cohesion: 0.07
 Nodes (35): crypto, { detectProjectProfile }, fs, packRoot, path, runVerify(), { syncEngineeringPack, computeFileHash }, targetDir (+27 more)
 
 ### Community 23 - "conversationsController.js"
-Cohesion: 0.06
-Nodes (57): aiAgentService, args, selectRandomActiveAgent(), getDelayMs(), getTypingDelayMs(), toNumber(), agentsByTenant, assignAgentToSession() (+49 more)
+Cohesion: 0.13
+Nodes (31): selectRandomActiveAgent(), agentsByTenant, { buildPersonalityPrompt }, cloneAgents(), equipAgentItem(), evolveSessionStyles(), findByNameSync(), fs (+23 more)
 
 ### Community 24 - "createStableSession"
-Cohesion: 0.08
-Nodes (40): buildFlowReply(), decideMessageAction(), detectIntent(), includesAny(), normalizeText(), addResult(), buildAuthHeaders(), buildReportPayload() (+32 more)
+Cohesion: 0.09
+Nodes (39): buildFlowReply(), decideMessageAction(), detectIntent(), includesAny(), normalizeText(), addResult(), buildAuthHeaders(), buildReportPayload() (+31 more)
 
 ### Community 25 - "skill-global.js"
-Cohesion: 0.10
-Nodes (33): AgentActivity(), AgentActivityProps, AgentCharacter(), AgentCharacterProps, AgentCharacterRenderer(), AgentCharacterRendererProps, AgentEnvironmentProps, AgentAccessory (+25 more)
+Cohesion: 0.14
+Nodes (26): AgentActivity(), AgentActivityProps, AgentCharacter(), AgentCharacterProps, AgentEnvironment(), AgentEnvironmentProps, AgentAccessory, AgentAppearance (+18 more)
 
 ### Community 26 - "operations.js"
-Cohesion: 0.06
-Nodes (39): configuredApiUrl, isConfiguredHttp, buildRuntimeCoherenceSnapshot(), persistRuntimeCoherenceSnapshot(), readRuntimeManifest(), RuntimeCoherenceSnapshot, safeParseManifest(), clearMediaAccessCache() (+31 more)
-
-### Community 27 - "Implementation Summary - ZapFlow Runtime Management System"
-Cohesion: 0.03
-Nodes (45): main(), path, { pool }, path, { pool }, path, { pool }, main() (+37 more)
+Cohesion: 0.08
+Nodes (38): buildRuntimeCoherenceSnapshot(), persistRuntimeCoherenceSnapshot(), readRuntimeManifest(), RuntimeCoherenceSnapshot, safeParseManifest(), compareMessageTimes(), getConversationKey(), getMessageConversationKey() (+30 more)
 
 ### Community 28 - "Runtime local e modo Docker/VPS"
-Cohesion: 0.08
-Nodes (31): cloneItem(), correlationTracker, DEFAULT_CONFIG, { emitAIResponseProgress }, { emitToTenantWithAliases }, enqueue(), enqueueBatch(), enqueueLock (+23 more)
+Cohesion: 0.07
+Nodes (38): cloneItem(), correlationTracker, DEFAULT_CONFIG, { emitAIResponseProgress }, { emitToTenantWithAliases }, enqueue(), enqueueBatch(), enqueueLock (+30 more)
 
 ### Community 29 - "stabilizationSmokeTest.js"
 Cohesion: 0.05
@@ -849,68 +1173,68 @@ Cohesion: 0.06
 Nodes (32): 1. Start the Server, 2. Check Runtime Status, 3. Integrate Frontend Polling, 4. Test Reconnection, Activation, API Endpoints Summary, Architecture Diagram, Check if ngrok Is Running (+24 more)
 
 ### Community 31 - "use-toast.ts"
-Cohesion: 0.05
-Nodes (48): { normalizeWhatsappJid }, db, { normalizePhone }, run(), buildContactEntry(), contactCache, db, DEFAULT_COMPANY_ID (+40 more)
+Cohesion: 0.04
+Nodes (58): { normalizeWhatsappJid }, db, { normalizePhone }, run(), buildContactEntry(), contactCache, db, DEFAULT_COMPANY_ID (+50 more)
 
 ### Community 32 - "runtime-lib.mjs"
 Cohesion: 0.05
 Nodes (42): Activation, 🔌 API Endpoints, Commands, Core Services, Dashboard Example, Debug, 📋 Deployment Checklist, 📚 Documentation (+34 more)
 
 ### Community 33 - "events.js"
-Cohesion: 0.06
-Nodes (48): path, { processAI }, { query }, run(), aiLogService, analyzeHistoryText(), axios, compileSystemPrompt() (+40 more)
+Cohesion: 0.09
+Nodes (31): aiLogService, analyzeHistoryText(), axios, crypto, decrypt(), { DEFAULT_SYSTEM_PROMPT }, describeImage(), { getActivePrompt } (+23 more)
 
 ### Community 34 - "outboundQueueService.js"
-Cohesion: 0.11
-Nodes (29): conversationRepository, contactRepository, CONVERSATION_CACHE_MAX_ENTRIES, CONVERSATION_CACHE_TTL_MS, conversationCache, create(), createConversation(), deleteConversation() (+21 more)
+Cohesion: 0.08
+Nodes (35): conversationRepository, consolidateLidConversations(), conversationRepository, { existsSync }, fs, path, { query }, contactRepository (+27 more)
 
 ### Community 35 - "ZAPAI - RELATÓRIO FINAL DE ESTABILIZAÇÃO PRODUÇÃO"
 Cohesion: 0.05
-Nodes (44): 1. Authentication, 1. RuntimeManager Service, 2. Network, 2. RuntimeLogger Service, 3. Local Confirmation, 3. System Controller, 4. Activation Service, API Reference (+36 more)
+Nodes (39): 1. Authentication, 1. RuntimeManager Service, 2. Network, 2. RuntimeLogger Service, 3. Local Confirmation, 3. System Controller, 4. Activation Service, API Reference (+31 more)
 
 ### Community 36 - "system.js"
 Cohesion: 0.07
-Nodes (40): emitSocketEvent(), getRequestedSessionId(), getStore(), ACCEPTED_ACK_STATES, aiIntelligenceService, conversationRepository, correlationTracker, createMessage() (+32 more)
+Nodes (41): emitSocketEvent(), formatApiMessage(), getRequestedSessionId(), getStore(), ACCEPTED_ACK_STATES, aiIntelligenceService, conversationRepository, correlationTracker (+33 more)
 
 ### Community 37 - "conversation.js"
 Cohesion: 0.06
 Nodes (31): 1. Activation Endpoint, 1. Always Implement Polling, 1. React Hook for Runtime Connection Management, 2. Queue Requests During Downtime, 2. Reconnection Component Example, 2. Runtime Status Endpoint (Most Important), 3. Request Queue Implementation, 3. Show User Feedback (+23 more)
 
 ### Community 38 - "📊 SUMÁRIO EXECUTIVO - DIAGNÓSTICO ZAPAI"
-Cohesion: 0.04
-Nodes (66): AICampaignModal(), CADENCE_PRESETS, CadencePresetConfig, CadencePresetSelector(), CadencePresetSelectorProps, CadencePresetType, CampaignContextInput(), CampaignContextInputProps (+58 more)
+Cohesion: 0.03
+Nodes (111): AIAssistantGuideCard(), ROUTE_GUIDANCE, AIExecutiveInsightData, AIExecutiveInsightsCard(), AIExecutiveInsightsCardProps, BlacklistPanel(), BlockedContact, ACTION_META (+103 more)
 
 ### Community 39 - "App.tsx"
-Cohesion: 0.14
-Nodes (21): compareMessageTimes(), AIResponseProgress, AppState, dedupeConversationState(), findConversationIndex(), getConversationIdentityScope(), getTime(), isMessageValid() (+13 more)
+Cohesion: 0.67
+Nodes (6): findConversationIndex(), getConversationIdentityScope(), isPhoneMatch(), normalizeConversationAddress(), normalizeIdentityPart(), shouldMergeConversations()
 
 ### Community 40 - "runtimeHardening.ts"
-Cohesion: 0.13
-Nodes (37): fs, getDocumentFileName(), getMediaUrlPayload(), { isLikelyBase64Payload }, path, resolveLocalMediaDiskPath(), toMediaPayload(), checkBeforeSend() (+29 more)
+Cohesion: 0.10
+Nodes (43): fs, getDocumentFileName(), getMediaUrlPayload(), { isLikelyBase64Payload }, path, resolveLocalMediaDiskPath(), toMediaPayload(), checkBeforeSend() (+35 more)
 
 ### Community 41 - "Changelog — Refatoração do backend/crm"
 Cohesion: 0.05
 Nodes (39): 1. Configurar Backend, 2. Configurar Frontend, 3. Build Frontend, 4. Deploy VPS (One-Click), 5. Diagnóstico Final, Admin Master, Arquivos Alterados, Arquivos Alterados (+31 more)
 
 ### Community 42 - "ai.service.js"
-Cohesion: 0.08
-Nodes (59): generateUuid(), EMPTY_MESSAGES_ARRAY, useConversationSearch(), useInboxState(), buildFallbackConversationId(), clearDraftFromStorage(), ConversationFunnelInfo, countNewMessageEntries() (+51 more)
+Cohesion: 0.09
+Nodes (37): generateUuid(), MessageSendResponse, EMPTY_MESSAGES_ARRAY, useConversationSearch(), useInboxState(), countNewMessageEntries(), detectMediaType(), estimateBase64Bytes() (+29 more)
 
 ### Community 43 - "conversationRepository.js"
 Cohesion: 0.05
-Nodes (40): Alternative: Full Startup Script, Architecture Overview, Check Agent Health, Check Status, Detailed Startup Sequence, Expected Responses, Files Reference, Frontend Integration (+32 more)
+Nodes (38): Alternative: Full Startup Script, Architecture Overview, Check Agent Health, Check Status, Common Workflows, Detailed Startup Sequence, Expected Responses, Files Reference (+30 more)
 
 ### Community 44 - "senders.js"
-Cohesion: 0.06
-Nodes (32): axe-core, fs-extra, dependencies, ssh2, devDependencies, axe-core, fs-extra, sharp (+24 more)
+Cohesion: 0.05
+Nodes (38): axe-core, fs-extra, dependencies, ssh2, devDependencies, axe-core, fs-extra, sharp (+30 more)
 
 ### Community 45 - "Settings.tsx"
 Cohesion: 0.09
 Nodes (29): AIDiagnosticsService, activate(), activationConfirmationService, activationLoggerService, AIDiagnosticsService, bugWatcher, clearRuntimeLogs(), errorLog() (+21 more)
 
 ### Community 46 - "RuntimeProvider.tsx"
-Cohesion: 0.09
-Nodes (30): generatePages(), { replicatePage }, runFromCli(), ensureLazyImport(), ensureRoute(), exists(), fs, path (+22 more)
+Cohesion: 0.10
+Nodes (30): { analyzeProject }, answerQuestion(), extractPageName(), { refreshPipeline, listPipeline }, { replicatePage }, addPipelineTask(), { analyzeProject }, buildTaskId() (+22 more)
 
 ### Community 47 - "messagesController.js"
 Cohesion: 0.08
@@ -921,64 +1245,67 @@ Cohesion: 0.08
 Nodes (25): 2026-03-20T10:53:53.410Z - Self-Improving Cycle, 2026-03-20T10:54:55.718Z - Self-Improving Cycle, 2026-03-20T10:55:05.112Z - Self-Improving Cycle, 2026-03-20T10:55:12.031Z - Self-Improving Cycle, 2026-03-20T10:55:59.968Z - Self-Improving Cycle, 2026-03-20T10:56:34.016Z - Self-Improving Cycle, 2026-03-20T10:56:59.198Z - Self-Improving Cycle, 2026-03-20T11:02:42.596Z - Self-Improving Cycle (+17 more)
 
 ### Community 49 - "ZapFlow Runtime Management System - Complete Guide"
-Cohesion: 0.09
-Nodes (14): CRMContext, CRMContext, CRMIntelligenceEngine, CRMMetrics, funnelStage, historyStage, intentStage, persistStage (+6 more)
+Cohesion: 0.07
+Nodes (15): CRMContext, CRMContext, CRMIntelligenceEngine, CRMMetrics, funnelStage, historyStage, intentStage, persistStage (+7 more)
 
 ### Community 50 - "scripts"
-Cohesion: 0.08
-Nodes (17): { getSyncCenterMetrics }, SyncContext, syncEngine, SyncPipeline, SyncContext, featureFlags, { recordPipelineRun }, SyncContext (+9 more)
+Cohesion: 0.11
+Nodes (8): SyncContext, featureFlags, { recordPipelineRun }, SyncContext, SyncEngine, SyncPipeline, recordPipelineRun(), featureFlags
 
 ### Community 51 - "error"
-Cohesion: 0.05
-Nodes (55): buildMediaEventPayload(), { activeSessions }, agents, ai, { emitToTenant }, encodeItems(), { extractIncomingMessage, downloadMedia }, { HistoryLearning } (+47 more)
+Cohesion: 0.07
+Nodes (54): addMessageToRealtimeStore(), buildMediaEventPayload(), createStableSession(), buildInboundDebugPayload(), { extractMessageText }, { normalizePhone }, extractMessageText(), getMediaDescriptor() (+46 more)
 
 ### Community 52 - "systemController.js"
-Cohesion: 0.08
-Nodes (35): analyzeErrorEntry(), analyzeErrorLogs(), appendErrorLog(), fs, LOG_FILE, normalizeErrorPayload(), path, readErrorLogs() (+27 more)
+Cohesion: 0.06
+Nodes (45): analyzeErrorEntry(), analyzeErrorLogs(), appendErrorLog(), fs, LOG_FILE, normalizeErrorPayload(), path, readErrorLogs() (+37 more)
 
 ### Community 53 - "selfHealer.js"
 Cohesion: 0.15
 Nodes (5): assert, calls, controller, dedupe, test
 
 ### Community 54 - "ZapFlow PowerShell Activation Flow - Implementation Guide"
-Cohesion: 0.06
-Nodes (42): generateConversationSummary(), getLastClientMessage(), getRecentMessages(), getTopicClauses(), hasAnyTerm(), normalizeText(), FunnelStage, { getNextFunnelStage } (+34 more)
+Cohesion: 0.10
+Nodes (29): aiAgentService, { analyzeLeadIntent }, { buildLeadTags, getNextFunnelStage }, contactRepository, conversationRepository, { DEFAULT_SESSION, getCompanyId }, { emitRealtimeEvent }, { evaluateCampaign } (+21 more)
 
 ### Community 55 - "ZapFlow System - Quick Start Guide"
-Cohesion: 0.06
-Nodes (30): AdminHub, AI, Assistant, Attendants, AuthenticatedAppShell, Campaigns, Connections, Contacts (+22 more)
+Cohesion: 0.05
+Nodes (37): AdminHub, AI, Assistant, Attendants, AuthenticatedAppShell, Campaigns, CatchAllRoute(), Connections (+29 more)
 
 ### Community 56 - "index.js"
-Cohesion: 0.13
-Nodes (29): bindSharedSocketEvents(), clearTypingStatus(), connectInboxSocket(), destroySharedSocket(), emitInboxSocketEvent(), ensureSharedSocket(), extractChatIdentifier(), extractDigits() (+21 more)
+Cohesion: 0.14
+Nodes (28): bindSharedSocketEvents(), clearTypingStatus(), connectInboxSocket(), destroySharedSocket(), emitInboxSocketEvent(), ensureSharedSocket(), extractChatIdentifier(), extractDigits() (+20 more)
 
 ### Community 57 - "quickReplyService.js"
 Cohesion: 0.06
 Nodes (30): 1. Pré-requisitos na VPS, 2. Clonar e configurar, 3. Banco de dados, 4. Nginx + SSL, 5. Primeiro deploy, Backend, Backend (`backend/`), Backend (`backend/.env`) — obrigatórias (+22 more)
 
 ### Community 58 - "featureEngine.js"
-Cohesion: 0.10
-Nodes (19): emit(), logBuffer, LogLevel, LogScope, persist(), slog, StructuredLogEntry, AiDiagnosticsItem (+11 more)
+Cohesion: 0.08
+Nodes (20): configuredApiUrl, isConfiguredHttp, emit(), logBuffer, LogLevel, LogScope, persist(), StructuredLogEntry (+12 more)
 
 ### Community 59 - "systemHealthAnalyzer.js"
-Cohesion: 0.10
-Nodes (26): ACK_STATES, ackEmitter, ackEntries, BAILEYS_STATUS_MAP, correlationTracker, createAckEntry(), db, emitAckUpdate() (+18 more)
+Cohesion: 0.11
+Nodes (25): ACK_STATES, ackEntries, BAILEYS_STATUS_MAP, correlationTracker, createAckEntry(), db, emitAckUpdate(), { emitToTenantWithAliases } (+17 more)
 
 ### Community 60 - "Frontend Reconnection Logic - ZapFlow System Management"
 Cohesion: 0.13
-Nodes (27): DisconnectReason, getConnectionCloseCode(), isTerminalDisconnect(), NOTE: folder is named `connection/` (not `sessions/`) because the project, shouldReconnect(), TERMINAL_DISCONNECT_CODES, TRANSIENT_DISCONNECT_CODES, computeReconnectDelay() (+19 more)
+Nodes (30): { activeSessions, chats }, addTag(), archiveChat(), {
+  emitChatsLoaded,
+  emitChatUpdated,
+}, { emitRealtimeMetrics }, { ensureRealtimeStore }, findSessionForChat(), getChatConfig() (+22 more)
 
 ### Community 61 - "SidebarPanel.tsx"
 Cohesion: 0.04
-Nodes (41): conversationsController, express, router, adminMasterRouter, adminUsersRouter, aiConfigRouter, aiIntelligenceRouter, aiRouter (+33 more)
+Nodes (45): conversationsController, express, router, adminMasterRouter, adminUsersRouter, aiConfigRouter, aiIntelligenceRouter, aiRouter (+37 more)
 
 ### Community 62 - "ZapAI CRM — WhatsApp CRM com IA"
-Cohesion: 0.14
-Nodes (25): buildOpenAIContext(), findMemoryByContact(), aiLearningEngine, { analyzeEngineering }, buildHealthStatusItems(), {
+Cohesion: 0.15
+Nodes (27): buildOpenAIContext(), findMemoryByContact(), aiLearningEngine, { analyzeEngineering }, buildHealthStatusItems(), {
   buildOpenAIContext,
   findMemoryByContact,
   updateConversationMemory,
-}, buildPanelData(), buildPatterns() (+17 more)
+}, buildPanelData(), buildPatterns() (+19 more)
 
 ### Community 63 - "messageAckPipeline.js"
 Cohesion: 0.15
@@ -989,32 +1316,32 @@ Cohesion: 0.07
 Nodes (28): 1. Build frontend, 2. Route smoke, 3. Playwright UI smoke, 4. Backend health, 5. API autenticada de dados, /analytics, Arquivos alterados, Backend (+20 more)
 
 ### Community 65 - "index.js"
-Cohesion: 0.15
-Nodes (25): { activeSessions }, { backendLog, errorLog }, checkAndRecoverSessions(), sessionManager, sessionRegistry, start(), stop(), backendLog() (+17 more)
+Cohesion: 0.05
+Nodes (57): { backendLog }, campaignDispatchEngine, campaignRepository, cron, startCampaignScheduler(), { activeSessions }, { backendLog, errorLog }, checkAndRecoverSessions() (+49 more)
 
 ### Community 66 - "socketManager.ts"
 Cohesion: 0.14
 Nodes (25): ALLOWED_MEDIA_ROOTS, assertLocalMediaPathExists(), assertMediaPathWithinAllowedRoots(), conversationRepository, decodeSafe(), extractUploadTokenPath(), fsp, inferIncomingType() (+17 more)
 
 ### Community 67 - "index.js"
-Cohesion: 0.06
-Nodes (33): whatsappLog(), logSessionEvent(), pushConnectionLog(), { whatsappLog }, markPersistenceFailure(), markPersistenceSuccess(), persistenceHealth, safeCreateSessionRecord() (+25 more)
+Cohesion: 0.07
+Nodes (28): { activeSessions }, sessionStateService, chatOperations, connectionLogger, connectionPersistence, connectionQr, connectionReconnect, connectionSock (+20 more)
 
 ### Community 68 - "CURRENT STATE REPORT — ZAPAI-FINAL"
-Cohesion: 0.07
-Nodes (46): getCompanyId(), aiAgentService, aiConfigService, aiMemoryEngine, cloneAIAgent(), createAIAgent(), crypto, decrypt() (+38 more)
+Cohesion: 0.06
+Nodes (52): getCompanyId(), aiAgentService, aiConfigService, aiMemoryEngine, cloneAIAgent(), createAIAgent(), crypto, decrypt() (+44 more)
 
 ### Community 69 - "aiIntelligenceService.js"
-Cohesion: 0.08
+Cohesion: 0.07
 Nodes (19): auditLogRepository, { backendLog, errorLog }, crypto, { execSync }, express, getCpuPercentage(), getMasterVersions(), loadDatabaseStats() (+11 more)
 
 ### Community 70 - "contactsController.js"
-Cohesion: 0.05
-Nodes (56): AnalyticsChartPoint, AnalyticsDistributionPoint, AnalyticsKpiCard, AnalyticsLovableViewModel, createAnalyticsLovableViewModel(), resolveMetric(), buildAggregates(), createDashboardLovableViewModel() (+48 more)
+Cohesion: 0.03
+Nodes (90): Copilot, ZaibotFloatingAssistant(), CopilotMessage, normalize(), SUGGESTIONS, ZaiPlatformAssistantView(), ZaiPlatformAssistantViewProps, UnderConstruction() (+82 more)
 
 ### Community 71 - "messageService.js"
-Cohesion: 0.50
-Nodes (3): analyzeConversation(), ConversationAnalysis, generateResponse()
+Cohesion: 0.09
+Nodes (22): createCampaign(), { Pool }, { v4: uuidv4 }, executeStartupScript(), path, showConfirmationDialog(), { spawn }, startRuntimeProcesses() (+14 more)
 
 ### Community 72 - "getCompanyId"
 Cohesion: 0.06
@@ -1033,8 +1360,8 @@ Cohesion: 0.07
 Nodes (26): agents, ai-agent, antigravity, claude, codex, engineering-pack, gemini, orchestrator (+18 more)
 
 ### Community 76 - "keywords"
-Cohesion: 0.13
-Nodes (16): joinTenantRoom(), normalizeTenantId(), resolveSocketTenantId(), tenantRoomName(), backpressureController, BATCH_WINDOW_MS, batchQueue, emit() (+8 more)
+Cohesion: 0.11
+Nodes (19): joinTenantRoom(), normalizeTenantId(), resolveSocketTenantId(), tenantRoomName(), attachDefaultSocketHandlers(), backpressureController, BATCH_WINDOW_MS, batchQueue (+11 more)
 
 ### Community 77 - "ZapFlow API Reference - All Endpoints"
 Cohesion: 0.13
@@ -1050,11 +1377,11 @@ Nodes (24): checkBackendHttp(), checkBaileySessions(), checkCpu(), checkFilesyst
 
 ### Community 80 - "ZapFlow Documentation Index"
 Cohesion: 0.08
-Nodes (27): ABSENCE_COOLDOWN_MS, absenceCooldowns, aiIntelligenceService, { analyzeLeadIntent }, { buildLeadTags, getNextFunnelStage }, checkLeadBlocked(), contactRepository, conversationRepository (+19 more)
+Nodes (26): ABSENCE_COOLDOWN_MS, absenceCooldowns, aiIntelligenceService, { analyzeLeadIntent }, { buildLeadTags, getNextFunnelStage }, checkLeadBlocked(), contactRepository, conversationRepository (+18 more)
 
 ### Community 81 - "websocketGateway.js"
-Cohesion: 0.12
-Nodes (22): assignAttendant(), checkNumber(), connectionService, connectSystem(), create(), disconnectSystem(), getHealth(), getQr() (+14 more)
+Cohesion: 0.11
+Nodes (25): assignAttendant(), checkNumber(), connectionService, connectSystem(), create(), disconnectSystem(), getHealth(), getQr() (+17 more)
 
 ### Community 82 - "sessionRegistry.js"
 Cohesion: 0.10
@@ -1062,44 +1389,41 @@ Nodes (18): CLEANUP_INTERVAL_MS, cleanupTick(), DIAGNOSTICS_INTERVAL_MS, diagnos
 
 ### Community 83 - "register.js"
 Cohesion: 0.10
-Nodes (23): messageDedupeService, shouldPersistExternalMessageId(), aiIntelligenceService, conversationRepository, conversationRuntimeService, { emitInboxRealtimeEventFromStore }, { emitToTenantWithAliases }, { formatApiMessage, toExactMessageText } (+15 more)
+Nodes (24): messageDedupeService, shouldPersistExternalMessageId(), aiIntelligenceService, conversationRepository, conversationRuntimeService, { emitInboxRealtimeEventFromStore }, { emitToTenantWithAliases }, { formatApiMessage, toExactMessageText } (+16 more)
 
 ### Community 84 - "index.js"
-Cohesion: 0.21
-Nodes (14): cancelCampaign(), emitProgress(), getRandomDelay(), getStatus(), listActive(), pauseCampaign(), pauseSessionCampaigns(), persistProgress() (+6 more)
+Cohesion: 0.05
+Nodes (60): productRepository, apiGet(), apiPost(), backendEnvPath, cleanupTestCompany(), createMockBaileysSocket(), createSocketClient(), createTestTenantId() (+52 more)
 
 ### Community 85 - "healthcheck.js"
-Cohesion: 0.20
-Nodes (17): bootstrapAgentMemoryGraph(), bootstrappedScopes, crypto, extractConcepts(), extractInsightsForEvolution(), extractTopics(), getGraphSnapshot(), getGraphStats() (+9 more)
+Cohesion: 0.12
+Nodes (25): bootstrapAgentMemoryGraph(), bootstrappedScopes, crypto, extractConcepts(), extractInsightsForEvolution(), extractTopics(), getGraphSnapshot(), getGraphStats() (+17 more)
 
 ### Community 86 - "automationEngine.js"
-Cohesion: 0.14
-Nodes (22): { activeSessions }, sessionStateService, { activeSessions, chats }, addTag(), archiveChat(), {
-  emitChatsLoaded,
-  emitChatUpdated,
-}, { emitRealtimeMetrics }, { ensureRealtimeStore } (+14 more)
+Cohesion: 0.29
+Nodes (6): ACTION_MENU_ITEMS, ActionMenuItem, AttachmentActionMenu(), AttachmentActionMenuProps, DEFAULT_PINNED, usePinnedActions()
 
 ### Community 87 - "sessionsController.js"
 Cohesion: 0.18
-Nodes (21): emitToTenantWithAliases(), {
+Nodes (19): emitToTenantWithAliases(), {
   buildStandardNewMessageEnvelope,
   formatApiMessage,
   getRequestedSessionId,
   getStore,
   normalizeChatId,
-}, emitConversationSnapshotImmediate(), emitInboxRealtimeEvent(), emitInboxRealtimeEventFromStore(), { emitToTenant, emitToTenantWithAliases }, { loadMessagesForChat }, messageService (+13 more)
+}, emitConversationSnapshotImmediate(), emitInboxRealtimeEvent(), emitInboxRealtimeEventFromStore(), { emitToTenant, emitToTenantWithAliases }, { loadMessagesForChat }, messageService (+11 more)
 
 ### Community 88 - "runtimeEngine.js"
-Cohesion: 0.08
-Nodes (25): @emoji-mart/data, dependencies, axios, @emoji-mart/data, @radix-ui/react-dropdown-menu, @radix-ui/react-hover-card, @radix-ui/react-navigation-menu, @radix-ui/react-radio-group (+17 more)
+Cohesion: 0.04
+Nodes (53): date-fns, embla-carousel-react, esbuild, dependencies, date-fns, embla-carousel-react, esbuild, leaflet (+45 more)
 
 ### Community 89 - "dependencies"
-Cohesion: 0.04
-Nodes (49): ConversationScoresSection(), EvolutionCenter(), Agent, BootstrapProps, Candidate, commercialFields, CommercialSessionEditor(), CommercialStore (+41 more)
+Cohesion: 0.07
+Nodes (35): WebBridgeCard(), EmptyState(), EmptyStateProps, CardSkeleton(), ListSkeleton(), StatGridSkeleton(), ConnectionsLovableViewModel, createConnectionsLovableViewModel() (+27 more)
 
 ### Community 90 - "⚡ CHECKLIST EXECUTIVO - ZAPAI VPS DEPLOYMENT"
-Cohesion: 0.14
-Nodes (27): executeStartupScript(), path, showConfirmationDialog(), { spawn }, startRuntimeProcesses(), error(), resolveOutboundContext(), cancelQuickReplyFlow() (+19 more)
+Cohesion: 0.13
+Nodes (24): resolveOutboundContext(), cancelQuickReplyFlow(), company(), createQuickReply(), deleteQuickReply(), executeQuickReplyFlow(), fail(), flowTrackerService (+16 more)
 
 ### Community 91 - "systemControlService.ts"
 Cohesion: 0.12
@@ -1110,24 +1434,24 @@ Cohesion: 0.07
 Nodes (26): ===========================================================================, ===========================================================================, Aceitação de 1 de outubro de 2026, API offline (502 Bad Gateway), Arquitetura, Atualização, Backup Manual, Banco de dados indisponível (+18 more)
 
 ### Community 93 - "aiAgentService.js"
-Cohesion: 0.10
-Nodes (12): InboxRuntimeBoundary, Props, State, PageRouteBoundary, Props, State, buildApiHeaders(), checkRouteHealth() (+4 more)
+Cohesion: 0.11
+Nodes (10): InboxRuntimeBoundary, Props, State, PageRouteBoundary, Props, State, ErrorLogPayload, _isDuplicate() (+2 more)
 
 ### Community 94 - "shared.js"
-Cohesion: 0.14
-Nodes (17): buildConversationHistory(), buildFallbackResponse(), { buildPersonalityPrompt }, ensureAgent(), generateAIResponse(), { getClient }, { processEvent }, AI_MEMORY_FILE (+9 more)
+Cohesion: 0.13
+Nodes (18): buildConversationHistory(), buildFallbackResponse(), { buildPersonalityPrompt }, ensureAgent(), generateAIResponse(), { getClient }, { processEvent }, AI_MEMORY_FILE (+10 more)
 
 ### Community 95 - "==========================================================================="
 Cohesion: 0.16
 Nodes (19): backendControllerTemplate(), backendRouteTemplate(), backendServiceTemplate(), ensureFile(), exists(), frontendPageTemplate(), frontendServiceTemplate(), fs (+11 more)
 
 ### Community 96 - "Inbox.tsx"
-Cohesion: 0.06
-Nodes (43): uiEngine, analyzeUI(), { analyzeUIScreens }, { analyzeProject }, { analyzeUIScreens }, buildMissingFeatures(), buildRoadmap(), buildSuggestedImprovements() (+35 more)
+Cohesion: 0.08
+Nodes (33): analyzeUI(), { analyzeUIScreens }, { analyzeProject }, { analyzeUIScreens }, buildFeatureRoadmapPayload(), buildProblemReport(), { buildSystemArchitectureMap }, detectDuplicatePages() (+25 more)
 
 ### Community 97 - "errorLogService.ts"
 Cohesion: 0.10
-Nodes (19): BACKEND_ROOT, ensureSystemInfo(), { execFile }, execFileAsync, { executeFullE2ESmokeSuite }, express, { fastCacheMiddleware }, fs (+11 more)
+Nodes (20): ackEmitter, BACKEND_ROOT, ensureSystemInfo(), { execFile }, execFileAsync, { executeFullE2ESmokeSuite }, express, { fastCacheMiddleware } (+12 more)
 
 ### Community 98 - "moduleGenerator.js"
 Cohesion: 0.05
@@ -1142,20 +1466,20 @@ Cohesion: 0.10
 Nodes (20): Activation, 🔗 All API Endpoints, Can't see logs?, 🔍 Check Status, 📋 Checklist, 📊 Files Created, 🎯 Frontend Integration, 🆘 Get Help (+12 more)
 
 ### Community 101 - "frontendHealthService.ts"
-Cohesion: 0.08
-Nodes (27): buildLogger(), { createLogger, format, transports }, fs, getLogger(), LEGACY_CATEGORIES, loggers, maskSecretString(), OPERATIONAL_CATEGORIES (+19 more)
+Cohesion: 0.11
+Nodes (24): ACCESSORIES, AVATAR_ASSETS, AvatarStudioItem, BodyType, CatalogItem, CLOTHING_STYLES, DEFAULT_AVATAR_PRESETS, FACE_TYPES (+16 more)
 
 ### Community 102 - "appStore.ts"
-Cohesion: 0.08
-Nodes (25): AIIcon(), AIIconProps, AILearningDashboard(), issueLabel, BlacklistPanel(), formatTimeAgo(), LeadReactivationPanel(), AILearningSidebarProps (+17 more)
+Cohesion: 0.07
+Nodes (27): react, ActiveBrainGraph(), ConversationScoresSection(), MemoryDetailDrawer(), MemoryDetailDrawerProps, FormControl, FormDescription, FormFieldContext (+19 more)
 
 ### Community 103 - "Intelligent Service Architecture"
 Cohesion: 0.15
 Nodes (19): checkStaleWorkers(), createWorkerEntry(), executeWorkerTick(), getAllWorkerStatuses(), getSummary(), getWorkerStaleThreshold(), getWorkerStatus(), handleWorkerCrash() (+11 more)
 
 ### Community 104 - "ZapFlow Quick Reference Card"
-Cohesion: 0.15
-Nodes (21): aiResponseEngine, { getClient }, testChain(), getPrompt(), reply(), { DEFAULT_SYSTEM_PROMPT }, formatContextSection(), formatConversationMessages() (+13 more)
+Cohesion: 0.16
+Nodes (19): aiResponseEngine, { getClient }, testChain(), reply(), { DEFAULT_SYSTEM_PROMPT }, formatContextSection(), formatConversationMessages(), generateAutoReply() (+11 more)
 
 ### Community 105 - "workerSupervisor.js"
 Cohesion: 0.10
@@ -1163,35 +1487,35 @@ Nodes (20): 10. Production readiness, 11. Suggested commit message, 12. Suggeste
 
 ### Community 106 - "ConversationService.js"
 Cohesion: 0.07
-Nodes (28): Activation Endpoints, Alert on Failures (Every 5s), Authentication (Recommended Future), Common Error Responses, DELETE /system/runtime/logs, Error Handling, GET /system/activation-logs, GET /system/ai-diagnostics (+20 more)
+Nodes (30): Activation Endpoints, Alert on Failures (Every 5s), Authentication (Recommended Future), Common Error Responses, DELETE /system/runtime/logs, Error Handling, GET /api/outbound-queue/session/:sessionId/automations, GET /system/activation-logs (+22 more)
 
 ### Community 107 - "FINAL REVIEW BEFORE COMMIT"
-Cohesion: 0.14
-Nodes (16): App(), SafeRender, SafeRenderProps, SafeRenderState, emitSnapshot(), FrontendHealthLevel, FrontendHealthSnapshot, FrontendIssueType (+8 more)
+Cohesion: 0.06
+Nodes (46): lastRecoveryAttemptAt, { listSessionIds, validateSession }, NON_RECOVERABLE_STATUSES, reconnectPersistedSession(), recoverSessions(), RECOVERY_COOLDOWN_MS, recoveryInFlight, sessionManager (+38 more)
 
 ### Community 108 - "🧠 ZAPAI-FINAL — Memória de IA do Projeto"
 Cohesion: 0.18
 Nodes (20): __dirname, __filename, findWebmFiles(), generateButtonsAuditJson(), generateConsoleLogJson(), generateErrorsSummaryMd(), generateFinalReportHtml(), generateFinalReportJson() (+12 more)
 
 ### Community 109 - "Diagnostics.tsx"
-Cohesion: 0.13
-Nodes (19): removed, shouldStart, stopResult, cleanRuntimeArtifacts(), ensureLogsDir(), formatProcessSummary(), officialPorts, removePath() (+11 more)
+Cohesion: 0.09
+Nodes (37): removed, shouldStart, stopResult, backendDir, cleanRuntimeArtifacts(), __dirname, discoverManagedProcesses(), duplicateCommandFragments (+29 more)
 
 ### Community 110 - "MessageRow.tsx"
 Cohesion: 0.10
 Nodes (19): Agente: Security, Arquivos Proibidos (NUNCA acessar), Arquivos que Pode SOMENTE LER (não alterar), Autenticação JWT, Checklist de Segurança ZapFlow, Critérios de Conclusão, Critérios de Escalação, Ferramentas Permitidas (+11 more)
 
 ### Community 111 - "run-full-audit.js"
-Cohesion: 0.18
-Nodes (18): createConnection(), extractPhoneNumber(), formatPhoneNumber(), fs, getConnectionQr(), getConnectionStatus(), getSessionCompat(), getSessionHealth() (+10 more)
+Cohesion: 0.17
+Nodes (19): createConnection(), extractPhoneNumber(), formatPhoneNumber(), fs, getConnectionQr(), getConnectionStatus(), getSessionCompat(), getSessionHealth() (+11 more)
 
 ### Community 112 - "Agente: Security"
 Cohesion: 0.19
 Nodes (19): buildBackendControllerTemplate(), buildBackendRouteTemplate(), buildBackendServiceTemplate(), buildBackendTestTemplate(), buildFrontendPageTemplate(), buildFrontendServiceTemplate(), buildFrontendTableTemplate(), ensureFile() (+11 more)
 
 ### Community 113 - "Full Refactor Report (Front + Back)"
-Cohesion: 0.06
-Nodes (45): react, BrandLogo(), BrandLogoProps, getDomThemeClass(), MainLayout(), MobileBottomNav(), MobileTabItem, countries (+37 more)
+Cohesion: 0.04
+Nodes (61): AIIcon(), AIIconProps, BrandLogo(), BrandLogoProps, getDomThemeClass(), MainLayout(), MobileBottomNav(), MobileTabItem (+53 more)
 
 ### Community 114 - "resolve"
 Cohesion: 0.10
@@ -1206,20 +1530,20 @@ Cohesion: 0.10
 Nodes (33): createRuntimeManifest(), ZapAIBuildInfo, ZapAIRuntimeManifest, cleanRecoveryFlags(), clearLegacyIndexedDb(), clearLegacyRuntimeFragments(), enforceOfficialFrontendMarker(), injectRuntimeHardening() (+25 more)
 
 ### Community 117 - "featureGenerator.js"
-Cohesion: 0.22
-Nodes (13): extractEmojis(), create(), createMessage(), db, { extractEmojis }, findByConversationId(), findById(), findByWhatsappMessageId() (+5 more)
+Cohesion: 0.11
+Nodes (19): extractEmojis(), create(), createMessage(), db, { extractEmojis }, findByConversationId(), findById(), findByWhatsappMessageId() (+11 more)
 
 ### Community 118 - "tabs.tsx"
-Cohesion: 0.19
-Nodes (26): { analyzeImageWithVision }, assertOwnedMedia(), assertPayload(), categorySettingsKey(), createQuickReply(), crypto, DATA_FILE, ensureDataFile() (+18 more)
+Cohesion: 0.09
+Nodes (41): { analyzeImageWithVision }, assertOwnedMedia(), assertPayload(), categorySettingsKey(), createQuickReply(), crypto, DATA_FILE, ensureDataFile() (+33 more)
 
 ### Community 119 - "Agente: Security"
-Cohesion: 0.18
-Nodes (18): aiLearningEngine, buildSystemStatus(), emitSystemStatus(), getAiEngineStatus(), getConnectedSessionsCount(), getDatabaseStatus(), getSocketStatus(), getStatus() (+10 more)
+Cohesion: 0.17
+Nodes (19): aiLearningEngine, buildSystemStatus(), emitSystemStatus(), getAiEngineStatus(), getConnectedSessionsCount(), getDatabaseStatus(), getSocketStatus(), getStatus() (+11 more)
 
 ### Community 120 - "logger.js"
-Cohesion: 0.18
-Nodes (15): agentMap, architectAgent, codeGeneratorAgent, createModule(), getSelfImprovingStatus(), modulePlannerAgent, path, runCommand() (+7 more)
+Cohesion: 0.05
+Nodes (28): agentMap, architectAgent, codeGeneratorAgent, createModule(), getSelfImprovingStatus(), modulePlannerAgent, path, runCommand() (+20 more)
 
 ### Community 121 - "messageRepository.js"
 Cohesion: 0.11
@@ -1246,8 +1570,8 @@ Cohesion: 0.11
 Nodes (18): Backend, Backend health, Bugs improved in this partial round, Commands executed, Current conclusion, Final checkpoint validation, Frontend, Frontend build (+10 more)
 
 ### Community 127 - "ROUND 2 VALIDATION STATUS"
-Cohesion: 0.10
-Nodes (29): Alert, AlertDescription, AlertTitle, alertVariants, FormControl, FormDescription, FormFieldContext, FormFieldContextValue (+21 more)
+Cohesion: 0.17
+Nodes (20): formatActionLabel(), formatIntentLabel(), formatRelativeTime(), FUNNEL_STAGES_PIPELINE, LeadDrawer(), createContactsLovableViewModel(), ContactRow, Contacts() (+12 more)
 
 ### Community 128 - "Backend Audit — ZapAI CRM"
 Cohesion: 0.20
@@ -1255,31 +1579,31 @@ Nodes (16): db, emitDiagnostics(), messageDedupeService, probeBaileys(), probeLi
 
 ### Community 129 - "agentEvolutionService.js"
 Cohesion: 0.11
-Nodes (8): assert, calls, context, dedupe, request(), { sendMessage }, session, test
+Nodes (7): assert, calls, context, dedupe, { sendMessage }, session, test
 
 ### Community 130 - "aiConfigService.js"
 Cohesion: 0.12
 Nodes (20): agentEvolutionService, aiAgentService, cron, learningEngine, { query }, runEvolutionRound(), startEvolutionScan(), agentLearningRepo (+12 more)
 
 ### Community 131 - "aiEngineeringAnalyzer.js"
-Cohesion: 0.10
-Nodes (30): { businessHours }, DEFAULT_ADVANCED_AI_SETTINGS, DEFAULT_MEMORY_SETTINGS, DEFAULT_QUEUE_SETTINGS, ensureStoreConfig(), getAbsenceMessageSettings(), getAdvancedAISettings(), getBusinessHoursSettings() (+22 more)
+Cohesion: 0.20
+Nodes (16): { businessHours }, DEFAULT_ADVANCED_AI_SETTINGS, DEFAULT_MEMORY_SETTINGS, DEFAULT_QUEUE_SETTINGS, ensureStoreConfig(), getAbsenceMessageSettings(), getAdvancedAISettings(), getBusinessHoursSettings() (+8 more)
 
 ### Community 132 - "NodeRegisterService"
 Cohesion: 0.12
 Nodes (15): AISettingsPanel, AnalyticsCharts, AutomationBuilder, CampaignBuilder, ChatWindow, Component Hierarchy and Relationships, ContactCard, ConversationList (+7 more)
 
 ### Community 133 - "runtimeManager.js"
-Cohesion: 0.13
-Nodes (10): messageService, whatsappService, express, messagesController, outboundQueueController, router, messagesController, messageService (+2 more)
+Cohesion: 0.25
+Nodes (22): AVATAR_ACCESSORIES, AVATAR_FACES, AVATAR_HAIRS, AVATAR_OUTFITS, AVATAR_STYLES, resolveHairColorForHair(), resolveItemDisplayForGender(), resolveItemSpriteForGender() (+14 more)
 
 ### Community 134 - "devPipeline.js"
 Cohesion: 0.18
 Nodes (17): axios, CONFIG, getDebugInfo(), getStatus(), healthCheckNgrok(), initialize(), parseNgrokUrl(), path (+9 more)
 
 ### Community 135 - "Contacts.tsx"
-Cohesion: 0.07
-Nodes (50): { analyzeProject }, answerQuestion(), extractPageName(), { refreshPipeline, listPipeline }, { replicatePage }, { analyzeProject }, buildErrors(), buildSuggestions() (+42 more)
+Cohesion: 0.09
+Nodes (38): { analyzeProject }, buildErrors(), buildSuggestions(), buildWarnings(), curateCodebase(), { analyzeProject }, { analyzeUIScreens }, buildMissingFeatures() (+30 more)
 
 ### Community 136 - "compilerOptions"
 Cohesion: 0.11
@@ -1291,7 +1615,7 @@ Nodes (16): 🔴 Bug de Autenticação / Multi-Tenant, 🔴 Bug Fix, 🟠 Databa
 
 ### Community 138 - "dependencies"
 Cohesion: 0.12
-Nodes (17): dependencies, axios, bcryptjs, compression, docx, multer, pg, sharp (+9 more)
+Nodes (17): dependencies, axios, bcryptjs, cors, dotenv, node-cron, openai, playwright-core (+9 more)
 
 ### Community 139 - "runMigrations"
 Cohesion: 0.08
@@ -1310,16 +1634,16 @@ Cohesion: 0.19
 Nodes (15): addTraceEvent(), correlationMiddleware(), crypto, endTrace(), evictExpiredTraces(), generateCorrelationId(), generateMessageTraceId(), generateSessionTraceId() (+7 more)
 
 ### Community 143 - "correlationTracker.js"
-Cohesion: 0.09
-Nodes (36): createInboxLovableViewModel(), InboxLovableViewModel, getInboxUnreadTotal(), publishInboxUnreadTotal(), authorizeMediaUrl(), resolveProtectedMediaUrl(), ChatListPanel, SharedMediaCard() (+28 more)
+Cohesion: 0.23
+Nodes (16): SharedMediaCard(), decodeFileName(), extensionFromMimeType(), extractMessageAssetUrl(), fallbackMediaFileName(), getExplicitMediaFileName(), getFileExtension(), getMediaFileName() (+8 more)
 
 ### Community 144 - "diagnosticsEngine.js"
 Cohesion: 0.15
 Nodes (9): AUDIT_INTERVAL_MS, auditProcessListeners(), auditSocketListeners(), checkHeapGrowth(), HEAP_GROWTH_WARN_MB, LISTENER_WARN_THRESHOLD, registeredTimers, runFullAudit() (+1 more)
 
 ### Community 145 - "whatsappService.js"
-Cohesion: 0.18
-Nodes (29): AVATAR_ACCESSORIES, AVATAR_FACES, AVATAR_STYLES, resolveHairColorForHair(), resolveItemDisplayForGender(), resolveItemSpriteForGender(), StoreVisualDNA, AVATAR_PREVIEW_FOCAL_X (+21 more)
+Cohesion: 0.07
+Nodes (32): AddAttendantCard(), AddAttendantCardProps, AttendantCardData, AttendantItemCard, AttendantItemCardProps, AttendantDisplayModel, EXAMPLE_ATTENDANTS, AgentAvatarConfig (+24 more)
 
 ### Community 146 - "socketSafetyGuard.js"
 Cohesion: 0.13
@@ -1334,8 +1658,8 @@ Cohesion: 0.12
 Nodes (16): 🔴 Bug de Autenticação / Multi-Tenant, 🔴 Bug Fix, 🟠 Database / Schema, 🔵 Deploy / Release, 🟢 Frontend / UI, Gates de Release — HARD STOPS, Mapa de Intenção → Pipeline, Missão (+8 more)
 
 ### Community 150 - "RELATÓRIO TÉCNICO FINAL - ESTABILIZAÇÃO DEFINITIVA ZAPAI"
-Cohesion: 0.12
-Nodes (15): estimateAudience(), { query }, analyzeCampaign(), classifySentiment(), extractPhones(), NEGATIVE_PATTERNS, normalize(), POSITIVE_PATTERNS (+7 more)
+Cohesion: 0.07
+Nodes (32): estimateAudience(), { query }, analyzeCampaign(), classifySentiment(), extractPhones(), NEGATIVE_PATTERNS, normalize(), POSITIVE_PATTERNS (+24 more)
 
 ### Community 151 - "components.json"
 Cohesion: 0.16
@@ -1346,16 +1670,16 @@ Cohesion: 0.18
 Nodes (14): initDatabase(), { Pool }, { runMigrations }, main(), path, { pool }, { runMigrations }, ensureMigrationsTable() (+6 more)
 
 ### Community 153 - "FRONTEND COMPONENT MAP"
-Cohesion: 0.25
-Nodes (3): acebot, getSelfImprovingStatus(), startSmartSelfImprovingMode()
+Cohesion: 0.05
+Nodes (19): PuppetManipulator, webBridgeSessionManager, fs, path, WebBridgeSessionManager, axios, fs, path (+11 more)
 
 ### Community 154 - "agentMemoryGraphService.js"
-Cohesion: 0.18
-Nodes (13): deadLetter(), dlqStore, eventBus, EventEmitter, featureFlags, getEventBusMetrics(), metrics, publish() (+5 more)
+Cohesion: 0.10
+Nodes (22): deadLetter(), dlqStore, eventBus, EventEmitter, featureFlags, getEventBusMetrics(), metrics, publish() (+14 more)
 
 ### Community 155 - "audioGenerationService.js"
-Cohesion: 0.25
-Nodes (13): buildMediaUrl(), buildRealtimeMessageEnvelope(), dedupeMessages(), emitNewMessage(), messageRepository, { normalizePhone }, { normalizeRealtimeMediaType }, normalizeRealtimeType() (+5 more)
+Cohesion: 0.14
+Nodes (16): App(), SafeRender, SafeRenderProps, SafeRenderState, emitSnapshot(), FrontendHealthLevel, FrontendHealthSnapshot, FrontendIssueType (+8 more)
 
 ### Community 156 - "LRUHistoryCache"
 Cohesion: 0.12
@@ -1366,20 +1690,20 @@ Cohesion: 0.12
 Nodes (15): `apiService`, `BrowserRouter`, Camada Lovable protegida, `MainLayout`, Provider chain oficial, Providers Map, `QueryClientProvider`, Regras proibidas (+7 more)
 
 ### Community 158 - "aiIntelligenceController.js"
-Cohesion: 0.12
-Nodes (16): scripts, build, build:dev, check:api, dev, lint, preview, test (+8 more)
+Cohesion: 0.09
+Nodes (21): name, private, scripts, build, build:dev, check:api, dev, lint (+13 more)
 
 ### Community 159 - "messages.js"
-Cohesion: 0.07
-Nodes (20): isRunning(), getChipMaturationStats(), { query }, sessionManager, agentMemoryGraphService, executeFullE2ESmokeSuite(), messageAckPipeline, { query } (+12 more)
+Cohesion: 0.12
+Nodes (15): aiFollowupEngine, campaignDispatchEngine, getOwnedConnectedSession(), getSessionReviewItems(), listSessionAutomations(), { normalizePhone }, outboundQueueService, { query } (+7 more)
 
 ### Community 160 - "ConversationRuntimeService.js"
 Cohesion: 0.13
 Nodes (14): Bug de Autenticação / Segurança, Bug Fix, Database / Schema, Deploy / Release, Formato de Output do Orchestrator, Frontend / UI, Gate de Release, Mapa de Intenção → Skills (+6 more)
 
 ### Community 161 - "DEPLOY PRECHECK"
-Cohesion: 0.13
-Nodes (15): autoprefixer, devDependencies, autoprefixer, globals, postcss, @types/node, typescript, typescript-eslint (+7 more)
+Cohesion: 0.05
+Nodes (43): autoprefixer, eslint, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh, devDependencies, autoprefixer, eslint (+35 more)
 
 ### Community 162 - "Providers Map"
 Cohesion: 0.14
@@ -1390,8 +1714,8 @@ Cohesion: 0.14
 Nodes (13): AI Settings, Analytics, Automation, Campaigns, Contacts, Dashboard, Inbox, Navigation Relationships (+5 more)
 
 ### Community 164 - "Mapa de Intenção → Skills"
-Cohesion: 0.20
-Nodes (3): codeEngine, moduleEngine, featureEngine
+Cohesion: 0.08
+Nodes (37): computeReconnectBackoff(), DisconnectReason, getConnectionCloseCode(), isTerminalDisconnect(), shouldReconnect(), TERMINAL_DISCONNECT_CODES, TRANSIENT_DISCONNECT_CODES, { activeSessions } (+29 more)
 
 ### Community 165 - "devDependencies"
 Cohesion: 0.22
@@ -1422,16 +1746,16 @@ Cohesion: 0.12
 Nodes (16): Active architecture, Backend, Backend, Dead / duplicate / legacy areas identified, Executive summary, FINAL SYSTEM STATUS, Final validation results, Frontend (+8 more)
 
 ### Community 172 - "storage.js"
-Cohesion: 0.11
-Nodes (26): ACCESSORIES, AVATAR_ASSETS, AVATAR_HAIRS, AVATAR_OUTFITS, AvatarStudioItem, BodyType, CatalogItem, CLOTHING_STYLES (+18 more)
+Cohesion: 0.08
+Nodes (32): fs, { migrateLegacySessions, getLegacySessionsDirectory }, os, path, testMigrate(), EXCLUDED_MIGRATION_FILES, fs, getLegacySessionsDirectory() (+24 more)
 
 ### Community 173 - "ARCHITECTURE_DEAD_CODE_REPORT.md"
 Cohesion: 0.15
 Nodes (12): 1. Incoming real WhatsApp -> persist + realtime, 2. Decision action behavior, 3. Human takeover simulation, 4. AI resume simulation, 5. Outbound real message check, 6. Guardrails and resilience, Evidence to Capture, Final Sign-off Rule (+4 more)
 
 ### Community 174 - "Relatório Final de Hardening e Auditoria de Estabilidade — ZAPFLOW AI"
-Cohesion: 0.22
-Nodes (12): analysisWindow(), buildCandidate(), classifyAuthor(), crypto, HistoryLearning, isHeldOut(), normalizeAnalysis(), redact() (+4 more)
+Cohesion: 0.05
+Nodes (38): { activeSessions }, agents, ai, { emitToTenant }, encodeItems(), { extractIncomingMessage, downloadMedia }, { HistoryLearning }, { HistoryRepository } (+30 more)
 
 ### Community 175 - "2026-04-27 - Operação DevOps ZAPAI-FINAL"
 Cohesion: 0.13
@@ -1442,12 +1766,12 @@ Cohesion: 0.13
 Nodes (14): 1. Global Installation & Execution via NPX, 2. Project-Level Installation, 🏗 Architecture, ⚙️ CLI Commands (`skill-global`), 🔌 Multi-Agent Adapters, 🤖 Native Agent Personas, ⚡ Orchestration & Intent Routing, 🌟 Overview (+6 more)
 
 ### Community 177 - "skill-global"
-Cohesion: 0.32
-Nodes (4): customProfiles, getVoiceById(), synthesizeVoicePreview(), SYSTEM_VOICES
+Cohesion: 0.08
+Nodes (13): { query: dbQuery }, registryState, express, { query }, router, express, leadsController, { query } (+5 more)
 
 ### Community 178 - "Architecture Modularization Plan (ZAPAICRM + ZAPAI ENGINE)"
-Cohesion: 0.25
-Nodes (7): assert, fileItems, queries, query(), service, settings, test
+Cohesion: 0.18
+Nodes (9): issueLabel, AILearningSidebarProps, AccordionContent, AccordionItem, AccordionTrigger, aiLearningService, LearningDashboardData, LearningSuggestion (+1 more)
 
 ### Community 179 - "UI UX SCREEN MAP"
 Cohesion: 0.22
@@ -1462,8 +1786,8 @@ Cohesion: 0.25
 Nodes (7): NavigationMenu, NavigationMenuContent, NavigationMenuIndicator, NavigationMenuList, NavigationMenuTrigger, navigationMenuTriggerStyle, NavigationMenuViewport
 
 ### Community 182 - "bugWatcher.js"
-Cohesion: 0.11
-Nodes (32): evaluateConversationMilestones(), { analyzeLeadIntent, buildLeadAlgorithm }, IntentStage, analyzeLeadIntent(), buildLeadAlgorithm(), countMatches(), DELIVERY_ISSUE_PATTERNS, detectConversationStyle() (+24 more)
+Cohesion: 0.06
+Nodes (55): agentLearningRepo, { buildLeadAlgorithm, STORE_EVOLUTION_ALGORITHMS, formatHumanClientName }, ensureTables(), evaluateConversationMilestones(), extractAndPersistConversationLearning(), getAgentEvolutionProfile(), getConversationScores(), { normalizeCapacity } (+47 more)
 
 ### Community 183 - "leadAnalyzer.js"
 Cohesion: 0.17
@@ -1474,12 +1798,12 @@ Cohesion: 0.25
 Nodes (8): buildKey(), DEFAULT_TTL_MS, entries, evictIfNeeded(), forget(), hasSeen(), markSeen(), MAX_ENTRIES
 
 ### Community 185 - "reactivationService.js"
-Cohesion: 0.24
-Nodes (11): aiCompressionService, cleanGroupMessages(), cleanIndividualMessages(), cleanOrphanConversations(), columnExists(), GROUP_MESSAGE_RETENTION_HOURS, INDIVIDUAL_MESSAGE_RETENTION_DAYS, { query } (+3 more)
+Cohesion: 0.16
+Nodes (15): aiCompressionService, cleanGroupMessages(), cleanIndividualMessages(), cleanOrphanConversations(), columnExists(), GROUP_MESSAGE_RETENTION_HOURS, INDIVIDUAL_MESSAGE_RETENTION_DAYS, { query } (+7 more)
 
 ### Community 186 - "retentionService.js"
-Cohesion: 0.15
-Nodes (20): activeCampaigns, backpressureController, campaignRepository, conversationRepository, createCampaignState(), DEFAULT_COMPANY_ID, dispatchSingleMessage(), getCampaignTypingDelay() (+12 more)
+Cohesion: 0.08
+Nodes (49): campaignDispatchEngine, campaignRepository, path, activeCampaigns, backpressureController, calculateEstimatedRemainingMs(), campaignContactKey(), campaignRepository (+41 more)
 
 ### Community 187 - "messageStore.js"
 Cohesion: 0.14
@@ -1510,36 +1834,40 @@ Cohesion: 0.17
 Nodes (11): AI Integration Flow, Database Layer, Future Scalability Model, High Level Architecture Diagram, Messaging Pipeline, Module Responsibilities, PROJECT ARCHITECTURE, Realtime Event Flow (+3 more)
 
 ### Community 194 - "Agente: Release"
-Cohesion: 0.29
-Nodes (6): consolidateLidConversations(), conversationRepository, { existsSync }, fs, path, { query }
+Cohesion: 0.17
+Nodes (6): acebot, getSelfImprovingStatus(), startSmartSelfImprovingMode(), controller, express, router
+
+### Community 195 - "Agente: Tester"
+Cohesion: 0.18
+Nodes (5): http, https, NodeRegisterService, os, { spawnSync }
 
 ### Community 196 - "Real End-to-End Validation (Manual)"
 Cohesion: 0.22
 Nodes (11): { activeSessions }, auditSessions(), autoRestartCounts, canAutoRestart(), getAutoRestartWindow(), getWatchdogDiagnostics(), recordAutoRestart(), restartStuckSessions() (+3 more)
 
 ### Community 197 - "ai.js"
-Cohesion: 0.22
-Nodes (6): projectAnalyzerEngine, analyze(), baseProjectAnalyzer, { buildSystemArchitectureMap }, path, toProjectMap()
+Cohesion: 0.30
+Nodes (12): assignAgentToSession(), cloneAgent(), createAgent(), deleteAgent(), mutateAgents(), normalizeAgent(), preserveSessionOwnership(), resetCache() (+4 more)
 
 ### Community 198 - "tagStage.js"
 Cohesion: 0.17
 Nodes (11): background_color, description, display, icons, lang, name, orientation, scope (+3 more)
 
 ### Community 199 - "sessionManager.js"
-Cohesion: 0.11
-Nodes (22): cron, cronStatus, { executeAlgorithmicFollowupForLead }, { getAgentsSync }, { query }, runFollowupScan(), sessionManager, startCron() (+14 more)
+Cohesion: 0.08
+Nodes (31): compileSystemPrompt(), enforceResponseWordLimit(), resolveResponseWordLimit(), cron, cronStatus, { executeAlgorithmicFollowupForLead }, { getAgentsSync }, { query } (+23 more)
 
 ### Community 200 - "sessionWatchdog.js"
-Cohesion: 0.10
-Nodes (35): aiAgentService, { enableAI, getAIEnabled, isAIEnabled, getAutomationScope }, main(), path, { pool }, check(), { getAIEnabled, isAIEnabled, getAutomationScope }, path (+27 more)
+Cohesion: 0.07
+Nodes (44): aiAgentService, { enableAI, getAIEnabled, isAIEnabled, getAutomationScope }, main(), path, { pool }, path, { pool }, check() (+36 more)
 
 ### Community 201 - "aiToggle.js"
-Cohesion: 0.17
-Nodes (7): productRepository, cacheStore, fastCacheMiddleware(), express, { fastCacheMiddleware }, productsController, router
+Cohesion: 0.20
+Nodes (8): cacheStore, fastCacheMiddleware(), express, { fastCacheMiddleware }, multer, productsController, router, upload
 
 ### Community 202 - "projectAnalyzer.js"
-Cohesion: 0.14
-Nodes (6): draftRevision(), { emitToTenant }, HistoryRepository, assert, { HistoryRepository }, test
+Cohesion: 0.09
+Nodes (14): draftRevision(), { emitToTenant }, HistoryRepository, assert, { HistoryRepository }, test, assert, { HistoryRepository } (+6 more)
 
 ### Community 203 - "getEngineClient"
 Cohesion: 0.21
@@ -1590,8 +1918,8 @@ Cohesion: 0.12
 Nodes (9): LearningEngine, { Pool }, assert, express, learningEngine, test, assert, { LearningEngine } (+1 more)
 
 ### Community 215 - "BACKEND SYSTEM MAP"
-Cohesion: 0.14
-Nodes (12): connectionString, lidMapper, { Pool }, registry, resolve(), waitMs(), sleep(), wait() (+4 more)
+Cohesion: 0.10
+Nodes (18): connectionString, lidMapper, { Pool }, registry, resolve(), axios, fs, main() (+10 more)
 
 ### Community 216 - "ZAPAI CRM Design System"
 Cohesion: 0.08
@@ -1602,8 +1930,8 @@ Cohesion: 0.17
 Nodes (6): eventBus, CRMEventBus, eventBus, EventEmitter, eventBus, RealtimeStage
 
 ### Community 218 - "aiLearningEngine.js"
-Cohesion: 0.12
-Nodes (14): generateAllScripts(), generateVitestScript(), { MODULE_SUITES }, jwtAuth, MODULE_SUITES, { performance }, runHistory, generateScript() (+6 more)
+Cohesion: 0.20
+Nodes (7): generateAllScripts(), generateVitestScript(), { MODULE_SUITES }, jwtAuth, MODULE_SUITES, { performance }, runHistory
 
 ### Community 219 - "aiResponseEngine.js"
 Cohesion: 0.43
@@ -1622,12 +1950,12 @@ Cohesion: 0.18
 Nodes (8): ChartConfig, ChartContainer, ChartContext, ChartContextProps, ChartLegendContent, ChartTooltipContent, THEMES, useChart()
 
 ### Community 223 - "leadsController.js"
-Cohesion: 0.10
-Nodes (22): AttendantCardData, AttendantItemCardProps, AttendantDisplayModel, EXAMPLE_ATTENDANTS, AgentAvatarConfig, AnimationState, StoreBranding, AvatarEditorModalProps (+14 more)
+Cohesion: 0.06
+Nodes (30): 10. Recommended Remediation Plan for Requirement R1, 1. Executive Summary, 2. Architecture & Lifecycle Call Flow, 3. Component Breakdown & Source Analysis, 4. Authentication State & Persistence (The Critical Bug), 5. Socket Creation, QR Loop, Pairing Codes & State Transitions, 6. Disconnect Handling & Baileys Error Codes, 7. Auto-Reconnection, Backoff, Socket Cleanup & Concurrency (+22 more)
 
 ### Community 224 - "3. CONEXÕES E FLUXOS DE DADOS"
-Cohesion: 0.33
-Nodes (5): assert, campaignEngine, db, express, test
+Cohesion: 0.07
+Nodes (28): 1.1 Repository Structure, 1.2 Runtime Component Diagram, 1. Project Structure & Runtime Architecture, 2.1 Test Suite Inventory & Commands, 2.2 Empirical Baseline Health Results, 2. Automated Test Infrastructure & Baseline Health, 3.1 Build Command (`frontend-official`), 3.2 TypeScript Typecheck (`frontend-official`) (+20 more)
 
 ### Community 225 - "ZAPFLOW AI — Runtime Safety & Worktree Policy"
 Cohesion: 0.26
@@ -1646,8 +1974,8 @@ Cohesion: 0.18
 Nodes (10): Agente: Reviewer, Arquivos que Pode Alterar, Critérios de Conclusão, Critérios de Escalação, Ferramentas Permitidas, Formato de Saída, Processo de Revisão, Propósito (+2 more)
 
 ### Community 229 - "Agente: Reviewer"
-Cohesion: 0.06
-Nodes (36): 1. Run the Agent, 2. Activate from Frontend, 3. Check Status, Agent Crashes, Agent Won't Start, API Endpoints, Architecture, Configuration (+28 more)
+Cohesion: 0.05
+Nodes (41): 1. Run the Agent, 2. Activate from Frontend, 3. Check Status, Agent Crashes, Agent Won't Start, API Endpoints, Architecture, Configuration (+33 more)
 
 ### Community 230 - "Modules"
 Cohesion: 0.18
@@ -1661,6 +1989,10 @@ Nodes (10): cleanupEnabled(), executeCleanup(), fs, getPool(), main(), path, { P
 Cohesion: 0.14
 Nodes (15): ACTIVE_STATUSES, emitAIResponseProgress(), { emitToTenant }, normalizeStatus(), TERMINAL_STATUSES, assert, { emitAIResponseProgress }, test (+7 more)
 
+### Community 233 - "webhookService.js"
+Cohesion: 0.07
+Nodes (26): 1. Executive Summary & Root Cause Analysis, 2. Boot Call Flow & `restoreSessions()` Deep Dive, 3. Session Persistence Validator (`sessionPersistenceValidator.js`), 4. Persistence Error Line 67 & Company Fallback Deep Dive, 5. Real-Time Status Broadcasting Matrix, 6. Exact Line-by-Line File Modifications for Worker, 7. Verification Method & Proposed Automated Unit Test Suite, Auto-Restore Restoration Modes: (+18 more)
+
 ### Community 234 - "docAnalyzer.js"
 Cohesion: 0.38
 Nodes (10): axios, defaultTenantKey(), dispatchEvent(), listWebhooks(), readWebhookStore(), removeWebhook(), safeJsonParse(), systemSettingsRepository (+2 more)
@@ -1670,16 +2002,16 @@ Cohesion: 0.27
 Nodes (10): analyzeDoc(), analyzeWithLLM(), buildHeuristicResult(), extractHeuristicFeatures(), extractHeuristicTasks(), fs, mammoth, OpenAI (+2 more)
 
 ### Community 236 - "flowRepository.js"
-Cohesion: 0.40
-Nodes (10): createCampaign(), deleteCampaign(), getCampaignById(), getCompanyId(), getScheduledCampaignsToRun(), listCampaigns(), mapCampaign(), parseJson() (+2 more)
+Cohesion: 0.29
+Nodes (9): { analyzeProject }, devPipeline, normalizeCommand(), parseMissingApisQuestion(), parseProjectStatusQuestion(), path, runAssistantCommand(), runCommand() (+1 more)
 
 ### Community 237 - "aiIntelligenceStorage.js"
-Cohesion: 0.40
-Nodes (5): PowerShell Prompt Details, Prompt Colors, Prompt Display, Timeout Behavior, User Response Handling
+Cohesion: 0.07
+Nodes (26): 1.1 Frontend Typecheck & Build Cleanliness (F3.2), 1.2 Backend Test Runner & Teardown Cleanliness (F3.5), 1. Observation, 2. Logic Chain, 3. Caveats, 4.1 Frontend Surgical Diffs, 4.2 Backend Teardown & Runner Surgical Diffs, 4. Conclusion & Concrete Surgical Diffs (+18 more)
 
 ### Community 238 - "FASE 1 - Mapeamento"
-Cohesion: 0.07
-Nodes (40): Header(), HeaderProps, SystemHealthMatrix(), Skeleton(), Table, TableBody, TableCaption, TableCell (+32 more)
+Cohesion: 0.29
+Nodes (8): AgentCharacterRenderer(), AgentCharacterRendererProps, CHARACTER_PRESETS, CharacterAssetLayer, CharacterPreset, resolveCharacterPreset(), STATE_VISUAL_MAP, StateVisualConfig
 
 ### Community 239 - "audit-findings.json"
 Cohesion: 0.18
@@ -1714,8 +2046,8 @@ Cohesion: 0.18
 Nodes (10): Alias temporários existentes, Regras de fallback, Regras de rotas, Regras obrigatórias, Regressão proibida, Rotas autenticadas, Rotas críticas congeladas, Rotas públicas (+2 more)
 
 ### Community 247 - "Agente: Reviewer"
-Cohesion: 0.06
-Nodes (32): **Backend Developer**, Common Mistakes to Avoid, 🛠️ Common Tasks Reference, 📚 Complete Documentation Guide, Configuration Files, **DevOps/System Admin**, 🎯 Documentation by Role, 🔄 Documentation Flow (+24 more)
+Cohesion: 0.20
+Nodes (10): Common Mistakes to Avoid, 📚 Complete Documentation Guide, 🔄 Documentation Flow, 📅 Documentation Maintenance, 📊 Documentation Statistics, Pro Tips, 💡 Quick Tips, 🎉 Summary (+2 more)
 
 ### Community 248 - "INDEX.md"
 Cohesion: 0.18
@@ -1730,20 +2062,20 @@ Cohesion: 0.20
 Nodes (9): AI Auto Response, Analytics Tracking, Automation Trigger, Campaign Broadcast, Conversation Assignment, Cross-Flow Safety Constraints, Incoming WhatsApp Message, Outgoing Message (+1 more)
 
 ### Community 252 - "auto-healer.js"
-Cohesion: 0.20
-Nodes (9): ContextMenuCheckboxItem, ContextMenuContent, ContextMenuItem, ContextMenuLabel, ContextMenuRadioItem, ContextMenuSeparator, ContextMenuShortcut(), ContextMenuSubContent (+1 more)
+Cohesion: 0.08
+Nodes (23): 1.1 Vulnerability Mechanics & Attack Vectors, 1.2 Blast Radius, 1.3 Fix Architecture: Two-Layer Defense-in-Depth, 1.4 Downstream Unification in `sessionManager.legacy.js`, 1. Defect Analysis: Path Traversal in `sessionPaths.js`, 2.1 Problem Mechanics, 2.2 Fix Architecture: In-Flight Promise Cache Map, 2. Defect Analysis: Concurrency Lock & Testing Rigidity in `migrateLegacySessions` (+15 more)
 
 ### Community 253 - "tenantAiIsolation.test.js"
 Cohesion: 0.40
 Nodes (9): axios, checkBackend(), checkFrontend(), { exec }, fixStuckQueue(), log(), { Pool }, restartPM2() (+1 more)
 
 ### Community 254 - "messageDedupeService.js"
-Cohesion: 0.40
-Nodes (5): Step 1: Frontend Request, Step 2: PowerShell Prompt, Step 3: User Decision, Step 4: Frontend Feedback, User Workflow
+Cohesion: 0.12
+Nodes (21): whatsappLog(), logSessionEvent(), pushConnectionLog(), { whatsappLog }, getPersistenceHealth(), markPersistenceFailure(), markPersistenceSuccess(), persistenceHealth (+13 more)
 
 ### Community 255 - "metricsTracker.js"
-Cohesion: 0.12
-Nodes (11): humanAttendanceLearner, path, classifyMessageTopic(), HumanAttendanceLearner, { pool }, sanitizeText(), TOPIC_CLASSIFIERS, humanAttendanceLearner (+3 more)
+Cohesion: 0.09
+Nodes (16): humanAttendanceLearner, path, classifyMessageTopic(), HumanAttendanceLearner, { pool }, sanitizeText(), TIER_DEFINITIONS, TOPIC_CLASSIFIERS (+8 more)
 
 ### Community 256 - "hydrateFromSettings"
 Cohesion: 0.29
@@ -1798,8 +2130,8 @@ Cohesion: 0.22
 Nodes (8): 🏗️ Architecture, 📚 Documentation Files, 📈 Performance Metrics, 📋 Pre-Deployment Requirements, 🔄 Request Flow, 🔒 Security Features, ✨ Summary, ZapFlow System - Deployment Checklist & Summary
 
 ### Community 269 - "scripts"
-Cohesion: 0.16
-Nodes (12): evaluateCampaign(), buildCampaignSnapshot(), emitCampaignSnapshot(), { evaluateCampaign }, startCampaignRuntime(), campaignEngine, campaignRuntime, startBackgroundServices() (+4 more)
+Cohesion: 0.17
+Nodes (11): evaluateCampaign(), buildCampaignSnapshot(), emitCampaignSnapshot(), { evaluateCampaign }, startCampaignRuntime(), campaignEngine, campaignRuntime, automationController (+3 more)
 
 ### Community 270 - "auto-organizer.js"
 Cohesion: 0.22
@@ -1814,8 +2146,8 @@ Cohesion: 0.25
 Nodes (3): check_requirements(), err(), common.sh script
 
 ### Community 273 - "aiLocalBrainService.js"
-Cohesion: 0.33
-Nodes (8): autoLearn(), getAgentLearnedEvents(), getBigrams(), localCache, normalizeText(), { query }, queryLocalBrain(), stringSimilarity()
+Cohesion: 0.27
+Nodes (10): autoLearn(), getAgentLearnedEvents(), getBigrams(), localCache, matchQuickReplyFastPath(), normalizeText(), { query }, queryLocalBrain() (+2 more)
 
 ### Community 274 - "aiLogService.js"
 Cohesion: 0.32
@@ -1826,8 +2158,8 @@ Cohesion: 0.39
 Nodes (8): createLeads(), db, getCompanyId(), getLeadsById(), listLeads(), memoryFallbackRecords, removeLeads(), updateLeads()
 
 ### Community 276 - "sessionStateService.js"
-Cohesion: 0.42
-Nodes (7): getWhatsappSession(), INITIAL_STATE, normalizeTenantId(), resetWhatsappSession(), setWhatsappSession(), syncGlobalAlias(), tenantStates
+Cohesion: 0.20
+Nodes (13): getWhatsappSession(), INITIAL_STATE, normalizeTenantId(), resetWhatsappSession(), setWhatsappSession(), syncGlobalAlias(), tenantStates, isMessageConfirmed() (+5 more)
 
 ### Community 277 - "helpers.js"
 Cohesion: 0.25
@@ -1842,8 +2174,8 @@ Cohesion: 0.50
 Nodes (3): assert, fs, test
 
 ### Community 280 - "ZAPFLOW AI — AI Software Architect"
-Cohesion: 0.22
-Nodes (7): automationController, express, router, automationService, controller, microtaskRunner, routes
+Cohesion: 0.13
+Nodes (13): { getLogger }, loadTask(), logger, path, runTask(), taskCache, automationController, express (+5 more)
 
 ### Community 281 - "common.sh"
 Cohesion: 0.15
@@ -1871,7 +2203,7 @@ Nodes (8): 🛠️ Fluxo de Trabalho de Atualização, Guia de Atualização: Im
 
 ### Community 287 - "4. PROBLEMAS DE INSTABILIDADE"
 Cohesion: 0.08
-Nodes (22): [1.1.0] - 2026-07-02, [1.1.1] - 2026-07-02, Added, Added, Changelog — ZAPAI, Fixed, Unreleased — 2026-09-18, Unreleased — 2026-09-22: Memória por WhatsApp e criação de atendentes (+14 more)
+Nodes (23): [1.1.0] - 2026-07-02, [1.1.1] - 2026-07-02, Added, Added, Changelog — ZAPAI, Fixed, Unreleased — 2026-09-18, Unreleased — 2026-09-22: Memória por WhatsApp e criação de atendentes (+15 more)
 
 ### Community 288 - "REAL_RUNTIME_MAP.md"
 Cohesion: 0.10
@@ -1902,16 +2234,16 @@ Cohesion: 0.25
 Nodes (8): 1. Standalone Runtime Agent, 2. Process Management, 3. Health Monitoring, 4. API Endpoints, 5. Logging & Audit, 6. Multiple Instance Prevention, 7. User Confirmation (PowerShell), 📊 Features Implemented
 
 ### Community 295 - "🚀 Where to Start?"
-Cohesion: 0.13
-Nodes (16): collectionOps, loadMessagesForChatModule, mediaHelpers, realtimeInboxEvents, receiveDedupe, receivePersistMemory, receiveRegister, sendPersistOutgoing (+8 more)
+Cohesion: 0.10
+Nodes (20): collectionOps, loadMessagesForChatModule, mediaHelpers, realtimeInboxEvents, receiveDedupe, receivePersistMemory, receiveRegister, sendPersistOutgoing (+12 more)
 
 ### Community 296 - "package.json"
-Cohesion: 0.50
-Nodes (4): Activation Log Entries Created, Log Entry Format, Log File Location, Logging
+Cohesion: 0.12
+Nodes (15): attachDefaultSocketHandlers(), backpressureController, BATCH_WINDOW_MS, batchQueue, _customSocketHandlers, emit(), emitBatched(), { emitToTenant, emitToTenantWithAliases, joinTenantRoom, resolveSocketTenantId } (+7 more)
 
 ### Community 297 - "aiVoiceEngine.js"
-Cohesion: 0.50
-Nodes (4): Integration Tests, Testing Checklist, Unit Tests, User Acceptance Tests
+Cohesion: 0.09
+Nodes (21): 1. Executive Summary, 2. Exhaustive Audit of Session Folder Occurrences, 3.1 Architecture of `sessionPaths.js`, 3.2 Key Architectural Benefits:, 3. Canonical Path Helper Strategy, 4.1 Migration Algorithm (`migrateLegacySessions`), 4.2 Where Migration Executes:, 4. Backwards-Compatible Startup Auto-Migration (+13 more)
 
 ### Community 298 - "campaignAnalysisService.js"
 Cohesion: 0.25
@@ -1926,12 +2258,12 @@ Cohesion: 0.11
 Nodes (18): ⚡ 1. Desempenho e Velocidade de Carregamento, ♿ 2. Acessibilidade (WCAG Conformance), Recomendações e Melhorias de UX/UI — Zapflow CRM, Rota: `/ai` (4 violações), Rota: `/analytics` (4 violações), Rota: `/campaigns` (4 violações), Rota: `/connections` (4 violações), Rota: `/contacts` (4 violações) (+10 more)
 
 ### Community 301 - "contacts.js"
-Cohesion: 0.18
-Nodes (18): backendDir, __dirname, discoverManagedProcesses(), duplicateCommandFragments, __filename, frontendDir, getListeningPorts(), getProtectedPids() (+10 more)
+Cohesion: 0.09
+Nodes (21): 1. Executive Summary, 2. Disconnect Reason Mapping & Error Code Matrix, 3. Coordinated Backoff Architecture & Eliminating Race Conditions, 4. Socket Teardown & Memory Leak Prevention, 5. Database Status & Persistence Resilience, 6. Concrete File Modifications for Implementation Worker, 7. Verification Strategy & Test Implementation, Complete Teardown on Terminal Disconnects (+13 more)
 
 ### Community 302 - "runtimeEnv.js"
-Cohesion: 0.67
-Nodes (3): 1. services/activationConfirmationService.js, 2. controllers/systemController.js, Files Modified
+Cohesion: 0.09
+Nodes (21): 1. Executive Summary, 2.1 Root Cause Analysis & Empirical Observation, 2.2 Concrete Fix Strategy, 2.3 Concrete Replacement Recommendation, 2. Issue 1: `sessionPersistenceValidator.js:96` (Crash on Non-Object `creds`), 3.1 Root Cause Analysis & Empirical Observation, 3.2 Concrete Fix Strategy, 3.3 Concrete Replacement Recommendation (+13 more)
 
 ### Community 303 - "EventBus"
 Cohesion: 0.43
@@ -1962,16 +2294,16 @@ Cohesion: 0.25
 Nodes (7): 1) Remover gatilhos de troca de estado visual no boot, 2) Tornar o carregamento de páginas lazy determinístico, 3) Unificar a origem de autenticação para evitar redirecionamento oscilante, 4) Congelar o layout oficial do sistema, 5) Validação final orientada ao bug, Detalhes técnicos (resumo), Plano para congelar a versão oficial (a da imagem) e eliminar alternância
 
 ### Community 310 - "EventBus"
-Cohesion: 0.67
-Nodes (3): Configuration, Environment Variables (Optional), Hardcoded Configuration (in activationConfirmationService.js)
+Cohesion: 0.08
+Nodes (21): axios, fs, path, WhatsAppCommerceAdapter, baileysCommerceAdapter, CartOrderListener, conversationRepository, messageRepository (+13 more)
 
 ### Community 311 - "Autonomous Improvement Skill"
 Cohesion: 0.29
 Nodes (3): EventBus, EventCallback, RealtimeEventType
 
 ### Community 312 - "Release Skill"
-Cohesion: 0.67
-Nodes (3): Future Enhancements, Planned Features, Possible Issues to Monitor
+Cohesion: 0.10
+Nodes (20): 1.1 Existing Test Suite Status and Baseline Coverage, 1.2 Direct Observations of Manual Sync Triggers in Frontend, 1.3 Direct Observations of Backend Sync Coordination Gaps, 1. Observation, 2. Logic Chain, 3. Caveats, 4.1 Test Specification 1: Frontend Manual Sync Elimination (Requirement 1), 4.2 Test Specification 2: Automatic Silent Background Sync Coordinator (Requirement 2) (+12 more)
 
 ### Community 313 - "Tester Skill"
 Cohesion: 0.25
@@ -1998,8 +2330,8 @@ Cohesion: 0.52
 Nodes (6): action(), dryrun(), err(), log(), recovery.sh script, warn()
 
 ### Community 321 - "ai-toggle-enforcement.test.js"
-Cohesion: 0.17
-Nodes (11): 📊 1. Resumo Executivo, 🚨 2. Análise de Erros e Rotas Quebradas, 💻 3. Erros de Console e Exceções JS (Browser), 🔌 4. Auditoria de Integração de APIs (HTTP Status >= 400), 📱 5. Auditoria de Responsividade (Viewports), 🔘 6. Botões Sem Ação Suspeitos, Erros de Console (Console.error / Console.warn), Exceções de Renderização/JS (+3 more)
+Cohesion: 0.10
+Nodes (20): 1.1 Complete Inventory of Test Files in `frontend-official/src` (49 Files), 1.2 Automated Static Analysis of Test Files (`test_files_analysis.json`), 1.3 Deep Inspection of Rendered Components with Timers (`rendered_components_timers.json`), 1.4 Detailed Root Cause Trace: `CatalogSelectorPopover.tsx` vs `inboxCatalogPopover.test.tsx`, 1. Isolated Unit Verification, 1. Observation, 2. Full Vitest Test Suite Execution, 2. Logic Chain (+12 more)
 
 ### Community 322 - "campaignScheduler.js"
 Cohesion: 0.29
@@ -2024,6 +2356,10 @@ Nodes (15): analyzeConversationSignals(), areStringArraysEqual(), buildExecutive
 ### Community 327 - "sessionRepository.js"
 Cohesion: 0.29
 Nodes (3): correlationTracker, eventBusService, SyncPipeline
+
+### Community 328 - "[1.1.0] - 2026-07-02"
+Cohesion: 0.10
+Nodes (20): 1.1 Source Code Verification, 1.2 Independent Test Suite Verification (Real Execution Results), 1.3 Integrity Violation Assessment, 1. Observation, 1. Outbound Queue Acceptance & Performance Suites, 2. Logic Chain, 2. Native WhatsApp Commerce & Clean Database Teardown, 3. Caveats (+12 more)
 
 ### Community 329 - "auto-deploy.sh"
 Cohesion: 0.29
@@ -2066,7 +2402,7 @@ Cohesion: 0.29
 Nodes (6): Fluxo local recomendado, frontend-official, Observações importantes, Rotas principais esperadas, Runtime oficial, Testes e validação
 
 ### Community 341 - "Release Skill"
-Cohesion: 0.17
+Cohesion: 0.15
 Nodes (10): customerMemoryEngine, DEFAULT_ZAI_ASSISTANT_CONFIG, experienceEngine, express, humanAttendanceLearner, knowledgeEngine, learningEngine, playbookEngine (+2 more)
 
 ### Community 342 - "Tester Skill"
@@ -2074,8 +2410,8 @@ Cohesion: 0.15
 Nodes (5): ExperienceEngine, { Pool }, assert, { ExperienceEngine }, { test }
 
 ### Community 343 - "🚀 Steps to Publish `skill-global` as a Standalone Repository"
-Cohesion: 0.18
-Nodes (15): agentLearningRepo, { buildLeadAlgorithm, STORE_EVOLUTION_ALGORITHMS, formatHumanClientName }, ensureTables(), getConversationScores(), { normalizeCapacity }, { query }, scoreConversationAndPersist(), sweepRecentConversations() (+7 more)
+Cohesion: 0.10
+Nodes (19): 1.1 Empirical Reproduction of the Process Hang, 1.2 Inspection of `backend/tests/adversarialMilestone1.test.js` (Test 4.1), 1.3 Inspection of `sessionRecoveryService.js` and `sessionManager.legacy.js` Call Graph, 1.4 Inspection of `adversarialMilestone1.test.js` After Hook, 1.5 Audit of All Other Milestone 1 Test Files, 1. Observation, 1. Standalone Adversarial Suite Execution (The failing target), 2. Full Milestone 1 Combined Test Suite (+11 more)
 
 ### Community 344 - "Architect Skill"
 Cohesion: 0.29
@@ -2106,24 +2442,28 @@ Cohesion: 0.12
 Nodes (16): ARQUITETURA FINAL, ARQUIVOS MODIFICADOS (51 arquivos), CHECKLIST DE PRODUÇÃO, COMANDO DE DEPLOY FINAL, CONCLUSÃO, ENDPOINTS CRÍTICOS, ✅ PASSO 1: AUDITORIA COMPLETA DE CÓDIGO, ✅ PASSO 2: REMOÇÃO DE REGRESSÃO (+8 more)
 
 ### Community 351 - "aiFollowupCron.js"
-Cohesion: 0.17
-Nodes (16): CatchAllRoute(), LoginRoute(), RequireAdminAuth(), RootRoute(), Login(), buildSession(), decodeJwtExpiry(), LoginInput (+8 more)
+Cohesion: 0.22
+Nodes (6): assert, backendRoot, enterprisePath, Module, path, test
+
+### Community 352 - "SyncContext"
+Cohesion: 0.10
+Nodes (19): 1. Observation, 2. Logic Chain, 3. Recommended Surgical Diffs, 4. Caveats, 5. Conclusion, 6. Verification Method, Canonical Paths and Line Inventory, Diff 10: `frontend-official/src/components/ai/ZaiCommandPalette.tsx` (+11 more)
 
 ### Community 353 - "tenantContext.js"
 Cohesion: 0.47
 Nodes (5): getPool(), main(), path, { Pool }, shouldRunVacuum()
 
 ### Community 354 - "apiEnvelope.js"
-Cohesion: 0.29
-Nodes (14): cancelFlow(), { emitToTenant }, finishFlow(), getRunningFlow(), pauseFlow(), resumeFlow(), runningFlows, scopeKey() (+6 more)
+Cohesion: 0.19
+Nodes (18): cancelFlow(), { emitToTenant }, findRunningEntry(), finishFlow(), getRunningFlow(), normalizeDigits(), pauseFlow(), resumeFlow() (+10 more)
 
 ### Community 355 - "adminUsers.js"
 Cohesion: 0.67
 Nodes (5): isStrictTenantHeaderRequired(), resolveTenantHeader(), resolveTenantIdFromRequest(), shouldSkipTenantValidation(), tenantContextMiddleware()
 
 ### Community 356 - "InboxRealtimeService.js"
-Cohesion: 0.10
-Nodes (18): { Pool }, crossConversationMemory, customerMemoryEngine, experienceEngine, knowledgeEngine, learningEngine, playbookEngine, aiAntiRepetitionService (+10 more)
+Cohesion: 0.09
+Nodes (19): { Pool }, crossConversationMemory, customerMemoryEngine, EvolutionaryAgentOrchestrator, experienceEngine, knowledgeEngine, learningEngine, playbookEngine (+11 more)
 
 ### Community 357 - "doctor.sh"
 Cohesion: 0.80
@@ -2132,6 +2472,10 @@ Nodes (5): apiEnvelopeMiddleware(), formatApiResponse(), isEnvelope(), isPlainOb
 ### Community 358 - "env.sh"
 Cohesion: 0.60
 Nodes (5): emit(), emitConversationUpdate(), emitMessage(), emitTypingStart(), emitTypingStop()
+
+### Community 360 - "packages.sh"
+Cohesion: 0.10
+Nodes (19): 1.1 WebSocket Gateway Deduplication, 1.2 Outbound Queue Concurrency Pool & Windows File Locking, 1.3 Batch Queueing in Automation Engine, 1.4 Database Pool Draining & Clean Teardown, 1.5 Independent Command Executions, 1. Observation, 2. Logic Chain, 3. Caveats (+11 more)
 
 ### Community 361 - "vps-setup.sh"
 Cohesion: 0.60
@@ -2166,8 +2510,8 @@ Cohesion: 0.33
 Nodes (5): Arquivos Criados, Fluxo Auto-Deploy, Modificados, Score: 100/100 PRODUCTION READY, Score Final por Componente
 
 ### Community 371 - "discovery-crawler.spec.ts"
-Cohesion: 0.23
-Nodes (16): buildQueuedItem(), cancelFlowItems(), getActiveFlow(), nextBackoffMs(), normalizePhone(), nowIso(), pauseFlowItems(), pauseSessionItems() (+8 more)
+Cohesion: 0.21
+Nodes (20): buildQueuedItem(), cancelContactItems(), cancelFlowItems(), getActiveFlow(), getFlowTiming(), isExemptFromAutomationPause(), nextBackoffMs(), normalizePhone() (+12 more)
 
 ### Community 372 - "backup.sh"
 Cohesion: 0.33
@@ -2182,8 +2526,8 @@ Cohesion: 0.24
 Nodes (10): decodeBase64Payload(), getMetadata(), issueAccess(), mediaService, stream(), upload(), verifiedTenant(), express (+2 more)
 
 ### Community 375 - "Checklist de Homologação Local Geral"
-Cohesion: 0.12
-Nodes (12): PlaybookEngine, { Pool }, simpleHash(), assert, customerMemoryEngine, { describe, it, before, after }, experienceEngine, knowledgeEngine (+4 more)
+Cohesion: 0.20
+Nodes (9): assert, customerMemoryEngine, { describe, it, before, after }, experienceEngine, knowledgeEngine, learningEngine, orchestrator, playbookEngine (+1 more)
 
 ### Community 376 - "Architect Skill"
 Cohesion: 0.33
@@ -2237,17 +2581,21 @@ Nodes (5): 🚀 Deployment Options, Option 1: Development (Recommended), Option 
 Cohesion: 0.40
 Nodes (5): E2E Tests, Integration Tests, Manual Testing, 🧪 Testing Checklist, Unit Tests
 
+### Community 389 - "PowerShell Prompt Details"
+Cohesion: 0.11
+Nodes (11): CompatibilityEngine, compatibilityEngine, protocolIntelligence, zaiCommunicationEngine, ProtocolIntelligence, assert, cartOrderListener, compatibilityEngine (+3 more)
+
 ### Community 390 - "User Workflow"
 Cohesion: 0.20
 Nodes (9): assert, customerMemoryEngine, { describe, it, before, after }, evolutionaryOrchestrator, experienceEngine, knowledgeEngine, learningEngine, playbookEngine (+1 more)
 
 ### Community 391 - "Key Components"
-Cohesion: 0.16
-Nodes (6): ResizableHandle(), ResizablePanelGroup(), InboxView(), InboxViewProps, flowReply, textReply
+Cohesion: 0.11
+Nodes (18): 1. Observation, 2. Logic Chain, 3. Empirical Test Results, 4. Adversarial Review & Challenge Report, 5. Caveats, 6. Conclusion & Verdict, 7. Verification Method, Challenge 1 (Path Traversal & In-Memory State Clashing) (+10 more)
 
 ### Community 392 - "Workflow Examples"
-Cohesion: 0.50
-Nodes (4): analyzeLeadsForReactivation(), classifyAction(), executeReactivations(), { query }
+Cohesion: 0.10
+Nodes (14): RecoveryManager, sessionManager, webBridgeManager, capabilityRegistry, commerceEngine, compatibilityEngine, healthMonitor, orchestrator (+6 more)
 
 ### Community 393 - "Migrations"
 Cohesion: 0.40
@@ -2282,20 +2630,20 @@ Cohesion: 0.13
 Nodes (14): 2026-04-27 - Operação DevOps ZAPAI-FINAL, 2026-04-28 - Estabilização VPS única (209.50.229.68:4025), Ajustes aplicados, Auditoria local realizada, CHANGELOG_AI, Contexto, Escopo, Observações (+6 more)
 
 ### Community 405 - "Padrão de Respostas"
-Cohesion: 0.13
-Nodes (14): 1.1 Estrutura Completa de Pastas, 1.2 Responsabilidades de Cada Camada, 1. MAPEAMENTO DO SISTEMA, 7.1 PM2 (Opcional, se não Docker), 7.2 Logs Estruturados, 7.3 Healthcheck Endpoint, 7. MODO PRODUÇÃO, 8.1 One-Click Deploy Script (+6 more)
+Cohesion: 0.18
+Nodes (10): 1.1 Estrutura Completa de Pastas, 1.2 Responsabilidades de Cada Camada, 1. MAPEAMENTO DO SISTEMA, 8.1 One-Click Deploy Script, 8. SCRIPT DE INSTALAÇÃO AUTOMÁTICA, **Ações Recomendadas Antes do Go-Live**, DIAGNÓSTICO COMPLETO DO SISTEMA ZAPAI, **Status Geral: ✅ APROVADO PARA PRODUÇÃO** (+2 more)
 
 ### Community 406 - "package.json"
-Cohesion: 0.26
-Nodes (13): ensureState(), persistState(), updateImprovementStatus(), aiIntelligenceStateFilePath, createDefaultState(), dataDirectory, ensureDataFile(), fs (+5 more)
+Cohesion: 0.33
+Nodes (10): aiIntelligenceStateFilePath, createDefaultState(), dataDirectory, ensureDataFile(), fs, loadAiIntelligenceState(), normalizeArray(), normalizeState() (+2 more)
 
 ### Community 407 - "run-flash.js"
-Cohesion: 0.09
-Nodes (22): extractFactsFromContext(), getConversationMemory(), MEMORY_CATEGORIES, normalizeCapacity(), normalizeFactKey(), persistConversationMemory(), { query }, setCustomerFact() (+14 more)
+Cohesion: 0.10
+Nodes (17): extractFactsFromContext(), getConversationMemory(), MEMORY_CATEGORIES, normalizeFactKey(), persistConversationMemory(), { query }, setCustomerFact(), aiConfigController (+9 more)
 
 ### Community 408 - "visual-full-e2e.spec.ts"
-Cohesion: 0.40
-Nodes (5): Deployment, Option 1: Standalone Agent (Separate Process), Option 2: Embedded in Startup Script, Option 3: Windows Service, Option 4: Linux Systemd
+Cohesion: 0.11
+Nodes (17): Context & Problem, Context & Problem, Context & Problem, Defect 1: Migrate Legacy Sessions Custom Directory Support & Unit Test Refactor, Defect 2: Real Invocation of `sessionManager.restoreSessions()` in Test Suite, Defect 3: Unmanaged Timer at `stableSession.js:1405` & Teardown Cleanliness, Detailed Analysis & Surgical Line Replacement Recommendations, Executive Summary (+9 more)
 
 ### Community 409 - "zapai-crm.e2e.spec.ts"
 Cohesion: 0.40
@@ -2310,24 +2658,24 @@ Cohesion: 0.40
 Nodes (5): Activation Logged But Nothing Started, PowerShell Prompt Doesn't Appear, Startup Processes Don't Start, Troubleshooting, User Response Not Recognized
 
 ### Community 412 - "start.js"
-Cohesion: 0.40
-Nodes (5): activationConfirmationService.js Functions, `executeStartupScript()` (Legacy), Implementation Details, `showConfirmationDialog()`, `startRuntimeProcesses()`
+Cohesion: 0.11
+Nodes (17): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion & Proposed Surgical Diffs, 5. Verification Method, Handoff Report: Frontend Vitest Test Suite Restoration (Milestone 3 / Feature F3.1), Patch 1: `frontend-official/src/test/activeChatSheet.test.tsx`, Patch 2: `frontend-official/src/test/inboxReconstruction.test.tsx` (+9 more)
 
 ### Community 413 - "stop.js"
 Cohesion: 0.19
 Nodes (12): appendRuntimeError(), buildPayload(), captureError(), emitSystemError(), fs, { getLogger, LOG_DIRECTORY }, initializeBugWatcher(), path (+4 more)
 
 ### Community 414 - "run-e2e-smoke.js"
-Cohesion: 0.14
-Nodes (10): historyCache, historyCache, HistoryStage, messageRepository, assert, conversationRepoPath, crmIntelligence, { describe, it, beforeEach } (+2 more)
+Cohesion: 0.11
+Nodes (11): historyCache, LRUHistoryCache, historyCache, HistoryStage, messageRepository, assert, conversationRepoPath, crmIntelligence (+3 more)
 
 ### Community 415 - "update.sh"
 Cohesion: 0.40
 Nodes (5): Códigos HTTP, Erro, Padrão de Respostas, Sucesso (lista), Sucesso (objeto)
 
 ### Community 416 - "Automation Skill"
-Cohesion: 0.40
-Nodes (4): name, private, type, version
+Cohesion: 0.12
+Nodes (14): assert, commerceQuoteEngine, path, productRepository, { query: dbQuery }, runTests(), webBridgeSessionManager, webCatalogExtractor (+6 more)
 
 ### Community 417 - "Context Efficiency & Progressive Disclosure Strategy — skill-global"
 Cohesion: 0.40
@@ -2480,16 +2828,16 @@ Cohesion: 0.83
 Nodes (3): inputSanitizerMiddleware(), sanitizeString(), sanitizeValue()
 
 ### Community 462 - "Logs"
-Cohesion: 0.18
-Nodes (7): MessageAuditService, { query }, aiIntelligenceService, MessageAuditService, messageStore, sessionManager, whatsappService
+Cohesion: 0.10
+Nodes (13): MessageAuditService, { query }, messageService, whatsappService, aiIntelligenceService, MessageAuditService, messageStore, sessionManager (+5 more)
 
 ### Community 463 - "Sumário Geral do Estado do Projeto — Zapflow CRM"
-Cohesion: 0.12
-Nodes (13): agents, ai, createHistoryRouter(), express, { historySync }, { pool }, { rateLimit }, { redact, isHeldOut, GUARDRAILS } (+5 more)
+Cohesion: 0.29
+Nodes (3): PlaybookEngine, { Pool }, simpleHash()
 
-### Community 464 - "Relatório de Bugs Visuais e Estabilidade Layout"
-Cohesion: 0.50
-Nodes (3): express, router, sessionsController
+### Community 465 - "@radix-ui/react-toggle"
+Cohesion: 0.06
+Nodes (34): webBridgeManager, ENGINE_CAPABILITIES, ENGINES, OPERATIONS, capabilityRegistry, eventNormalizer, transportRegistry, webBridgeManager (+26 more)
 
 ### Community 466 - "7. MODO PRODUÇÃO"
 Cohesion: 0.40
@@ -2502,10 +2850,6 @@ Nodes (3): assert, pipeline, test
 ### Community 469 - "deploy-master.js"
 Cohesion: 0.17
 Nodes (12): 3.1 Fluxo de Arquitetura Completo, 3.2 Fluxo de Mensagem Completo, 3.3 Fluxo WhatsApp (Sessão), 3.4 Banco de Dados, 3. CONEXÕES E FLUXOS DE DADOS, **Conexão Inicial**, **Inbound (WhatsApp → Database → Frontend)**, **Outbound (Frontend → API → WhatsApp → User)** (+4 more)
-
-### Community 471 - "Universal Database Skill"
-Cohesion: 0.20
-Nodes (6): MessageRow, formatPlaybackTime(), formatTime(), getMessageStatusMeta(), HighlightedMessageText, logInboxDebug()
 
 ### Community 472 - "Developer Skill"
 Cohesion: 0.50
@@ -2520,8 +2864,8 @@ Cohesion: 0.60
 Nodes (3): err(), log(), test-install.sh script
 
 ### Community 479 - "Universal QA Skill"
-Cohesion: 0.31
-Nodes (10): CACHE_TTL_SECONDS, getJson(), getMemory(), getRedisClient(), getRedisConfig(), memoryCache, nowSeconds(), setJson() (+2 more)
+Cohesion: 0.36
+Nodes (9): CACHE_TTL_SECONDS, getJson(), getMemory(), getRedisClient(), getRedisConfig(), memoryCache, nowSeconds(), setJson() (+1 more)
 
 ### Community 480 - "patch-character2.js"
 Cohesion: 0.42
@@ -2536,7 +2880,7 @@ Cohesion: 0.50
 Nodes (3): { execSync, spawn }, path, projectRoot
 
 ### Community 483 - "Graphify Skill"
-Cohesion: 0.18
+Cohesion: 0.14
 Nodes (5): assert, persisted, queue, queueSock, test
 
 ### Community 484 - "WhatsApp Skill"
@@ -2612,12 +2956,12 @@ Cohesion: 0.18
 Nodes (10): 🛠️ 1. Stack de Tecnologias, 📂 2. Estrutura de Diretórios & Camadas, 🔐 3. Roteamento, Permissões e Segurança, 📈 4. Telemetria e Ciclo de Vida E2E, Backend & Integrações, Documentação Técnica da Arquitetura — ZAPFLOW AI, Fluxo de Inicialização, Frontend (+2 more)
 
 ### Community 510 - "fast-ui-chaos.spec.ts"
-Cohesion: 0.18
-Nodes (11): 9.2 Testes de Acesso, 9.3 Testes de Performance, 9. VALIDAÇÃO FINAL, **Como acessar via navegador**, **Como conectar WhatsApp**, **Como reiniciar sem perder conexão**, **Database Connection Pool**, **Load Testing (local)** (+3 more)
+Cohesion: 0.33
+Nodes (6): 9.2 Testes de Acesso, **Como acessar via navegador**, **Como conectar WhatsApp**, **Como reiniciar sem perder conexão**, **Onde ficam sessões**, **Onde ver QR Code**
 
 ### Community 511 - "restart.sh"
-Cohesion: 0.27
-Nodes (9): clearAdminAuthSession(), emitAdminAuthChanged(), persistAdminAuthSession(), login(), options, response(), row(), transport (+1 more)
+Cohesion: 0.15
+Nodes (14): getInboxUnreadTotal(), publishInboxUnreadTotal(), authorizeMediaUrl(), resolveMediaUrl(), resolveProtectedMediaUrl(), Inbox(), removeEmojis(), downloadMediaFile() (+6 more)
 
 ### Community 515 - "ConversationRepository.js"
 Cohesion: 0.33
@@ -2640,8 +2984,8 @@ Cohesion: 0.20
 Nodes (10): 2.1 Como o Sistema Está Sendo Iniciado, 2.2 Problemas Comuns Identificados, 2.3 Importações e Dependências, 2. DIAGNÓSTICO DE EXECUÇÃO, ⚠️ **ATENÇÃO RECOMENDADA**, **Backend Dependências Críticas**, **Backend Initialization Flow (server.js)**, **Frontend Initialization Flow** (+2 more)
 
 ### Community 521 - "input-otp.tsx"
-Cohesion: 0.18
-Nodes (6): InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot, request, shared
+Cohesion: 0.52
+Nodes (6): generateConversationSummary(), getLastClientMessage(), getRecentMessages(), getTopicClauses(), hasAnyTerm(), normalizeText()
 
 ### Community 524 - "activationLoggerService.js"
 Cohesion: 0.36
@@ -2659,6 +3003,26 @@ Nodes (8): assert, copy(), crypto, fixture(), fs, source, test, vm
 Cohesion: 0.22
 Nodes (8): assert, context, ownSession, scope, settings, settingsPath, test, togglePath
 
+### Community 532 - "envValidator.js"
+Cohesion: 0.12
+Nodes (15): { clearFastCache }, CORE_STORE_PRODUCTS, createProduct(), deleteProduct(), getProductById(), productRepository, sessionManager, syncWhatsAppCatalog() (+7 more)
+
+### Community 533 - "inbox_fix_prompt.md"
+Cohesion: 0.29
+Nodes (5): aiAgentService, crypto, express, { query }, router
+
+### Community 539 - "updateMetrics.js"
+Cohesion: 0.12
+Nodes (16): 1. Exhaustive Inventory of Frontend UI Manual Sync Elements, 2.1. Catalog Products and Collections Synchronization, 2.2. Order History & Generated Orders Synchronization, 2.3. Billing and Payment Data Synchronization, 2. WhatsApp Business Data Synchronization Architecture, 3. Backend Trigger and Execution Flow, 4.1. Proposed Core Module: `WhatsAppAutoSyncCoordinator`, 4.2. Concrete Trigger Location in `stableSession.js` (+8 more)
+
+### Community 541 - "messageWorker.js"
+Cohesion: 0.12
+Nodes (16): 1.1 Direct Inspection of `sessionPersistenceValidator.js:96`, 1.2 Direct Inspection of `sessionRecoveryService.js:64`, 1.3 Direct Inspection of `adversarialMilestone1.test.js:198-243`, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method (+8 more)
+
+### Community 544 - "clsx"
+Cohesion: 0.12
+Nodes (16): 1.1 `stableSession.js` Connection & Sync Call Sites, 1.2 Commerce & Controller Subsystems, 1. Observation, 2. Logic Chain, 3. Caveats, 4.1 New Component: `backend/services/whatsapp/sync/WhatsAppAutoSyncCoordinator.js`, 4.2 Exact Surgical Code Diffs for `backend/services/whatsapp/connection/stableSession.js`, 4. Conclusion & Complete Implementation Design (+8 more)
+
 ### Community 548 - "inspect.sh"
 Cohesion: 0.22
 Nodes (5): assert, calls, { getConversations }, memoryChats, test
@@ -2668,36 +3032,44 @@ Cohesion: 0.22
 Nodes (9): 4.1 Análise de Riscos em Produção, 4.2 Concorrência, 4.3 Memory Leaks Potenciais, 4.4 Falhas de Reconexão, 4. PROBLEMAS DE INSTABILIDADE, **Cenários Testados**, 🔴 **CRITICAL - DEVE SER FIXADO**, 🟡 **HIGH - RECOMENDADO** (+1 more)
 
 ### Community 562 - "useUserRole.ts"
-Cohesion: 0.33
-Nodes (8): ProtectedRoute(), AppUserRole, normalizeRole(), resolveBackendSessionRole(), resolveRoleFromAdminSession(), roleListeners, RoleSnapshot, useUserRole()
+Cohesion: 0.12
+Nodes (16): 1.10 Teardown Latency & Active Handle Inspection, 1.1 Outbound Queue Adversarial Stress Suite, 1.2 Event Loop Teardown Adversarial Stress Suite, 1.3 Outbound Queue Acceptance & Performance Suite, 1.4 Native WhatsApp Commerce Suite & Clean Teardown, 1.5 Master E2E Runner (Tiers 1–4), 1.6 Frontend TypeScript Typecheck, 1.7 Frontend Production Build (+8 more)
 
 ### Community 563 - "contacts.js"
-Cohesion: 0.25
-Nodes (6): contactsController, express, router, contactRepository, contactsController, routes
+Cohesion: 0.40
+Nodes (5): activationConfirmationService.js Functions, `executeStartupScript()` (Legacy), Implementation Details, `showConfirmationDialog()`, `startRuntimeProcesses()`
 
 ### Community 564 - "outboundQueueListingTenant.test.js"
 Cohesion: 0.25
 Nodes (5): assert, fs, path, test, vm
 
 ### Community 565 - "@playwright/test"
-Cohesion: 0.50
-Nodes (4): Common Workflows, Workflow 1: Development Session, Workflow 2: Testing Remote Connection, Workflow 3: Production Deployment
+Cohesion: 0.12
+Nodes (16): 1.1 Verbatim Error Log from Full Vitest Suite Run, 1.2 Inspection of `CatalogSelectorPopover.tsx` (Lines 576–611), 1.3 Inspection of `inboxCatalogPopover.test.tsx` (Lines 163–202), 1.4 Inspection of React DOM Internals (`react-dom.development.js:10992–11000`), 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion & Precise Remediation Plan (+8 more)
 
 ### Community 566 - "InboxSectionBoundary"
 Cohesion: 0.25
 Nodes (3): InboxSectionBoundary, InboxSectionBoundaryProps, InboxSectionBoundaryState
 
+### Community 568 - "historyBootstrap.integration.test.js"
+Cohesion: 0.13
+Nodes (19): capabilityRegistry, commerceEngine, connectionOrchestrator, eventNormalizer, healthMonitor, messageDispatcher, operationRouter, paymentEngine (+11 more)
+
 ### Community 569 - "run_automated_tests.js"
-Cohesion: 0.33
-Nodes (6): axios, fs, main(), path, sleep(), UPLOADS_DIR
+Cohesion: 0.08
+Nodes (26): customProfiles, getVoiceById(), synthesizeVoicePreview(), SYSTEM_VOICES, analyzeLeadsForReactivation(), classifyAction(), executeReactivations(), { query } (+18 more)
+
+### Community 570 - "@radix-ui/react-checkbox"
+Cohesion: 0.12
+Nodes (10): assert, mockBaileysSocket, path, perPhoneInFlight, persistedQueueState, phoneSequenceMap, queueService, { spawn } (+2 more)
 
 ### Community 571 - "test_endpoint.js"
 Cohesion: 0.29
 Nodes (5): crypto, http, path, req, token
 
 ### Community 572 - "@radix-ui/react-context-menu"
-Cohesion: 0.29
-Nodes (5): { backendLog }, campaignDispatchEngine, campaignRepository, cron, startCampaignScheduler()
+Cohesion: 0.12
+Nodes (15): 1.1 Source Code Verification of Test Suites (Check 1), 1.2 Inspection of Production Code for Hardcoded Test Strings & Bypasses (Check 2), 1.3 Filesystem Invariant Audit (Check 4), 1.4 Empirical Test Execution Results (Check 5), 1. Observation, 1. Standalone Adversarial Suite, 2. All 37 Milestone 1 Unit Tests Combined, 2. Logic Chain (+7 more)
 
 ### Community 574 - "messageVariationEngine.js"
 Cohesion: 0.48
@@ -2711,17 +3083,49 @@ Nodes (5): assert, fs, source, test, vm
 Cohesion: 0.29
 Nodes (5): assert, express, fs, test, vm
 
+### Community 579 - "@radix-ui/react-select"
+Cohesion: 0.12
+Nodes (15): 1.1 Code Inspection of `backend/tests/adversarialMilestone1.test.js`, 1.2 Independent Test Suite Verification, 1.3 Filesystem Verification, 1. Observation, 2. Logic Chain, 3. Adversarial & Integrity Assessment, 4. Caveats, 5. Conclusion (+7 more)
+
 ### Community 580 - "messageHistoryFetch.test.js"
-Cohesion: 0.29
-Nodes (5): assert, executedQueries, messageRepository, queryResults, test
+Cohesion: 0.12
+Nodes (15): 1.1 Code Inspection of Remediation, 1.2 Independent Execution of Verification Commands, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Gate 1: Vitest Full Test Suite (+7 more)
+
+### Community 583 - "@radix-ui/react-tabs"
+Cohesion: 0.07
+Nodes (11): CommerceCapabilityRegistry, catalogSyncEngine, commerceCapabilityRegistry, CommerceController, nativeProductSender, { orchestrator }, orderConfirmationEngine, sessionManager (+3 more)
+
+### Community 584 - "@radix-ui/react-toggle"
+Cohesion: 0.18
+Nodes (11): emitConversation(), handleLabelAssociation(), handleLabelEdit(), mapQuickReplyAction(), placeholderName(), WPP_LABEL_COLORS, assert, { handleLabelEdit, handleLabelAssociation, mapQuickReplyAction } (+3 more)
+
+### Community 585 - "@radix-ui/react-toggle-group"
+Cohesion: 0.40
+Nodes (5): PowerShell Prompt Details, Prompt Colors, Prompt Display, Timeout Behavior, User Response Handling
+
+### Community 586 - "@radix-ui/react-tooltip"
+Cohesion: 0.12
+Nodes (15): 1. Overview & Architecture, 2. Testing Principles & Guidelines, 3. 4-Tier Test Design Methodology & Coverage Matrix, 4. Runner Invocation & CLI Usage, 5. Exit Codes & CI Integration, Detailed Test Matrix, Environment Configuration Flags, Run All Tiers (Master Runner) (+7 more)
+
+### Community 587 - "react-day-picker"
+Cohesion: 0.13
+Nodes (14): 1.1 Automated Test Execution Results, 1.2 Verbatim Errors & Vulnerability Observations, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Finding 1 (Critical — Unhandled Exception on Corrupted Creds) (+6 more)
+
+### Community 589 - "react-force-graph-2d"
+Cohesion: 0.13
+Nodes (14): 1.1 Command 1: Vitest Test Suite Execution, 1.2 Command 2: TypeScript Typecheck, 1.3 Command 3: Production Build, 1.4 Command 4: Outbound Queue Acceptance & Performance, 1.5 Command 5: Native WhatsApp Commerce & Clean Teardown, 1.6 Command 6: Master E2E Runner, 1.7 Static Code Analysis of Milestone 3 Deliverables, 1. Observation (+6 more)
 
 ### Community 593 - "operationsTenant.test.js"
 Cohesion: 0.33
 Nodes (5): assert, fixture(), fs, test, vm
 
+### Community 594 - "socket.io-client"
+Cohesion: 0.13
+Nodes (14): 1.1 Remediation Implemented, 1.2 Official 6-Gate Verification Protocol Results, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Gate 1: Vitest Full Test Suite (+6 more)
+
 ### Community 595 - "quickReplyApiErrors.test.js"
-Cohesion: 0.29
-Nodes (3): assert, controller, test
+Cohesion: 0.40
+Nodes (5): Step 1: Frontend Request, Step 2: PowerShell Prompt, Step 3: User Decision, Step 4: Frontend Feedback, User Workflow
 
 ### Community 597 - "reactivationAutomationScope.test.js"
 Cohesion: 0.29
@@ -2730,6 +3134,14 @@ Nodes (5): assert, fs, source, test, vm
 ### Community 600 - "sessionsController.test.js"
 Cohesion: 0.29
 Nodes (5): assert, fs, source, test, vm
+
+### Community 602 - "jsdom"
+Cohesion: 0.19
+Nodes (12): buildHumanStylePrompt(), buildCoupledQuickReplyMemory(), findBestMatchForContext(), formatCapabilitiesForPrompt(), normalize(), quickReplyService, searchQuickReplies(), assert (+4 more)
+
+### Community 603 - "postcss"
+Cohesion: 0.13
+Nodes (11): EventEmitter, assert, autoSyncCoordinator, test, uncaughtExceptions, unhandledRejections, assert, autoSyncCoordinator (+3 more)
 
 ### Community 604 - "5. PREPARAÇÃO PARA VPS"
 Cohesion: 0.29
@@ -2743,57 +3155,129 @@ Nodes (3): assert, memoryService, test
 Cohesion: 0.47
 Nodes (5): ensureDocDirectories(), fs, generateAiDocumentation(), path, toMarkdownList()
 
+### Community 609 - "LRUHistoryCache"
+Cohesion: 0.40
+Nodes (5): Issue: Frontend never reconnects, Issue: "ngrok: command not found", Issue: ngrok tunnel keeps restarting, Issue: Port 4000 already in use, Troubleshooting
+
+### Community 611 - "CRMMetrics"
+Cohesion: 0.50
+Nodes (4): Activation Log Entries Created, Log Entry Format, Log File Location, Logging
+
+### Community 613 - "AI_CONTEXT.md"
+Cohesion: 0.24
+Nodes (11): { getEngineClient }, processIncomingMessage(), createFallbackEngine(), getEngineClient(), loadEngineFactory(), logFallbackInfo(), logUnavailableWarning(), shouldAllowEngineFallback() (+3 more)
+
 ### Community 614 - "logs.js"
-Cohesion: 0.33
-Nodes (4): express, _inMemoryLogs, os, router
+Cohesion: 0.13
+Nodes (13): { activeSessions }, assert, { EventEmitter }, { execFileSync }, fs, fsp, { getCanonicalSessionsDirectory }, os (+5 more)
 
 ### Community 615 - "Relatório de Garantia de Qualidade (QA) - ZAPFLOW AI"
 Cohesion: 0.33
 Nodes (5): 🚨 Falhas / Alertas Registrados, 🗺️ Homologação de Páginas / Recursos, Relatório de Garantia de Qualidade (QA) - ZAPFLOW AI, 📊 Resumo Executivo, 🔌 Sessões WhatsApp Detectadas localmente
 
+### Community 616 - "SidebarShell.tsx"
+Cohesion: 0.14
+Nodes (13): 1.1 Unhandled `TypeError` Crash on `null` in `validateSession()`, 1.2 Cascading Auto-Recovery Failure across Healthy Sessions in `sessionRecoveryService.js`, 1.3 Path Traversal Escape in `normalizeSessionId()` & Arbitrary Deletion in `deleteSessionFolder()`, 1.4 Missing Concurrency Lock in `migrateLegacySessions()`, 1.5 Missing Restoration Invocations in Worker's Test Suite, 1. Observation, 2. Logic Chain, 3. Caveats (+5 more)
+
+### Community 617 - "AI_CONTEXT.md"
+Cohesion: 0.14
+Nodes (13): 1. Observation, 2. Logic Chain, 3. Adversarial Challenge Summary, 4. Verified Claims, 5. Caveats, 6. Conclusion, 7. Verification Method, Challenge 1: Unhandled Reconnection Lifecycle in Standalone Tests (+5 more)
+
+### Community 618 - "AI_CONTEXT.md"
+Cohesion: 0.14
+Nodes (13): 1.1 Standalone Execution of `backend/tests/adversarialMilestone1.test.js`, 1.2 Combined Adversarial Suite Execution, 1.3 Concurrency & Teardown Challenger Suite Execution, 1.4 Master E2E Suite Across All 4 Tiers, 1.5 Rapid Consecutive Runs & Event Loop Leak Stress Testing, 1.6 Production `data/sessions` Directory State, 1.7 Combined 9 M1 Backend Test Suites, 1. Observation (+5 more)
+
 ### Community 619 - "Relatório de Erros Consolidados — Auditoria de Sistema"
 Cohesion: 0.33
 Nodes (5): 🛑 1. Rotas Quebradas (0), 💥 2. Exceções JS na Interface (0), ⚠️ 3. Logs de Erro de Console (63), 🔌 4. Requisições de API Quebradas (Status HTTP >= 400) (39), Relatório de Erros Consolidados — Auditoria de Sistema
 
+### Community 620 - "level3-real-journey.spec.ts"
+Cohesion: 0.14
+Nodes (13): 1.1 Integrity Audit of Changes, 1.2 Independent Command Verification Results, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Handoff Report — Milestone 1 Iteration 3 Quality & Adversarial Review (+5 more)
+
+### Community 621 - "test-inbox-send.spec.ts"
+Cohesion: 0.14
+Nodes (13): 1. Observation, 2. Logic Chain, 3. Adversarial Challenges & Findings, 4. Caveats, 5. Conclusion, 6. Verification Method, A. Code Changes Inspected, B. Command Executions & Test Results (+5 more)
+
+### Community 622 - "vite.config.ts"
+Cohesion: 0.14
+Nodes (13): 1.1 Filesystem Cleanup of Orphan Test Sessions, 1.2 Surgical Code Modification in `backend/tests/adversarialMilestone1.test.js`, 1.3 Empirical Test Execution Output, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method (+5 more)
+
+### Community 623 - "vite.config.ts.timestamp-1781284849739-1acb7aa79c1d.mjs"
+Cohesion: 0.14
+Nodes (13): 1.1 Automated Static Analysis & AST Tests, 1.2 Adversarial Codebase Regex & AST Scan, 1.3 `Connections.tsx` Auto-Popup Modal Behavior, 1.4 Production Build Verification, 1.5 Master E2E Test Suite Execution, 1.6 Empirical Challenger Stress Suite, 1. Observation, 2. Logic Chain (+5 more)
+
+### Community 624 - "vite.config.ts.timestamp-1784811454375-9d341ce378609.mjs"
+Cohesion: 0.14
+Nodes (13): 1.1 Outbound Queue Adversarial Stress Suite (`backend/tests/outboundQueueAdversarialStress.test.js`), 1.2 Event Loop Teardown Adversarial Suite (`backend/tests/eventLoopTeardownAdversarial.test.js`), 1.3 Full Backend Acceptance & Performance Regression Suite, 1.4 Native WhatsApp Commerce & Teardown Cleanliness, 1.5 Master E2E Full-System Runner, 1.6 Frontend TypeScript Typecheck, 1. Observation, 2. Logic Chain (+5 more)
+
+### Community 625 - "logs.sh"
+Cohesion: 0.14
+Nodes (13): 1.1 Vitest File Inspection (Substantive vs. Tautological Review), 1.2 Full Vitest Test Suite Execution, 1.3 TypeScript Strict Typecheck, 1.4 Production Vite Bundle Compilation, 1.5 Master E2E Regression Runner, 1.6 Outbound Queue Acceptance & Performance, 1.7 Native WhatsApp Commerce & Clean Database Teardown, 1. Observation (+5 more)
+
+### Community 626 - "RELEASE-CHECKLIST.md"
+Cohesion: 0.14
+Nodes (13): 1.1 Gate 1: Vitest Full Test Suite Execution, 1.2 Gate 2: Frontend TypeScript Compilation, 1.3 Gate 3: Frontend Production Build, 1.4 Gate 4: Outbound Queue Acceptance & Performance, 1.5 Gate 5: Native WhatsApp Commerce & Clean Teardown, 1.6 Gate 6: Master E2E Suite (All 4 Tiers), 1.7 Static Code Analysis of Iteration 2 Diff, 1. Observation (+5 more)
+
+### Community 627 - "ecosystem.config.js"
+Cohesion: 0.14
+Nodes (13): 1.1 Probing Component Unmount & Timer Lifecycle, 1.2 Repeated Full Vitest Test Suite Runs, 1.3 Master E2E Runner Execution, 1.4 Baseline Engineering Gates, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion (+5 more)
+
 ### Community 630 - "9.1 Checklist de Pré-Produção"
-Cohesion: 0.33
-Nodes (6): 9.1 Checklist de Pré-Produção, ✅ Backend, ✅ Database, ✅ Frontend, ✅ VPS, ✅ WhatsApp
+Cohesion: 0.18
+Nodes (11): 9.1 Checklist de Pré-Produção, 9.3 Testes de Performance, 9. VALIDAÇÃO FINAL, ✅ Backend, ✅ Database, **Database Connection Pool**, ✅ Frontend, **Load Testing (local)** (+3 more)
 
 ### Community 633 - "start_recovery_campaign_now.js"
-Cohesion: 0.40
-Nodes (3): campaignDispatchEngine, campaignRepository, path
+Cohesion: 0.21
+Nodes (5): BaileysAdapter, baileysCommerceAdapter, { ensureWhatsAppJid }, nativeProductSender, sessionManager
 
 ### Community 635 - "contextService.js"
 Cohesion: 0.50
 Nodes (4): extractTextFromFile(), fs, mammoth, pdf
 
 ### Community 640 - "014_add_conversation_notes.js"
-Cohesion: 0.40
-Nodes (4): http, https, os, { spawnSync }
+Cohesion: 0.14
+Nodes (8): assert, perPhoneInFlight, persistedData, phoneSequenceLog, queue, sharedMockSock, test, unlinkedTmpFiles
 
 ### Community 641 - "015_merge_duplicate_conversations.js"
 Cohesion: 0.40
 Nodes (5): 1. Local Network Only, 2. Process Management, 3. Logging, 4. Limitations, Security Considerations
 
 ### Community 642 - "016_merge_whatsapp_identity_aliases.js"
-Cohesion: 0.40
-Nodes (4): AvatarItemPreview(), AvatarItemPreviewProps, AvatarPreviewFocus, FOCUS_WRAPPER_STYLES
+Cohesion: 0.14
+Nodes (6): assert, persisted, queue, sent, sharedSock, test
 
 ### Community 708 - "create_campaign_for_user.js"
 Cohesion: 0.50
-Nodes (3): createCampaign(), { Pool }, { v4: uuidv4 }
+Nodes (4): Integration Tests, Testing Checklist, Unit Tests, User Acceptance Tests
+
+### Community 717 - "persistStage.js"
+Cohesion: 0.09
+Nodes (16): FunnelStage, { getNextFunnelStage }, conversationRepository, PersistStage, aiIntelligenceService, { buildLeadTags }, TagStage, buildLeadTags() (+8 more)
+
+### Community 720 - "EvolutionaryAgentOrchestrator"
+Cohesion: 0.67
+Nodes (3): 1. services/activationConfirmationService.js, 2. controllers/systemController.js, Files Modified
 
 ### Community 722 - "loadNodesControlPlane"
-Cohesion: 0.50
-Nodes (3): controller, express, router
+Cohesion: 0.14
+Nodes (14): 1. **`docs/RUNTIME_MANAGEMENT.md`** (Comprehensive), 1. **RuntimeManager** (`services/runtimeManager.js`), 2. **`docs/FRONTEND_RECONNECTION.md`** (Developer Guide), 2. **RuntimeLogger** (`services/runtimeLogger.js`), 3. **Activation Services** (Updated), 3. **`docs/QUICK_START.md`** (Getting Started), 4. **`docs/ACTIVATION_SYSTEM.md`** (Existing Enhancement), ✅ Completed Implementation (+6 more)
 
-### Community 730 - "payload"
-Cohesion: 0.67
-Nodes (3): payload(), run(), triggerSessionStart()
+### Community 729 - "metrics.js"
+Cohesion: 0.15
+Nodes (12): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Invalidation Conditions, Milestone 1 Iteration 2 Forensic Integrity Audit Report, Observation 1: Direct Invocation in `sessionPathsAndMigration.test.js` (+4 more)
 
 ### Community 731 - "Sumário Geral do Estado do Projeto — Zapflow CRM"
 Cohesion: 0.50
 Nodes (3): 🏁 Diagnóstico de Funcionalidades Ativas, 📊 Métricas de Homologação, Sumário Geral do Estado do Projeto — Zapflow CRM
+
+### Community 733 - "Future Enhancements"
+Cohesion: 0.15
+Nodes (12): 1.1 Standalone Test Hang Empirical Reproduction, 1.2 Inspection of `backend/tests/adversarialMilestone1.test.js` (lines 389–434), 1.3 Inspection of Reference Implementation (`sessionAutoRestoreAndPersistence.test.js:160–190`), 1.4 Audit of All Other Tests in `backend/tests/adversarialMilestone1.test.js`, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion & Proposed Code Diff (+4 more)
+
+### Community 735 - "eslint-plugin-react-refresh"
+Cohesion: 0.15
+Nodes (12): 1.1 Requirement 1 (R1: WhatsApp Session Instantiation & Connection Stability), 1.2 Requirement 2 (R2: Silent Automatic Background Synchronization), 1.3 Requirement 3 (R3: Performance Optimization & Production Polish), 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method (+4 more)
 
 ### Community 741 - "verify_final_fix.mjs"
 Cohesion: 0.50
@@ -2811,25 +3295,685 @@ Nodes (4): Problema: Backend não inicia, Problema: Messages não aparecem, Prob
 Cohesion: 0.50
 Nodes (3): 1. Karpathy Core Principles, 2. Superpowers Engineering Workflow, 3. Code Standards & Architecture
 
+### Community 763 - "saveMessage.js"
+Cohesion: 0.67
+Nodes (3): Configuration, Environment Variables (Optional), Hardcoded Configuration (in activationConfirmationService.js)
+
+### Community 764 - "date-fns"
+Cohesion: 0.15
+Nodes (5): catalogSyncEngine, CommerceEngine, eventNormalizer, orderConfirmationEngine, productRepository
+
+### Community 766 - "@playwright/test"
+Cohesion: 0.12
+Nodes (8): messageRepository, { query: dbQuery }, sessionManager, commerceQuoteEngine, QuoteController, express, quoteController, router
+
+### Community 767 - "@supabase/supabase-js"
+Cohesion: 0.17
+Nodes (11): Artifact Index, Attack Surface, Audit Progress, Audit Scope, BRIEFING — 2026-11-04T02:56:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made (+3 more)
+
+### Community 772 - "BRIEFING — 2026-11-04T03:27:10Z"
+Cohesion: 0.17
+Nodes (11): Artifact Index, Attack Surface, Audit Progress, Audit Scope, BRIEFING — 2026-11-04T03:27:10Z, Current Parent, 🔒 Key Constraints, Key Decisions Made (+3 more)
+
+### Community 773 - "BRIEFING — 2026-11-04T03:50:00Z"
+Cohesion: 0.17
+Nodes (11): Artifact Index, Attack Surface, Audit Progress, Audit Scope, BRIEFING — 2026-11-04T03:50:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made (+3 more)
+
+### Community 774 - "Milestone 1 Iteration 3 Explorer Report: Filesystem Side Effects & Verification Criteria"
+Cohesion: 0.17
+Nodes (11): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion & Actionable Recommendations, 5. Verification Method, Criterion 1: Standalone Adversarial Suite Execution, Criterion 2: Milestone 1 Full Unit & Hardening Suite, Criterion 3: Master E2E Suite (Tiers 1-4) (+3 more)
+
+### Community 775 - "BRIEFING — 2026-11-04T02:47:00Z"
+Cohesion: 0.17
+Nodes (11): Artifact Index, BRIEFING — 2026-11-04T02:47:00Z, Change Tracker, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+3 more)
+
+### Community 776 - "BRIEFING — 2026-11-04T03:43:50Z"
+Cohesion: 0.17
+Nodes (11): Artifact Index, BRIEFING — 2026-11-04T03:43:50Z, Change Tracker, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+3 more)
+
+### Community 777 - "BRIEFING — 2026-11-04T04:49:15Z"
+Cohesion: 0.17
+Nodes (11): Artifact Index, Attack Surface, Audit Progress, Audit Scope, BRIEFING — 2026-11-04T04:49:15Z, Current Parent, 🔒 Key Constraints, Key Decisions Made (+3 more)
+
+### Community 778 - "Forensic Audit Report: Milestone 2 — Silent Automatic Background Synchronization"
+Cohesion: 0.17
+Nodes (11): 1.1 Check 1 — Authenticity & Facade Detection (`WhatsAppAutoSyncCoordinator.js`), 1.2 Check 2 — Absence of Hardcoded Test Strings & Bypasses, 1.3 Check 3 — Authenticity of Frontend Manual Sync UI Elimination, 1.4 Check 4 — Independent Empirical Verification Execution, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion (+3 more)
+
+### Community 779 - "BRIEFING — 2026-11-04T05:52:00Z"
+Cohesion: 0.17
+Nodes (11): Artifact Index, Attack Surface, Audit Progress, Audit Scope, BRIEFING — 2026-11-04T05:52:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made (+3 more)
+
+### Community 780 - "BRIEFING — 2026-11-04T06:27:00Z"
+Cohesion: 0.17
+Nodes (11): Artifact Index, Attack Surface, Audit Progress, Audit Scope, BRIEFING — 2026-11-04T06:27:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made (+3 more)
+
+### Community 781 - "Regression Impact Evaluation & Verification Protocol Report — Milestone 3 Iteration 2"
+Cohesion: 0.17
+Nodes (11): 1.1 Empirical Baseline Measurements, 1.2 Code Inspection Observations, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Protocol, Gate Execution Matrix (+3 more)
+
+### Community 782 - "Milestone 3 Independent Quality & Adversarial Review Report"
+Cohesion: 0.17
+Nodes (11): 1.1 Direct Tool Commands and Execution Results, 1.2 Inspection of Key Code Changes, 1. Observation, 2. Logic Chain, 3.1 Assumption Stress-Testing, 3.2 Integrity Violation Check, 3. Adversarial Review & Stress-Testing, 4. Caveats (+3 more)
+
+### Community 783 - "BRIEFING — 2026-11-04T06:15:00Z"
+Cohesion: 0.17
+Nodes (11): Artifact Index, BRIEFING — 2026-11-04T06:15:00Z, Change Tracker, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+3 more)
+
+### Community 784 - "BRIEFING — 2026-11-04T06:51:30Z"
+Cohesion: 0.17
+Nodes (11): Artifact Index, Attack Surface, Audit Progress, Audit Scope, BRIEFING — 2026-11-04T06:51:30Z, Current Parent, 🔒 Key Constraints, Key Decisions Made (+3 more)
+
+### Community 785 - "BRIEFING — 2026-11-04T01:45:00Z"
+Cohesion: 0.17
+Nodes (11): Active Timers, Artifact Index, BRIEFING — 2026-11-04T01:45:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+3 more)
+
+### Community 786 - "Original User Request"
+Cohesion: 0.17
+Nodes (11): Acceptance Criteria, Initial Request — 2026-11-04T01:43:50Z, Original User Request, R1. WhatsApp Session Instantiation and Connection Stability, R2. Silent Automatic Background Synchronization, R3. Performance Optimization and Production Polish, Requirements, Session & Connection Reliability (+3 more)
+
+### Community 787 - "BRIEFING — 2026-11-04T07:01:30Z"
+Cohesion: 0.17
+Nodes (11): Artifact Index, Attack Surface, Audit Progress, Audit Scope, BRIEFING — 2026-11-04T07:01:30Z, Current Parent, 🔒 Key Constraints, Key Decisions Made (+3 more)
+
+### Community 788 - "normalizeMediaReference"
+Cohesion: 0.67
+Nodes (3): Future Enhancements, Planned Features, Possible Issues to Monitor
+
+### Community 789 - "zaiUsageService.js"
+Cohesion: 0.30
+Nodes (9): consumeUsage(), ensureTable(), getTodayString(), getUsage(), inMemoryStore, isAdminRole(), rechargeBalance(), assert (+1 more)
+
+### Community 790 - "2. Auditoria Individual das Tecnologias"
+Cohesion: 0.17
+Nodes (11): 1. Visão Geral e Propósito, 2.1. Baileys (`@whiskeysockets/baileys`), 2.2. WhatsApp Web & Web Bridge (Playwright / Chromium), 2.3. WPPConnect / WA-JS, 2.4. Evolution API, 2.5. WAHA (WhatsApp HTTP API), 2.6. GOWS / whatsmeow (Go), 2.7. WhatsApp Cloud API (Oficial da Meta) (+3 more)
+
+### Community 792 - "TEST_READY.md — ZAPFLOW End-to-End Test Suite Declaration"
+Cohesion: 0.17
+Nodes (11): 1. Test Suite Status: READY & 100% GREEN, 2. Requirement Coverage Matrix, 3. How to Run the Tests, 4. Test Suite Inventory & Artifacts, 5. Discovered Implementation Defects & Escalation Log, Individual Tier Execution, R1. WhatsApp Session Instantiation & Connection Stability, R2. Silent Automatic Background Synchronization (+3 more)
+
+### Community 793 - "BRIEFING — 2026-11-04T02:43:30Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, BRIEFING — 2026-11-04T02:43:30Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission, 🔒 My Identity (+2 more)
+
+### Community 794 - "BRIEFING — 2026-11-04T02:56:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T02:56:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 795 - "BRIEFING — 2026-11-04T02:56:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T02:56:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 796 - "Milestone 1 Handoff Report: Session Persistence, Boot Auto-Restore & Real-Time Broadcasting (F1.2 & F1.4)"
+Cohesion: 0.18
+Nodes (10): 1. Automated Test Verification:, 1. Observation, 2. File Path Inspection Command:, 2. Logic Chain, 3. Caveats, 3. CLI Persistence Validator Check:, 4. Conclusion, 4. Invalidation Conditions: (+2 more)
+
+### Community 797 - "BRIEFING — 2026-11-04T00:27:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T00:27:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 798 - "Milestone 1 Iteration 2 Adversarial Challenge Report"
+Cohesion: 0.18
+Nodes (10): 1. Observation, 1. Run Challenger Adversarial Test Suite, 2. Logic Chain, 2. Run Full Milestone 1 Test Suite, 3. Caveats, 3. Run Master E2E Suite, 4. Conclusion, 5. Verification Method (+2 more)
+
+### Community 799 - "BRIEFING — 2026-11-04T03:28:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T03:28:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 800 - "Milestone 1 Iteration 2 Challenger Report: Concurrency & Teardown"
+Cohesion: 0.18
+Nodes (10): 1. Observation, 1. Reproduce Process Hang, 2. Logic Chain, 2. Verify Concurrency & Teardown Probes, 3. Caveats, 3. Verify Master E2E Suite, 4. Conclusion, 5. Verification Method (+2 more)
+
+### Community 801 - "Handoff Report: Milestone 1 Iteration 2 Exploration & Fix Strategy"
+Cohesion: 0.18
+Nodes (10): 1.1 Direct Reproduction of Path Traversal (`sessionPaths.js:65-81`), 1.2 Direct Reproduction of Concurrency Contention in `migrateLegacySessions()`, 1.3 Facade Test Pattern in `sessionPathsAndMigration.test.js:80-104`, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method (+2 more)
+
+### Community 802 - "Milestone 1 Iteration 2 Exploration & Synthesis Handoff Report"
+Cohesion: 0.18
+Nodes (10): 1.1 `backend/tests/sessionPathsAndMigration.test.js:89-98` (Simulated Copy Loop), 1.2 `backend/tests/sessionAutoRestoreAndPersistence.test.js:121` (Missing `restoreSessions()` Execution), 1.3 `backend/services/whatsapp/connection/stableSession.js:1405` (Unmanaged Background Timer), 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method (+2 more)
+
+### Community 803 - "BRIEFING — 2026-11-04T03:26:30Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T03:26:30Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 804 - "BRIEFING — 2026-11-04T03:28:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T03:28:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 805 - "BRIEFING — 2026-11-04T03:52:20Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T03:52:20Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 806 - "Handoff Report — Milestone 1 Iteration 3 Adversarial Challenger (m1_it3_challenger_1)"
+Cohesion: 0.18
+Nodes (10): 1.1 Standalone Consecutive Execution of `backend/tests/adversarialMilestone1.test.js`, 1.2 Hostile Layout & Non-Pollution Stress Testing of `sessionRecoveryService`, 1.3 Full Milestone 1 Test Suite Execution (10 Suites Combined), 1.4 Master E2E Test Suite Execution Across All 4 Tiers, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion (+2 more)
+
+### Community 807 - "BRIEFING — 2026-11-04T03:49:30Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T03:49:30Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 808 - "BRIEFING — 2026-11-04T03:48:40Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T03:48:40Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 809 - "BRIEFING — 2026-11-04T03:48:30Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T03:48:30Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 810 - "BRIEFING — 2026-11-04T02:53:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T02:53:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 811 - "BRIEFING — 2026-11-04T02:55:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T02:55:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 812 - "Milestone 1 Implementation Handoff Report"
+Cohesion: 0.18
+Nodes (10): 1. Full Milestone 1 Test Suite Execution, 1. Observation, 2. Logic Chain, 2. Path Resolution Verification, 3. Caveats, 3. Persistence Validator Verification, 4. Conclusion, 4. Invalidation Conditions (+2 more)
+
+### Community 813 - "Milestone 1 Iteration 2 Implementation Handoff Report"
+Cohesion: 0.18
+Nodes (10): 1. Adversarial Test Suite, 1. Observation, 2. Logic Chain, 2. Milestone 1 Unit Test Suites, 3. Caveats, 3. Master End-to-End Suite, 4. Conclusion, 5. Verification Method (+2 more)
+
+### Community 814 - "BRIEFING — 2026-11-04T04:45:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T04:45:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 815 - "Adversarial Challenger Handoff Report: Milestone 2 — Silent Background Sync Engine"
+Cohesion: 0.18
+Nodes (10): 1.1 Empirical Adversarial Stress Suite (`backend/tests/challenger_m2_auto_sync_stress.test.js`), 1.2 Master E2E & Unit Test Executions, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Adversarial Challenger Handoff Report: Milestone 2 — Silent Background Sync Engine (+2 more)
+
+### Community 816 - "BRIEFING — 2026-11-04T04:52:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T04:52:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 817 - "BRIEFING — 2026-11-04T04:47:30Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T04:47:30Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 818 - "BRIEFING — 2026-11-04T04:49:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T04:49:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 819 - "BRIEFING — 2026-11-04T04:41:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, BRIEFING — 2026-11-04T04:41:00Z, Change Tracker, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 820 - "Handoff Report: Milestone 2 — Silent Automatic Background Synchronization"
+Cohesion: 0.18
+Nodes (10): 1.1 Pre-existing Repository Findings & Code Audit, 1.2 Implemented Components & Modifications, 1.3 Execution Results, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method (+2 more)
+
+### Community 821 - "BRIEFING — 2026-11-04T05:53:45Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T05:53:45Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 822 - "BRIEFING — 2026-11-04T05:48:30Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T05:48:30Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 823 - "Handoff Report: WebSocket Gateway Deduplication (F3.3) & Outbound Queue Performance (F3.4)"
+Cohesion: 0.18
+Nodes (10): 1.1 WebSocket Gateway Architecture & Duplicate Connection Listeners (F3.3), 1.2 Outbound Queue Service & Event Loop Bottlenecks (F3.4), 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5.1 Verification Commands, 5.2 Artifacts Produced (+2 more)
+
+### Community 824 - "BRIEFING — 2026-11-04T06:28:30Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T06:28:30Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 825 - "BRIEFING — 2026-11-04T06:28:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T06:28:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 826 - "BRIEFING — 2026-11-04T06:26:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T06:26:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 827 - "BRIEFING — 2026-11-04T06:29:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T06:29:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 828 - "BRIEFING — 2026-11-04T05:51:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T05:51:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 829 - "BRIEFING — 2026-11-04T05:52:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T05:52:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+2 more)
+
+### Community 830 - "Milestone 3 Implementation & Quality Assurance Handoff Report"
+Cohesion: 0.18
+Nodes (10): 1.1 Vitest Test Suite (Part 1), 1.2 WebSocket Deduplication & Outbound Queue (Part 2), 1.3 TypeScript Cleanliness & Backend Teardown (Part 3), 1.4 Master E2E Runner (Full System Integrity), 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion (+2 more)
+
+### Community 831 - "BRIEFING — 2026-11-04T06:42:00Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T06:42:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 832 - "BRIEFING — 2026-11-04T06:44:30Z"
+Cohesion: 0.18
+Nodes (10): Artifact Index, Attack Surface, BRIEFING — 2026-11-04T06:44:30Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+2 more)
+
+### Community 833 - "DISPATCH.md"
+Cohesion: 0.18
+Nodes (10): 2026-11-04T01:44:49Z, Acceptance Criteria, R1. WhatsApp Session Instantiation and Connection Stability, R2. Silent Automatic Background Synchronization, R3. Performance Optimization and Production Polish, Requirements, Session & Connection Reliability, Silent Background Sync (+2 more)
+
+### Community 834 - "bench-outbound-queue.js"
+Cohesion: 0.18
+Nodes (5): backlog, burst, fsStub, path, persisted
+
+### Community 836 - "PaymentEngine.js"
+Cohesion: 0.22
+Nodes (4): crypto, eventNormalizer, PaymentEngine, { query: dbQuery }
+
+### Community 837 - "humanDelays.test.js"
+Cohesion: 0.20
+Nodes (10): getDelayMs(), getTypingDelayMs(), toNumber(), getDelayForAgentMs(), aiAgentService, assert, campaignDispatchEngine, db (+2 more)
+
+### Community 839 - "ZAIController"
+Cohesion: 0.10
+Nodes (8): catalogSyncEngine, connectionService, { query: dbQuery }, ZAIController, zaiEngine, express, router, zaiController
+
+### Community 840 - "Acceptance Criteria"
+Cohesion: 0.20
+Nodes (9): Acceptance Criteria, R1. WhatsApp Session Instantiation and Connection Stability, R2. Silent Automatic Background Synchronization, R3. Performance Optimization and Production Polish, Requirements, Session & Connection Reliability, Silent Background Sync, System Speed & Production Polish (+1 more)
+
+### Community 841 - "Milestone 1 Forensic Audit & Adversarial Review Report"
+Cohesion: 0.20
+Nodes (9): 1. Observation, 2. Logic Chain, 3. Adversarial Challenges & Resilience Findings, 4. Caveats, 5. Conclusion, 6. Verification Method, Forensic Audit Report, Milestone 1 Forensic Audit & Adversarial Review Report (+1 more)
+
+### Community 842 - "Empirical Adversarial Challenge Report — Milestone 1"
+Cohesion: 0.20
+Nodes (9): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Empirical Adversarial Challenge Report — Milestone 1, Invalidation Conditions, Run All Milestone 1 Test Suites Combined (+1 more)
+
+### Community 843 - "Handoff Report — Feature F1.3 (Reconnection State Machine, Error Code Handling & Teardown Cleanup)"
+Cohesion: 0.20
+Nodes (9): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Existing Backend Regression Suite, Handoff Report — Feature F1.3 (Reconnection State Machine, Error Code Handling & Teardown Cleanup), Invalidation Conditions (+1 more)
+
+### Community 844 - "Milestone 1 Iteration 2 Review & Adversarial Challenge Report"
+Cohesion: 0.20
+Nodes (9): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, 6. Detailed Review Findings, Milestone 1 Iteration 2 Review & Adversarial Challenge Report, [Minor] Finding 1: Background Socket Handle in `adversarialMilestone1.test.js` (+1 more)
+
+### Community 845 - "Handoff Report: Milestone 2 Review & Adversarial Stress-Test"
+Cohesion: 0.20
+Nodes (9): 1.1 Direct Source Code Inspection, 1.2 Independent Test Executions & Verbatim Results, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Handoff Report: Milestone 2 Review & Adversarial Stress-Test (+1 more)
+
+### Community 846 - "Handoff Report: Milestone 2 Review & Adversarial Challenge"
+Cohesion: 0.20
+Nodes (9): 1.1 Direct Inspection of Implemented Logic, 1.2 Independent Test & Build Verifications Executed, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Handoff Report: Milestone 2 Review & Adversarial Challenge (+1 more)
+
+### Community 847 - "summarize_analysis.js"
+Cohesion: 0.20
+Nodes (9): data, filesWithFakeTimers, filesWithSetInterval, filesWithSetTimeout, fs, path, tsxFiles, tsxWithoutAfterEach (+1 more)
+
+### Community 848 - "BRIEFING — 2026-11-04T05:12:30Z"
+Cohesion: 0.20
+Nodes (9): BRIEFING — 2026-11-04T05:12:30Z, Change Tracker, Current Parent, 🔒 Key Constraints, Loaded Skills, Mission, 🔒 My Identity, Quality Status (+1 more)
+
+### Community 849 - "Final Independent Victory Audit Handoff Report"
+Cohesion: 0.20
+Nodes (9): 1.1 Phase A: Timeline & Provenance Audit, 1.2 Phase B: Integrity Check, 1.3 Phase C: Independent Test Execution Results, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method (+1 more)
+
+### Community 850 - "session_reset_and_qr.js"
+Cohesion: 0.27
+Nodes (9): apiRequest(), crypto, fs, generateAdminToken(), http, main(), path, QRCode (+1 more)
+
+### Community 854 - "Project: ZAPFLOW Production Stabilization & Polish"
+Cohesion: 0.20
+Nodes (9): Architecture, Code Layout, Feature Inventory, Interface Contracts, Milestones, Project: ZAPFLOW Production Stabilization & Polish, Real-Time Gateway ↔ Frontend Socket Manager, `stableSession.js` ↔ `sessionManager.legacy.js` / Persistence (+1 more)
+
+### Community 855 - "BRIEFING — 2026-11-04T07:05:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T07:05:00Z, 🔒 Key Constraints, Mission, 🔒 My Identity, Project Status, User Context, Victory Audit Status
+
+### Community 856 - "BRIEFING — 2026-11-04T01:59:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T01:59:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 857 - "BRIEFING — 2026-11-04T02:07:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T02:07:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 858 - "Handoff Report: Requirement R2 — Silent Automatic Background Synchronization"
+Cohesion: 0.22
+Nodes (8): 1.1. Frontend Manual Sync Elements, 1.2. Backend Trigger & Business Data Architecture, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Handoff Report: Requirement R2 — Silent Automatic Background Synchronization
+
+### Community 859 - "BRIEFING — 2026-11-04T02:15:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T02:15:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 860 - "BRIEFING — 2026-11-04T02:26:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T02:26:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 861 - "BRIEFING — 2026-11-04T02:27:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T02:27:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 862 - "BRIEFING — 2026-11-04T02:18:30Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T02:18:30Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 863 - "BRIEFING — 2026-11-04T03:02:45Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T03:02:45Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 864 - "BRIEFING — 2026-11-04T03:03:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T03:03:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 865 - "BRIEFING — 2026-11-04T03:05:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T03:05:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 866 - "BRIEFING — 2026-11-04T03:36:30Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T03:36:30Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 867 - "BRIEFING — 2026-11-04T03:38:15Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T03:38:15Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 868 - "BRIEFING — 2026-11-04T03:38:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T03:38:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 869 - "BRIEFING — 2026-11-04T03:20:00Z"
+Cohesion: 0.22
+Nodes (8): BRIEFING — 2026-11-04T03:20:00Z, Change Tracker, Current Parent, 🔒 Key Constraints, Mission, 🔒 My Identity, Quality Status, Task Summary
+
+### Community 870 - "BRIEFING — 2026-11-04T04:05:40Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T04:05:40Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 871 - "BRIEFING — 2026-11-04T04:03:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T04:03:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 872 - "BRIEFING — 2026-11-04T04:02:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T04:02:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 873 - "BRIEFING — 2026-11-04T05:05:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T05:05:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 874 - "BRIEFING — 2026-11-04T05:07:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T05:07:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 875 - "BRIEFING — 2026-11-04T05:12:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T05:12:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 876 - "BRIEFING — 2026-11-04T06:05:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T06:05:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 877 - "BRIEFING — 2026-11-04T06:06:30Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T06:06:30Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 878 - "BRIEFING — 2026-11-04T06:05:00Z"
+Cohesion: 0.22
+Nodes (8): Artifact Index, BRIEFING — 2026-11-04T06:05:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+
+### Community 879 - "Handoff Report — Tier 5 Adversarial Coverage Hardening (Queues, Commerce & Teardown)"
+Cohesion: 0.22
+Nodes (8): 1.1 Source Code Inspections, 1.2 Test Execution Metrics, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Handoff Report — Tier 5 Adversarial Coverage Hardening (Queues, Commerce & Teardown)
+
+### Community 880 - "Master Orchestrator Handoff Report — ZAPFLOW Production Readiness"
+Cohesion: 0.22
+Nodes (8): 1. Executive Summary (Pyramid Principle), 2. Milestone State & Deliverables, 3.1 Verification Commands & Empirical Results, 3. Observation (Empirical Evidence), 4. Key Architectural Changes, 5. Artifact Index, 6. Verification Method, Master Orchestrator Handoff Report — ZAPFLOW Production Readiness
+
+### Community 881 - "orchestrator_reality_audit.js"
+Cohesion: 0.25
+Nodes (7): crypto, header, http, payload, request(), runAudit(), signature
+
+### Community 887 - "outboundActiveFlowTiming.test.js"
+Cohesion: 0.22
+Nodes (7): assert, base, fs, load(), path, test, vm
+
+### Community 888 - "2. Fases de Execução do ZAI Engine"
+Cohesion: 0.22
+Nodes (8): 1. O Primeiro Marco Concreto (Meta Imediata), 2. Fases de Execução do ZAI Engine, Fase 1 — Auditoria e Inteligência (Concluída), Fase 2 — Consolidação do Core ZAI (`/services/zai/`), Fase 3 — API Própria Unificada (`/zai/...`), Fase 4 — Testes Automatizados e Certificação E2E, Fase 5 — Implantação e Validação em Produção (VPS), ZAI Communication Engine — Implementation Roadmap
+
+### Community 889 - "CERTIFICAÇÃO OFICIAL DE ENGENHARIA: WHATSAPP NATIVE COMMERCE"
+Cohesion: 0.22
+Nodes (8): 1. Sumário Executivo, 2. Auditoria Forense e Causa Raiz das Falhas Anteriores, 3. Matriz de Compatibilidade dos Motores Comerciais, 4. Arquitetura Modular Implementada, 5. Bateria de 15 Testes Reais de Verificação, 6. Conclusão e Homologação, CERTIFICAÇÃO OFICIAL DE ENGENHARIA: WHATSAPP NATIVE COMMERCE, Estrutura da Tabela `customer_orders` (PostgreSQL):
+
+### Community 890 - "m2_manual_sync_ui_elimination.test.js"
+Cohesion: 0.22
+Nodes (7): assert, FRONTEND_SRC, fs, path, PROHIBITED_BUTTON_TEXTS, PROHIBITED_HANDLERS, test
+
+### Community 891 - "Handoff Report: Feature F1.1 (Canonical Session Path Alignment & Auto-Migration)"
+Cohesion: 0.25
+Nodes (7): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Actionable Solution:, Handoff Report: Feature F1.1 (Canonical Session Path Alignment & Auto-Migration)
+
+### Community 892 - "start_and_get_qr.js"
+Cohesion: 0.39
+Nodes (7): crypto, fs, generateAdminToken(), get(), http, main(), post()
+
+### Community 894 - "NativeProductSender.js"
+Cohesion: 0.29
+Nodes (5): baileysCommerceAdapter, messageRepository, NativeProductSender, productRepository, { query: dbQuery }
+
+### Community 896 - "WebBridgeStoreSync.js"
+Cohesion: 0.29
+Nodes (4): conversationRepository, messageDedupeService, messageRepository, WebBridgeStoreSync
+
+### Community 898 - "🛠️ Common Tasks Reference"
+Cohesion: 0.25
+Nodes (8): 🛠️ Common Tasks Reference, Task: Activate System Remotely, Task: Handle ngrok Crash Scenario, Task: Integrate Frontend Polling, Task: Manual ngrok Restart, Task: Start the Server and Check Status, Task: Troubleshoot "Runtime Offline" Error, Task: View Runtime Logs
+
+### Community 900 - "Handoff Report — e2e_test_writer_1"
+Cohesion: 0.29
+Nodes (6): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Handoff Report — e2e_test_writer_1
+
+### Community 901 - "Handoff Report: WhatsApp Session Instantiation and Connection Stability (Requirement R1)"
+Cohesion: 0.29
+Nodes (6): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Handoff Report: WhatsApp Session Instantiation and Connection Stability (Requirement R1)
+
+### Community 902 - "Handoff Report — Requirement R3, Architecture, Performance, and Testing"
+Cohesion: 0.29
+Nodes (6): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Handoff Report — Requirement R3, Architecture, Performance, and Testing
+
+### Community 903 - "Project Sentinel Final Handoff Report"
+Cohesion: 0.29
+Nodes (6): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Project Sentinel Final Handoff Report
+
+### Community 904 - "check_dispatch_events.js"
+Cohesion: 0.29
+Nodes (6): baseDir, byFile, files, findings, fs, path
+
+### Community 905 - "scan_rendered_components.js"
+Cohesion: 0.29
+Nodes (5): baseDir, componentAnalysis, fs, path, tsxTestFiles
+
+### Community 908 - "createWhatsappLabel.test.js"
+Cohesion: 0.29
+Nodes (3): createWhatsappLabel(), assert, test
+
+### Community 910 - "ZAI Communication Engine — Protocol Capabilities & Commerce Specs"
+Cohesion: 0.29
+Nodes (6): 1. Classificação Rigorosa de Capacidades, 2. Matriz de Auditoria de Capacidades do ZAI Engine, 3.1. Estrutura do `ProductMessage` (Envio Nativo de Produto), 3.2. Estrutura do `orderMessage` (Recepção de Carrinho pelo Cliente), 3. Especificação Binária do WhatsApp Native Commerce, ZAI Communication Engine — Protocol Capabilities & Commerce Specs
+
+### Community 911 - "m2_challenger_frontend_ui_stress.test.js"
+Cohesion: 0.29
+Nodes (5): assert, FRONTEND_SRC, fs, path, test
+
+### Community 912 - "Status: IN_PROGRESS"
+Cohesion: 0.33
+Nodes (5): Completed Steps:, Current Step:, Next Steps:, Progress Log — explorer_survey_1, Status: IN_PROGRESS
+
+### Community 913 - "audit_test_files.js"
+Cohesion: 0.33
+Nodes (5): baseDir, fs, path, results, testFiles
+
+### Community 914 - "check_timer_cleanups.js"
+Cohesion: 0.33
+Nodes (5): baseDir, filesToCheck, fs, path, results
+
+### Community 915 - "save_qr.js"
+Cohesion: 0.40
+Nodes (5): crypto, fs, generateAdminToken(), http, run()
+
+### Community 916 - "save_web_bridge_qr.js"
+Cohesion: 0.40
+Nodes (5): crypto, fs, generateAdminToken(), http, run()
+
+### Community 917 - "test_zai_api.js"
+Cohesion: 0.53
+Nodes (5): crypto, generateAdminToken(), http, main(), request()
+
+### Community 922 - "eventLoopTeardownAdversarial.test.js"
+Cohesion: 0.33
+Nodes (4): assert, path, { spawn }, test
+
+### Community 923 - "outboundQueueSaveCoalesce.test.js"
+Cohesion: 0.33
+Nodes (5): assert, fs, os, path, test
+
+### Community 924 - "🎯 Documentation by Role"
+Cohesion: 0.33
+Nodes (6): **Backend Developer**, **DevOps/System Admin**, 🎯 Documentation by Role, **Frontend Developer**, **Project Manager**, **Security Auditor**
+
+### Community 925 - "Troubleshooting"
+Cohesion: 0.33
+Nodes (6): Problem: Agent starts but ngrok doesn't connect, Problem: Frontend can't reach system after activation, Problem: "ngrok executable not found", Problem: "Port 4000 already in use", Problem: PowerShell confirmation prompt doesn't appear, Troubleshooting
+
+### Community 926 - "Relatório de Garantia de Qualidade (QA) - ZAPFLOW AI"
+Cohesion: 0.33
+Nodes (5): 🚨 Falhas / Alertas Registrados, 🗺️ Homologação de Páginas / Recursos, Relatório de Garantia de Qualidade (QA) - ZAPFLOW AI, 📊 Resumo Executivo, 🔌 Sessões WhatsApp Detectadas localmente
+
+### Community 927 - "dev-doctor.js"
+Cohesion: 0.33
+Nodes (4): checks, { execSync }, fs, path
+
+### Community 928 - "verify-inbox-catalog-card.js"
+Cohesion: 0.33
+Nodes (4): { chromium }, EVIDENCE_DIR, fs, path
+
+### Community 929 - "run_all_e2e.js"
+Cohesion: 0.47
+Nodes (5): path, runAll(), runTier(), { spawn }, TIERS
+
+### Community 930 - "Progress — m3_auditor_1"
+Cohesion: 0.40
+Nodes (4): Completed Steps, Current Step, Next Steps, Progress — m3_auditor_1
+
+### Community 931 - "check_aftereach.js"
+Cohesion: 0.40
+Nodes (4): baseDir, fs, path, targetFiles
+
+### Community 936 - "ZAI Communication Engine — Architecture Comparison"
+Cohesion: 0.40
+Nodes (4): 1. Matriz Comparativa de Arquiteturas, 2. Padrões de Projeto e Separação de Camadas no ZAI, 3. Diretrizes de Não-Duplicação e Reutilização, ZAI Communication Engine — Architecture Comparison
+
+### Community 937 - "inspect_sm_vps.js"
+Cohesion: 0.40
+Nodes (4): cs, repo, sm, wb
+
+### Community 938 - "Progress — m1_challenger_2"
+Cohesion: 0.50
+Nodes (3): Completed Steps:, Progress — m1_challenger_2, Status: COMPLETE
+
+### Community 939 - "Progress — m1_explorer_1"
+Cohesion: 0.50
+Nodes (3): Progress — m1_explorer_1, Status, Steps Completed
+
+### Community 940 - "Progress — m1_it3_challenger_1"
+Cohesion: 0.50
+Nodes (3): Plan, Progress — m1_it3_challenger_1, Status
+
+### Community 941 - "Progress — m1_worker_2"
+Cohesion: 0.50
+Nodes (3): Completed Steps, Progress — m1_worker_2, Status
+
+### Community 942 - "Progress Tracker — m1_worker_3"
+Cohesion: 0.50
+Nodes (3): Checklist, Progress Tracker — m1_worker_3, Status
+
+### Community 943 - "Progress — m2_explorer_2"
+Cohesion: 0.50
+Nodes (3): Completed Steps, Progress — m2_explorer_2, Remaining Steps
+
+### Community 944 - "DISPATCH.md"
+Cohesion: 0.50
+Nodes (3): 2026-11-04T04:09:47Z, 2026-11-04T04:20:05Z, 2026-11-04T04:37:53Z
+
+### Community 945 - "Progress — Milestone 3 Challenger 1"
+Cohesion: 0.50
+Nodes (3): Progress — Milestone 3 Challenger 1, Status, Step Checklist
+
+### Community 946 - "Progress Tracker - m3_challenger_2"
+Cohesion: 0.50
+Nodes (3): Progress Tracker - m3_challenger_2, Status, Steps
+
+### Community 947 - "Progress — m3_it2_auditor_1"
+Cohesion: 0.50
+Nodes (3): Progress — m3_it2_auditor_1, Status, Steps
+
+### Community 948 - "print_component_timers.js"
+Cohesion: 0.50
+Nodes (3): data, fs, path
+
+### Community 949 - "Gate Status — Milestone 3: Performance Optimization & Production Polish"
+Cohesion: 0.50
+Nodes (3): Gate — Iteration 1, Gate — Iteration 2, Gate Status — Milestone 3: Performance Optimization & Production Polish
+
+### Community 950 - "Progress — Victory Auditor"
+Cohesion: 0.50
+Nodes (3): Completed Steps, Progress — Victory Auditor, Status
+
+### Community 958 - "manifest.json"
+Cohesion: 0.50
+Nodes (3): manifest_version, name, version
+
+### Community 959 - "manifest.json"
+Cohesion: 0.50
+Nodes (3): manifest_version, name, version
+
+### Community 960 - "manifest.json"
+Cohesion: 0.50
+Nodes (3): manifest_version, name, version
+
+### Community 961 - "manifest.json"
+Cohesion: 0.50
+Nodes (3): manifest_version, name, version
+
+### Community 962 - "📄 Related Files (Not Docs)"
+Cohesion: 0.50
+Nodes (4): Configuration Files, Key Source Files, 📄 Related Files (Not Docs), Startup Scripts
+
+### Community 963 - "📞 Getting Help"
+Cohesion: 0.50
+Nodes (4): 📞 Getting Help, Level 1: Self-Service (First Try This), Level 2: Detailed Research (If Level 1 Fails), Level 3: Advanced Support (Last Resort)
+
+### Community 964 - "7. MODO PRODUÇÃO"
+Cohesion: 0.50
+Nodes (4): 7.1 PM2 (Opcional, se não Docker), 7.2 Logs Estruturados, 7.3 Healthcheck Endpoint, 7. MODO PRODUÇÃO
+
+### Community 965 - "MockResizeObserver"
+Cohesion: 0.12
+Nodes (11): AvatarItemPreview, AvatarItemPreviewProps, AvatarPreviewFocus, FOCUS_WRAPPER_STYLES, ZaiAvatarRenderer, ALL_ARCHETYPE_AGENTS, MOCK_CONNECTIONS, MOCK_STORES (+3 more)
+
 ## Knowledge Gaps
-- **4468 isolated node(s):** `fs`, `path`, `crypto`, `{ normalizeWhatsappJid }`, `name` (+4463 more)
+- **6599 isolated node(s):** `fs`, `path`, `os`, `{ migrateLegacySessions, getLegacySessionsDirectory }`, `{ emitToTenant, emitToTenantWithAliases, joinTenantRoom, resolveSocketTenantId }` (+6594 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **161 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **282 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `query()` connect `stableSession.js` to `aiConfigService.js`, `devAssistant.js`, `aiEngineeringAnalyzer.js`, `sessionManager.legacy.js`, `aiController.js`, `Workflow Examples`, `runMigrations`, `aiLocalBrainService.js`, `aiLogService.js`, `media-service.js`, `RELATÓRIO TÉCNICO FINAL - ESTABILIZAÇÃO DEFINITIVA ZAPAI`, `run-flash.js`, `components.json`, `Implementation Summary - ZapFlow Runtime Management System`, `Runtime local e modo Docker/VPS`, `messages.js`, `use-toast.ts`, `events.js`, `outboundQueueService.js`, `system.js`, `systemController.js`, `reactivationService.js`, `index.js`, `Agente: Release`, `CURRENT STATE REPORT — ZAPAI-FINAL`, `aiIntelligenceService.js`, `operationsController.js`, `sessionManager.js`, `sessionWatchdog.js`, `auto-deploy.sh`, `rollback.sh`, `getEngineClient`, `contactsController.js`, `Logs`, `healthcheck.js`, `🚀 Steps to Publish `skill-global` as a Standalone Repository`, `⚡ CHECKLIST EXECUTIVO - ZAPAI VPS DEPLOYMENT`, `systemControlService.ts`, `patch-character2.js`, `errorLogService.ts`, `logs.js`, `flowRepository.js`, `ROUND 2 VALIDATION STATUS`?**
-  _High betweenness centrality (0.124) - this node is a cross-community bridge._
-- **Why does `error()` connect `⚡ CHECKLIST EXECUTIVO - ZAPAI VPS DEPLOYMENT` to `sessionManager.legacy.js`, `aiController.js`, `devPipeline.js`, `Connections.tsx`, `campaignDispatchEngine.js`, `utils.ts`, `stableSession.js`, `activationLoggerService.js`, `automationService.js`, `correlationTracker.js`, `aiLocalBrainService.js`, `query`, `createStableSession`, `Implementation Summary - ZapFlow Runtime Management System`, `stop.js`, `messages.js`, `events.js`, `system.js`, `Architecture Analysis and Refactor Report`, `runtimeHardening.ts`, `Settings.tsx`, `RuntimeProvider.tsx`, `systemController.js`, `Autonomous Improvement Skill`, `Frontend Reconnection Logic - ZapFlow System Management`, `index.js`, `index.js`, `create_campaign_for_user.js`, `CURRENT STATE REPORT — ZAPAI-FINAL`, `aiIntelligenceService.js`, `messageService.js`, `auto-deploy.sh`, `getEngineClient`, `dependencies`, `aiLearningEngine.js`, `aiFollowupCron.js`, `frontendHealthService.ts`, `doctor.sh`, `Diagnostics.tsx`, `discovery-crawler.spec.ts`, `Agente: Security`, `contextService.js`?**
-  _High betweenness centrality (0.066) - this node is a cross-community bridge._
-- **Why does `cn()` connect `button.tsx` to `cn`, `016_merge_whatsapp_identity_aliases.js`, `aiController.js`, `utils.ts`, `Key Components`, `input-otp.tsx`, `sidebar.tsx`, `DashboardView.tsx`, `whatsappService.js`, `adminMasterService.ts`, `skill-global.js`, `📊 SUMÁRIO EXECUTIVO - DIAGNÓSTICO ZAPAI`, `ai.service.js`, `aiMemoryEngine.js`, `contactsController.js`, `adminMaster.js`, `Agente: Architect`, `Universal Database Skill`, `dependencies`, `testRunnerEngine.js`, `leadsController.js`, `appStore.ts`, `FASE 1 - Mapeamento`, `Full Refactor Report (Front + Back)`, `auto-healer.js`, `ROUND 2 VALIDATION STATUS`?**
-  _High betweenness centrality (0.058) - this node is a cross-community bridge._
+- **Why does `query()` connect `stableSession.js` to `aiConfigService.js`, `devAssistant.js`, `sessionManager.legacy.js`, `runMigrations`, `createWhatsappLabel.test.js`, `@playwright/test`, `aiLocalBrainService.js`, `aiLogService.js`, `media-service.js`, `RELATÓRIO TÉCNICO FINAL - ESTABILIZAÇÃO DEFINITIVA ZAPAI`, `run-flash.js`, `components.json`, `inbox_fix_prompt.md`, `Runtime local e modo Docker/VPS`, `messages.js`, `Automation Skill`, `events.js`, `outboundQueueService.js`, `use-toast.ts`, `system.js`, `skill-global`, `systemController.js`, `EventBus`, `bugWatcher.js`, `run_automated_tests.js`, `reactivationService.js`, `index.js`, `PaymentEngine.js`, `CURRENT STATE REPORT — ZAPAI-FINAL`, `operationsController.js`, `sessionManager.js`, `sessionWatchdog.js`, `auto-deploy.sh`, `ZAIController`, `aiIntelligenceService.js`, `getEngineClient`, `rollback.sh`, `Logs`, `messageService.js`, `healthcheck.js`, `systemControlService.ts`, `patch-character2.js`, `errorLogService.ts`, `contactsController.js`, `NativeProductSender.js`, `ROUND 2 VALIDATION STATUS`?**
+  _High betweenness centrality (0.105) - this node is a cross-community bridge._
+- **Why does `cn()` connect `button.tsx` to `cn`, `server.js`, `runtimeManager.js`, `aiController.js`, `utils.ts`, `sidebar.tsx`, `DashboardView.tsx`, `whatsappService.js`, `adminMasterService.ts`, `skill-global.js`, `📊 SUMÁRIO EXECUTIVO - DIAGNÓSTICO ZAPAI`, `Architecture Modularization Plan (ZAPAICRM + ZAPAI ENGINE)`, `aiMemoryEngine.js`, `MockResizeObserver`, `contactsController.js`, `adminMaster.js`, `Agente: Architect`, `automationEngine.js`, `dependencies`, `testRunnerEngine.js`, `appStore.ts`, `FASE 1 - Mapeamento`, `Full Refactor Report (Front + Back)`, `ROUND 2 VALIDATION STATUS`?**
+  _High betweenness centrality (0.049) - this node is a cross-community bridge._
+- **Why does `error()` connect `messageService.js` to `cn`, `sessionManager.legacy.js`, `devPipeline.js`, `Connections.tsx`, `campaignDispatchEngine.js`, `utils.ts`, `stableSession.js`, `activationLoggerService.js`, `automationService.js`, `createWhatsappLabel.test.js`, `AIView.tsx`, `aiLocalBrainService.js`, `query`, `envValidator.js`, `ZAPFLOW AI — AI Software Architect`, `createStableSession`, `stop.js`, `events.js`, `system.js`, `Architecture Analysis and Refactor Report`, `runtimeHardening.ts`, `Settings.tsx`, `RuntimeProvider.tsx`, `error`, `systemController.js`, `Autonomous Improvement Skill`, `index.js`, `CURRENT STATE REPORT — ZAPAI-FINAL`, `aiIntelligenceService.js`, `contactsController.js`, `auto-deploy.sh`, `getEngineClient`, `healthcheck.js`, `dependencies`, `⚡ CHECKLIST EXECUTIVO - ZAPAI VPS DEPLOYMENT`, `doctor.sh`, `Diagnostics.tsx`, `discovery-crawler.spec.ts`, `Agente: Security`, `contextService.js`, `messageDedupeService.js`, `restart.sh`?**
+  _High betweenness centrality (0.043) - this node is a cross-community bridge._
 - **Are the 5 inferred relationships involving `query()` (e.g. with `database.js` and `error()`) actually correct?**
   _`query()` has 5 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 96 inferred relationships involving `error()` (e.g. with `createCampaign()` and `bootstrap()`) actually correct?**
-  _`error()` has 96 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `fs`, `path`, `crypto` to the rest of the system?**
-  _4468 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Are the 107 inferred relationships involving `error()` (e.g. with `createCampaign()` and `bootstrap()`) actually correct?**
+  _`error()` has 107 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `fs`, `path`, `os` to the rest of the system?**
+  _6599 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `button.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.02719082719082719 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.019153074966332485 - nodes in this community are weakly interconnected._

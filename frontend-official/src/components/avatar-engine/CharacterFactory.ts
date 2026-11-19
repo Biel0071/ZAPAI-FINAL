@@ -14,14 +14,17 @@ import {
   HAIR_COLORS,
   SKIN_TONES,
   FACE_TYPES,
-  CLOTHING_STYLES,
-  ACCESSORIES,
   WORK_OBJECTS,
   POSTURES,
   AVATAR_STYLES,
-  resolveItemSpriteForGender,
   resolveHairColorForHair,
 } from "./AvatarDefinition";
+import {
+  buildSlotUpdate,
+  findCatalogItem,
+  inferGenderFromConfig,
+  normalizeAvatarComposition,
+} from "./avatar3d/slotCatalog";
 
 const RENDERER_HAIR_ALIASES: Record<string, string> = {
   female_ponytail_brunette: "hair_01",
@@ -40,29 +43,38 @@ const RENDERER_HAIR_ALIASES: Record<string, string> = {
   male_textured_crop: "hair_05",
   male_cap_hair: "hair_05",
   male_curly_brown: "hair_09",
-  male_anime_silver: "hair_08",
+  male_anime_silver: "hair_15",
   male_afro_curls: "hair_06",
-  male_professor_beard: "hair_05",
-  male_dark_shades: "hair_05",
-  male_red_hoodie: "hair_08",
+  male_professor_beard: "hair_16",
+  male_dark_shades: "hair_18",
+  male_red_hoodie: "hair_17",
+  male_slick_exec: "hair_18",
 };
 
 const RENDERER_OUTFIT_ALIASES: Record<string, string> = {
   polo_zai_black: "outfit_01",
   polo_zai_white: "outfit_07",
+  upper_polo: "outfit_01",
   shirt_formal_blue: "outfit_02",
+  shirt_business_white: "outfit_02",
+  upper_shirt: "outfit_02",
   tshirt_casual_dark: "outfit_03",
   hoodie_zai_black: "outfit_04",
+  upper_hoodie: "outfit_03",
   blazer_executive_dark: "outfit_05",
-  vest_operations: "outfit_06",
-  bomber_jacket_tech: "outfit_08",
-  vest_hivis_safety: "outfit_06",
-  shirt_business_white: "outfit_02",
-  jacket_exec_dark: "outfit_08",
-  casual_tee_charcoal: "outfit_07",
-  uniform_tech_navy: "outfit_04",
-  delivery_cargo_set: "outfit_04",
   blazer_emerald_trim: "outfit_05",
+  upper_blazer: "outfit_05",
+  vest_operations: "outfit_06",
+  vest_hivis_safety: "outfit_06",
+  upper_vest: "outfit_06",
+  casual_tee_charcoal: "outfit_07",
+  upper_tee: "outfit_07",
+  bomber_jacket_tech: "outfit_08",
+  jacket_exec_dark: "outfit_08",
+  upper_bomber: "outfit_08",
+  uniform_tech_navy: "outfit_04",
+  delivery_cargo_set: "outfit_10",
+  upper_uniform_jacket: "outfit_04",
 };
 
 const RENDERER_FACE_ALIASES: Record<string, string> = {
@@ -86,25 +98,52 @@ const RENDERER_STYLE_ALIASES: Record<string, string> = {
   tech: "style_tech",
   casual: "style_casual",
   premium: "style_premium",
+  style_executivo: "style_corporativo",
 };
 
 /** Normalizes stored catalog identifiers for the renderer without changing persisted avatar data. */
 export function normalizeAvatarForRenderer(avatar: Partial<AgentAvatarConfig>): Partial<AgentAvatarConfig> {
   const legacyFace = avatar.face || avatar.eyes;
-  const configuredOutfit = avatar.outfit || avatar.clothing;
+  const configuredOutfit = avatar.outfit || avatar.clothing || avatar.upperBody;
   const resolvedHair = RENDERER_HAIR_ALIASES[avatar.hair || ""] || avatar.hair || "";
-  const finalHair = /^hair_(0[1-9]|1[0-8])$/.test(resolvedHair) ? resolvedHair : (avatar.body === "male" ? "hair_05" : "hair_01");
+  const inferredGender = inferGenderFromConfig(avatar);
+  const isMale = inferredGender === "male";
+  const finalHair = /^hair_(0[1-9]|1[0-8])$/.test(resolvedHair)
+    ? resolvedHair
+    : isMale
+    ? "hair_05"
+    : "hair_01";
   const resolvedFace = RENDERER_FACE_ALIASES[legacyFace || ""] || legacyFace || "";
   const resolvedOutfit = RENDERER_OUTFIT_ALIASES[configuredOutfit || ""] || configuredOutfit || "";
-  const isFemale = avatar.body !== "male" && avatar.base !== "male";
+  const isFemale = !isMale;
+
+  const comp = normalizeAvatarComposition({
+    ...avatar,
+    body: avatar.body || inferredGender,
+    base: avatar.base || (isMale ? "male" : "female"),
+  });
+
+  const hairColor =
+    avatar.compositionVersion && avatar.compositionVersion >= 2 && avatar.hairColor
+      ? avatar.hairColor
+      : resolveHairColorForHair(avatar.hair || finalHair, avatar.hairColor, isFemale);
 
   return {
+    ...comp,
     ...avatar,
+    compositionVersion: avatar.compositionVersion,
+    body: avatar.body || comp.body,
+    base: avatar.base || comp.base,
+    baseSpriteId: avatar.baseSpriteId || resolveBaseSpriteForAvatar({ ...avatar, hair: finalHair }),
     hair: finalHair,
-    hairColor: resolveHairColorForHair(avatar.hair || finalHair, avatar.hairColor, isFemale),
+    hairColor,
     face: /^face_0[1-8]$/.test(resolvedFace) ? resolvedFace : "face_01",
     outfit: /^outfit_(0[1-9]|10)$/.test(resolvedOutfit) ? resolvedOutfit : "outfit_01",
+    upperBody: comp.upperBody,
+    lowerBody: comp.lowerBody,
+    footwear: comp.footwear,
     style: RENDERER_STYLE_ALIASES[avatar.style || ""] || avatar.style || "style_vendas",
+    accessories: comp.accessories,
   };
 }
 
@@ -144,10 +183,10 @@ export function buildStoreVisualDNA(store: any): StoreVisualDNA {
  * Maps modular layer configurations to the catalog sprite (1-33)
  */
 export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, forceRecompute: boolean = false): string {
-  const gender = avatar.body === "male" || avatar.base === "male" ? "male" : "female";
+  const inferred = inferGenderFromConfig(avatar);
+  const gender = inferred === "male" ? "male" : "female";
 
   if (!forceRecompute && avatar.catalogSpriteId) {
-    // Ensure a cached sprite from a previous gender doesn't mismatch the explicit body gender unless it's row 3
     if (gender === "female" && avatar.catalogSpriteId.startsWith("sprite_r1_")) {
       return avatar.catalogSpriteId.replace(/^sprite_r1_/, "sprite_r2_");
     }
@@ -160,34 +199,33 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   const hair = avatar.hair || "";
   const object = avatar.workObject || "";
   const glasses = avatar.glasses || "none";
-  const outfit = avatar.outfit || avatar.clothing || "";
+  const outfit = avatar.outfit || avatar.clothing || avatar.upperBody || "";
   const face = avatar.face || "";
   const style = avatar.style || "";
 
   // 1. Check Row 3 Operational Work Objects & Uniforms
-  if (object === "boxes_delivery" || outfit === "outfit_10") return "sprite_r3_c1";
-  if (object === "laptop_zai") return "sprite_r3_c5";
-  if (outfit === "vest_hivis_safety" || outfit === "outfit_06" || style === "style_operacional") return "sprite_r3_c2";
-  if (outfit === "outfit_04" || outfit === "uniform_technical") return "sprite_r3_c3";
+  if (object === "boxes_delivery" || object === "prop_boxes" || outfit === "outfit_10") return "sprite_r3_c1";
+  if (object === "laptop_zai" || object === "prop_laptop") return "sprite_r3_c5";
+  if (outfit === "vest_hivis_safety" || outfit === "outfit_06" || outfit === "upper_vest" || style === "style_operacional") return "sprite_r3_c2";
+  if (outfit === "outfit_04" || outfit === "uniform_technical" || outfit === "upper_uniform_jacket") return "sprite_r3_c3";
   if (outfit === "outfit_09") return "sprite_r3_c11";
-  if (avatar.accessories?.headwear === "hardhat_zai_white") return gender === "male" ? "sprite_r3_c7" : "sprite_r3_c8";
-  if (object === "coffee_cup") return gender === "male" ? "sprite_r1_c5" : "sprite_r2_c5";
+  if (avatar.accessories?.headwear === "hardhat_zai_white" || avatar.accessories?.headwear === "headwear_hardhat") {
+    return gender === "male" ? "sprite_r3_c7" : "sprite_r3_c8";
+  }
+  if (object === "coffee_cup" || object === "prop_coffee") return gender === "male" ? "sprite_r1_c5" : "sprite_r2_c5";
   if (object === "peace_sign") return gender === "male" ? "sprite_r1_c8" : "sprite_r2_c8";
   if (object === "thumbs_up") return gender === "male" ? "sprite_r1_c7" : "sprite_r2_c7";
 
   // 2. Female matches (Row 2)
   if (gender === "female") {
-    // Explicit face selections & glasses
-    if (face === "face_07" || glasses === "glasses_square_exec" || avatar.accessories?.glasses === "glasses_square_exec") return "sprite_r2_c2";
-    if (face === "face_08" || glasses === "sunglasses_wayfarer" || avatar.accessories?.glasses === "sunglasses_wayfarer" || avatar.glasses?.includes("sunglasses")) return "sprite_r2_c6";
+    if (face === "face_07" || glasses === "glasses_square_exec" || glasses === "eyewear_executive" || avatar.accessories?.glasses === "glasses_square_exec") return "sprite_r2_c2";
+    if (face === "face_08" || glasses === "sunglasses_wayfarer" || glasses === "eyewear_wayfarer" || avatar.accessories?.glasses === "sunglasses_wayfarer" || avatar.glasses?.includes("sunglasses")) return "sprite_r2_c6";
 
-    // Distinctive outfits
-    if (outfit === "outfit_05" || outfit.includes("blazer")) return "sprite_r2_c8";
-    if (outfit === "outfit_02" || outfit === "shirt_formal_blue") return "sprite_r2_c2";
-    if (outfit === "outfit_08") return "sprite_r2_c10";
-    if (avatar.accessories?.headwear?.includes("cap") || outfit === "outfit_03") return "sprite_r2_c6";
+    if (outfit === "outfit_05" || outfit === "upper_blazer" || outfit.includes("blazer")) return "sprite_r2_c8";
+    if (outfit === "outfit_02" || outfit === "upper_shirt" || outfit === "shirt_formal_blue") return "sprite_r2_c2";
+    if (outfit === "outfit_08" || outfit === "upper_bomber") return "sprite_r2_c10";
+    if (avatar.accessories?.headwear?.includes("cap") || outfit === "outfit_03" || outfit === "upper_hoodie") return "sprite_r2_c6";
 
-    // Hair overrides
     if (hair === "hair_11") return "sprite_r2_c6";
     if (hair === "hair_12") return "sprite_r2_c9";
     if (hair === "hair_13") return "sprite_r3_c8";
@@ -204,9 +242,8 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
     if (hair === "hair_10" || hair.includes("blue")) return "sprite_r2_c10";
     if (hair === "hair_01" || hair.includes("ponytail")) return "sprite_r2_c1";
 
-    if (object === "tablet_zai" || avatar.accessories?.tablet === "tablet_zai") return "sprite_r2_c8";
+    if (object === "tablet_zai" || object === "prop_tablet" || avatar.accessories?.tablet === "tablet_zai") return "sprite_r2_c8";
 
-    // Other faces & styles
     if (face === "face_04") return "sprite_r2_c3";
     if (face === "face_03" || style === "style_vendas" || style === "style_corporativo") return "sprite_r2_c8";
     if (face === "face_02") return "sprite_r2_c4";
@@ -217,17 +254,14 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   }
 
   // 3. Male matches (Row 1)
-  // Explicit face selections & glasses
-  if (face === "face_07" || hair.includes("beard") || avatar.facialHair === "full_beard" || glasses === "glasses_square_exec" || avatar.accessories?.glasses === "glasses_square_exec") return "sprite_r1_c8";
-  if (face === "face_08" || glasses === "sunglasses_wayfarer" || avatar.accessories?.glasses === "sunglasses_wayfarer" || avatar.glasses?.includes("sunglasses")) return "sprite_r1_c9";
+  if (face === "face_07" || hair.includes("beard") || avatar.facialHair === "full_beard" || glasses === "glasses_square_exec" || glasses === "eyewear_executive" || avatar.accessories?.glasses === "glasses_square_exec") return "sprite_r1_c8";
+  if (face === "face_08" || glasses === "sunglasses_wayfarer" || glasses === "eyewear_wayfarer" || avatar.accessories?.glasses === "sunglasses_wayfarer" || avatar.glasses?.includes("sunglasses")) return "sprite_r1_c9";
 
-  // Distinctive outfits
-  if (outfit === "outfit_05" || outfit.includes("blazer") || outfit.includes("suit")) return "sprite_r1_c6";
-  if (outfit === "outfit_02" || outfit === "shirt_formal_blue" || outfit === "shirt_business_white") return "sprite_r1_c8";
-  if (outfit === "outfit_08" || outfit.includes("bomber")) return "sprite_r1_c11";
-  if (avatar.accessories?.headwear?.includes("cap") || outfit === "outfit_03") return "sprite_r1_c4";
+  if (outfit === "outfit_05" || outfit === "upper_blazer" || outfit.includes("blazer") || outfit.includes("suit")) return "sprite_r1_c6";
+  if (outfit === "outfit_02" || outfit === "upper_shirt" || outfit === "shirt_formal_blue" || outfit === "shirt_business_white") return "sprite_r1_c8";
+  if (outfit === "outfit_08" || outfit === "upper_bomber" || outfit.includes("bomber")) return "sprite_r1_c11";
+  if (avatar.accessories?.headwear?.includes("cap") || outfit === "outfit_03" || outfit === "upper_hoodie") return "sprite_r1_c4";
 
-  // Hair overrides
   if (hair === "hair_11") return "sprite_r1_c4";
   if (hair === "hair_12") return "sprite_r1_c6";
   if (hair === "hair_13") return "sprite_r3_c7";
@@ -244,9 +278,8 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   if (hair.includes("red")) return "sprite_r1_c10";
   if (hair === "hair_05" || hair === "hair_01" || hair.includes("fade") || hair.includes("short")) return "sprite_r1_c1";
 
-  if (object === "tablet_zai") return "sprite_r1_c2";
+  if (object === "tablet_zai" || object === "prop_tablet") return "sprite_r1_c2";
 
-  // Other faces & styles
   if (face === "face_04") return "sprite_r1_c6";
   if (face === "face_03") return "sprite_r1_c3";
   if (face === "face_02") return "sprite_r1_c2";
@@ -256,52 +289,55 @@ export function resolveSpriteForAvatar(avatar: Partial<AgentAvatarConfig>, force
   return "sprite_r1_c1";
 }
 
+/** Resolves the stable face/body base while excluding the independently rendered hairstyle. */
+export function resolveBaseSpriteForAvatar(avatar: Partial<AgentAvatarConfig>): string {
+  return resolveSpriteForAvatar({
+    ...avatar,
+    hair: "",
+    catalogSpriteId: undefined,
+    baseSpriteId: undefined,
+  }, true);
+}
+
 /**
- * Applies a complete style preset to an avatar while preserving personal customizations.
+ * Applies a style or uniform slot preset: updates ONLY palette colors, trim accent,
+ * style tag, and posture WITHOUT overwriting hair, face, clothing, or accessories.
  */
 export function applyStylePreset(
   current: AgentAvatarConfig,
-  styleId: string
+  styleId: string,
 ): AgentAvatarConfig {
   const normalizedId = styleId.toLowerCase();
   const style = AVATAR_STYLES.find(
     (s) =>
       s.id === styleId ||
       s.name.toLowerCase() === normalizedId ||
-      (normalizedId.includes("executivo") && s.id === "style_corporativo")
+      (normalizedId.includes("executivo") && s.id === "style_corporativo"),
   );
-  if (!style || !style.preset) return current;
+  const catalogStyle = findCatalogItem(style?.id || styleId);
+  const primaryColor = style?.preset?.color || catalogStyle?.palette?.primary || current.branding.primaryColor;
+  const accentColor = catalogStyle?.palette?.accent || current.branding.accentColor;
+  const posture = style?.preset?.posture || catalogStyle?.palette?.posture || current.personalityVisual.posture;
+  const resolvedStyleId = style?.id || catalogStyle?.id || current.style;
 
-  const currentAccessories = typeof current.accessories === "object" ? { ...current.accessories } : {};
-  if (style.preset.accessories?.includes("acc_02")) {
-    currentAccessories.headset = "headset_zai_green";
-  }
-  if (style.preset.accessories?.includes("acc_03")) {
-    currentAccessories.badge = "badge_zai_lanyard";
-  }
-  if (style.preset.accessories?.includes("acc_04")) {
-    currentAccessories.glasses = "glasses_square_exec";
-  }
+  if (!style && !catalogStyle) return current;
 
   const updated: AgentAvatarConfig = {
     ...current,
-    style: style.id,
-    outfit: style.preset.outfit || current.outfit || current.clothing,
-    clothing: style.preset.outfit || current.clothing,
-    face: style.preset.face || current.face || "face_01",
-    accessories: currentAccessories,
-    headset: style.preset.accessories?.includes("acc_02") ? "headset_zai_green" : current.headset,
+    style: resolvedStyleId,
     personalityVisual: {
       ...current.personalityVisual,
-      posture: style.preset.posture || current.personalityVisual.posture,
+      posture,
     },
     branding: {
       ...current.branding,
-      primaryColor: style.preset.color || current.branding.primaryColor,
+      primaryColor,
+      accentColor,
     },
   };
 
-  updated.catalogSpriteId = resolveItemSpriteForGender(style, updated.body) || resolveSpriteForAvatar(updated, true);
+  updated.baseSpriteId = resolveSpriteForAvatar(updated, true);
+  updated.catalogSpriteId = updated.baseSpriteId;
   return updated;
 }
 
@@ -324,15 +360,14 @@ export function createAgentAvatar(params: {
     role = "Vendas",
     storeId = "store-default",
     storeDNA,
-    gender = "female",
+    gender,
     individualOverrides = {},
   } = params;
 
-  // Retrieve base preset if exists (e.g. Camila, Rafael)
-  const normalizedKey = agentId.toLowerCase();
+  const normalizedKey = agentId.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const basePreset = DEFAULT_AVATAR_PRESETS[normalizedKey] || {};
+  const inferredGender = gender || inferGenderFromConfig({ agentId, ...({ name } as any), ...basePreset });
 
-  // Store branding inherited
   const branding: StoreBranding = {
     storeName: storeDNA?.storeName || "ZAI CRM",
     primaryColor: storeDNA?.primaryColor || "#10b981",
@@ -345,12 +380,10 @@ export function createAgentAvatar(params: {
     showLogoOnObject: true,
   };
 
-  // Determine gender and hair
-  const isFemale = gender === "female" || (!gender && (name.toLowerCase().includes("camila") || name.toLowerCase().includes("julia")));
-  const defaultHair = isFemale ? "female_ponytail_brunette" : "male_short_fade";
+  const isFemale = inferredGender !== "male";
+  const defaultHair = inferredGender === "robot" ? "none" : isFemale ? "female_ponytail_brunette" : "male_short_fade";
   const defaultHairColor = isFemale ? "auburn" : "black";
 
-  // Build accessories map from store DNA
   const accessoriesMap: Record<string, string> = {};
   if (storeDNA?.defaultAccessories) {
     storeDNA.defaultAccessories.forEach((acc) => {
@@ -363,7 +396,6 @@ export function createAgentAvatar(params: {
     accessoriesMap.badge = "badge_zai_lanyard";
   }
 
-  // Work object adapted to role
   let defaultWorkObject = "tablet_zai";
   if (role.toLowerCase().includes("técnico") || role.toLowerCase().includes("suporte")) {
     defaultWorkObject = "tablet_zai";
@@ -377,7 +409,8 @@ export function createAgentAvatar(params: {
     id: `avatar-${agentId}`,
     agentId,
     storeId,
-    body: gender,
+    body: inferredGender,
+    base: inferredGender === "male" ? "male" : "female",
     skin: basePreset.skin || (isFemale ? "peach" : "tan"),
     hair: basePreset.hair || defaultHair,
     hairColor: basePreset.hairColor || defaultHairColor,
@@ -409,35 +442,42 @@ export function createAgentAvatar(params: {
     ...individualOverrides,
   };
 
-  // Resolve matching sprite
-  avatarConfig.catalogSpriteId = resolveSpriteForAvatar(avatarConfig);
+  avatarConfig.baseSpriteId = resolveBaseSpriteForAvatar(avatarConfig);
+  avatarConfig.catalogSpriteId = avatarConfig.baseSpriteId;
 
   return avatarConfig;
 }
 
 /**
- * Equipment helper: equips an item immutably
+ * Equipment helper: equips an item immutably without overwriting unrelated sub-slots
  */
 export function equipItem(
   avatar: AgentAvatarConfig,
   slot: "headset" | "glasses" | "headwear" | "badge" | "backpack" | "workObject" | "clothing",
-  item: string
+  item: string,
 ): AgentAvatarConfig {
-  const updatedAccessories = { ...avatar.accessories };
-  
+  const updatedAccessories = { ...(typeof avatar.accessories === "object" && !Array.isArray(avatar.accessories) ? avatar.accessories : {}) };
+
   if (slot === "clothing") {
+    const updated = buildSlotUpdate(avatar, "upper_body_slot", item);
     return {
       ...avatar,
       clothing: item,
-      catalogSpriteId: resolveSpriteForAvatar({ ...avatar, clothing: item, catalogSpriteId: undefined }, true),
+      outfit: item,
+      upperBody: updated.upperBody,
+      baseSpriteId: resolveBaseSpriteForAvatar({ ...avatar, clothing: item }),
+      catalogSpriteId: resolveBaseSpriteForAvatar({ ...avatar, clothing: item }),
     };
   }
 
   if (slot === "workObject") {
+    const updated = buildSlotUpdate(avatar, "prop", item);
     return {
       ...avatar,
       workObject: item,
-      catalogSpriteId: resolveSpriteForAvatar({ ...avatar, workObject: item, catalogSpriteId: undefined }, true),
+      accessories: { ...updatedAccessories, prop: updated.accessorySubSlots.prop },
+      baseSpriteId: resolveBaseSpriteForAvatar({ ...avatar, workObject: item }),
+      catalogSpriteId: resolveBaseSpriteForAvatar({ ...avatar, workObject: item }),
     };
   }
 
@@ -445,8 +485,9 @@ export function equipItem(
     return {
       ...avatar,
       glasses: item,
-      accessories: { ...updatedAccessories, glasses: item },
-      catalogSpriteId: resolveSpriteForAvatar({ ...avatar, glasses: item, catalogSpriteId: undefined }, true),
+      accessories: { ...updatedAccessories, glasses: item, eyewear: item },
+      baseSpriteId: resolveBaseSpriteForAvatar({ ...avatar, glasses: item }),
+      catalogSpriteId: resolveBaseSpriteForAvatar({ ...avatar, glasses: item }),
     };
   }
 
@@ -467,6 +508,9 @@ export function equipItem(
   }
 
   updatedAccessories[slot] = item;
+  if (slot === "backpack") {
+    updatedAccessories.back = item;
+  }
   return {
     ...avatar,
     accessories: updatedAccessories,
@@ -474,14 +518,17 @@ export function equipItem(
 }
 
 /**
- * Equipment helper: unequips an item slot immutably
+ * Equipment helper: unequips an item slot immutably without disturbing other sub-slots
  */
 export function unequipItem(
   avatar: AgentAvatarConfig,
-  slot: "headset" | "glasses" | "headwear" | "badge" | "backpack" | "workObject"
+  slot: "headset" | "glasses" | "headwear" | "badge" | "backpack" | "workObject",
 ): AgentAvatarConfig {
-  const updatedAccessories = { ...avatar.accessories };
+  const updatedAccessories = { ...(typeof avatar.accessories === "object" && !Array.isArray(avatar.accessories) ? avatar.accessories : {}) };
   delete updatedAccessories[slot];
+  if (slot === "glasses") delete updatedAccessories.eyewear;
+  if (slot === "backpack") delete updatedAccessories.back;
+  if (slot === "workObject") delete updatedAccessories.prop;
 
   return {
     ...avatar,
@@ -490,15 +537,16 @@ export function unequipItem(
     headset: slot === "headset" ? "none" : avatar.headset,
     badge: slot === "badge" ? false : avatar.badge,
     workObject: slot === "workObject" ? "hands_in_pockets" : avatar.workObject,
-    catalogSpriteId: resolveSpriteForAvatar(
-      {
-        ...avatar,
-        glasses: slot === "glasses" ? "none" : avatar.glasses,
-        workObject: slot === "workObject" ? "hands_in_pockets" : avatar.workObject,
-        catalogSpriteId: undefined,
-      },
-      true
-    ),
+    baseSpriteId: resolveBaseSpriteForAvatar({
+      ...avatar,
+      glasses: slot === "glasses" ? "none" : avatar.glasses,
+      workObject: slot === "workObject" ? "hands_in_pockets" : avatar.workObject,
+    }),
+    catalogSpriteId: resolveBaseSpriteForAvatar({
+      ...avatar,
+      glasses: slot === "glasses" ? "none" : avatar.glasses,
+      workObject: slot === "workObject" ? "hands_in_pockets" : avatar.workObject,
+    }),
   };
 }
 
@@ -506,7 +554,7 @@ export function unequipItem(
  * Randomizes an avatar while preserving the Store's DNA (uniform & branding)
  */
 export function randomizeAvatar(current: AgentAvatarConfig, storeDNA?: StoreVisualDNA): AgentAvatarConfig {
-  const isFemale = current.body === "female";
+  const isFemale = current.body !== "male";
   const hairPool = isFemale ? HAIRSTYLES_FEMALE : HAIRSTYLES_MALE;
   const randomHair = hairPool[Math.floor(Math.random() * hairPool.length)].id;
   const randomHairColor = HAIR_COLORS[Math.floor(Math.random() * HAIR_COLORS.length)].id;
@@ -527,7 +575,6 @@ export function randomizeAvatar(current: AgentAvatarConfig, storeDNA?: StoreVisu
       posture: randomPosture,
       preferredObject: randomWorkObject,
     },
-    // Preserve store uniform and branding
     clothing: storeDNA?.defaultClothing || current.clothing,
     branding: {
       ...current.branding,
@@ -536,6 +583,9 @@ export function randomizeAvatar(current: AgentAvatarConfig, storeDNA?: StoreVisu
     },
   };
 
-  randomized.catalogSpriteId = resolveSpriteForAvatar({ ...randomized, catalogSpriteId: undefined }, true);
+  randomized.baseSpriteId = resolveBaseSpriteForAvatar(randomized);
+  randomized.catalogSpriteId = randomized.baseSpriteId;
   return randomized;
 }
+
+export { normalizeAvatarComposition, buildSlotUpdate };

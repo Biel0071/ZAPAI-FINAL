@@ -83,9 +83,9 @@ const TIER_DEFINITIONS = [
     nextXp: 1500,
     badge: 'Logística & Pagamento',
     capabilities: [
-      'Apresentação proativa de 5% no PIX e até 10x sem juros',
-      'Esclarecimento de maquininha móvel na entrega na obra',
-      'Sondagem inteligente de entrega na obra vs retirada na loja',
+      'Apresenta as formas de pagamento cadastradas pela loja',
+      'Esclarece prazos e condições de entrega da loja',
+      'Pergunta entre entrega e retirada quando a loja oferece as duas',
     ],
   },
   {
@@ -95,9 +95,9 @@ const TIER_DEFINITIONS = [
     nextXp: 4000,
     badge: 'Aritmética & Descontos de Volume',
     capabilities: [
-      'Cálculo aritmético exato de milheiros e centenas sem alucinar',
-      'Desconto progressivo em lotes e compras em quantidade',
-      'Cross-selling consultivo (cimento, areia, brita para argamassa)',
+      'Calcula quantidades e totais a partir dos preços do catálogo',
+      'Aplica apenas descontos de volume cadastrados pela loja',
+      'Sugere produtos complementares do catálogo',
     ],
   },
   {
@@ -107,9 +107,9 @@ const TIER_DEFINITIONS = [
     nextXp: 10000,
     badge: 'Desambiguação Técnica & Objeções',
     capabilities: [
-      'Diferenciação técnica avançada (ex: modelo 8 furos vs 12 furos)',
-      'Nunca confunde modelo com multiplicador de quantidade',
-      'Superação de insegurança de frete, prazos e pagamento',
+      'Diferencia variações e modelos do mesmo produto',
+      'Não confunde modelo do produto com quantidade pedida',
+      'Responde objeções de frete, prazo e pagamento com dados da loja',
     ],
   },
   {
@@ -274,10 +274,11 @@ class HumanAttendanceLearner {
   }
 
   /**
-   * Promotes prominent learned topics into active ai_playbooks
+   * Queues prominent learned topics as controlled evolution proposals awaiting approval.
    */
   async synthesizePlaybooksFromLearnedTopics(companyId, topicsCount) {
     try {
+      const aiMemoryEvolutionService = require('../../../services/aiMemoryEvolutionService');
       for (const [topicKey, count] of Object.entries(topicsCount)) {
         if (count < 2) continue;
 
@@ -286,7 +287,7 @@ class HumanAttendanceLearner {
 
         // Retrieve top 2 golden replies for this topic
         const topReplies = await this.pool.query(
-          `SELECT ai_reply, customer_utterance FROM ai_experience_events
+          `SELECT ai_reply, customer_utterance, conversation_id FROM ai_experience_events
            WHERE company_id = $1 AND intent_detected = $2 AND strategy_applied = 'human_operator_golden_sample'
            ORDER BY id DESC LIMIT 2`,
           [companyId, topicKey]
@@ -295,31 +296,23 @@ class HumanAttendanceLearner {
         if (topReplies.rows.length === 0) continue;
 
         const goldenReply = topReplies.rows[0].ai_reply;
-        const slug = `auto_playbook_${topicKey}`;
-
-        await this.pool.query(
-          `INSERT INTO ai_playbooks (
-            company_id, name, slug, trigger_condition, goal, steps,
-            recommended_cta, confidence, continuity_boost_pct, status,
-            created_by, approved_by, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0.95, 25.0, 'approved', 'human_attendance_learner', 'auto_evolution', NOW(), NOW())
-          ON CONFLICT (company_id, slug) DO UPDATE SET
-            steps = EXCLUDED.steps,
-            recommended_cta = EXCLUDED.recommended_cta,
-            updated_at = NOW()`,
-          [
-            companyId,
-            `[Padrão Humano] ${classifier.label}`,
-            slug,
-            topicKey,
-            `Responder com tom natural de WhatsApp aprendido dos atendentes reais: ${classifier.label}`,
-            JSON.stringify([
-              { action: 'golden_sample', text: goldenReply },
-              { action: 'natural_cta', text: classifier.defaultCta }
-            ]),
-            classifier.defaultCta
-          ]
-        );
+        await aiMemoryEvolutionService.proposeEvolutionLearning({
+          companyId,
+          agentKey: 'camila',
+          patternType: `human_${topicKey}`,
+          title: `[Padrão Humano] ${classifier.label}`,
+          beforeBehavior: 'Resposta padrão sem amostra humana validada para este tópico',
+          afterBehavior: `Adotar abordagem humanizada observada no operador: ${goldenReply}`,
+          suggestedCta: classifier.defaultCta,
+          evidenceItems: topReplies.rows.map((r) => ({
+            conversationId: r.conversation_id,
+            customerUtterance: String(r.customer_utterance || '').slice(0, 180),
+            humanReply: String(r.ai_reply || '').slice(0, 180),
+          })),
+          impactMetrics: { observedOccurrences: count },
+          sourceRole: 'human_operator',
+          minConfirmationsForApproval: 2,
+        });
       }
     } catch (err) {
       console.warn('[HumanAttendanceLearner] synthesizePlaybooks error:', err.message);
@@ -375,50 +368,24 @@ class HumanAttendanceLearner {
         const convScoresRes = await this.pool.query(
           `SELECT COALESCE(SUM(total_xp), 0)::int AS real_conv_xp, COUNT(*)::int AS scored_count
            FROM conversation_evolution_scores
-           WHERE company_id = $1`,
-          [cleanCompany]
+           WHERE company_id = $1 AND agent_key = $2`,
+          [cleanCompany, agentKey]
         );
         realConvXp = Number(convScoresRes.rows[0]?.real_conv_xp || 0);
         scoredConversationsCount = Number(convScoresRes.rows[0]?.scored_count || 0);
       } catch (_) {}
 
-      // If no conversations scored yet but messages exist, run on-demand sweep
+      // If no conversations scored yet but messages exist, schedule on-demand background sweep non-blockingly
       if (scoredConversationsCount === 0 && totalHumanMessages > 0) {
-        try {
-          const convEvoService = require('../../../services/conversationEvolutionService');
-          await convEvoService.sweepRecentConversations({ companyId: cleanCompany, agentKey, limit: 30 });
-          const convScoresRes2 = await this.pool.query(
-            `SELECT COALESCE(SUM(total_xp), 0)::int AS real_conv_xp, COUNT(*)::int AS scored_count
-             FROM conversation_evolution_scores
-             WHERE (company_id = $1 OR ($1 = 'default' AND company_id IS NULL))`,
-            [cleanCompany]
-          );
-          realConvXp = Number(convScoresRes2.rows[0]?.real_conv_xp || 0);
-          scoredConversationsCount = Number(convScoresRes2.rows[0]?.scored_count || 0);
-        } catch (_) {}
+        setImmediate(async () => {
+          try {
+            const convEvoService = require('../../../services/conversationEvolutionService');
+            await convEvoService.sweepRecentConversations({ companyId: cleanCompany, agentKey, limit: 15 });
+          } catch (_) {}
+        });
       }
 
-      // If no conversations have been scored yet for this tenant, sweep recent ones dynamically
-      if (realConvXp === 0 && scoredConversationsCount === 0) {
-        try {
-          const convEvoService = require('../../../services/conversationEvolutionService');
-          const sweep = await convEvoService.sweepRecentConversations({ companyId: cleanCompany, limit: 30 });
-          if (sweep && sweep.scoredCount > 0) {
-            const convScoresRes3 = await this.pool.query(
-              `SELECT COALESCE(SUM(total_xp), 0)::int AS real_conv_xp, COUNT(*)::int AS scored_count
-               FROM conversation_evolution_scores
-               WHERE (company_id = $1 OR ($1 = 'default' AND company_id IS NULL))`,
-              [cleanCompany]
-            );
-            realConvXp = Number(convScoresRes3.rows[0]?.real_conv_xp || 0);
-            scoredConversationsCount = Number(convScoresRes3.rows[0]?.scored_count || 0);
-          }
-        } catch (_) {}
-      }
-
-      const samplesXp = humanSamples * 20;
-      const playbooksXp = activePlaybooks * 50;
-      const totalXp = realConvXp + samplesXp + playbooksXp;
+      const totalXp = realConvXp;
 
       // 5. Tier System (Nível 1 a 5+) with dynamically scaling targets
       const TIERS = [
@@ -461,8 +428,9 @@ class HumanAttendanceLearner {
         try {
           const convRes = await this.pool.query(
             `SELECT COUNT(*) AS total FROM conversations
-             WHERE company_id = $1 AND funnel_stage IN ('fechamento', 'closed', 'won', 'payment_confirmed', 'ready_to_buy')`,
-            [cleanCompany]
+             WHERE company_id = $1 AND agent_name = $2
+               AND funnel_stage IN ('fechamento', 'closed', 'won', 'payment_confirmed', 'ready_to_buy')`,
+            [cleanCompany, agentKey]
           );
           const rawConversions = parseInt(convRes.rows[0]?.total || '0', 10);
           conversionsCount = rawConversions > 0 ? rawConversions : null;
@@ -471,13 +439,8 @@ class HumanAttendanceLearner {
         }
 
         const positiveExp = parseInt(expRes.rows[0]?.positive_exp || '0', 10);
-        naturalnessScore = humanSamples > 0
-          ? Math.min(98, Math.max(76, Math.round(82 + (positiveExp / Math.max(1, humanSamples)) * 14)))
-          : null;
-
-        successRate = (humanSamples > 0 && totalHumanMessages > 0)
-          ? Math.min(98, Math.round((positiveExp / Math.max(1, humanSamples)) * 100))
-          : null;
+        naturalnessScore = humanSamples > 0 ? Math.round((positiveExp / humanSamples) * 100) : null;
+        successRate = humanSamples > 0 && totalHumanMessages > 0 ? Math.round((positiveExp / humanSamples) * 100) : null;
       }
 
       const cognitiveTiers = TIER_DEFINITIONS.map(tier => ({
@@ -513,6 +476,7 @@ class HumanAttendanceLearner {
         cognitiveTiers,
         activeCapabilities,
         nextLevelUnlocks,
+        metricScope: { conversations: 'attendant', learning: 'store' },
       };
 
       if (this.levelCache) {

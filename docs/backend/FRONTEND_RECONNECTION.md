@@ -4,6 +4,14 @@
 
 The Lovable React frontend should implement automatic reconnection logic to handle scenarios where the local runtime or ngrok tunnel goes offline. This ensures users never experience permanent disconnection errors like `ERR_NGROK_3200`.
 
+## WhatsApp automation safety after reconnect
+
+Outbound automation is paused for its company/session when WhatsApp disconnects. Reconnecting the socket does not clear that pause or dispatch the backlog automatically. The user must open the session review in Connections while the WhatsApp is connected.
+
+The review groups pending queue items, campaign contacts, and eligible AI follow-ups by phone. It shows task delivery attempts separately from follow-ups already sent. Per-contact actions resume or cancel only that contact's pending work; the explicit “Retomar todas” action approves the reviewed queue, campaigns, and follow-ups for that session. All review/action endpoints validate the authenticated company, owned session, and connected socket.
+
+“Iniciar nova campanha” navigates to campaign creation with the selected contacts and source session preselected. It does not create follow-ups or dispatch messages before the user configures and starts that campaign.
+
 ## Architecture
 
 ```

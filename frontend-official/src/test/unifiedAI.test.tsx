@@ -12,6 +12,8 @@ vi.mock("@/state/hooks/use-toast", () => ({ useToast: () => ({ toast }) }));
 // Mock apiService
 vi.mock("@/core/services/apiService", () => ({
   apiService: {
+    getPromptTemplates: vi.fn().mockResolvedValue([]),
+    getCompanyEntitlements: vi.fn().mockResolvedValue({ company: { id: "default", name: "Default" }, legacyAccess: true, modules: ["inbox", "contacts", "campaigns"], numberLimit: null, license: null }),
     getAIStatus: vi.fn().mockResolvedValue({ enabled: true }),
     updateAIStatus: vi.fn().mockResolvedValue({ success: true }),
     getAIAgents: vi.fn().mockResolvedValue({ success: true, agents: [{ key: "camila", name: "Ana", role: "Suporte", personality: "Instrução salva", tone: "consultative", temperature: 0.2, responseStyle: "detailed", objective: "suporte", active: false }] }),
@@ -51,6 +53,14 @@ vi.mock("@/core/services/apiService", () => ({
         components: { answers: 36, refinements: 26, coverage: 17, queue: 6 },
       },
       history: [{ id: 1, description: "Prompt refinado com sucesso", scoreChange: 5, createdAt: "Hoje" }],
+    }),
+    getMemoryEvolutionOverview: vi.fn().mockResolvedValue({
+      success: true,
+      dataOrigin: { source: "PostgreSQL", updatedAt: "2026-11-18T12:00:00Z" },
+      accumulated: { conversationsTotal: 10, activeMemories: 4, objectionsIdentified: 2, strategiesActive: 1 },
+      periodMetrics: { conversationsAnalyzed: 5, aiTurnsExecuted: 8, customerContinuedTurns: 6, qualifiedLeads: 2, conversions: 1 },
+      pending: { identifiedCount: 1, awaitingApproval: 1 },
+      applied: { appliedImprovements: 1, rollbacksExecuted: 0 },
     }),
     getAgentLearning: vi.fn().mockResolvedValue({
       success: true,
@@ -205,9 +215,9 @@ describe("Unified AI & Automação Page and Route Simplification", () => {
     });
 
     const text = document.body.textContent || "";
-    expect(text).toContain("Evolução & Memória do Atendente");
-    expect(text).toContain("Painel de Nível & XP");
-    expect(text).toContain("Progresso para o Próximo Nível");
+    expect(text).toContain("Memória & Evolução");
+    expect(text).toContain("Governança real de memórias corporativas");
+    expect(text).toContain("Memórias Ativas");
   });
 
   it("sidebar has the unified attendants entry and stores without duplicate navigation", async () => {

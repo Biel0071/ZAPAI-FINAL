@@ -123,14 +123,12 @@ class BaileysAdapter {
   async sendCatalog(payload, context = {}) {
     const sock = this.resolveSocket(context);
     const targetJid = ensureWhatsAppJid(payload.phone || payload.remoteJid || payload.to);
-    const storeUrl = payload.url || 'https://wa.me/c/553193672075';
-    const text = payload.text || `🏪 *[CATÁLOGO OFICIAL]*\nAcesse nossa loja completa no WhatsApp:\n👉 ${storeUrl}`;
-    const sendResult = await sock.sendMessage(targetJid, { text });
-    return {
-      success: true,
-      whatsappMessageId: sendResult?.key?.id,
-      key: sendResult?.key,
-    };
+    return await baileysCommerceAdapter.sendCatalog(sock, targetJid, payload, {
+      ...context,
+      phone: payload.phone,
+      remoteJid: targetJid,
+      sessionId: context.sessionId || 'main',
+    });
   }
 
   /**

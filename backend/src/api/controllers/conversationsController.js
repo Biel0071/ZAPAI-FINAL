@@ -1,5 +1,6 @@
 const conversationRepository = require('../../data/repositories/conversationRepository');
 const messageRepository = require('../../data/repositories/messageRepository');
+const storePaymentSettings = require('../../../services/payments/storePaymentSettings');
 const whatsappService = require('../../../services/whatsappService');
 const sessionManager = require('../../../services/sessionManager');
 const { registerOutgoingMessage } = require('./messagesController');
@@ -12,6 +13,7 @@ const { getCompanyId } = require('../../../services/tenantContext');
 const { query } = require('../../infrastructure/config/database');
 const orderSheetService = require('../../../services/orderSheetService');
 const attendantQualityDaemon = require('../../../services/attendantQualityDaemon');
+const contextTokenService = require('../../../services/contextTokenService');
 
 const avatarCache = new Map();
 const AVATAR_TTL_MS = 24 * 60 * 60 * 1000;
@@ -117,8 +119,12 @@ function trimMessage(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
-async function loadConversationForOperation(conversationId) {
-  const conversation = await conversationRepository.getConversationById(conversationId);
+function getRequestCompanyId(req) {
+  return String(req?.authTenantId || req?.auth?.tenantId || req?.auth?.companyId || 'default').trim();
+}
+
+async function loadConversationForOperation(conversationId, companyId) {
+  const conversation = await conversationRepository.getConversationById(conversationId, companyId);
 
   if (!conversation) {
     const error = new Error('Conversation not found.');
@@ -273,7 +279,8 @@ async function getConversationCounts(req, res) {
   const sessionId = getOptionalSessionId(req);
 
   try {
-    const params = [companyId];
+    const params = [companyId, conversationRepository.RECENT_CONVERSATION_DAYS];
+    const recentCond = conversationRepository.buildRecentConversationCondition('$2', 'conv');
     let sessionFilter = '';
     if (sessionId) {
       params.push(sessionId);
@@ -287,11 +294,11 @@ async function getConversationCounts(req, res) {
     const result = await query(
       `
         SELECT
-          COUNT(*)::int AS total,
-          COUNT(*) FILTER (WHERE conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived'))::int AS active,
-          COUNT(*) FILTER (WHERE conv.archived = true OR conv.status = 'archived')::int AS archived,
-          COUNT(*) FILTER (WHERE conv.unread_count > 0 AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')))::int AS unread,
-          COUNT(*) FILTER (WHERE conv.ai_enabled = true AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')))::int AS ai_active
+          COUNT(*) FILTER (WHERE ${recentCond})::int AS total,
+          COUNT(*) FILTER (WHERE conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived') AND ${recentCond})::int AS active,
+          COUNT(*) FILTER (WHERE (conv.archived = true OR conv.status = 'archived') AND (NULLIF(BTRIM(conv.last_message), '') IS NOT NULL OR EXISTS (SELECT 1 FROM messages msg WHERE msg.conversation_id = conv.id) OR conv.context_token IS NOT NULL))::int AS archived,
+          COUNT(*) FILTER (WHERE conv.unread_count > 0 AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')) AND ${recentCond})::int AS unread,
+          COUNT(*) FILTER (WHERE conv.ai_enabled = true AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')) AND ${recentCond})::int AS ai_active
         FROM conversations conv
         WHERE (conv.company_id = $1 OR conv.company_id = 'default') ${sessionFilter}
       `,
@@ -544,20 +551,71 @@ async function markConversationRead(req, res) {
 async function getConversationInsights(req, res) {
   try {
     const { conversationId } = req.params;
+    const companyId = getRequestCompanyId(req);
     const insights = await inboxConversationService.getConversationInsights(conversationId);
     const runtime = conversationRuntimeService.getConversationRuntime(getStore(req), req.params.conversationId);
+
+    let contextCapsule = null;
+    try {
+      let tokenRow = null;
+      if (/^\d+$/.test(String(conversationId || '').trim())) {
+        tokenRow = (await query(
+          `SELECT conv.context_token, conv.context_token_meta, conv.remote_jid, l.phone
+           FROM conversations conv
+           LEFT JOIN leads l ON l.id = conv.lead_id
+           WHERE conv.id = $1 AND conv.company_id = $2
+           LIMIT 1`,
+          [Number(conversationId), companyId]
+        )).rows[0] || null;
+      } else {
+        tokenRow = (await query(
+          `SELECT conv.context_token, conv.context_token_meta, conv.remote_jid, l.phone
+           FROM conversations conv
+           LEFT JOIN leads l ON l.id = conv.lead_id
+           WHERE conv.company_id = $1 AND (conv.remote_jid = $2 OR l.phone = $2)
+           LIMIT 1`,
+          [companyId, String(conversationId || '').trim()]
+        )).rows[0] || null;
+      }
+
+      let rawToken = tokenRow?.context_token || null;
+      const tokenMeta = tokenRow?.context_token_meta || null;
+
+      if (!rawToken) {
+        const keyCandidate = tokenRow?.remote_jid || tokenRow?.phone || String(conversationId || '').trim();
+        const memRow = (await query(
+          `SELECT context_token, metrics
+           FROM ai_conversation_memory
+           WHERE company_id = $1 AND (contact_id = $2 OR phone = $2) AND context_token IS NOT NULL
+           ORDER BY updated_at DESC NULLS LAST
+           LIMIT 1`,
+          [companyId, keyCandidate]
+        )).rows[0] || null;
+        rawToken = memRow?.context_token || null;
+      }
+
+      if (rawToken) {
+        contextCapsule = contextTokenService.toContextCapsule(rawToken, companyId, tokenMeta);
+      }
+    } catch (_) {
+      contextCapsule = null;
+    }
+
     const leadScoreVal = typeof insights?.leadScore === 'number' ? insights.leadScore : 0;
     const confidenceVal = leadScoreVal <= 1 ? leadScoreVal : leadScoreVal / 100;
+    const rawSummary = insights?.conversationSummary || insights?.summary || '';
+    const isDefaultSummary = !rawSummary || rawSummary === 'Conversa iniciada sem resumo disponível.';
     const payload = {
       ...insights,
       confidence: confidenceVal,
-      summary: insights?.conversationSummary || insights?.summary || '',
-      intent: insights?.intent || 'information',
+      summary: (isDefaultSummary && contextCapsule?.summary) ? contextCapsule.summary : rawSummary,
+      intent: insights?.intent || contextCapsule?.intent || 'information',
       nextAction: insights?.nextSuggestedReply || insights?.nextAction || 'follow_up',
       sentiment: insights?.sentiment || 'neutro',
       aiPausedUntil: runtime?.aiPausedUntil,
       controlMode: runtime?.controlMode,
       humanActive: runtime?.controlMode === 'human_active' || runtime?.controlMode === 'paused_ai',
+      contextCapsule,
     };
     return res.status(200).json({
       ok: true,
@@ -617,7 +675,7 @@ async function setConversationHandoff(req, res) {
     const { conversationId } = req.params;
     const { mode, timeoutMs } = req.body || {};
     const store = getStore(req);
-    const conversation = await loadConversationForOperation(conversationId);
+    const conversation = await loadConversationForOperation(conversationId, getRequestCompanyId(req));
 
     if (mode === 'human') {
       conversationRuntimeService.setHumanTakeover(store, conversationId, timeoutMs);
@@ -665,7 +723,7 @@ async function getConversationRuntime(req, res) {
 async function generateProfileCard(req, res) {
   try {
     const { conversationId } = req.params;
-    const conversation = await loadConversationForOperation(conversationId);
+    const conversation = await loadConversationForOperation(conversationId, getRequestCompanyId(req));
     const messages = await messageRepository.findByConversationId(conversationId, req.authTenantId);
     const latestMessages = (Array.isArray(messages) ? messages : []).slice(-8);
 
@@ -794,7 +852,7 @@ async function confirmAndFinalizeSheet(req, res) {
 
     let sentMessage = null;
     if (autoSend && result.sheet?.summary_text) {
-      const conversation = await loadConversationForOperation(conversationId);
+      const conversation = await loadConversationForOperation(conversationId, companyId);
       const confirmationMsg = [
         result.sheet.summary_text,
         '',
@@ -936,11 +994,24 @@ async function generateBilling(req, res) {
       });
     }
 
-    const conversation = await loadConversationForOperation(conversationId);
+    const conversation = await loadConversationForOperation(conversationId, getRequestCompanyId(req));
     const store = getStore(req);
     const salesStore = getSalesStore(store);
     const billingId = buildBillingToken(conversationId);
-    const paymentCode = `PIX-${billingId.toUpperCase()}`;
+    const { pix } = await storePaymentSettings.resolvePixConfig({
+      companyId: getRequestCompanyId(req),
+      sessionId: conversation.session_id,
+    });
+    if (!pix) {
+      return res.status(400).json({
+        error: 'PIX não configurado para a loja deste WhatsApp. Cadastre em Atendente IA › Loja e dados comerciais.',
+        success: false,
+      });
+    }
+    const paymentCode = storePaymentSettings.buildStorePixPayload(pix, {
+      amount,
+      txid: billingId.replace(/[^A-Za-z0-9]/g, '').slice(-25),
+    });
     const billing = {
       id: billingId,
       amount,
@@ -961,8 +1032,11 @@ async function generateBilling(req, res) {
     const messageText = [
       `Perfeito! Segue sua cobranca de ${billing.amountLabel}.`,
       `Descricao: ${description}`,
-      `Link de pagamento: ${paymentUrl}`,
-      `Codigo PIX: ${paymentCode}`,
+      `Favorecido: ${pix.merchantName}`,
+      `Chave PIX: ${pix.key}`,
+      '',
+      'PIX copia e cola:',
+      paymentCode,
     ].join('\n');
 
     let sentMessage = null;
@@ -1141,6 +1215,10 @@ async function updateConversationMeta(req, res) {
     'lead_temperature',
     'funnel_stage',
     'tags',
+    'whatsapp_labels',
+    'whatsappLabels',
+    'pinned_quick_replies',
+    'pinnedQuickReplies',
     'summary',
     'agent_name',
     'aiEnabled',
@@ -1156,6 +1234,14 @@ async function updateConversationMeta(req, res) {
     if (typeof req.body[field] !== 'undefined') {
       fields[field] = req.body[field];
     }
+  }
+
+  if (Array.isArray(fields.whatsappLabels) && !fields.whatsapp_labels) {
+    fields.whatsapp_labels = fields.whatsappLabels;
+  }
+
+  if (Array.isArray(fields.pinnedQuickReplies) && !fields.pinned_quick_replies) {
+    fields.pinned_quick_replies = fields.pinnedQuickReplies;
   }
 
   try {
@@ -1283,6 +1369,15 @@ async function updateConversationMeta(req, res) {
               }
             }
           }
+        }
+
+        const targetLeadId = updated.lead_id || updated.leadId;
+        if (targetLeadId) {
+          const { query } = require('../../infrastructure/config/database');
+          await query(
+            'UPDATE leads SET tags = $1, updated_at = NOW() WHERE id = $2 AND company_id = $3',
+            [fields.tags, targetLeadId, companyId]
+          ).catch(() => {});
         }
       } catch (tagErr) {
         console.warn('[WHATSAPP_LABEL_SYNC] Failed to sync tags with WhatsApp labels:', tagErr.message);
@@ -1600,11 +1695,320 @@ async function createWhatsappLabel(req, res) {
   }
 }
 
+async function updateWhatsappLabel(req, res) {
+  try {
+    const { query } = require('../../infrastructure/config/database');
+    const companyId = getCompanyId(req);
+    const labelId = String(req.params.id);
+    const { name, color, colorHex, sessionId: rawSessionId } = req.body || {};
+    const sessionId = sessionManager.normalizeSessionName(rawSessionId || req.query?.sessionId || sessionManager.DEFAULT_SESSION);
+
+    const prev = await query(
+      'SELECT id, name, color, color_hex FROM whatsapp_labels WHERE id = $1 AND company_id = $2 AND (session_id = $3 OR session_id = \'main\') LIMIT 1',
+      [labelId, companyId, sessionId]
+    );
+    if (!prev.rows || prev.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Etiqueta não encontrada.' });
+    }
+
+    const oldName = prev.rows[0].name;
+    const newName = name && typeof name === 'string' && name.trim() ? name.trim() : oldName;
+    const assignedColorHex = colorHex || (typeof color === 'number' && WPP_LABEL_COLORS[color]) || prev.rows[0].color_hex || WPP_LABEL_COLORS[0];
+    const assignedColorIndex = typeof color === 'number' ? color : (WPP_LABEL_COLORS.indexOf(assignedColorHex) >= 0 ? WPP_LABEL_COLORS.indexOf(assignedColorHex) : 0);
+
+    const updated = await query(
+      `UPDATE whatsapp_labels
+       SET name = $1, color = $2, color_hex = $3, deleted = false, updated_at = NOW()
+       WHERE id = $4 AND company_id = $5 AND (session_id = $6 OR session_id = 'main')
+       RETURNING id, name, color, color_hex, deleted`,
+      [newName, assignedColorIndex, assignedColorHex, labelId, companyId, sessionId]
+    );
+
+    if (oldName !== newName) {
+      await query(
+        `UPDATE conversations
+         SET whatsapp_labels = array_replace(whatsapp_labels, $1, $2),
+             tags = array_replace(tags, $1, $2)
+         WHERE company_id = $3 AND ($1 = ANY(whatsapp_labels) OR $1 = ANY(tags))`,
+        [oldName, newName, companyId]
+      ).catch(() => {});
+
+      await query(
+        `UPDATE leads
+         SET tags = array_replace(tags, $1, $2)
+         WHERE company_id = $3 AND $1 = ANY(tags)`,
+        [oldName, newName, companyId]
+      ).catch(() => {});
+    }
+
+    try {
+      const preferredSession = sessionManager.getSession(sessionId);
+      const fallbackSession = await sessionManager.getDefaultSession().catch(() => null);
+      const activeSession = preferredSession?.sock ? preferredSession : (fallbackSession?.sock ? fallbackSession : sessionManager.getConnectedSessionOrNull());
+      const sock = activeSession?.sock;
+      if (sock && typeof sock.labelEdit === 'function') {
+        await sock.labelEdit({ id: labelId, name: newName, color: assignedColorIndex }).catch(() => {});
+      }
+    } catch (sockErr) {
+      console.warn('[WHATSAPP_LABEL_UPDATE] Failed to sync label edit to socket:', sockErr.message);
+    }
+
+    const io = req.app?.get('io') || global.io;
+    if (io) {
+      io.emit('whatsapp:labels_updated', { companyId, sessionId, label: updated.rows[0] });
+    }
+
+    return res.status(200).json({ success: true, label: updated.rows[0] });
+  } catch (error) {
+    console.error('[WHATSAPP_LABEL_UPDATE_ERR]', error);
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao atualizar etiqueta.' });
+  }
+}
+
+async function deleteWhatsappLabel(req, res) {
+  try {
+    const { query } = require('../../infrastructure/config/database');
+    const companyId = getCompanyId(req);
+    const labelId = String(req.params.id);
+    const sessionId = sessionManager.normalizeSessionName(req.query?.sessionId || sessionManager.DEFAULT_SESSION);
+
+    const prev = await query(
+      'SELECT id, name FROM whatsapp_labels WHERE id = $1 AND company_id = $2 AND (session_id = $3 OR session_id = \'main\') LIMIT 1',
+      [labelId, companyId, sessionId]
+    );
+    if (!prev.rows || prev.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Etiqueta não encontrada.' });
+    }
+
+    const labelName = prev.rows[0].name;
+
+    await query(
+      `UPDATE whatsapp_labels
+       SET deleted = true, updated_at = NOW()
+       WHERE id = $1 AND company_id = $2 AND (session_id = $3 OR session_id = 'main')`,
+      [labelId, companyId, sessionId]
+    );
+
+    await query(
+      `UPDATE conversations
+       SET whatsapp_labels = array_remove(whatsapp_labels, $1),
+           tags = array_remove(tags, $1)
+       WHERE company_id = $2 AND ($1 = ANY(whatsapp_labels) OR $1 = ANY(tags))`,
+      [labelName, companyId]
+    ).catch(() => {});
+
+    try {
+      const preferredSession = sessionManager.getSession(sessionId);
+      const fallbackSession = await sessionManager.getDefaultSession().catch(() => null);
+      const activeSession = preferredSession?.sock ? preferredSession : (fallbackSession?.sock ? fallbackSession : sessionManager.getConnectedSessionOrNull());
+      const sock = activeSession?.sock;
+      if (sock && typeof sock.labelEdit === 'function') {
+        await sock.labelEdit({ id: labelId, deleted: true }).catch(() => {});
+      }
+    } catch (sockErr) {
+      console.warn('[WHATSAPP_LABEL_DELETE] Failed to sync label delete to socket:', sockErr.message);
+    }
+
+    const io = req.app?.get('io') || global.io;
+    if (io) {
+      io.emit('whatsapp:labels_updated', { companyId, sessionId, labelId, deleted: true });
+    }
+
+    return res.status(200).json({ success: true, deleted: true, labelId });
+  } catch (error) {
+    console.error('[WHATSAPP_LABEL_DELETE_ERR]', error);
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao excluir etiqueta.' });
+  }
+}
+
+async function syncWhatsappLabels(req, res) {
+  try {
+    const { query } = require('../../infrastructure/config/database');
+    const companyId = getCompanyId(req);
+    const sessionId = sessionManager.normalizeSessionName(req.body?.sessionId || req.query?.sessionId || sessionManager.DEFAULT_SESSION);
+
+    const preferredSession = sessionManager.getSession(sessionId);
+    const fallbackSession = await sessionManager.getDefaultSession().catch(() => null);
+    const activeSession = preferredSession?.sock ? preferredSession : (fallbackSession?.sock ? fallbackSession : sessionManager.getConnectedSessionOrNull());
+    const sock = activeSession?.sock;
+
+    let syncedCount = 0;
+    if (sock && typeof sock.getLabels === 'function') {
+      const labels = await sock.getLabels().catch(() => []);
+      for (const lbl of labels) {
+        if (!lbl.id) continue;
+        const colorHex = WPP_LABEL_COLORS[lbl.color] || WPP_LABEL_COLORS[0];
+        await query(
+          `INSERT INTO whatsapp_labels (id, company_id, session_id, name, color, color_hex, deleted, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+           ON CONFLICT (company_id, session_id, id)
+           DO UPDATE SET name = EXCLUDED.name, color = EXCLUDED.color, color_hex = EXCLUDED.color_hex, deleted = EXCLUDED.deleted, updated_at = NOW()`,
+          [String(lbl.id), companyId, sessionId, lbl.name || `Etiqueta ${lbl.id}`, lbl.color || 0, colorHex, Boolean(lbl.deleted)]
+        );
+        syncedCount++;
+      }
+    }
+
+    const allLabels = await query(
+      `SELECT id, name, color, color_hex, deleted
+       FROM whatsapp_labels
+       WHERE company_id = $1 AND (session_id = $2 OR session_id = 'main') AND deleted = false
+       ORDER BY id ASC`,
+      [companyId, sessionId]
+    );
+
+    return res.status(200).json({ success: true, labels: allLabels.rows, syncedCount });
+  } catch (error) {
+    console.error('[WHATSAPP_LABEL_SYNC_ERR]', error);
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao sincronizar etiquetas.' });
+  }
+}
+
+async function autoTagConversation(req, res) {
+  try {
+    const { query } = require('../../infrastructure/config/database');
+    const companyId = getCompanyId(req);
+    const conversationId = req.params.conversationId;
+    const conversationRepository = require('../../data/repositories/conversationRepository');
+    const messageRepository = require('../../data/repositories/messageRepository');
+
+    const conv = await conversationRepository.getConversationById(conversationId, companyId);
+    if (!conv) {
+      return res.status(404).json({ success: false, error: 'Conversa não encontrada.' });
+    }
+
+    const messages = await messageRepository.getMessagesByConversation(conv.id, { limit: 25, companyId });
+    const fullText = [
+      conv.lastMessage || '',
+      ...messages.map((m) => m.content || m.text || '')
+    ].join(' ').toLowerCase();
+
+    const candidateTags = [];
+    if (/orçamento|orcamento|preco|preço|quanto custa|valor|catalogo|catálogo|tabela|modelo|churrasqueira|cimento|tijolo|areia|brita/i.test(fullText)) {
+      candidateTags.push({ name: 'Orçamento', color: 4, colorHex: '#ff9500' });
+    }
+    if (/entrega|endereço|endereco|rua|bairro|cidade|cep|ponto de referência|localização|localizacao|dados para entrega/i.test(fullText)) {
+      candidateTags.push({ name: 'Dados para Entrega', color: 1, colorHex: '#5ac8fa' });
+    }
+    if (/pix|pagar|pago|comprovante|transferência|transferencia|cartao|cartão|dinheiro|sinal|boleto/i.test(fullText)) {
+      candidateTags.push({ name: 'Aguardando Pagamento', color: 2, colorHex: '#5856d6' });
+    }
+    if (/cancela|cancelar|não quero|desisti|deixa quieto/i.test(fullText)) {
+      candidateTags.push({ name: 'Cancelado', color: 7, colorHex: '#ff3b30' });
+    }
+    if (/obrigado|chegou|recebi|recebido|tudo certo|agradeço|show|valeu/i.test(fullText)) {
+      candidateTags.push({ name: 'Finalizado', color: 9, colorHex: '#34c759' });
+    }
+    if (candidateTags.length === 0) {
+      candidateTags.push({ name: 'Novo Lead', color: 0, colorHex: '#00d26a' });
+    }
+
+    const sessionId = sessionManager.normalizeSessionName(conv.sessionId || sessionManager.DEFAULT_SESSION);
+    const existingLabelsRes = await query(
+      `SELECT id, name, color, color_hex FROM whatsapp_labels WHERE company_id = $1 AND (session_id = $2 OR session_id = 'main') AND deleted = false`,
+      [companyId, sessionId]
+    );
+    const existingLabels = existingLabelsRes.rows || [];
+
+    const assignedTagNames = [];
+    for (const cand of candidateTags) {
+      let matchedLabel = existingLabels.find((l) => l.name.toLowerCase() === cand.name.toLowerCase());
+      if (!matchedLabel) {
+        const countRes = await query(
+          `SELECT MAX(CAST(CASE WHEN id ~ '^\\d+$' THEN id ELSE '0' END AS INTEGER)) as max_id FROM whatsapp_labels WHERE company_id = $1`,
+          [companyId]
+        ).catch(() => ({ rows: [] }));
+        const maxId = (Number(countRes.rows?.[0]?.max_id) || 0) + 1;
+        const labelId = String(maxId);
+
+        const ins = await query(
+          `INSERT INTO whatsapp_labels (id, company_id, session_id, name, color, color_hex, deleted, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, false, NOW(), NOW())
+           RETURNING id, name, color, color_hex`,
+          [labelId, companyId, sessionId, cand.name, cand.color, cand.colorHex]
+        );
+        matchedLabel = ins.rows[0];
+        existingLabels.push(matchedLabel);
+
+        try {
+          const preferredSession = sessionManager.getSession(sessionId);
+          const activeSession = preferredSession?.sock ? preferredSession : sessionManager.getConnectedSessionOrNull();
+          if (activeSession?.sock && typeof activeSession.sock.labelEdit === 'function') {
+            await activeSession.sock.labelEdit({ id: labelId, name: cand.name, color: cand.color }).catch(() => {});
+          }
+        } catch {}
+      }
+      assignedTagNames.push(matchedLabel.name);
+    }
+
+    const currentTags = Array.isArray(conv.tags) ? conv.tags : [];
+    const currentWppLabels = Array.isArray(conv.whatsappLabels) ? conv.whatsappLabels : [];
+    const newTags = Array.from(new Set([...currentTags, ...assignedTagNames]));
+    const newWppLabels = Array.from(new Set([...currentWppLabels, ...assignedTagNames]));
+
+    await query(
+      `UPDATE conversations
+       SET tags = $1, whatsapp_labels = $2, updated_at = NOW()
+       WHERE id = $3 AND company_id = $4`,
+      [newTags, newWppLabels, conv.id, companyId]
+    );
+
+    if (conv.leadId) {
+      await query(
+        `UPDATE leads
+         SET tags = $1, updated_at = NOW()
+         WHERE id = $2 AND company_id = $3`,
+        [newTags, conv.leadId, companyId]
+      ).catch(() => {});
+    }
+
+    try {
+      const preferredSession = sessionManager.getSession(sessionId);
+      const activeSession = preferredSession?.sock ? preferredSession : sessionManager.getConnectedSessionOrNull();
+      const sock = activeSession?.sock;
+      if (sock) {
+        const jid = conv.phone.includes('@') ? conv.phone : `${conv.phone}@s.whatsapp.net`;
+        for (const tagName of assignedTagNames) {
+          const lbl = existingLabels.find((l) => l.name.toLowerCase() === tagName.toLowerCase());
+          if (lbl) {
+            if (typeof sock.addChatLabel === 'function') {
+              await sock.addChatLabel(jid, String(lbl.id)).catch(() => {});
+            } else if (typeof sock.chatModify === 'function') {
+              await sock.chatModify({ addChatLabel: { labelId: String(lbl.id) } }, jid).catch(() => {});
+            }
+          }
+        }
+      }
+    } catch {}
+
+    conversationRepository.invalidateConversationCache?.(companyId);
+    const updatedConv = await conversationRepository.getConversationById(conv.id, companyId);
+    const io = req.app?.get('io') || global.io;
+    if (io && updatedConv) {
+      io.emit('conversation:update', updatedConv);
+      io.emit('conversation_updated', updatedConv);
+    }
+
+    return res.status(200).json({
+      success: true,
+      tags: newTags,
+      whatsappLabels: newWppLabels,
+      assigned: assignedTagNames,
+      conversation: updatedConv
+    });
+  } catch (error) {
+    console.error('[WHATSAPP_AUTO_TAG_ERR]', error);
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao auto-etiquetar conversa.' });
+  }
+}
+
 module.exports = {
+  autoTagConversation,
   clearConversationDraft,
   createConversation,
   createWhatsappLabel,
   deleteConversation,
+  deleteWhatsappLabel,
   generateBilling,
   generateProfileCard,
   getBillingDetails,
@@ -1620,9 +2024,11 @@ module.exports = {
   markConversationRead,
   saveConversationDraft,
   suggestConversationReply,
+  syncWhatsappLabels,
   setConversationHandoff,
   updateTypingState,
   updateConversationAI,
+  updateWhatsappLabel,
   listConversationControls,
   upsertConversationControl,
   getConversationControl,

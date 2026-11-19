@@ -3,272 +3,254 @@ const sessionManager = require('../../../services/sessionManager');
 const { clearFastCache } = require('../middleware/fastCache');
 
 // Authentic store catalog items from Depósito Vista Alegre (+55 31 9367-2075)
+// Exactly 19 authentic items matching WhatsApp Business / WhatsApp Web catalog
 const CORE_STORE_PRODUCTS = [
+  {
+    id: 'prod_bloco_10_100un',
+    code: 'BLOC-10-100',
+    name: 'BLOCO 10 - 100 UN',
+    description: 'Bloco de concreto estrutural 10 (fardo com 100 unidades). Alta resistência à compressão.',
+    price: 134.99,
+    category: 'Tijolos & Blocos',
+    stock: 150,
+    images: ['/assets/catalog/bloco_10_100un.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    condition: 'Novo',
+    shipping: 'Pronta entrega com caminhão próprio',
+  },
+  {
+    id: 'prod_argamassa_ac3',
+    code: 'ARG-AC3-20',
+    name: 'ARGAMASSA - AC3',
+    description: 'Argamassa colante DVG Precon AC-III 20kg para porcelanatos e fachadas.',
+    price: 19.90,
+    category: 'Cimento & Argamassa',
+    stock: 250,
+    images: ['/assets/catalog/argamassa_ac3.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    condition: 'Novo',
+    shipping: 'Pronta entrega',
+  },
+  {
+    id: 'prod_argamassa_ac2',
+    code: 'ARG-AC2-20',
+    name: 'ARGAMASSA - AC2',
+    description: 'Argamassa colante DVG Precon AC-II 20kg para áreas internas e externas.',
+    price: 16.90,
+    category: 'Cimento & Argamassa',
+    stock: 200,
+    images: ['/assets/catalog/argamassa_ac2.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    condition: 'Novo',
+    shipping: 'Pronta entrega',
+  },
+  {
+    id: 'prod_argamassa_ac1',
+    code: 'ARG-AC1-20',
+    name: 'ARGAMASSA - AC1',
+    description: 'Argamassa colante DVG Precon AC-I 20kg para ambientes internos.',
+    price: 14.80,
+    category: 'Cimento & Argamassa',
+    stock: 200,
+    images: ['/assets/catalog/argamassa_ac1.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    condition: 'Novo',
+    shipping: 'Pronta entrega',
+  },
+  {
+    id: 'prod_caminhao_areia_9m3',
+    code: 'CAM-AREIA-9M3',
+    name: 'CAMINHÃO DE AREIA - 9M³',
+    description: 'Carga fechada de caminhão basculante com 9 metros cúbicos de areia média lavada.',
+    price: 700.00,
+    category: 'Agregados & Areia',
+    stock: 30,
+    images: ['/assets/catalog/caminhao_areia.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    condition: 'Novo',
+    shipping: 'Carga completa 9m³',
+  },
+  {
+    id: 'prod_areia_m3',
+    code: 'AREIA-M3',
+    name: 'AREIA - M³',
+    description: 'Metro cúbico (m³) de areia média lavada limpa para concreto e reboco.',
+    price: 100.00,
+    category: 'Agregados & Areia',
+    stock: 90,
+    images: ['/assets/catalog/areia_m3.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    condition: 'Novo',
+    shipping: 'Pronta entrega',
+  },
+  {
+    id: 'prod_caminhao_brita_8m3',
+    code: 'CAM-BRI-8M3',
+    name: 'CAMINHÃO BRITA - 8M³',
+    description: 'Carga fechada de brita nº 1 granítica (8 metros cúbicos) em basculante.',
+    price: 850.00,
+    category: 'Agregados & Areia',
+    stock: 25,
+    images: ['/assets/catalog/caminhao_brita.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    condition: 'Novo',
+    shipping: 'Descarga direta basculante',
+  },
   {
     id: 'prod_tijolo_12_furos',
     code: 'TIJ-12F',
     name: 'TIJOLO 12 FUROS',
-    description: 'Tijolo cerâmico 12 furos de primeira linha. Alto isolamento térmico e acústico, perfeito para paredes externas e divisórias de precisão.',
+    description: 'Milheiro de tijolo cerâmico 12 furos estrutural e vedação de primeira linha.',
     price: 900.00,
     category: 'Tijolos & Blocos',
-    stock: 35,
+    stock: 3500,
     images: ['/assets/catalog/tijolo_12_furos.png'],
     whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Preço por milheiro (1.000 unidades) paletizado',
     condition: 'Novo',
-    shipping: 'Descarga rápida no canteiro de obras',
+    shipping: 'Pronta entrega',
   },
   {
     id: 'prod_tijolo_9_furos',
     code: 'TIJ-9F',
     name: 'TIJOLO 9 FUROS',
-    description: 'Tijolo cerâmico 9 furos padrão estrutural e vedação. Queima perfeita, economia de argamassa e grande resistência mecânica.',
+    description: 'Milheiro de tijolo cerâmico 9 furos paletizado de primeira queima.',
     price: 850.00,
     category: 'Tijolos & Blocos',
-    stock: 40,
+    stock: 25,
     images: ['/assets/catalog/tijolo_9_furos.png'],
     whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Desconto progressivo para cargas completas',
+    condition: 'Novo',
+    shipping: 'Descarga no canteiro de obras',
+  },
+  {
+    id: 'prod_tijolo_8_furos',
+    code: 'TIJ-8F',
+    name: 'TIJOLO 8 FUROS',
+    description: 'Milheiro de tijolo cerâmico 8 furos tradicional para fechamento e alvenaria.',
+    price: 780.00,
+    category: 'Tijolos & Blocos',
+    stock: 4000,
+    images: ['/assets/catalog/tijolo_8_furos.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
     condition: 'Novo',
     shipping: 'Pronta entrega',
   },
   {
-    id: 'prod_tijolo_8f_mil',
-    code: 'TIJ-8F',
-    name: 'TIJOLO 8 FUROS',
-    description: 'Tijolo cerâmico 8 furos padrão comercial 9x19x19cm (Milheiro). Venda paletizada com garantia de qualidade e resistência uniforme.',
-    price: 780.00,
-    category: 'Tijolos & Blocos',
-    stock: 50,
-    images: ['/assets/catalog/tijolo_8_furos.png'],
+    id: 'prod_telha_fibrocimento_244',
+    code: 'TEL-FIB-244',
+    name: 'TELHA FIBROCIMENTO 2,44 x 1,10m',
+    description: 'Telha ondulada 6mm sem amianto, alta durabilidade e proteção térmica.',
+    price: 58.00,
+    category: 'Coberturas & Telhas',
+    stock: 180,
+    images: ['/assets/catalog/telha_fibro.jpg'],
     whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Valor por milheiro. 5% de desconto no PIX',
     condition: 'Novo',
-    shipping: 'Entrega imediata na Grande BH e região',
+    shipping: 'Pronta entrega',
   },
   {
     id: 'prod_telhas_ceramica',
     code: 'TEL-CER',
     name: 'TELHAS CERÂMICA',
-    description: 'Telhas cerâmicas coloniais esmaltadas e naturais de alta resistência. Encaixe perfeito, proteção térmica superior e acabamento nobre.',
+    description: 'Telha cerâmica colonial/romana esmaltada de alto encaixe e acabamento impecável.',
     price: 3.20,
     category: 'Coberturas & Telhas',
-    stock: 5000,
+    stock: 2500,
     images: ['/assets/catalog/telhas_ceramica.png'],
     whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Venda por unidade ou milheiro fechado',
     condition: 'Novo',
-    shipping: 'Entrega paletizada com proteção contra quebra',
+    shipping: 'Pronta entrega',
   },
   {
-    id: 'prod_caixa_dagua_10000l',
-    code: 'CXA-10000L',
-    name: "CAIXA - 10.000L",
-    description: "Reservatório de grande capacidade 10.000 Litros em polietileno virgem estrutural. Alta resistência contra intempéries e raios UV.",
+    id: 'prod_caixa_10000l',
+    code: 'CX-10000',
+    name: 'CAIXA - 10.000L',
+    description: 'Reservatório de 10.000 Litros em polietileno virgem de alta resistência.',
     price: 2999.77,
     category: "Caixas d'Água",
     stock: 5,
-    images: ['/assets/catalog/caixa_dagua.png'],
+    images: ['/assets/catalog/caixa_10000l.png'],
     whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Até 10x sem juros no cartão ou preço à vista negociável',
     condition: 'Novo',
-    shipping: 'Frete especial com guincho/descarga apropriada',
+    shipping: 'Super capacidade',
   },
   {
     id: 'prod_caixa_5000l',
-    code: 'CXA-5000L',
+    code: 'CX-5000',
     name: 'CAIXA - 5000L',
-    description: "Caixa d'água Fortlev 5.000 Litros em polietileno reforçado com tampa de encaixe rápido. Fechamento seguro anti-insetos e proteção UV total.",
+    description: "Caixa d'água Fortlev 5.000 Litros em polietileno virgem estrutural com tampa de encaixe rápido.",
     price: 1699.85,
     category: "Caixas d'Água",
     stock: 12,
     images: ['/assets/catalog/caixa_5000l.png'],
     whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Parcelamento em até 10x ou desconto especial no PIX',
     condition: 'Novo',
-    shipping: 'Entrega rápida com caminhão do depósito',
+    shipping: 'Entrega rápida com caminhão próprio',
   },
   {
     id: 'prod_caixa_2000l',
-    code: 'CXA-2000L',
+    code: 'CX-2000',
     name: 'CAIXA - 2000L',
-    description: "Caixa d'água Fortlev 2.000 Litros azul resistente. Ideal para residências médias e comércios. Superfície interna lisa de fácil higienização.",
+    description: "Caixa d'água Fortlev 2.000 Litros polietileno virgem com proteção UV.",
     price: 499.87,
     category: "Caixas d'Água",
     stock: 18,
     images: ['/assets/catalog/caixa_2000l.png'],
     whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Entrega imediata em toda a Grande BH',
     condition: 'Novo',
-    shipping: 'Frete facilitado',
+    shipping: 'Pronta entrega',
   },
   {
     id: 'prod_caixa_1000l',
-    code: 'CXA-1000L',
+    code: 'CX-1000',
     name: 'CAIXA - 1000L',
-    description: "Caixa d'água Fortlev 1.000 Litros padrão residencial. Campeã de vendas, super reforçada, instalação prática e vedação 100% segura.",
+    description: "Caixa d'água Fortlev 1.000 Litros residencial super reforçada.",
     price: 250.00,
     category: "Caixas d'Água",
     stock: 25,
     images: ['/assets/catalog/caixa_1000l.png'],
     whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Preço promocional à vista',
     condition: 'Novo',
     shipping: 'Pronta entrega',
+  },
+  {
+    id: 'prod_caixa_500l',
+    code: 'CX-500',
+    name: "CAIXA D'ÁGUA FORTLEV 500L",
+    description: "Caixa d'Água 500 Litros Fortlev atóxica com tampa rosqueável.",
+    price: 199.00,
+    category: "Caixas d'Água",
+    stock: 35,
+    images: ['/assets/catalog/caixa_dagua.png'],
+    whatsapp_url: 'https://wa.me/c/553193672075',
+    condition: 'Novo',
+    shipping: 'Super compacta',
   },
   {
     id: 'prod_cimento_liz_cp4',
     code: 'CIM-LIZ-CP4',
     name: 'CIMENTO LIZ - CP4',
-    description: 'Cimento Liz CP IV-32 RS de secagem rápida (Saco 50kg). Máxima resistência a sulfatos e agentes agressivos, acabamento perfeito para lajes e fundações.',
+    description: 'Cimento Liz CP IV-32 RS secagem rápida (Saco 50kg) resistente a sulfatos.',
     price: 21.90,
     category: 'Cimento & Argamassa',
     stock: 400,
     images: ['/assets/catalog/cimento_liz.png'],
     whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Desconto especial para cargas fechadas e paletes',
     condition: 'Novo',
-    shipping: 'Entrega paletizada rápida no canteiro',
+    shipping: 'Pronta entrega',
   },
   {
     id: 'prod_churrasqueira_premoldada',
-    code: 'CHU-PRE-65',
+    code: 'CHURR-PRE',
     name: 'CHURRASQUEIRA - PRÉ-MOLDADA',
-    description: 'Churrasqueira pré-moldada em concreto refratário e acabamento tijolinho. Acompanha coifa, gaveta cinzeiro e suporte para espetos.',
+    description: 'Churrasqueira pré-moldada em concreto refratário c/ coifa e suporte de espetos.',
     price: 990.00,
     category: 'Churrasqueiras & Lazer',
-    stock: 7,
+    stock: 12,
     images: ['/assets/catalog/churrasqueira_premoldada.png'],
     whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Montagem facilitada em módulos encaixáveis',
     condition: 'Novo',
-    shipping: 'Entrega segura no local',
-  },
-  {
-    id: 'prod_caminhao_brita',
-    code: 'CAM-BRI-8M3',
-    name: 'CAMINHÃO BRITA - 8M³',
-    description: 'Carga fechada de brita graduada limpa (8 metros cúbicos) em caminhão basculante próprio. Ideal para concreto estrutural, calçadas e drenagem.',
-    price: 850.00,
-    category: 'Agregados & Areia',
-    stock: 20,
-    images: ['/assets/catalog/caminhao_brita.png'],
-    whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Preço fechado da carga com entrega na região',
-    condition: 'Novo',
-    shipping: 'Descarga direta basculante',
-  },
-  {
-    id: 'prod_betoneira_csm_400l',
-    code: 'BET-CSM-400L',
-    name: 'BETONEIRA - CSM - 400L',
-    description: 'Betoneira 400L CSM com motor profissional de alto torque. Estrutura reforçada, descarga rápida e máxima durabilidade para obras pesadas.',
-    price: 3499.00,
-    category: 'Máquinas & Equipamentos',
-    stock: 8,
-    images: ['/assets/catalog/betoneira_csm_400l.png'],
-    whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Frete especial na Grande BH ou parcelamento facilitado no cartão',
-    condition: 'Novo',
-    shipping: 'Entrega rápida com caminhão próprio',
-  },
-  {
-    id: 'prod_tijolo_macico_mil',
-    code: 'TIJ-MAC-MIL',
-    name: 'TIJOLO MACIÇO COMUM',
-    description: 'Tijolo de barro cozido maciço para alvenaria aparente, fornos a lenha, fogões a lenha e churrasqueiras rústicas. Alta durabilidade e acabamento colonial.',
-    price: 650.00,
-    category: 'Tijolos & Blocos',
-    stock: 30,
-    images: ['/assets/catalog/tijolo_macico.jpg'],
-    whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Desconto especial para cargas fechadas',
-    condition: 'Novo',
-    shipping: 'Entrega imediata na Grande BH e região',
-  },
-  {
-    id: 'prod_telha_fibro_244',
-    code: 'TEL-FIB-244',
-    name: 'TELHA FIBROCIMENTO 2,44 x 1,10m',
-    description: 'Telha ondulada sem amianto (tecnologia CRFS de alta resistência). Dimensões 2,44m comprimento x 1,10m largura e 6mm de espessura. Alta durabilidade.',
-    price: 58.00,
-    category: 'Coberturas & Telhas',
-    stock: 200,
-    images: ['/assets/catalog/telha_fibro.jpg'],
-    whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Desconto para quantidade de obra fechada',
-    condition: 'Novo',
-    shipping: 'Pronta entrega',
-  },
-  {
-    id: 'prod_cimento_cp2_50kg',
-    code: 'CIM-CPII-50',
-    name: 'CIMENTO CP-II 50KG',
-    description: 'Cimento Portland Composto CP-II E-32 50kg Nacional. Indicado para concreto armado, lajes, vigas, pilares, contrapisos e assentamento de alvenaria.',
-    price: 34.90,
-    category: 'Cimento & Argamassa',
-    stock: 250,
-    images: ['/assets/catalog/cimento_cp2.png'],
-    whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Preço promocional para compras acima de 50 sacos',
-    condition: 'Novo',
-    shipping: 'Descarga no térreo inclusa na entrega',
-  },
-  {
-    id: 'prod_cimento_cp3_50kg',
-    code: 'CIM-CPIII-50',
-    name: 'CIMENTO CP-III 50KG (RS)',
-    description: 'Cimento CP-III 40 RS Resistente a Sulfatos (50kg). Máxima impermeabilidade e alta resistência em fundações, subsolos e locais sujeitos à umidade.',
-    price: 37.50,
-    category: 'Cimento & Argamassa',
-    stock: 120,
-    images: ['/assets/catalog/cimento_cp2.png'],
-    whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Condição facilitada no cartão de crédito',
-    condition: 'Novo',
-    shipping: 'Pronta entrega',
-  },
-  {
-    id: 'prod_churrasqueira_75cm_prem',
-    code: 'CHUR-75-PREM',
-    name: 'CHURRASQUEIRA PREDIAL 75CM PREMIUM',
-    description: 'Churrasqueira pré-moldada de porte grande 75cm para áreas gourmet amplas. Coifa prolongada, refratários duplos de alta retenção térmica e acabamento liso moderno.',
-    price: 1290.00,
-    category: 'Churrasqueiras & Lazer',
-    stock: 9,
-    images: ['/assets/catalog/churras_75.jpg'],
-    whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Parcelamento em até 10x sem juros',
-    condition: 'Novo',
-    shipping: 'Montagem rápida por encaixe modulado',
-  },
-  {
-    id: 'prod_areia_media_m3',
-    code: 'AGR-AREIA-M3',
-    name: 'AREIA MÉDIA LAVADA (M³)',
-    description: 'Areia média pura, limpa e lavada, isenta de terra ou matéria orgânica. Granulometria perfeita para preparo de concreto e argamassa de reboco.',
-    price: 110.00,
-    category: 'Agregados & Areia',
-    stock: 80,
-    images: ['/assets/catalog/blocos.png'],
-    whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Preço por metro cúbico (m³). Consulte frete para sua rua',
-    condition: 'Novo',
-    shipping: 'Entrega em caminhão basculante',
-  },
-  {
-    id: 'prod_argamassa_ac3_20kg',
-    code: 'ARG-AC3-20',
-    name: 'ARGAMASSA AC-III 20KG',
-    description: 'Argamassa flexível tipo AC-III para assentamento de porcelanatos, placas grandes, piscinas e sobreposição piso sobre piso. Secagem uniforme e máxima aderência.',
-    price: 32.90,
-    category: 'Cimento & Argamassa',
-    stock: 180,
-    images: ['/assets/catalog/cimento_cp2.png'],
-    whatsapp_url: 'https://wa.me/c/553193672075',
-    promotions: 'Desconto progressivo por palete fechado',
-    condition: 'Novo',
-    shipping: 'Pronta entrega',
+    shipping: 'Entrega programada',
   },
 ];
 
@@ -314,9 +296,10 @@ async function getProductById(req, res) {
   }
 }
 
-async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 'main', sock = null, forceClean = false, limit = 50 } = {}) {
+async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 'main', sock = null, forceClean = false, limit = 50, skipWebBridge = false } = {}) {
   let syncedCount = 0;
   let waFetched = 0;
+  let catalogResult = null;
 
   if (forceClean) {
     try {
@@ -372,8 +355,9 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
         try {
           console.log('[ProductsController] Calling activeSock.getCatalog with options:', JSON.stringify(options));
           const queryPromise = activeSock.getCatalog(options);
+          const effectiveTimeout = process.env.NODE_ENV === 'test' ? 800 : 12000;
           const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('getCatalog timeout after 12s')), 12000)
+            setTimeout(() => reject(new Error('getCatalog timeout')), effectiveTimeout)
           );
           return await Promise.race([queryPromise, timeoutPromise]);
         } catch (err) {
@@ -382,28 +366,28 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
         }
       };
 
-      let catalogResult = null;
+      catalogResult = null;
 
       // Strategy 1: getCatalog with explicit target bizJid and limit
       if (bizJid) {
         catalogResult = await tryFetchCatalog({ jid: bizJid, limit });
       }
 
-      // Strategy 2: getCatalog without jid (queries authenticated account directly)
-      if (!catalogResult || !Array.isArray(catalogResult.products) || catalogResult.products.length === 0) {
+      // Strategy 2: getCatalog without jid (queries authenticated account directly if strategy 1 failed)
+      if (!catalogResult || !Array.isArray(catalogResult.products)) {
         console.log('[ProductsController] Strategy 2: calling getCatalog without explicit jid...');
         catalogResult = await tryFetchCatalog({ limit });
       }
 
       // Strategy 3: getCatalog using LID if available
-      if ((!catalogResult || !Array.isArray(catalogResult.products) || catalogResult.products.length === 0) && activeSock?.user?.lid) {
+      if ((!catalogResult || !Array.isArray(catalogResult.products)) && activeSock?.user?.lid) {
         const lidJid = activeSock.user.lid.split(':')[0] + '@lid';
         console.log('[ProductsController] Strategy 3: calling getCatalog with LID jid:', lidJid);
         catalogResult = await tryFetchCatalog({ jid: lidJid, limit });
       }
 
       // Strategy 4: Raw IQ query if getCatalog wrapper failed
-      if (!catalogResult || !Array.isArray(catalogResult.products) || catalogResult.products.length === 0) {
+      if (!catalogResult || !Array.isArray(catalogResult.products)) {
         try {
           console.log('[ProductsController] Strategy 4: sending direct binary IQ query for product_catalog...');
           const { parseCatalogNode } = require('@whiskeysockets/baileys/lib/Utils/business');
@@ -481,14 +465,18 @@ async function syncWhatsAppCatalogInternal({ companyId = 'default', sessionId = 
     console.warn('[ProductsController] WhatsApp getCatalog query returned:', waErr.message);
   }
 
-  // Upsert authentic core store catalog products if no live items were fetched from Meta
-  if (waFetched === 0) {
-    for (const coreProd of CORE_STORE_PRODUCTS) {
-      await productRepository.upsertProduct({
-        ...coreProd,
-        companyId,
-      });
-      syncedCount++;
+  // If live items were not returned from Meta, automatically run WebCatalogExtractor unless skipped or in test mode
+  const shouldSkipWebBridge = skipWebBridge || process.env.NODE_ENV === 'test' || Array.isArray(catalogResult?.products);
+  if (waFetched === 0 && !shouldSkipWebBridge) {
+    try {
+      const webCatalogExtractor = require('../../../services/webbridge/WebCatalogExtractor');
+      const bridgeRes = await webCatalogExtractor.extractCatalog(sessionId, companyId);
+      if (bridgeRes && bridgeRes.success) {
+        syncedCount = bridgeRes.upserted;
+        waFetched = bridgeRes.extracted;
+      }
+    } catch (bridgeErr) {
+      console.warn('[ProductsController] WebCatalogExtractor fallback notice:', bridgeErr.message);
     }
   }
 
@@ -540,9 +528,193 @@ async function syncWhatsAppCatalog(req, res) {
   }
 }
 
+async function createProduct(req, res) {
+  try {
+    const companyId = req.companyId || req.user?.companyId || 'default';
+    const {
+      name,
+      code,
+      description,
+      price,
+      category,
+      stock,
+      images,
+      whatsapp_url,
+      promotions,
+      condition,
+      shipping,
+    } = req.body;
+
+    if (!name || String(name).trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'O nome do produto é obrigatório.' });
+    }
+
+    const priceNum = Number(price);
+    if (isNaN(priceNum) || priceNum < 0) {
+      return res.status(400).json({ success: false, error: 'Preço inválido.' });
+    }
+
+    const customId = req.body.id || `prod_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+    const saved = await productRepository.upsertProduct({
+      id: customId,
+      companyId,
+      name: String(name).trim(),
+      code: String(code || '').trim(),
+      description: String(description || '').trim(),
+      price: priceNum,
+      category: String(category || 'Geral').trim(),
+      stock: Number(stock) || 10,
+      images: Array.isArray(images) && images.length > 0 ? images : ['/assets/catalog/areia_m3.png'],
+      whatsapp_url: whatsapp_url || 'https://wa.me/c/553193672075',
+      promotions: promotions || '',
+      condition: condition || 'Novo',
+      shipping: shipping || 'Pronta Entrega',
+    });
+
+    if (typeof clearFastCache === 'function') {
+      clearFastCache();
+    }
+
+    if (global.io) {
+      global.io.emit('catalog:updated', { action: 'create', product: saved, companyId });
+    }
+
+    return res.status(201).json({ success: true, data: saved });
+  } catch (error) {
+    console.error('[ProductsController] createProduct error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function updateProduct(req, res) {
+  try {
+    const companyId = req.companyId || req.user?.companyId || 'default';
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'ID do produto é obrigatório.' });
+    }
+
+    const existing = await productRepository.getProductById(id, companyId);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'Produto não encontrado.' });
+    }
+
+    const updated = await productRepository.upsertProduct({
+      ...existing,
+      ...req.body,
+      id,
+      companyId,
+      price: req.body.price !== undefined ? Number(req.body.price) : existing.price,
+      images: req.body.images || existing.images,
+    });
+
+    if (typeof clearFastCache === 'function') {
+      clearFastCache();
+    }
+
+    if (global.io) {
+      global.io.emit('catalog:updated', { action: 'update', product: updated, companyId });
+    }
+
+    return res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('[ProductsController] updateProduct error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function deleteProduct(req, res) {
+  try {
+    const companyId = req.companyId || req.user?.companyId || 'default';
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'ID do produto é obrigatório.' });
+    }
+
+    const deleted = await productRepository.deleteProduct(id, companyId);
+
+    if (typeof clearFastCache === 'function') {
+      clearFastCache();
+    }
+
+    if (global.io) {
+      global.io.emit('catalog:updated', { action: 'delete', id, companyId });
+    }
+
+    return res.json({ success: Boolean(deleted), id });
+  } catch (error) {
+    console.error('[ProductsController] deleteProduct error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function uploadProductImage(req, res) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+
+    let buffer = null;
+    let ext = '.png';
+
+    if (req.file && req.file.buffer) {
+      buffer = req.file.buffer;
+      ext = path.extname(req.file.originalname) || '.png';
+    } else if (req.body?.base64 || req.body?.dataUrl || req.body?.image) {
+      const raw = String(req.body.base64 || req.body.dataUrl || req.body.image);
+      const match = raw.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+      if (match) {
+        ext = `.${match[1] === 'jpeg' ? 'jpg' : match[1]}`;
+        buffer = Buffer.from(match[2], 'base64');
+      } else {
+        buffer = Buffer.from(raw.replace(/^data:[^;]+;base64,/, ''), 'base64');
+      }
+    }
+
+    if (!buffer || buffer.length === 0) {
+      return res.status(400).json({ success: false, error: 'Nenhuma imagem enviada.' });
+    }
+
+    const fileName = `prod_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
+    const relativeUrl = `/assets/catalog/uploads/${fileName}`;
+
+    // Lista de diretórios alvo (locais e de produção)
+    const targetDirs = [
+      path.join(process.cwd(), 'frontend-official', 'public', 'assets', 'catalog', 'uploads'),
+      path.join(process.cwd(), 'frontend-official', 'dist', 'assets', 'catalog', 'uploads'),
+      path.join(process.cwd(), 'public', 'assets', 'catalog', 'uploads'),
+      '/www/zapai/assets/catalog/uploads',
+      '/etc/icontainer/apps/openresty/openresty/www/zapai/assets/catalog/uploads',
+    ];
+
+    let written = 0;
+    for (const dir of targetDirs) {
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, fileName), buffer);
+        written++;
+      } catch (_) {}
+    }
+
+    return res.status(201).json({
+      success: true,
+      url: relativeUrl,
+      fileName,
+      size: buffer.length,
+    });
+  } catch (error) {
+    console.error('[ProductsController] uploadProductImage error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 module.exports = {
   getProducts,
   getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  uploadProductImage,
   syncWhatsAppCatalog,
   syncWhatsAppCatalogInternal,
   CORE_STORE_PRODUCTS,

@@ -137,7 +137,12 @@ function checkTests() {
 
 // 6. Ler sessões do WhatsApp
 function checkWhatsAppSessions() {
-  const sessionsDir = path.join(root, "backend/sessions");
+  let sessionsDir = path.join(root, "data/sessions");
+  if (process.env.WHATSAPP_SESSIONS_DIR && fs.existsSync(process.env.WHATSAPP_SESSIONS_DIR)) {
+    sessionsDir = process.env.WHATSAPP_SESSIONS_DIR;
+  } else if (!fs.existsSync(sessionsDir)) {
+    sessionsDir = path.join(root, "backend/sessions");
+  }
   if (!fs.existsSync(sessionsDir)) return;
   try {
     const entries = fs.readdirSync(sessionsDir, { withFileTypes: true });

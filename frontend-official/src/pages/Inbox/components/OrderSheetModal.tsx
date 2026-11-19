@@ -559,19 +559,6 @@ export function OrderSheetModal({
               <ClipboardCopy className="h-3.5 w-3.5" />
               {copied ? "Copiado!" : "Copiar Ficha"}
             </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSyncErp}
-              disabled={syncingErp}
-              className="h-8 gap-1.5 text-xs text-blue-400 border-blue-500/40 hover:bg-blue-500/10"
-              title="Disparar Webhook para ERP / DANFE / Orçamento"
-            >
-              <Share2 className="h-3.5 w-3.5" />
-              {syncingErp ? "Disparando..." : "Enviar p/ ERP (Webhook)"}
-            </Button>
           </div>
 
           <div className="flex items-center gap-2 ml-auto">

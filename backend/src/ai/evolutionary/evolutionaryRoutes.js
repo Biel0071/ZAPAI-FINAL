@@ -25,6 +25,11 @@ const experienceEngine = require('./experienceEngine');
 const learningEngine = require('./learningEngine');
 const humanAttendanceLearner = require('./humanAttendanceLearner');
 
+function parseSystemSetting(value) {
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { return value; }
+}
+
 function getCompanyId(req) {
   if (req.authTenantId) return req.authTenantId;
   const devBypass = String(process.env.NODE_ENV || 'development').toLowerCase() !== 'production'
@@ -456,11 +461,24 @@ router.get('/zai-assistant-config', async (req, res) => {
   try {
     const companyId = getCompanyId(req);
     const key = `zai_system_assistant_config:${companyId}`;
-    const result = await pool.query('SELECT value FROM system_settings WHERE key = $1 LIMIT 1', [key]);
+    const userResult = req.auth?.sub
+      ? await pool.query('SELECT id FROM users WHERE username = $1 AND tenant_id = $2 AND deleted_at IS NULL LIMIT 1', [req.auth.sub, companyId])
+      : { rows: [] };
+    const userId = userResult.rows[0]?.id;
+    const userSettingKey = userId ? `zai_system_assistant_user:${userId}` : null;
+    const result = await pool.query('SELECT key, value FROM system_settings WHERE key = ANY($1::text[])', [
+      [key, 'zai_system_assistant_global_enabled', ...(userSettingKey ? [userSettingKey] : [])],
+    ]);
+    const settings = new Map(result.rows.map((row) => [row.key, parseSystemSetting(row.value)]));
+    const companyStatus = await pool.query('SELECT zai_enabled FROM companies WHERE id = $1', [companyId]);
+    const companyEnabled = companyStatus.rows.length ? companyStatus.rows[0].zai_enabled !== false : true;
     let saved = null;
-    if (result.rows[0]?.value) {
-      saved = typeof result.rows[0].value === 'string' ? JSON.parse(result.rows[0].value) : result.rows[0].value;
+    const savedValue = settings.get(key);
+    if (savedValue) {
+      saved = typeof savedValue === 'string' ? JSON.parse(savedValue) : savedValue;
     }
+    const userEnabled = userSettingKey ? settings.get(userSettingKey) : undefined;
+    const globalSetting = settings.get('zai_system_assistant_global_enabled');
     const merged = {
       ...DEFAULT_ZAI_ASSISTANT_CONFIG,
       ...(saved || {}),
@@ -468,6 +486,8 @@ router.get('/zai-assistant-config', async (req, res) => {
         ...DEFAULT_ZAI_ASSISTANT_CONFIG.personality,
         ...(saved?.personality || {}),
       },
+      enabled: typeof userEnabled === 'boolean' ? userEnabled : Boolean(saved?.enabled),
+      globallyEnabled: (typeof globalSetting === 'boolean' ? globalSetting : true) && companyEnabled,
     };
     res.json({ success: true, data: merged });
   } catch (err) {
@@ -480,10 +500,22 @@ router.put('/zai-assistant-config', async (req, res) => {
     const companyId = getCompanyId(req);
     const key = `zai_system_assistant_config:${companyId}`;
     const incoming = req.body || {};
+    const userResult = req.auth?.sub
+      ? await pool.query('SELECT id FROM users WHERE username = $1 AND tenant_id = $2 AND deleted_at IS NULL LIMIT 1', [req.auth.sub, companyId])
+      : { rows: [] };
+    const existingConfigResult = await pool.query('SELECT value FROM system_settings WHERE key = $1 LIMIT 1', [key]);
+    const existingConfigValue = existingConfigResult.rows[0]?.value;
+    const existingConfig = typeof existingConfigValue === 'string'
+      ? JSON.parse(existingConfigValue)
+      : existingConfigValue;
     const merged = {
       ...DEFAULT_ZAI_ASSISTANT_CONFIG,
       ...incoming,
-      enabled: Boolean(incoming.enabled),
+      // Keep the legacy company value stable for users whose individual setting
+      // has not been initialized yet; new writes are stored per user below.
+      enabled: typeof existingConfig?.enabled === 'boolean'
+        ? existingConfig.enabled
+        : Boolean(incoming.enabled),
       role: 'system_assistant_only',
       personality: {
         ...DEFAULT_ZAI_ASSISTANT_CONFIG.personality,
@@ -494,12 +526,26 @@ router.put('/zai-assistant-config', async (req, res) => {
 
     await pool.query(
       `INSERT INTO system_settings (key, value, updated_at)
-       VALUES ($1, $2::jsonb, NOW())
+       VALUES ($1, $2, NOW())
        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
       [key, JSON.stringify(merged)]
     );
 
-    res.json({ success: true, data: merged });
+    const userId = userResult.rows[0]?.id;
+    if (userId) {
+      await pool.query(
+        `INSERT INTO system_settings (key, value, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+        [`zai_system_assistant_user:${userId}`, JSON.stringify(Boolean(incoming.enabled))]
+      );
+    }
+
+    const globalResult = await pool.query('SELECT value FROM system_settings WHERE key = $1 LIMIT 1', ['zai_system_assistant_global_enabled']);
+    const globalValue = parseSystemSetting(globalResult.rows[0]?.value);
+    const companyStatus = await pool.query('SELECT zai_enabled FROM companies WHERE id = $1', [companyId]);
+    const companyEnabled = companyStatus.rows.length ? companyStatus.rows[0].zai_enabled !== false : true;
+    res.json({ success: true, data: { ...merged, enabled: Boolean(incoming.enabled), globallyEnabled: (typeof globalValue === 'boolean' ? globalValue : true) && companyEnabled } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

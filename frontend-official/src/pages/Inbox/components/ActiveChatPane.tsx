@@ -23,6 +23,7 @@ import {
   Warning,
   WarningCircle,
   Info,
+  ShieldCheck,
   UserSwitch,
   UserCircle,
   CheckCircle,
@@ -35,9 +36,15 @@ import {
   PushPin,
   FileText,
   Image as ImageIcon,
+  Gear,
+  ArrowsLeftRight,
+  CircleNotch,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { useTheme } from "next-themes";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -66,10 +73,12 @@ import { QuickResponseModal, type QuickResponseItem } from "./QuickResponseModal
 import { QuickCampaignDispatchModal } from "@/components/campaigns/QuickCampaignDispatchModal";
 import { OrderSheetModal } from "./OrderSheetModal";
 import { CreateOrderModal } from "./CreateOrderModal";
+import { QuoteBuilderModal } from "@/components/commerce/QuoteBuilderModal";
 import { AttachmentActionMenu, usePinnedActions, ACTION_MENU_ITEMS } from "./AttachmentActionMenu";
 import { CustomerOrdersDrawer } from "./CustomerOrdersDrawer";
 import { CatalogSelectorPopover, formatProductMessage, type CatalogProduct } from "./CatalogSelectorPopover";
 import { ProductDetailDrawer, type CartItem } from "./ProductDetailDrawer";
+import { ProductFormModal, type EditableProduct } from "@/components/products/ProductFormModal";
 import { ShoppingBag } from "lucide-react";
 import { FlowExecutionBanner, matchesConversationFlow, type FlowExecutionData } from "./FlowExecutionBanner";
 import { buildSlashOptions, needsFlowPreview, type SlashOption } from "../quickReplySlash";
@@ -79,8 +88,15 @@ import { getSharedSocket } from "@/core/runtime/socket/socketManager";
 import { cn } from "@/core/lib/utils";
 import { apiService, requestApiEndpoint } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
-import type { ChatMessage, Conversation } from "@/core/services/apiService";
+import { toast as sonnerToast } from "sonner";
+import type { ChatMessage, Conversation, ConversationContextCapsule } from "@/core/services/apiService";
 import { useAppStore, type AIResponseProgress } from "@/state/stores/appStore";
+
+function getActiveSessionIdentity() {
+  const { sessions, activeSessionId } = useAppStore.getState();
+  const session = sessions.find((s) => s.id === activeSessionId) || sessions[0];
+  return { name: session?.pushName || session?.name || "", phone: session?.phone || "" };
+}
 import type { ComposerAttachment, PreviewMediaState, QuickReplyItem } from "../types";
 import {
   toConversationDateLabel,
@@ -295,16 +311,96 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const { toast } = useToast();
   const [generatingSheet, setGeneratingSheet] = useState(false);
   const [isAiSuggestionOpen, setIsAiSuggestionOpen] = useState(false);
+  const [contextCapsule, setContextCapsule] = useState<ConversationContextCapsule | null>(null);
+  const [contextCapsuleExpanded, setContextCapsuleExpanded] = useState(false);
   const sheetRequestVersion = useRef(0);
 
   useEffect(() => {
     setGeneratingSheet(false);
     setIsAiSuggestionOpen(false);
+    setContextCapsuleExpanded(false);
     return () => { sheetRequestVersion.current += 1; };
   }, [selectedConversation?.id]);
 
+  useEffect(() => {
+    let active = true;
+    const convId = selectedConversation?.id;
+    const meta = selectedConversation?.contextTokenMeta;
+
+    if (!convId) {
+      setContextCapsule(null);
+      return () => { active = false; };
+    }
+
+    if (selectedConversation?.hasContextToken && meta?.prunedMessagesCount) {
+      setContextCapsule({
+        active: true,
+        tokenPreview: "zctx1...",
+        byteLength: Number(meta.byteLength || 0),
+        prunedMessagesCount: Number(meta.prunedMessagesCount || 0),
+        from: meta.from || null,
+        to: meta.to || null,
+        intent: "information",
+        stage: "new_lead",
+        commercial: {},
+        facts: {},
+        highlights: [],
+        summary: selectedConversation.summary || "",
+      });
+    } else {
+      setContextCapsule(null);
+    }
+
+    if (typeof apiService?.getConversationInsights === "function") {
+      void apiService.getConversationInsights(String(convId))
+        .then((res) => {
+          if (!active || !res) return;
+          const capsule = ((res as any)?.contextCapsule || (res as any)?.data?.contextCapsule) as ConversationContextCapsule | null | undefined;
+          if (capsule && capsule.active) {
+            setContextCapsule(capsule);
+          }
+        })
+        .catch(() => {
+          // Non-blocking context capsule fetch
+        });
+    }
+
+    return () => { active = false; };
+  }, [selectedConversation?.id, selectedConversation?.hasContextToken, selectedConversation?.contextTokenMeta, selectedConversation?.summary]);
+
   const [activeSheetModalData, setActiveSheetModalData] = useState<any>(null);
   const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
+
+  const [headerActionsConfig, setHeaderActionsConfig] = useState<{
+    search: boolean;
+    sheet: boolean;
+    orders: boolean;
+    transfer: boolean;
+    broadcast: boolean;
+    finalize: boolean;
+  }>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem("zapflow_inbox_header_actions");
+        if (saved) return { search: true, sheet: true, orders: true, transfer: true, broadcast: true, finalize: true, ...JSON.parse(saved) };
+      } catch {}
+    }
+    return { search: true, sheet: true, orders: true, transfer: true, broadcast: true, finalize: true };
+  });
+
+  const [isHeaderActionsDialogOpen, setIsHeaderActionsDialogOpen] = useState(false);
+
+  const toggleHeaderAction = (key: "search" | "sheet" | "orders" | "transfer" | "broadcast" | "finalize") => {
+    setHeaderActionsConfig((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem("zapflow_inbox_header_actions", JSON.stringify(next));
+        } catch {}
+      }
+      return next;
+    });
+  };
 
   const handleGenerateSheet = async () => {
     if (!selectedConversation?.id) return;
@@ -416,35 +512,91 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     if (!phone || !selectedConversation?.id) return () => { active = false; };
     const context = { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId, phone: selectedConversation.phone };
     const matches = (data: Partial<FlowExecutionData> | null | undefined) => matchesConversationFlow(data, context);
+
     apiService.getActiveQuickReplyFlow(phone, context).then((res) => {
       if (active && matches(res?.flow)) setActiveFlowData(res.flow);
     }).catch((error) => console.warn("[FLOW_TIMELINE] active flow load failed", error));
+
+    const handleFlowDispatched = (e: Event) => {
+      const customEvent = e as CustomEvent<FlowExecutionData>;
+      if (customEvent.detail && matches(customEvent.detail)) {
+        setActiveFlowData(customEvent.detail);
+      }
+    };
+    window.addEventListener("flow:dispatched", handleFlowDispatched);
+
     const socket = getSharedSocket();
-    if (!socket) return () => { active = false; };
-    const started = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] started", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, nextSendAt: data.nextSendAt ?? prev?.nextSendAt ?? null })); } };
-    const updated = (data: FlowExecutionData) => { if (matches(data)) { console.info("[FLOW_TIMELINE] updated", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, nextSendAt: data.nextSendAt ?? prev?.nextSendAt ?? null })); } };
-    const paused = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] paused", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: true, status: "paused" })); } };
-    const resumed = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] resumed", data); setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: false, status: "running" })); } };
-    const ended = (data: any) => { if (matches(data)) { console.info("[FLOW_TIMELINE] completed", data); setActiveFlowData(null); } };
+    if (!socket) {
+      return () => {
+        active = false;
+        window.removeEventListener("flow:dispatched", handleFlowDispatched);
+      };
+    }
+
+    const started = (data: FlowExecutionData) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] started", data);
+        setActiveFlowData((prev) => ({ ...(prev || {}), ...data, nextSendAt: data.nextSendAt ?? prev?.nextSendAt ?? null, status: "running" }));
+      }
+    };
+    const updated = (data: FlowExecutionData) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] updated", data);
+        setActiveFlowData((prev) => ({ ...(prev || {}), ...data, nextSendAt: data.nextSendAt ?? prev?.nextSendAt ?? null, status: "running" }));
+      }
+    };
+    const paused = (data: any) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] paused", data);
+        setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: true, status: "paused" }));
+      }
+    };
+    const resumed = (data: any) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] resumed", data);
+        setActiveFlowData((prev) => ({ ...(prev || {}), ...data, isPaused: false, status: "running" }));
+      }
+    };
+    const ended = (data: any) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] completed", data);
+        setActiveFlowData((prev) => (prev ? { ...prev, currentStep: prev.totalSteps, status: "completed", nextSendAt: null } : null));
+        setTimeout(() => {
+          setActiveFlowData((prev) => (prev?.status === "completed" ? null : prev));
+        }, 2500);
+      }
+    };
+    const cancelled = (data: any) => {
+      if (matches(data)) {
+        console.info("[FLOW_TIMELINE] cancelled", data);
+        setActiveFlowData((prev) => (prev ? { ...prev, status: "cancelled", nextSendAt: null } : null));
+        setTimeout(() => {
+          setActiveFlowData((prev) => (prev?.status === "cancelled" ? null : prev));
+        }, 1200);
+      }
+    };
+
     socket.on("flow:started", started);
     socket.on("flow:step_updated", updated);
     socket.on("flow:paused", paused);
     socket.on("flow:resumed", resumed);
-    socket.on("flow:cancelled", ended);
+    socket.on("flow:cancelled", cancelled);
     socket.on("flow:finished", ended);
+
     return () => {
       active = false;
+      window.removeEventListener("flow:dispatched", handleFlowDispatched);
       socket.off("flow:started", started);
       socket.off("flow:step_updated", updated);
       socket.off("flow:paused", paused);
       socket.off("flow:resumed", resumed);
-      socket.off("flow:cancelled", ended);
+      socket.off("flow:cancelled", cancelled);
       socket.off("flow:finished", ended);
     };
   }, [selectedConversation?.id, selectedConversation?.phone, selectedConversation?.sessionId]);
 
   // While a quick-reply flow is running, resync the real timer/steps every 3s (socket events can be missed).
-  const hasActiveFlow = Boolean(activeFlowData);
+  const hasActiveFlow = Boolean(activeFlowData && activeFlowData.status !== "completed");
   useEffect(() => {
     const phone = selectedConversation?.phone;
     if (!hasActiveFlow || !phone || !selectedConversation?.id) return;
@@ -456,10 +608,12 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         if (matchesConversationFlow(res?.flow, context)) {
           setActiveFlowData((prev) => ({ ...(prev || {}), ...res.flow }));
         } else if (res && !res.flow) {
-          // Grace period: do not immediately clear if flow started less than 8s ago
+          // Do not erase flow while still executing steps; only clear after completion or 45s inactivity
           setActiveFlowData((prev) => {
             if (!prev) return null;
-            if (Date.now() - (prev.startedAt || 0) < 8000) return prev;
+            if (prev.status === "completed") return null;
+            if (prev.totalSteps > 0 && prev.currentStep >= prev.totalSteps) return null;
+            if (Date.now() - (prev.startedAt || 0) < 45000) return prev;
             return null;
           });
         }
@@ -477,6 +631,19 @@ export const ActiveChatPane = memo(function ActiveChatPane({
     if (!selectedConversation?.phone || !isWhatsappConnected) throw new Error("Conecte o WhatsApp antes de enviar.");
     if (quickReplyDispatchRef.current) throw new Error("Aguarde o envio atual.");
     quickReplyDispatchRef.current = true;
+    const rawStepsCount = customSteps?.length || (item.steps?.length ? item.steps.length : (item.items?.length ? item.items.length : 1));
+    setActiveFlowData({
+      chatId: selectedConversation.phone,
+      conversationId: selectedConversation.id,
+      sessionId: selectedConversation.sessionId,
+      flowName: item.title || "Resposta rápida",
+      currentStep: 0,
+      totalSteps: rawStepsCount,
+      startedAt: Date.now(),
+      nextSendAt: Date.now() + (customDelayMs || 2000),
+      stepDelaySeconds: Math.round((customDelayMs || 2000) / 1000),
+      status: "running",
+    });
     try {
       await sendQuickReply(item, customDelayMs, customSteps);
       // Do not rely only on the socket event: fetch the running flow so the banner always appears.
@@ -593,16 +760,70 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
     if (product.id === 'catalog_root') {
       try {
-        await handleSendMessage(formattedMessage || `https://wa.me/c/553193672075`);
-        toast.success('Catálogo enviado no chat!');
+        const res = await apiService.sendNativeCatalog({
+          phone: selectedConversation.phone,
+          remoteJid: (selectedConversation as any).remoteJid || (selectedConversation.phone.includes('@') ? selectedConversation.phone : undefined),
+          conversationId: selectedConversation.id,
+          sessionId: selectedConversation.sessionId || 'main',
+        });
+        if (res?.success) {
+          sonnerToast.success('Catálogo enviado!');
+        } else {
+          throw new Error(res?.error || 'Erro ao enviar catálogo');
+        }
       } catch (e: any) {
-        toast.error('Erro ao enviar catálogo');
+        sonnerToast.error('Erro ao enviar catálogo: ' + (e.message || ''));
       }
       return;
     }
 
     // 1. Direct native WhatsApp commerce dispatch (productMessage via Baileys)
     try {
+      const optimisticId = `prod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const now = new Date().toISOString();
+      const isBlockProd = (product.name || product.title || '').toLowerCase().includes('bloco') || (product.code || '').toLowerCase().includes('bloc');
+      const defaultProdImg = isBlockProd ? '/assets/catalog/real/bloco_10_100un.png' : `/assets/catalog/${product.code?.toLowerCase() || 'bloco_10_100un'}.png`;
+      const fallbackBlockImages = [
+        '/assets/catalog/real/bloco_10_100un.png',
+        '/assets/catalog/real/bloco_10_100un_2.png',
+        '/assets/catalog/real/bloco_10_100un_3.png'
+      ];
+      const productImages = Array.isArray(product.images) && product.images.length > 0
+        ? product.images
+        : (isBlockProd ? fallbackBlockImages : [defaultProdImg]);
+      const productImageUrl = productImages[0] || product.image || product.productImage || defaultProdImg;
+      const formattedText = formattedMessage || `*${product.name || product.title}*\nR$ ${(Number(product.price) || 0).toFixed(2)}`;
+
+      const optimisticMessage: ChatMessage = {
+        id: optimisticId,
+        conversationId: selectedConversation.id,
+        content: formattedText,
+        fromMe: true,
+        createdAt: now,
+        timestamp: now,
+        status: "sending",
+        type: "product",
+        mediaType: "product",
+        mediaUrl: productImageUrl,
+        url: productImageUrl,
+        mediaPath: productImageUrl,
+        product: {
+          id: product.id || product.productId,
+          name: product.name || product.title,
+          price: product.price,
+          images: productImages,
+        },
+      };
+
+      // Add to UI immediately so the user sees the sent product instantly
+      useAppStore.getState().addMessage(selectedConversation.id, optimisticMessage);
+      useAppStore.getState().updateConversationRealtime({
+        id: selectedConversation.id,
+        lastMessage: formattedText,
+        lastMessageType: "product" as any,
+        updatedAt: now,
+      });
+
       const res = await apiService.sendNativeCommerceProduct({
         phone: selectedConversation.phone,
         remoteJid: (selectedConversation as any).remoteJid || (selectedConversation.phone.includes('@') ? selectedConversation.phone : undefined),
@@ -619,28 +840,57 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           productImage: (Array.isArray(product.images) && product.images[0]) || product.image,
           code: product.code,
         },
-        caption: formattedMessage,
         conversationId: selectedConversation.id,
         sessionId: selectedConversation.sessionId || 'main',
       });
 
       if (res?.success) {
-        toast.success(`"${product.name || 'Produto'}" enviado como produto oficial no WhatsApp!`);
+        useAppStore.getState().addMessage(selectedConversation.id, {
+          ...optimisticMessage,
+          id: res.whatsappMessageId || (res as any).persistedMessage?.id || optimisticId,
+          status: "sent",
+        });
+        sonnerToast.success(`"${product.name || 'Produto'}" enviado como produto oficial no WhatsApp!`);
         return;
       } else {
-        throw new Error(res?.error || 'Erro ao processar produto');
+        throw new Error((res as any)?.error || 'Erro ao processar produto');
       }
     } catch (commerceErr: any) {
       console.error('[handleSendProductMessage] Direct native commerce dispatch failed:', commerceErr);
-      toast.error('Erro ao enviar produto comercial', {
+      sonnerToast.error('Erro ao enviar produto comercial', {
         description: commerceErr?.message || 'Verifique a conexão do WhatsApp.',
       });
+      throw commerceErr;
     }
   };
 
   const handleSendMultipleProducts = async (products: CatalogProduct[]) => {
     if (!selectedConversation || products.length === 0) return;
     try {
+      const now = new Date().toISOString();
+      for (const p of products) {
+        const optimisticId = `prod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const isBlockP = (p.name || '').toLowerCase().includes('bloco') || (p.code || '').toLowerCase().includes('bloc');
+        const defaultImg = isBlockP ? '/assets/catalog/bloco_10_100un.png' : `/assets/catalog/${p.code?.toLowerCase() || 'bloco_10_100un'}.png`;
+        const pImg = (Array.isArray(p.images) && p.images[0]) || (p as any).image || defaultImg;
+        const text = `*${p.name}*\nR$ ${(Number(p.price) || 0).toFixed(2)}`;
+        useAppStore.getState().addMessage(selectedConversation.id, {
+          id: optimisticId,
+          conversationId: selectedConversation.id,
+          content: text,
+          fromMe: true,
+          createdAt: now,
+          timestamp: now,
+          status: "sending",
+          type: "product",
+          mediaType: "product",
+          mediaUrl: pImg,
+          url: pImg,
+          mediaPath: pImg,
+          product: { id: p.id, name: p.name, price: p.price, images: Array.isArray(p.images) && p.images.length > 0 ? p.images : [pImg] },
+        });
+      }
+
       const res = await apiService.sendNativeCommerceProduct({
         phone: selectedConversation.phone,
         remoteJid: (selectedConversation as any).remoteJid || (selectedConversation.phone.includes('@') ? selectedConversation.phone : undefined),
@@ -649,44 +899,79 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         sessionId: selectedConversation.sessionId || 'main',
       });
       if (res?.success) {
-        toast.success(`${products.length} produtos enviados no chat!`);
+        sonnerToast.success(`${products.length} produtos enviados no chat!`);
       }
     } catch (err: any) {
-      toast.error('Falha ao enviar produtos', { description: err?.message });
+      sonnerToast.error('Falha ao enviar produtos', { description: err?.message });
+      throw err;
     }
   };
 
   // WhatsApp Native Commerce / Product Details & Cart state
   const [selectedProductForDetails, setSelectedProductForDetails] = useState<CatalogProduct | null>(null);
   const [isProductDetailOpen, setIsProductDetailOpen] = useState(false);
+  const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
+  const [editingProductForModal, setEditingProductForModal] = useState<EditableProduct | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCustomerOrdersOpen, setIsCustomerOrdersOpen] = useState(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const { pinnedIds, togglePin } = usePinnedActions();
+
+  const insertStorePixMessage = useCallback(async () => {
+    const storeSessionId = useAppStore.getState().activeSessionId || selectedConversation?.sessionId || undefined;
+    try {
+      const result = await apiService.getSessionPix({ sessionId: storeSessionId });
+      if (!result.configured) {
+        toast({
+          title: "PIX da loja não cadastrado",
+          description: "Cadastre a chave em Atendente IA › Loja e dados comerciais deste WhatsApp.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const pixMsg = [
+        "💳 *PAGAMENTO VIA PIX*",
+        `Favorecido: ${result.pix.merchantName}`,
+        `Chave PIX: ${result.pix.key}`,
+        "",
+        "PIX copia e cola:",
+        result.payload,
+        "",
+        "_Por favor, envie o comprovante após a transferência._",
+      ].join("\n");
+      setMessageInput((prev) => (prev ? `${prev}\n\n${pixMsg}` : pixMsg));
+      messageInputRef.current?.focus();
+    } catch (error) {
+      toast({
+        title: "Não foi possível gerar o PIX",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  }, [selectedConversation?.sessionId, setMessageInput, toast]);
 
   const handleAttachmentAction = useCallback((actionId: string) => {
     switch (actionId) {
       case "catalogo": {
-        const catalogBtn = document.querySelector("[data-catalog-trigger]") as HTMLButtonElement | null;
-        if (catalogBtn) {
-          catalogBtn.click();
-        }
+        setIsCatalogOpen(true);
+        break;
+      }
+      case "orcamento": {
+        setIsQuoteModalOpen(true);
         break;
       }
       case "cobrar":
         setIsCreateOrderOpen(true);
         break;
       case "quick_replies":
-        setMessageInput((prev) => (prev.startsWith("/") ? prev : `/${prev}`));
-        messageInputRef.current?.focus();
+        setIsQuickReplyModalOpen(true);
         break;
-      case "pix": {
-        const pixMsg = `💳 *CHAVE PIX PARA PAGAMENTO*\n━━━━━━━━━━━━━━━━━━━━━━\nDepósito Vista Alegre\nChave CNPJ / Celular: 3193672075\nFavorecido: Depósito Vista Alegre Materiais\n━━━━━━━━━━━━━━━━━━━━━━\n_Por favor, envie o comprovante após a transferência._`;
-        setMessageInput((prev) => (prev ? `${prev}\n\n${pixMsg}` : pixMsg));
-        messageInputRef.current?.focus();
+      case "pix":
+        void insertStorePixMessage();
         break;
-      }
       case "documento":
         if (fileInputRef.current) {
           fileInputRef.current.accept = ".pdf,.doc,.docx,.xls,.xlsx,.txt";
@@ -713,7 +998,8 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         }
         break;
       case "contato": {
-        const contactCard = `👤 *CONTATO COMERCIAL*\n━━━━━━━━━━━━━━━━━━━━━━\nDepósito Vista Alegre\nWhatsApp: (31) 9367-2075\nAtendimento e Entregas em toda Grande BH`;
+        const session = getActiveSessionIdentity();
+        const contactCard = ["👤 *CONTATO COMERCIAL*", "━━━━━━━━━━━━━━━━━━━━━━", session.name, session.phone && `WhatsApp: ${session.phone}`].filter(Boolean).join("\n");
         setMessageInput((prev) => (prev ? `${prev}\n\n${contactCard}` : contactCard));
         messageInputRef.current?.focus();
         break;
@@ -735,19 +1021,19 @@ export const ActiveChatPane = memo(function ActiveChatPane({
       default:
         break;
     }
-  }, []);
+  }, [insertStorePixMessage]);
 
   useEffect(() => {
     if (!selectedConversation?.id) return;
-    apiService.getCommerceOrders({
+    apiService.getCommerceOrders?.({
       conversationId: selectedConversation.id,
       phone: selectedConversation.phone,
       status: "pending",
-    }).then(res => {
+    })?.then(res => {
       if (res?.success && typeof res.total === "number") {
         setPendingOrdersCount(res.total);
       }
-    }).catch(() => {});
+    })?.catch?.(() => {});
 
     const socket = getSharedSocket();
     if (!socket || typeof socket.on !== "function") return;
@@ -776,6 +1062,23 @@ export const ActiveChatPane = memo(function ActiveChatPane({
 
   const handleCloseProductDetails = useCallback(() => {
     setIsProductDetailOpen(false);
+  }, []);
+
+  const handleEditProductFromDrawer = useCallback((prod: CatalogProduct) => {
+    setEditingProductForModal({
+      id: prod.id,
+      name: prod.name,
+      code: prod.code,
+      price: prod.price,
+      description: prod.description,
+      category: prod.category,
+      stock: prod.stock,
+      images: prod.images,
+      shipping: prod.shipping,
+      condition: prod.condition,
+      whatsapp_url: prod.whatsapp_url,
+    });
+    setIsEditProductModalOpen(true);
   }, []);
 
   const handleAddToCart = useCallback((product: CatalogProduct) => {
@@ -998,7 +1301,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               ) : null
             }
             contactName={(() => {
-              const rawName = (selectedConversation.contactName || "").trim();
+              const fullTitle = (selectedConversation.name || "").trim();
+              const rawContact = (selectedConversation.contactName || "").trim();
+              const rawName = (fullTitle && (fullTitle.length > rawContact.length || !rawContact))
+                ? fullTitle
+                : (rawContact || fullTitle);
               const rawPhone = (selectedConversation.phone || "").trim();
               const isLidName =
                 rawName.includes("@lid") ||
@@ -1008,6 +1315,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                 if (rawPhone && !rawPhone.includes("@lid") && cleanPhoneDigits.length >= 10 && cleanPhoneDigits.length <= 13) {
                   return formatPhoneNumber(rawPhone);
                 }
+                if (fullTitle && !fullTitle.includes("@lid")) return fullTitle;
                 return formatPhoneNumber(rawName);
               }
               const cleaned = rawName.replace(/@s\.whatsapp\.net.*/, "").trim();
@@ -1015,17 +1323,18 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               if (digitsOnly.length >= 10 && (digitsOnly === cleaned || cleaned.startsWith("+") || cleaned.startsWith("55"))) {
                 return formatPhoneNumber(cleaned);
               }
-              return cleaned || (rawPhone ? formatPhoneNumber(rawPhone) : "Contato");
+              return cleaned || fullTitle || (rawPhone ? formatPhoneNumber(rawPhone) : "Contato");
             })()}
             avatar={activeChatAvatar || ""}
             tags={selectedConversation.tags ?? []}
-            initials={getInitials(selectedConversation.contactName || "C")}
+            initials={getInitials(selectedConversation.name || selectedConversation.contactName || "C")}
             isMobile={isMobile}
             onBack={onBack ?? (() => setShowLeadPanel(false))}
             onContactClick={() => {
               setLeadDrawerOpen(true);
             }}
             phoneLabel={(() => {
+              if (!selectedConversation) return undefined;
               const mapped = (selectedConversation as any).mapped_phone || (selectedConversation as any).mappedPhone;
               if (mapped) return formatPhoneNumber(mapped);
               const rawPhone = (selectedConversation.phone || "").trim();
@@ -1037,6 +1346,9 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               ) {
                 return formatPhoneNumber(rawPhone);
               }
+              if (cleanPhoneDigits) {
+                return `ID WhatsApp: ${cleanPhoneDigits}`;
+              }
               return undefined;
             })()}
             lastSeenLabel={selectedConversation ? formatConversationTimestamp((selectedConversation as any).lastMessageAt || (selectedConversation as any).lastInteractionAt || (selectedConversation as any).timestamp || selectedConversation.updatedAt) : undefined}
@@ -1045,76 +1357,114 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                 ? "gravando áudio..."
                 : (isTyping === "composing" || isTyping === true)
                   ? "digitando..."
-                  : (isWhatsappConnected && inboxRuntimeState !== "OFFLINE")
+                  : (selectedConversation?.status === "online" ||
+                     (selectedConversation as any)?.status === "available" ||
+                     (selectedConversation as any)?.presence === "online" ||
+                     (selectedConversation as any)?.presence === "available" ||
+                     (selectedConversation as any)?.isOnline === true)
                     ? "online"
-                    : "offline"
+                    : undefined
             }
             rightActions={
-              <div className="flex min-w-0 items-center gap-1">
+              <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">
                 {/* 1. Buscar */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
-                  onClick={() => setConversationSearchOpen(true)}
-                  title="Buscar na conversa"
-                  aria-label="Buscar na conversa"
-                >
-                  <MagnifyingGlass className="h-3.5 w-3.5 shrink-0" />
-                  <span className="hidden 2xl:inline">Buscar</span>
-                </Button>
+                {headerActionsConfig.search && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setConversationSearchOpen(true)}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50"
+                          title="Buscar na conversa"
+                          aria-label="Buscar na conversa"
+                        >
+                          <MagnifyingGlass className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Buscar na conversa
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
                 {/* 2. Gerar Ficha */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={generatingSheet}
-                  className="h-8 px-2 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/30 shrink-0"
-                  onClick={handleGenerateSheet}
-                  title="Gerar ficha de atendimento com IA"
-                  aria-label="Gerar Ficha"
-                >
-                  <FileIcon className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="bold" />
-                  <span className="hidden xl:inline">{generatingSheet ? "Gerando..." : "Gerar Ficha"}</span>
-                </Button>
+                {headerActionsConfig.sheet && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={generatingSheet}
+                          onClick={handleGenerateSheet}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50 disabled:opacity-50"
+                          title={generatingSheet ? "Gerando ficha..." : "Gerar Ficha com IA"}
+                          aria-label="Gerar Ficha"
+                        >
+                          {generatingSheet ? (
+                            <CircleNotch className="h-4 w-4 animate-spin text-muted-foreground" />
+                          ) : (
+                            <FileText className="h-4 w-4" />
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        {generatingSheet ? "Gerando ficha..." : "Gerar Ficha com IA"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
                 {/* 2.5 Pedidos WhatsApp Commerce */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 rounded-lg text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 transition-colors border border-emerald-500/30 shrink-0 relative"
-                  onClick={() => setIsCustomerOrdersOpen(true)}
-                  title="Abrir pedidos recebidos do catálogo WhatsApp"
-                  aria-label="Pedidos WhatsApp"
-                >
-                  <ShoppingBag className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <span className="hidden xl:inline">Pedidos</span>
-                  {pendingOrdersCount > 0 && (
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-black ml-0.5">
-                      {pendingOrdersCount}
-                    </span>
-                  )}
-                </Button>
+                {headerActionsConfig.orders && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setIsCustomerOrdersOpen(true)}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50 relative"
+                          title="Abrir pedidos recebidos do catálogo WhatsApp"
+                          aria-label="Pedidos WhatsApp"
+                        >
+                          <ShoppingBag className="h-4 w-4" />
+                          {pendingOrdersCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[9px] font-bold">
+                              {pendingOrdersCount}
+                            </span>
+                          )}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Pedidos do Catálogo ({pendingOrdersCount})
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
                 {/* 3. Transferir */}
-                {aiAgents && aiAgents.length > 0 && handleSetConversationAgent ? (
+                {headerActionsConfig.transfer && aiAgents && aiAgents.length > 0 && handleSetConversationAgent ? (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
-                        title="Transferir atendimento para outro atendente"
-                        aria-label="Transferir atendimento"
-                      >
-                        <UserSwitch className="h-3.5 w-3.5 shrink-0" />
-                        <span className="hidden 2xl:inline">Transferir</span>
-                      </Button>
-                    </DropdownMenuTrigger>
+                    <TooltipProvider delayDuration={150}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50"
+                              title="Transferir atendimento para outro atendente"
+                              aria-label="Transferir atendimento"
+                            >
+                              <ArrowsLeftRight className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="text-xs">
+                          Transferir Atendimento
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <DropdownMenuContent align="end" className="w-56 bg-popover/95 border-border/80 text-popover-foreground">
                       <div className="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground border-b border-border/40">
                         Transferir para:
@@ -1141,36 +1491,52 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                 ) : null}
 
                 {/* 4. Pop-up de Disparos */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-2.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/15 rounded-lg gap-1.5 shrink-0 transition-all border border-emerald-500/40 shadow-xs"
-                  onClick={() => setIsDisparoModalOpen(true)}
-                  title="Abrir Pop-up de Disparos para este contato"
-                  aria-label="Abrir Pop-up de Disparos"
-                >
-                  <Megaphone className="h-3.5 w-3.5" weight="fill" />
-                  <span className="hidden sm:inline">Disparos</span>
-                </Button>
+                {headerActionsConfig.broadcast && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setIsDisparoModalOpen(true)}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50"
+                          title="Abrir Pop-up de Disparos para este contato"
+                          aria-label="Abrir Pop-up de Disparos"
+                        >
+                          <Megaphone className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Pop-up de Disparos
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
                 {/* 5. Finalizar */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg gap-1.5 shrink-0 transition-colors border border-border/40"
-                  onClick={() => {
-                    handleArchiveSelectedConversation();
-                  }}
-                  title="Finalizar atendimento"
-                  aria-label="Finalizar atendimento"
-                >
-                  <CheckCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" weight="bold" />
-                  <span className="hidden 2xl:inline">Finalizar</span>
-                </Button>
+                {headerActionsConfig.finalize && (
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleArchiveSelectedConversation();
+                          }}
+                          className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors border border-border/40 select-none cursor-pointer bg-background/50"
+                          title="Finalizar atendimento"
+                          aria-label="Finalizar atendimento"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Finalizar Atendimento
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
 
-                {/* 5. Menu adicional (...) */}
+                {/* 6. Menu adicional (...) */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -1184,13 +1550,21 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       <DotsThreeVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                      className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
+                      onClick={() => setIsHeaderActionsDialogOpen(true)}
+                    >
+                      <Gear className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Personalizar Ações Rápidas (Admin)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="flex items-center gap-2 text-xs cursor-pointer text-emerald-400 hover:bg-emerald-500/10 focus:bg-emerald-500/10"
                       onClick={() => setIsDisparoModalOpen(true)}
                     >
                       <Megaphone className="h-3.5 w-3.5 text-emerald-400" weight="fill" />
-                      Pop-up de Disparos
+                      <span>Pop-up de Disparos</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
@@ -1199,7 +1573,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       }}
                     >
                       <Trash className="h-3.5 w-3.5" />
-                      Limpar conversa
+                      <span>Limpar conversa</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="flex items-center gap-2 text-xs cursor-pointer text-foreground hover:bg-muted"
@@ -1215,12 +1589,12 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       {(archivedChatIds.includes(selectedConversation.id) || String(selectedConversation.status).toLowerCase() === 'archived') ? (
                         <>
                           <CaretLeft className="h-3.5 w-3.5" />
-                          Desarquivar conversa
+                          <span>Desarquivar conversa</span>
                         </>
                       ) : (
                         <>
                           <CaretRight className="h-3.5 w-3.5" />
-                          Arquivar conversa
+                          <span>Arquivar conversa</span>
                         </>
                       )}
                     </DropdownMenuItem>
@@ -1232,7 +1606,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         }}
                       >
                         <Check className="h-3.5 w-3.5 text-green-500" />
-                        Desbloquear contato
+                        <span>Desbloquear contato</span>
                       </DropdownMenuItem>
                     ) : (
                       <DropdownMenuItem
@@ -1242,7 +1616,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         }}
                       >
                         <Check className="h-3.5 w-3.5 text-destructive" />
-                        Bloquear contato
+                        <span>Bloquear contato</span>
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator className="border-t border-border/40 my-1" />
@@ -1251,7 +1625,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       onClick={handleGenerateSheet}
                     >
                       <FileIcon className="h-3.5 w-3.5 text-emerald-400" />
-                      Gerar ficha IA
+                      <span>Gerar ficha IA</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1481,28 +1855,15 @@ export const ActiveChatPane = memo(function ActiveChatPane({
               <div className="flex items-center gap-1.5 min-w-0 truncate">
                 <Robot className="h-3.5 w-3.5 text-primary shrink-0" />
                 <span className="truncate">
-                  Automação pausada na loja. Você pode responder ou usar sugestões.
+                  Automação pausada na loja. Você pode responder manualmente.
                 </span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-6 rounded px-2 text-[10px] font-semibold border-primary/30 text-primary hover:bg-primary/10 transition-all shrink-0"
-                  onClick={() => {
-                    setRightPanelTab("ai");
-                    setRightPanelCollapsed(false);
-                    if (isTabletLayout || isMobile) setShowLeadPanel(true);
-                  }}
-                >
-                  Sugestões
-                </Button>
                 <button
                   type="button"
                   onClick={() => setDismissedBanners((prev) => ({ ...prev, ai_paused: true }))}
                   className="text-muted-foreground hover:text-foreground p-0.5 rounded shrink-0 transition-colors"
-                  aria-label="Dispensar aviso de IA pausada"
+                  aria-label="Dispensar aviso de automação pausada"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -1530,6 +1891,94 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           {activeFlowData && selectedConversation && matchesConversationFlow(activeFlowData, { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId, phone: selectedConversation.phone }) && (
             <FlowExecutionBanner key={selectedConversation.id} flowData={activeFlowData} onCancelFlow={() => setActiveFlowData(null)} />
           )}
+
+          {contextCapsule?.active && (
+            <div className="border-b border-emerald-500/25 bg-emerald-500/[0.06] px-3 py-1.5 text-xs shrink-0">
+              <div className="mx-auto max-w-3xl">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500 shrink-0">
+                      <ShieldCheck className="h-3.5 w-3.5" weight="fill" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold text-foreground">Token de Contexto Cripto ativo</span>
+                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          {contextCapsule.prunedMessagesCount} mensagens (&gt;30d) compactadas · {contextCapsule.byteLength} B
+                        </Badge>
+                      </div>
+                      {contextCapsule.summary && !contextCapsuleExpanded && (
+                        <p className="text-[11px] text-muted-foreground truncate mt-0.5">{contextCapsule.summary}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2.5 text-[11px] text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                    onClick={() => setContextCapsuleExpanded((prev) => !prev)}
+                  >
+                    {contextCapsuleExpanded ? "Ocultar" : "Ver contexto"}
+                  </Button>
+                </div>
+
+                {contextCapsuleExpanded && (
+                  <div className="mt-2 pt-2 border-t border-emerald-500/20 space-y-2 text-[11px] max-h-52 overflow-y-auto pr-1">
+                    {(contextCapsule.from || contextCapsule.to) && (
+                      <p className="text-muted-foreground">
+                        <span className="font-semibold text-foreground">Período selado:</span>{" "}
+                        {contextCapsule.from ? contextCapsule.from.slice(0, 10) : "?"} até{" "}
+                        {contextCapsule.to ? contextCapsule.to.slice(0, 10) : "?"} · Estágio:{" "}
+                        <span className="font-medium text-foreground">{contextCapsule.stage}</span> · Intenção:{" "}
+                        <span className="font-medium text-foreground">{contextCapsule.intent}</span>
+                      </p>
+                    )}
+
+                    {Object.keys(contextCapsule.commercial || {}).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(contextCapsule.commercial).map(([k, v]) => (
+                          <Badge key={k} variant="outline" className="text-[10px] border-emerald-500/30 bg-background/60">
+                            {k}: {v}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {Object.values(contextCapsule.facts || {}).length > 0 && (
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">Fatos preservados:</p>
+                        <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
+                          {Object.values(contextCapsule.facts).slice(0, 8).map((fact, idx) => (
+                            <li key={idx}>
+                              <span className="font-medium text-foreground">{fact.label || "Dado"}:</span> {fact.value}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {contextCapsule.highlights?.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">Destaques históricos preservados:</p>
+                        <div className="space-y-1">
+                          {contextCapsule.highlights.map((h, idx) => (
+                            <div key={idx} className="rounded-md bg-background/60 border border-border/60 px-2 py-1 text-muted-foreground">
+                              <span className="font-semibold text-foreground">
+                                [{h.d || "hist"} {h.r === "a" ? "Atendente/IA" : "Cliente"}]:
+                              </span>{" "}
+                              {h.t}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <ScrollArea className="min-h-0 flex-1 chat-area-bg">
             <div
               key={selectedConversation?.id}
@@ -1562,9 +2011,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       ? "Buscando mensagens anteriores…"
                       : "Carregar mensagens anteriores"}
                   </Button>
-                  {historySyncStatus === "requested" && <p role="status" className="text-xs text-muted-foreground">Histórico solicitado; aguardando retorno do WhatsApp.</p>}
                   {historySyncStatus === "imported" && <p role="status" className="text-xs text-muted-foreground">Novas mensagens históricas foram sincronizadas.</p>}
-                  {historySyncStatus === "error" && <p role="alert" className="text-xs text-destructive">Não foi possível solicitar o histórico. Tente novamente.</p>}
                 </div>
               )}
               {isDraggingFiles && <p className="text-xs text-muted-foreground">Solte arquivos aqui para anexar.</p>}
@@ -1642,6 +2089,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                           searchQuery={conversationSearchQuery}
                           isActiveSearchMatch={activeConversationSearchMessageId === message.id}
                           onOpenProductDetails={handleOpenProductDetails}
+                          onOpenOrdersDrawer={() => setIsCustomerOrdersOpen(true)}
                         />
                       ))}
                     </div>
@@ -1784,7 +2232,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                         type="button"
                         title={item.isFlow || item.items?.some(entry => entry.type !== "text") ? "Abrir prévia antes de enviar" : "Inserir no rascunho para revisar"}
                         onClick={() => {
-                          if (item.isFlow || (item.steps && item.steps.length > 1) || (item.items && item.items.length > 1) || item.items?.some(entry => entry.type !== "text") || item.mediaUrl) {
+                          if (item.isFlow || (item.steps && item.steps.length > 1) || (item.items && item.items.length > 1) || item.items?.some(entry => entry.type !== "text") || (item as any).mediaUrl) {
                             setSelectedQuickReplyModal(item);
                             setIsQuickReplyModalOpen(true);
                           } else {
@@ -1885,12 +2333,21 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       </div>
                     )}
 
+                    {/* 1. Menu de Anexo WhatsApp Web (📎 Paperclip) — À esquerda como WhatsApp Web */}
+                    <AttachmentActionMenu
+                      disabled={!selectedConversation || !canSendMessages}
+                      onAction={handleAttachmentAction}
+                      pinnedIds={pinnedIds}
+                      onTogglePin={togglePin}
+                    />
+
+                    {/* 2. Emojis (😀 Smiley) */}
                     <PopoverTrigger asChild>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
+                      className="h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none"
                       aria-label="Abrir emojis"
                       title="Emojis"
                       data-emoji-trigger
@@ -1900,30 +2357,50 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                     </Button>
                     </PopoverTrigger>
 
-                    {/* Botões de Ação Fixados (PIN / HIDE no Rodapé) */}
-                    {pinnedIds.includes("catalogo") && (
-                      <div
-                        className="relative"
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          togglePin("catalogo");
+                    {/* 3. Catálogo WhatsApp Popover (Controlado pelo isCatalogOpen, abre tanto pelo PIN quanto pelo Menu de Anexo) */}
+                    <div
+                      className={cn("relative", !pinnedIds.includes("catalogo") && "hidden")}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        togglePin("catalogo");
+                      }}
+                    >
+                      <CatalogSelectorPopover
+                        disabled={false}
+                        canSendToChat={Boolean(selectedConversation && canSendMessages)}
+                        isOpen={isCatalogOpen}
+                        onOpenChange={setIsCatalogOpen}
+                        hideTrigger={!pinnedIds.includes("catalogo")}
+                        onSendProduct={handleSendProductMessage}
+                        onSendMultipleProducts={handleSendMultipleProducts}
+                        onInsertInComposer={(text) => {
+                          setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
+                          if (messageInputRef.current) {
+                            messageInputRef.current.focus();
+                          }
                         }}
-                      >
-                        <CatalogSelectorPopover
-                          disabled={false}
-                          canSendToChat={Boolean(selectedConversation && canSendMessages)}
-                          onSendProduct={handleSendProductMessage}
-                          onSendMultipleProducts={handleSendMultipleProducts}
-                          onInsertInComposer={(text) => {
-                            setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
-                            if (messageInputRef.current) {
-                              messageInputRef.current.focus();
-                            }
-                          }}
-                        />
-                      </div>
+                      />
+                    </div>
+
+                    {!pinnedIds.includes("catalogo") && (
+                      <CatalogSelectorPopover
+                        disabled={false}
+                        canSendToChat={Boolean(selectedConversation && canSendMessages)}
+                        isOpen={isCatalogOpen}
+                        onOpenChange={setIsCatalogOpen}
+                        hideTrigger={true}
+                        onSendProduct={handleSendProductMessage}
+                        onSendMultipleProducts={handleSendMultipleProducts}
+                        onInsertInComposer={(text) => {
+                          setMessageInput((prev) => (prev ? `${prev}\n\n${text}` : text));
+                          if (messageInputRef.current) {
+                            messageInputRef.current.focus();
+                          }
+                        }}
+                      />
                     )}
 
+                    {/* 4. Botões de Ação Fixados (PIN / HIDE no Rodapé ao lado do Emoji e Catálogo) */}
                     {ACTION_MENU_ITEMS.filter((it) => it.id !== "catalogo" && pinnedIds.includes(it.id)).map((item) => {
                       const Icon = item.icon;
                       return (
@@ -1932,9 +2409,11 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none"
+                          className={cn(
+                            "h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none"
+                          )}
                           aria-label={item.label}
-                          title={`${item.label} — Clique direito para ocultar / desafixar`}
+                          title={`${item.label} — Clique com botão direito para ocultar / desafixar`}
                           onClick={() => handleAttachmentAction(item.id)}
                           onContextMenu={(e) => {
                             e.preventDefault();
@@ -1947,21 +2426,13 @@ export const ActiveChatPane = memo(function ActiveChatPane({
                       );
                     })}
 
-                    {/* Menu de Anexo WhatsApp Web (com opções e PIN / HIDE) */}
-                    <AttachmentActionMenu
-                      disabled={!selectedConversation || !canSendMessages}
-                      onAction={handleAttachmentAction}
-                      pinnedIds={pinnedIds}
-                      onTogglePin={togglePin}
-                    />
-
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:text-emerald-400 hover:bg-muted/50 transition-colors select-none",
-                        isAiSuggestionOpen && "text-emerald-400 bg-muted/60"
+                        "h-9 w-9 rounded-full flex items-center justify-center shrink-0 text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33] transition-colors select-none",
+                        isAiSuggestionOpen && "text-[#e9edef] bg-[#202c33]"
                       )}
                       aria-label="Resposta IA disponível"
                       title="Sugestão de resposta IA"
@@ -2270,6 +2741,7 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         product={selectedProductForDetails}
         isOpen={isProductDetailOpen}
         onClose={handleCloseProductDetails}
+        onEditProduct={handleEditProductFromDrawer}
         onSendProductToChat={handleSendProductFromDrawer}
         onSendCartOrderToChat={handleSendCartOrderToChat}
         cartItems={cartItems}
@@ -2277,6 +2749,24 @@ export const ActiveChatPane = memo(function ActiveChatPane({
         onUpdateCartQuantity={handleUpdateCartQuantity}
         onRemoveFromCart={handleRemoveFromCart}
         onClearCart={handleClearCart}
+      />
+
+      {/* WhatsApp Product Form Modal (for editing product from drawer) */}
+      <ProductFormModal
+        isOpen={isEditProductModalOpen}
+        onClose={() => setIsEditProductModalOpen(false)}
+        product={editingProductForModal}
+        onSaved={(updated) => {
+          if (selectedProductForDetails?.id === updated?.id) {
+            setSelectedProductForDetails(updated);
+          }
+        }}
+        onDeleted={(deletedId) => {
+          if (selectedProductForDetails?.id === deletedId) {
+            setIsProductDetailOpen(false);
+            setSelectedProductForDetails(null);
+          }
+        }}
       />
 
       {/* WhatsApp Customer Orders Drawer */}
@@ -2307,6 +2797,77 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           }}
         />
       )}
+
+      {/* WhatsApp Commercial Quote Builder ("Orçamento") */}
+      {selectedConversation && (
+        <QuoteBuilderModal
+          isOpen={isQuoteModalOpen}
+          onClose={() => setIsQuoteModalOpen(false)}
+          conversationId={selectedConversation.id}
+          clientPhone={selectedConversation.phone}
+          clientName={selectedConversation.contactName || selectedConversation.name}
+          sessionId={selectedConversation.sessionId || "main"}
+          onQuoteSent={() => {
+            // Callback após envio do orçamento
+          }}
+        />
+      )}
+
+      {/* Dialog para Personalizar Ações Rápidas do Topo (Admin) */}
+      <Dialog open={isHeaderActionsDialogOpen} onOpenChange={setIsHeaderActionsDialogOpen}>
+        <DialogContent className="max-w-sm bg-card border-border/80">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <Gear className="h-4 w-4 text-muted-foreground" />
+              <span>Ações Rápidas do Topo</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Escolha quais funções e ícones minimalistas ficam ativos no cabeçalho do atendimento:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            {[
+              { id: "search" as const, icon: MagnifyingGlass, label: "Buscar na Conversa", desc: "Pesquisa por termos no histórico" },
+              { id: "sheet" as const, icon: FileText, label: "Gerar Ficha IA", desc: "Ficha cadastral e resumo do lead" },
+              { id: "orders" as const, icon: ShoppingBag, label: "Pedidos WhatsApp", desc: "Carrinho e pedidos do catálogo" },
+              { id: "transfer" as const, icon: ArrowsLeftRight, label: "Transferir Atendente", desc: "Transferência para outros operadores" },
+              { id: "broadcast" as const, icon: Megaphone, label: "Pop-up de Disparos", desc: "Abertura rápida de mensagens em massa" },
+              { id: "finalize" as const, icon: CheckCircle, label: "Finalizar Atendimento", desc: "Conclusão e arquivamento rápido" },
+            ].map((action) => {
+              const ActionIcon = action.icon;
+              return (
+                <div key={action.id} className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/20 border border-border/40 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-7 w-7 rounded-md bg-muted/40 flex items-center justify-center text-muted-foreground shrink-0 border border-border/40">
+                      <ActionIcon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">{action.label}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{action.desc}</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={headerActionsConfig[action.id]}
+                    onCheckedChange={() => toggleHeaderAction(action.id)}
+                    aria-label={`Ativar ou desativar ${action.label}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-border/40">
+            <Button
+              size="sm"
+              className="text-xs font-medium"
+              onClick={() => setIsHeaderActionsDialogOpen(false)}
+            >
+              Salvar Preferências
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
     </Popover>
   );

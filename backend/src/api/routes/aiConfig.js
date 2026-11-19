@@ -29,6 +29,7 @@ router.post('/ai/compose', async (req, res) => {
       currentDraft,
       action,
       recentMessages,
+      prewarm,
     } = req.body || {};
 
     const companyId = req.authTenantId;
@@ -155,7 +156,10 @@ Gere a versão final da mensagem para o atendente enviar ao cliente:`;
     const agents = await agentService.listAgents(companyId);
     const agent = agents.find(item => item.key === conversation.agent_name || item.name === conversation.agent_name)
       || (!conversation.agent_name ? agents.find(item => item.active !== false && item.sessionIds?.includes(conversation.session_id)) : null);
-    if (!agent) return res.status(409).json({ success: false, error: 'Selecione um agente para esta conversa.' });
+    if (!agent) {
+      if (prewarm) return res.status(200).json({ success: true, message: '', detectedContext, suggestions, reason: 'NO_AGENT' });
+      return res.status(409).json({ success: false, error: 'Selecione um agente para esta conversa.' });
+    }
     const result = await testAIConnection({ store: req.app.locals.store, companyId, sessionId: conversation.session_id, agentKey: agent.key, message: userMessage, prompt: (agent.personality || '') + '\n\n' + COMPOSE_SYSTEM_PROMPT, history: Array.isArray(recentMessages) ? recentMessages.map(item => ({ role: item.role === 'assistant' ? 'assistant' : 'user', content: item.content || '' })) : [] });
 
     const generatedMessage = result?.response || '';
@@ -240,9 +244,12 @@ router.get('/config/absence-message', aiConfigController.getAbsenceMessage);
 router.post('/config/absence-message', aiConfigController.saveAbsenceMessage);
 router.get('/config/advanced-ai', aiConfigController.getAdvancedAI);
 router.post('/config/advanced-ai', aiConfigController.saveAdvancedAI);
+router.get('/config/ai-agents/behavior-catalog', aiConfigController.getAgentBehaviorCatalog);
 router.get('/config/ai-agents', aiConfigController.getAIAgents);
 router.post('/config/ai-agents', aiConfigController.createAIAgent);
 router.put('/config/ai-agents/:key', aiConfigController.updateAIAgent);
+router.get('/config/ai-agents/:key/versions', aiConfigController.getAgentVersions);
+router.post('/config/ai-agents/:key/versions/:versionId/rollback', aiConfigController.rollbackAgentVersion);
 router.patch('/config/ai-agents/:key/active', aiConfigController.toggleAIAgent);
 router.delete('/config/ai-agents/:key', aiConfigController.deleteAIAgent);
 router.post('/config/ai-agents/:key/clone', aiConfigController.cloneAIAgent);
@@ -255,6 +262,12 @@ router.get('/config/ai/pipeline-logs', aiConfigController.getPipelineLogs);
 
 router.get('/config/user-providers', aiConfigController.getUserProviders);
 router.post('/config/user-providers', aiConfigController.saveUserProvider);
+router.get('/config/ai-providers/available', aiConfigController.getAvailableAIProviders);
+router.get('/config/ai-credentials', aiConfigController.getAICredentials);
+router.post('/config/ai-credentials', aiConfigController.saveAICredential);
+router.delete('/config/ai-credentials/:id', aiConfigController.revokeAICredential);
+router.post('/config/ai-credentials/test', aiConfigController.testAICredential);
+router.put('/config/ai-router/policy', aiConfigController.updateAIRouterPolicy);
 
 router.post('/config/ai/restart', async (req, res) => {
   try {

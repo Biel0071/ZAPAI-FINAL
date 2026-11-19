@@ -7,7 +7,11 @@ import { requestApiEndpoint } from "@/core/services/apiService";
 
 vi.mock("@/core/services/apiService", () => ({
   requestApiEndpoint: vi.fn().mockResolvedValue({ suggestedText: "Ficha oficial" }),
-  apiService: { getActiveQuickReplyFlow: vi.fn().mockResolvedValue({ flow: null }) },
+  apiService: {
+    getActiveQuickReplyFlow: vi.fn().mockResolvedValue({ flow: null }),
+    getCommerceOrders: vi.fn().mockResolvedValue({ success: true, total: 0, orders: [] }),
+    getProducts: vi.fn().mockResolvedValue({ success: true, data: [] }),
+  },
 }));
 vi.mock("@/hooks/useResolvedAvatar", () => ({ useResolvedAvatar: () => ({ avatar: null }) }));
 vi.mock("@/core/runtime/socket/socketManager", () => ({ getSharedSocket: () => null }));

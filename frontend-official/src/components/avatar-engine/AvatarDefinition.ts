@@ -101,19 +101,37 @@ export interface AgentAvatarConfig {
   headset: string;
   clothing: string;
   outfit?: string;
+  upperBody?: string;
+  lowerBody?: string;
   pants: string;
+  footwear?: string;
   shoes: string;
   accessories: Record<string, string> | any;
   style?: string;
+  uniform?: string;
   workObject: string;
   badge: boolean;
   branding: StoreBranding;
   animationState: AnimationState;
   personalityVisual: PersonalityVisualConfig;
   catalogSpriteId?: string;
+  baseSpriteId?: string;
   rotationY?: number;
   movement3D?: "idle" | "walk" | "wave" | "pose" | "spin360";
+  poseId?: string;
   renderStyle?: "3d_enterprise" | "chibi_25d";
+  snapshotDataUrl?: string;
+  compositionVersion?: number;
+  slots?: {
+    hair?: string;
+    face?: string;
+    upperBody?: string;
+    lowerBody?: string;
+    footwear?: string;
+    uniform?: string;
+    style?: string;
+    accessories?: Record<string, string>;
+  };
 }
 
 /**
@@ -440,6 +458,11 @@ export const AVATAR_HAIRS: AvatarStudioItem[] = [
   { id: "hair_18", number: "18", name: "Ondulado Clássico com Óculos", title: "Ondulado Clássico com Óculos", category: "hair", gender: "male", spriteRef: "sprite_r1_c9", description: "Ondas clássicas executivas penteadas para trás" },
 ];
 
+export function getAvatarHairOptions(gender: BodyType): AvatarStudioItem[] {
+  if (gender === "neutral" || gender === "robot") return AVATAR_HAIRS.filter((item) => item.gender === "all");
+  return AVATAR_HAIRS.filter((item) => item.gender === "all" || item.gender === gender);
+}
+
 // 2. ROSTO (Face) — 5ª Categoria oficial
 export const AVATAR_FACES: AvatarStudioItem[] = [
   { id: "face_01", number: "01", name: "Cordial & Empático", title: "Cordial & Empático", category: "face", spriteRef: "sprite_r2_c1", description: "Expressão cordial, sorriso discreto e olhar atento" },
@@ -458,7 +481,7 @@ export const AVATAR_OUTFITS: AvatarStudioItem[] = [
   { id: "outfit_02", number: "02", name: "Camisa Social Branca", title: "Camisa Social Branca", category: "outfit", spriteRef: "sprite_r1_c8", description: "Camisa social de botão com crachá executivo" },
   { id: "outfit_03", number: "03", name: "Moletom Tech Zip", title: "Moletom Tech Zip", category: "outfit", spriteRef: "sprite_r1_c4", description: "Moletom preto premium com zíper verde neon" },
   { id: "outfit_04", number: "04", name: "Uniforme Técnico", title: "Uniforme Técnico", category: "outfit", spriteRef: "sprite_r3_c3", description: "Camisa azul-marinho com bolsos utilitários" },
-  { id: "outfit_05", number: "05", name: "Blazer Alfaiataria Comercial", title: "Blazer Alfaiataria Comercial", category: "outfit", spriteRef: "sprite_r2_c8", description: "Blazer alfaiataria com lapela esmeralda e crachá" },
+  { id: "outfit_05", number: "05", name: "Look Comercial Casual", title: "Look Comercial Casual", category: "outfit", spriteRef: "sprite_r2_c8", description: "Visual casual de atendimento com crachá ZAI" },
   { id: "outfit_06", number: "06", name: "Colete Refletivo Logística", title: "Colete Refletivo Logística", category: "outfit", spriteRef: "sprite_r3_c2", description: "Colete de segurança amarelo fluorescente de expedição" },
   { id: "outfit_07", number: "07", name: "Camiseta Básica ZAI", title: "Camiseta Básica ZAI", category: "outfit", spriteRef: "sprite_r1_c7", description: "Camiseta casual de algodão com escudo no peito" },
   { id: "outfit_08", number: "08", name: "Jaqueta Bomber ZAI", title: "Jaqueta Bomber ZAI", category: "outfit", spriteRef: "sprite_r1_c6", description: "Jaqueta esportiva preta com bordados verdes" },
@@ -923,3 +946,34 @@ export const DEFAULT_AVATAR_PRESETS: Record<string, Partial<AgentAvatarConfig>> 
     },
   },
 };
+
+export {
+  CATALOG_VERSION,
+  SLOT_HAIR_ITEMS,
+  SLOT_FACE_ITEMS,
+  SLOT_UPPER_BODY_ITEMS,
+  SLOT_LOWER_BODY_ITEMS,
+  SLOT_FOOTWEAR_ITEMS,
+  SLOT_ACCESSORY_ITEMS,
+  SLOT_UNIFORM_ITEMS,
+  SLOT_STYLE_ITEMS,
+  ALL_SLOT_CATALOG_ITEMS,
+  SLOT_CATALOG_BY_ID,
+  FACIAL_HAIR_OPTIONS,
+  POSE_OPTIONS,
+  findCatalogItem,
+  getCatalogItemsForSlot,
+  inferGenderFromConfig,
+  normalizeAccessorySubSlots,
+  normalizeAvatarComposition,
+  buildSlotUpdate,
+  type AvatarSlotType,
+  type AccessorySubSlot,
+  type FacialHairStyle,
+  type PoseId,
+  type SlotCategory,
+  type SlotCatalogItem,
+  type NormalizedAccessorySubSlots,
+  type NormalizedAvatarComposition,
+  type SlotUpdateTarget,
+} from "./avatar3d/slotCatalog";

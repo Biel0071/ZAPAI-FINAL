@@ -213,3 +213,37 @@ test('getGraphSnapshot never fills an empty agent graph with another agent\'s no
     else delete require.cache[databasePath];
   }
 });
+
+test('getGraphSnapshot excludes nodes without a verified session scope from session views', async () => {
+  const databasePath = require.resolve('../src/infrastructure/config/database');
+  const servicePath = require.resolve('../services/agentMemoryGraphService');
+  const originalDatabase = require.cache[databasePath];
+  const originalService = require.cache[servicePath];
+  const calls = [];
+  require.cache[databasePath] = {
+    exports: {
+      query: async (sql, params) => {
+        calls.push({ sql, params });
+        if (sql.includes('COUNT(*) FILTER')) return { rows: [{ total: 0 }] };
+        return { rows: [] };
+      },
+    },
+  };
+  delete require.cache[servicePath];
+
+  try {
+    const service = require('../services/agentMemoryGraphService');
+    const snapshot = await service.getGraphSnapshot('agent-a', 'tenant-a', 20, 'session-a');
+    assert.deepEqual(snapshot.nodes.map((node) => node.id), ['agent:agent-a']);
+    assert.equal(calls.length, 3);
+    for (const call of calls) {
+      assert.doesNotMatch(call.sql, /properties->>'sessionId' IS NULL/);
+      assert.ok(call.params.includes('session-a'));
+    }
+  } finally {
+    delete require.cache[servicePath];
+    if (originalService) require.cache[servicePath] = originalService;
+    if (originalDatabase) require.cache[databasePath] = originalDatabase;
+    else delete require.cache[databasePath];
+  }
+});

@@ -5,7 +5,7 @@ import { reportFrontendIssue } from "@/core/runtime/services/frontendHealthServi
 import { slog } from "@/core/runtime/logs/structuredLogger";
 import { notify } from "@/core/services/notifyService";
 import { API_BASE_URL, API_ORIGIN } from "@/core/lib/backendConfig";
-import { ADMIN_AUTH_CHANGED_EVENT, clearAdminAuthSession } from "@/core/lib/adminAuthSession";
+import { ADMIN_AUTH_CHANGED_EVENT, clearAdminAuthSession, loadAdminAuthSession } from "@/core/lib/adminAuthSession";
 import { generateUuid } from "@/core/lib/utils";
 import axios from "axios";
 
@@ -75,6 +75,36 @@ function resolveAxiosEndpoint(endpoint: string): string {
   return normalized.startsWith("/api/") ? normalized.slice(4) : normalized;
 }
 
+const recentRequests = new Map<string, { at: number; promise: Promise<unknown> }>();
+
+function dedupeRequest<T>(key: string, load: () => Promise<T>, windowMs = 3000): Promise<T> {
+  const now = Date.now();
+  const cached = recentRequests.get(key);
+  if (cached && now - cached.at < windowMs) return cached.promise as Promise<T>;
+  const promise = load();
+  recentRequests.set(key, { at: now, promise });
+  promise.catch(() => recentRequests.delete(key));
+  return promise;
+}
+
+export type PixKeyType = "cpf" | "cnpj" | "phone" | "email" | "evp";
+
+export interface StorePixSettingsInput {
+  enabled: boolean;
+  keyType: PixKeyType;
+  key: string;
+  merchantName: string;
+  merchantCity: string;
+}
+
+export interface StorePixSettings extends StorePixSettingsInput {
+  updatedAt: string | null;
+}
+
+export type StorePixPayloadResponse =
+  | { configured: false; storeId: string | null }
+  | { configured: true; storeId: string; pix: StorePixSettings; payload: string; amount: number | null };
+
 export interface Conversation {
   name?: string;
   contactPhone?: string;
@@ -89,14 +119,19 @@ export interface Conversation {
   isGroup?: boolean;
   lastMessage: string;
   lastMessageAt?: string | null;
+  lastMessageFromMe?: boolean;
+  lastMessageStatus?: ChatMessage["status"];
   updatedAt: string;
   phone: string;
   unread?: number;
-  status?: "online" | "offline" | "typing" | "open" | "archived";
+  status?: "online" | "offline" | "typing" | "open" | "archived" | "pending_human" | "closed_won" | "intervencao_humana" | string;
   tags?: string[];
   whatsappLabels?: string[];
+  whatsapp_labels?: string[];
+  pinnedQuickReplies?: string[];
+  pinned_quick_replies?: string[];
   isAI?: boolean;
-  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker";
+  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "product" | "order" | string;
   aiEnabled?: boolean;
   ai_enabled?: boolean;
   ai_reactivate_at?: string | null;
@@ -105,10 +140,13 @@ export interface Conversation {
   summary?: string;
   notes?: string;
   funnel_stage?: string;
+  funnelStage?: string;
   controlMode?: string;
   humanActive?: boolean;
   assignedAgentName?: string;
   agent_name?: string;
+  mappedPhone?: string | null;
+  mapped_phone?: string | null;
   isBlocked?: boolean;
   assigned_to?: string;
   lid?: string;
@@ -119,6 +157,30 @@ export interface Conversation {
   pinned_at?: string | null;
   archived?: boolean;
   archived_at?: string | null;
+  hasContextToken?: boolean;
+  contextTokenMeta?: {
+    version?: number;
+    prunedMessagesCount?: number;
+    from?: string | null;
+    to?: string | null;
+    byteLength?: number;
+    updatedAt?: string | null;
+  } | null;
+}
+
+export interface ConversationContextCapsule {
+  active: boolean;
+  tokenPreview: string;
+  byteLength: number;
+  prunedMessagesCount: number;
+  from: string | null;
+  to: string | null;
+  intent: string;
+  stage: string;
+  commercial: Record<string, string>;
+  facts: Record<string, { value: string; label?: string; category?: string; importance?: number }>;
+  highlights: Array<{ r: "c" | "a"; d?: string; t: string }>;
+  summary: string;
 }
 
 export interface ChatMessage {
@@ -126,11 +188,19 @@ export interface ChatMessage {
   conversationId?: string;
   chatId?: string;
   content: string;
+  text?: string;
   caption?: string;
   fromMe: boolean;
-  createdAt: string;
+  createdAt?: string;
   timestamp?: string | number;
-  status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry" | "error" | "blocked";
+  status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry" | "error" | "blocked" | "received";
+  ack?: number;
+  direction?: "incoming" | "outgoing" | string;
+  phone?: string;
+  sessionId?: string;
+  sender?: string;
+  type?: string;
+  product?: any;
   isAI?: boolean;
   aiProvider?: string;
   aiModel?: string;
@@ -139,7 +209,7 @@ export interface ChatMessage {
   aiPromptTokens?: number;
   aiCompletionTokens?: number;
   aiTotalTokens?: number;
-  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order" | "text";
   mediaPath?: string;
   mediaUrl?: string;
   url?: string;
@@ -161,6 +231,7 @@ export interface Contact {
   name: string;
   phone: string;
   status: string;
+  createdAt?: string;
   updatedAt?: string;
   remoteJid?: string;
   lid?: string;
@@ -186,6 +257,7 @@ export interface MetricsSummary {
   activeSessionsCount?: number;
   messagesCount?: number;
   messagesToday?: number;
+  tokensToday?: number;
   todayMessages?: number;
   totalMessages?: number;
   messages?: number;
@@ -262,6 +334,21 @@ export interface AIConnectionTestResult {
   send_media?: { type?: string; value?: string; caption?: string };
   sendMedia?: { type?: string; value?: string; caption?: string };
   trigger_quick_reply?: string | number;
+  routingMode?: string;
+  credentialScope?: string;
+  estimatedCostUsd?: number;
+  fallbackActivated?: boolean;
+  parameterWarnings?: string[];
+  effectiveConfig?: {
+    personalityId?: string;
+    objectiveId?: string;
+    toneId?: string;
+    responseStyleId?: string;
+    temperature?: number;
+    maxTokens?: number;
+    routingMode?: string;
+    [key: string]: unknown;
+  };
   quotaInfo?: {
     isAdmin?: boolean;
     isUnlimited?: boolean;
@@ -311,10 +398,11 @@ export interface CampaignMessage {
 }
 
 export interface CampaignSettings {
-  intervalSeconds: number;
-  pauseEvery: number;
-  pauseSeconds: number;
-  typingDelaySeconds: number;
+  allowOutsideHours?: boolean;
+  intervalSeconds?: number;
+  pauseEvery?: number;
+  pauseSeconds?: number;
+  typingDelaySeconds?: number;
   startAt?: string | null;
   flowId?: string | null;
   sessionId?: string | null;
@@ -481,7 +569,7 @@ export interface PersistedMessagePayload {
   status?: "sent" | "delivered" | "read";
   caption?: string;
   mediaType?: "image" | "video" | "audio" | "file" | "sticker";
-  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
   mediaPath?: string | null;
   mediaUrl?: string | null;
   url?: string | null;
@@ -510,6 +598,7 @@ type ProxyRequest = {
   endpoint: string;
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
+  headers?: Record<string, string>;
   timeoutMs?: number;
 };
 
@@ -575,10 +664,13 @@ type RawConversation = {
   status?: "online" | "offline" | "typing";
   tags?: string[];
   whatsappLabels?: string[];
+  whatsapp_labels?: string[];
+  pinnedQuickReplies?: string[];
+  pinned_quick_replies?: string[];
   isAI?: boolean;
-  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
-  messageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
-  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  lastMessageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
+  messageType?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
   aiEnabled?: boolean;
   ai_enabled?: boolean;
   summary?: string;
@@ -589,11 +681,37 @@ type RawConversation = {
   assigned_to?: string;
   agent_name?: string;
   assignedAgentName?: string;
+  mappedPhone?: string | null;
+  mapped_phone?: string | null;
   is_pinned?: boolean;
   pinned?: boolean;
   pinned_at?: string | null;
   archived?: boolean;
   archived_at?: string | null;
+  hasContextToken?: boolean;
+  contextTokenMeta?: {
+    version?: number;
+    prunedMessagesCount?: number;
+    from?: string | null;
+    to?: string | null;
+    byteLength?: number;
+    updatedAt?: string | null;
+  } | null;
+}
+
+export interface ConversationContextCapsule {
+  active: boolean;
+  tokenPreview: string;
+  byteLength: number;
+  prunedMessagesCount: number;
+  from: string | null;
+  to: string | null;
+  intent: string;
+  stage: string;
+  commercial: Record<string, string>;
+  facts: Record<string, { value: string; label?: string; category?: string; importance?: number }>;
+  highlights: Array<{ r: "c" | "a"; d?: string; t: string }>;
+  summary: string;
 };
 
 type RawMessage = {
@@ -615,9 +733,10 @@ type RawMessage = {
   time?: string;
   timestamp?: string | number;
   status?: "pending" | "sending" | "sent" | "server_ack" | "device_ack" | "delivered" | "read" | "played" | "failed" | "retry";
+  ack?: number;
   isAI?: boolean;
-  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
-  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media";
+  mediaType?: "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
+  type?: "text" | "image" | "video" | "audio" | "file" | "sticker" | "document" | "media" | "product" | "order";
   mediaPath?: string;
   media_path?: string;
   mediaUrl?: string;
@@ -716,7 +835,7 @@ function isCacheableGetEndpoint(endpoint: string): boolean {
   );
 }
 
-async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_TIMEOUT_MS }: ProxyRequest, authScope: string, signal: AbortSignal): Promise<T> {
+async function executeRequest<T>({ endpoint, method, body, headers: extraHeaders, timeoutMs = REQUEST_TIMEOUT_MS }: ProxyRequest, authScope: string, signal: AbortSignal): Promise<T> {
   assertRequestAuthScope(authScope);
   if (!API_BASE_URL) {
     throw new Error("API_ORIGIN_UNAVAILABLE: configure VITE_API_URL para o backend oficial");
@@ -746,7 +865,7 @@ async function executeRequest<T>({ endpoint, method, body, timeoutMs = REQUEST_T
       assertRequestAuthScope(authScope);
       slog.info("api", `${method} ${endpoint}`, { route: endpoint });
 
-      const apiHeaders = await buildApiHeaders();
+      const apiHeaders = { ...await buildApiHeaders(), ...(extraHeaders || {}) };
       assertRequestAuthScope(authScope);
       const correlationId = `web_${generateUuid()}`;
 
@@ -986,7 +1105,12 @@ export function normalizeConversation(item: RawConversation, index: number = 0):
     companyId: item.companyId ?? item.company_id,
     contactId,
     sessionId,
-    contactName: item.contactName ?? item.name ?? item.pushName ?? resolvedPhone ?? "Contato",
+    contactName: (() => {
+      const cName = String(item.name ?? "").trim();
+      const cContact = String(item.contactName ?? "").trim();
+      if (cName && (cName.length > cContact.length || cContact.length <= 2)) return cName;
+      return cContact || cName || (item.pushName as string) || resolvedPhone || "Contato";
+    })(),
     avatar: item.avatar ?? item.profilePictureUrl ?? item.profile_picture_url,
     isGroup: Boolean(
       item.isGroup ||
@@ -1000,10 +1124,18 @@ export function normalizeConversation(item: RawConversation, index: number = 0):
     unread: item.unread ?? item.unread_count ?? item.unreadCount ?? 0,
     status: item.status ?? "offline",
     tags: item.tags ?? [],
-    whatsappLabels: Array.isArray(item.whatsappLabels) ? item.whatsappLabels.map(String) : [],
+    whatsappLabels: Array.isArray(item.whatsappLabels)
+      ? item.whatsappLabels.map(String)
+      : (Array.isArray(item.whatsapp_labels) ? item.whatsapp_labels.map(String) : []),
+    pinnedQuickReplies: Array.isArray(item.pinnedQuickReplies)
+      ? item.pinnedQuickReplies.map(String)
+      : (Array.isArray(item.pinned_quick_replies) ? item.pinned_quick_replies.map(String) : []),
+    pinned_quick_replies: Array.isArray(item.pinnedQuickReplies)
+      ? item.pinnedQuickReplies.map(String)
+      : (Array.isArray(item.pinned_quick_replies) ? item.pinned_quick_replies.map(String) : []),
     isAI: item.isAI ?? false,
     lastMessageType:
-      normalizedType === "image" || normalizedType === "video" || normalizedType === "audio" || normalizedType === "file" || normalizedType === "sticker" || normalizedType === "document" || normalizedType === "media"
+      normalizedType === "image" || normalizedType === "video" || normalizedType === "audio" || normalizedType === "file" || normalizedType === "sticker" || normalizedType === "document" || normalizedType === "media" || normalizedType === "product" || normalizedType === "order"
         ? (normalizedType === "document" || normalizedType === "media" ? "file" : normalizedType)
         : "text",
     aiEnabled: item.aiEnabled ?? item.ai_enabled ?? true,
@@ -1014,24 +1146,38 @@ export function normalizeConversation(item: RawConversation, index: number = 0):
     humanActive: item.humanActive,
     assignedAgentName: item.agent_name ?? item.assigned_to ?? item.assignedAgentName ?? null,
     agent_name: item.agent_name ?? item.assigned_to ?? item.assignedAgentName ?? null,
+    mappedPhone: item.mappedPhone ?? item.mapped_phone ?? null,
+    mapped_phone: item.mapped_phone ?? item.mappedPhone ?? null,
     is_pinned: Boolean(item.is_pinned ?? item.pinned),
     pinned: Boolean(item.is_pinned ?? item.pinned),
     pinned_at: item.pinned_at ? String(item.pinned_at) : null,
-    archived: Boolean(item.archived || item.status === "archived"),
+    archived: Boolean(item.archived || (item.status as unknown as string) === "archived"),
     archived_at: item.archived_at ? String(item.archived_at) : null,
   };
 }
 
 function normalizeMessage(item: RawMessage, index: number, defaultConversationId?: string): ChatMessage {
-  const normalizedMediaType = item.mediaType ?? item.type;
-  const mediaPath = item.mediaPath ?? item.media_path;
-  const mediaUrl = item.url ?? item.mediaUrl ?? item.media_url ?? item.fileUrl ?? item.file_url;
+  const normalizedMediaType = item.mediaType ?? item.type ?? (item as any).media_type;
+  let mediaPath = item.mediaPath ?? item.media_path;
+  let mediaUrl = item.url ?? item.mediaUrl ?? item.media_url ?? item.fileUrl ?? item.file_url;
+
+  // Prevent mixed content errors when serving over HTTPS
+  if (typeof mediaUrl === "string" && mediaUrl.startsWith("http://209.50.241.22")) {
+    mediaUrl = mediaUrl.replace(/^http:\/\/209\.50\.241\.22(:1000)?/, "");
+  }
+  if (typeof mediaPath === "string" && mediaPath.startsWith("http://209.50.241.22")) {
+    mediaPath = mediaPath.replace(/^http:\/\/209\.50\.241\.22(:1000)?/, "");
+  }
+
+  const isProduct = normalizedMediaType === "product" || item.type === "product" || (item as any).media_type === "product";
   const source = `${mediaPath ?? ""} ${mediaUrl ?? ""}`.toLowerCase();
   const contentStr = String(item.content ?? item.text ?? item.body ?? item.caption ?? "").toLowerCase();
 
-  let inferredMediaType: "image" | "video" | "audio" | "file" | "sticker" | undefined = undefined;
+  let inferredMediaType: "image" | "video" | "audio" | "file" | "sticker" | "product" | undefined = undefined;
 
-  if (contentStr.includes("[image]")) {
+  if (isProduct) {
+    inferredMediaType = "product";
+  } else if (contentStr.includes("[image]")) {
     inferredMediaType = "image";
   } else if (contentStr.includes("[video]")) {
     inferredMediaType = "video";
@@ -1057,9 +1203,10 @@ function normalizeMessage(item: RawMessage, index: number, defaultConversationId
       normalizedMediaType === "video" ||
       normalizedMediaType === "audio" ||
       normalizedMediaType === "file" ||
-      normalizedMediaType === "sticker"
+      normalizedMediaType === "sticker" ||
+      normalizedMediaType === "product"
     ) {
-      inferredMediaType = normalizedMediaType;
+      inferredMediaType = normalizedMediaType as any;
     } else if (normalizedMediaType === "document" || normalizedMediaType === "media") {
       inferredMediaType = "file";
     } else if (mediaPath || mediaUrl) {
@@ -1250,7 +1397,7 @@ function is404Error(error: unknown): boolean {
 
 export const apiService = {
   async getHealth() {
-    return request<any>({ endpoint: "/api/health", method: "GET" });
+    return dedupeRequest("health", () => request<any>({ endpoint: "/api/health", method: "GET" }));
   },
 
   async getAdminUsers(): Promise<{ id: number; username: string; email: string | null; role: string }[]> {
@@ -1261,6 +1408,18 @@ export const apiService = {
     return res?.data ?? [];
   },
 
+  async getCompanyEntitlements(headers?: Record<string, string>): Promise<{ company: { id: string; name: string; responsible_name?: string | null }; legacyAccess: boolean; modules: string[]; numberLimit: number | null; license: { plan: string; expires_at: string | null } | null }> {
+    return request({ endpoint: "/api/company/entitlements", method: "GET", headers });
+  },
+
+  async updateCompanyProfile(payload: { name: string; responsibleName: string }, headers?: Record<string, string>): Promise<{ company: { id: string; name: string; responsible_name: string | null } }> {
+    return request({ endpoint: "/api/company", method: "PATCH", body: payload, headers });
+  },
+
+  async redeemCompanyLicense(token: string, headers?: Record<string, string>): Promise<{ redeemed: boolean; licenseId: number }> {
+    return request({ endpoint: "/api/licenses/redeem", method: "POST", body: { token }, headers });
+  },
+
   async updateAdminUser(id: number, payload: { email?: string; role?: string; password?: string }): Promise<any> {
     const res = await request<{ ok: boolean; data: any }>({
       endpoint: `/api/admin/users/${id}`,
@@ -1268,6 +1427,30 @@ export const apiService = {
       body: payload,
     });
     return res?.data;
+  },
+
+  async createAdminUser(payload: { username: string; email?: string; password: string; role?: string }): Promise<any> {
+    const res = await request<{ ok: boolean; data: any }>({ endpoint: "/api/admin/users", method: "POST", body: payload });
+    return res?.data;
+  },
+
+  async deleteAdminUser(id: number): Promise<any> {
+    const res = await request<{ ok: boolean; data: any }>({ endpoint: `/api/admin/users/${id}`, method: "DELETE" });
+    return res?.data;
+  },
+
+  async getUserModulePermissions(id: number): Promise<Array<{ module: string; enabled: boolean }>> {
+    const res = await request<{ userId: number; permissions: Array<{ module: string; enabled: boolean }> }>({ endpoint: `/api/company/users/${id}/modules`, method: "GET" });
+    return res?.permissions ?? [];
+  },
+
+  async getCompanyUserModulePermissions(headers?: Record<string, string>): Promise<Array<{ user_id: number; module: string; enabled: boolean }>> {
+    const res = await request<{ permissions: Array<{ user_id: number; module: string; enabled: boolean }> }>({ endpoint: "/api/company/users/modules", method: "GET", headers });
+    return res?.permissions ?? [];
+  },
+
+  async setUserModulePermission(id: number, module: "inbox" | "contacts" | "campaigns", enabled: boolean, headers?: Record<string, string>): Promise<void> {
+    await request({ endpoint: `/api/company/users/${id}/modules/${module}`, method: "PUT", body: { enabled }, headers });
   },
 
   async getPublicUrl() {
@@ -1595,17 +1778,20 @@ export const apiService = {
     throw lastError;
   },
 
-  async getContacts(forceRefresh = false, sessionId?: string | null) {
+  async getContacts(forceRefresh = false, sessionId?: string | null, scope: "recent" | "all" = "recent") {
     const authScope = getRequestAuthScope();
     const cleanSession = sessionId ? String(sessionId).trim() : null;
-    const cacheKey = cleanSession ? `contacts:${cleanSession}` : "contacts";
+    const normalizedScope = scope === "all" ? "all" : "recent";
+    const cacheKey = cleanSession ? `contacts:${cleanSession}:${normalizedScope}` : `contacts:${normalizedScope}`;
     if (!forceRefresh) {
       const cached = getCache<Contact[]>(cacheKey, authScope);
       if (cached) return cached;
     }
 
-    const queryParam = cleanSession ? `?sessionId=${encodeURIComponent(cleanSession)}` : "";
-    const data = await request<Contact[]>({ endpoint: `/api/contacts${queryParam}`, method: "GET" });
+    const params = new URLSearchParams();
+    if (cleanSession) params.set("sessionId", cleanSession);
+    params.set("scope", normalizedScope);
+    const data = await request<Contact[]>({ endpoint: `/api/contacts?${params.toString()}`, method: "GET" });
     setCache(cacheKey, data, CACHE_TTL_MS, authScope);
     return data;
   },
@@ -1716,12 +1902,57 @@ export const apiService = {
       body: { amount },
     }),
 
-  testAIMessage: (payload: { message: string; prompt?: string; model?: string; providerId?: string; agentKey?: string; agentName?: string; agent?: any; sessionId?: string; temperature?: number; responseStyle?: string; history?: any[]; maxWords?: number }) =>
+  testAIMessage: (payload: {
+    message: string;
+    prompt?: string;
+    model?: string;
+    providerId?: string;
+    routingMode?: string;
+    personalityPreset?: string;
+    objective?: string;
+    tone?: string;
+    agentKey?: string;
+    agentName?: string;
+    agent?: any;
+    sessionId?: string;
+    temperature?: number;
+    maxTokens?: number;
+    responseStyle?: string;
+    history?: any[];
+    maxWords?: number;
+  }) =>
     request<{ success?: boolean; result?: AIConnectionTestResult; error?: string }>({
       endpoint: "/ai/test",
       method: "POST",
       body: payload,
       timeoutMs: 90_000,
+    }),
+
+  compareAgentBehaviors: (payload: {
+    message: string;
+    agentKey?: string | null;
+    sessionId?: string | null;
+    history?: any[];
+    variants?: Array<{
+      label?: string;
+      agentName?: string;
+      personalityPreset: string;
+      objective?: string;
+      tone?: string;
+      responseStyle?: string;
+      temperature?: number;
+      maxTokens?: number;
+      routingMode?: string;
+      providerId?: string;
+      modelId?: string;
+      prompt?: string;
+    }>;
+  }) =>
+    request<{ success: boolean; message: string; variants: any[] }>({
+      endpoint: "/ai/test/compare",
+      method: "POST",
+      body: payload,
+      timeoutMs: 170_000,
     }),
 
   refinePrompt: (payload: { currentPrompt: string; instruction: string }) =>
@@ -1749,6 +1980,7 @@ export const apiService = {
     action?: string;
     recentMessages?: Array<{ role: string; content: string }>;
     sessionId?: string;
+    prewarm?: boolean;
   }) =>
     request<{
       message: string;
@@ -1821,7 +2053,7 @@ export const apiService = {
     }),
 
   getAgentEvolution: (agentKey: string) =>
-    request<{
+    dedupeRequest(`agent-evolution:${agentKey}`, () => request<{
       success: boolean;
       history: any[];
       stats: any;
@@ -1853,7 +2085,7 @@ export const apiService = {
     }>({
       endpoint: `/ai/agent-evolution/${encodeURIComponent(agentKey)}`,
       method: "GET",
-    }),
+    })),
 
   getAgentEvolutionProfile: (agentKey: string = "camila") =>
     request<{
@@ -2061,8 +2293,188 @@ export const apiService = {
     return request<{ success: boolean; agents: any[] }>({ endpoint: "/config/ai-agents", method: "GET" });
   },
 
+  async getAgentBehaviorCatalog() {
+    return request<{
+      success: boolean;
+      personalities: Array<{ id: string; label: string; summary: string; recommendedTone: string; recommendedResponseStyle: string; recommendedTemperature: number }>;
+      objectives: Array<{ id: string; label: string; summary: string }>;
+      tones: Array<{ id: string; label: string }>;
+      responseStyles: Array<{ id: string; label: string; maxWords: number; maxSentences: number; suggestedMaxTokens: number }>;
+    }>({ endpoint: "/config/ai-agents/behavior-catalog", method: "GET" });
+  },
+
+  async getAgentVersions(key: string, limit = 25) {
+    return request<{ success: boolean; versions: any[] }>({
+      endpoint: `/config/ai-agents/${encodeURIComponent(key)}/versions?limit=${limit}`,
+      method: "GET",
+    });
+  },
+
+  async rollbackAgentVersion(key: string, versionId: number | string) {
+    return request<{ success: boolean; agent: any; message?: string }>({
+      endpoint: `/config/ai-agents/${encodeURIComponent(key)}/versions/${encodeURIComponent(String(versionId))}/rollback`,
+      method: "POST",
+    });
+  },
+
+  async getAvailableAIProviders(agentKey?: string, refresh = false) {
+    const qs = new URLSearchParams();
+    if (agentKey) qs.set("agentKey", agentKey);
+    if (refresh) qs.set("refresh", "1");
+    return request<{ success: boolean; routingModes: string[]; policy: any; ollama: any; providers: any[]; credentials: any[] }>({
+      endpoint: `/config/ai-providers/available${qs.toString() ? `?${qs.toString()}` : ""}`,
+      method: "GET",
+    });
+  },
+
+  async getAICredentials(includeMaster = false) {
+    return request<{ success: boolean; credentials: any[]; auditLogs: any[] }>({
+      endpoint: `/config/ai-credentials${includeMaster ? "?includeMaster=1" : ""}`,
+      method: "GET",
+    });
+  },
+
+  async saveAICredential(payload: { scope?: "company" | "agent" | "master"; agentKey?: string; providerId: string; apiKey: string; defaultModel?: string; label?: string; enabled?: boolean }) {
+    return request<{ success: boolean; credential: any }>({ endpoint: "/config/ai-credentials", method: "POST", body: payload });
+  },
+
+  async revokeAICredential(id: number | string) {
+    return request<{ success: boolean; credential: any }>({ endpoint: `/config/ai-credentials/${encodeURIComponent(String(id))}`, method: "DELETE" });
+  },
+
+  async testAICredential(payload: { providerId: string; modelId?: string; apiKey?: string; scope?: string; agentKey?: string; credentialId?: number | string | null }) {
+    return request<{ success: boolean; ok: boolean; providerId: string; modelId: string; healthStatus: string; latencyMs?: number; error?: string; response?: string }>({
+      endpoint: "/config/ai-credentials/test",
+      method: "POST",
+      body: payload,
+      timeoutMs: 30_000,
+    });
+  },
+
+  async updateAIRouterPolicy(payload: { defaultMode?: string; fallbackEnabled?: boolean; zaiEnabled?: boolean; dailyZaiLimit?: number; preferredProviders?: string[] }) {
+    return request<{ success: boolean; policy: any }>({ endpoint: "/config/ai-router/policy", method: "PUT", body: payload });
+  },
+
+  async getMasterAIProvidersCatalog(companyId = "default", refresh = false) {
+    const qs = new URLSearchParams({ companyId });
+    if (refresh) qs.set("refresh", "1");
+    return request<{ success: boolean; routingModes: string[]; policy: any; ollama: any; providers: any[]; credentials: any[] }>({
+      endpoint: `/admin/master/ai-providers/catalog?${qs.toString()}`,
+      method: "GET",
+    });
+  },
+
+  async saveMasterAICredential(payload: { scope?: "master" | "company" | "agent"; companyId?: string; agentKey?: string; providerId: string; apiKey: string; defaultModel?: string; label?: string; enabled?: boolean }) {
+    return request<{ success: boolean; credential: any }>({ endpoint: "/admin/master/ai-providers/credentials", method: "POST", body: payload });
+  },
+
+  async revokeMasterAICredential(id: number | string, companyId = "default") {
+    return request<{ success: boolean; credential: any }>({ endpoint: `/admin/master/ai-providers/credentials/${encodeURIComponent(String(id))}?companyId=${encodeURIComponent(companyId)}`, method: "DELETE" });
+  },
+
+  async testMasterAIProvider(payload: { providerId: string; modelId?: string; apiKey?: string; scope?: string; companyId?: string; credentialId?: number | string | null }) {
+    return request<{ success: boolean; ok: boolean; providerId: string; modelId: string; healthStatus: string; latencyMs?: number; error?: string; response?: string }>({
+      endpoint: "/admin/master/ai-providers/test",
+      method: "POST",
+      body: payload,
+      timeoutMs: 30_000,
+    });
+  },
+
+  async updateMasterAIRouterPolicy(payload: { companyId?: string; defaultMode?: string; fallbackEnabled?: boolean; zaiEnabled?: boolean; dailyZaiLimit?: number; preferredProviders?: string[] }) {
+    return request<{ success: boolean; policy: any }>({ endpoint: "/admin/master/ai-providers/router-policy", method: "PUT", body: payload });
+  },
+
+  async getMasterAIAuditLog(companyId = "default", limit = 80) {
+    return request<{ success: boolean; logs: any[] }>({ endpoint: `/admin/master/ai-providers/audit-log?companyId=${encodeURIComponent(companyId)}&limit=${limit}`, method: "GET" });
+  },
+
+  async getMemoryEvolutionOverview(params: { agentKey?: string | null; sessionId?: string | null; period?: string; start?: string; end?: string } = {}) {
+    const qs = new URLSearchParams();
+    if (params.agentKey) qs.set("agentKey", params.agentKey);
+    if (params.sessionId) qs.set("sessionId", params.sessionId);
+    if (params.period) qs.set("period", params.period);
+    if (params.start) qs.set("start", params.start);
+    if (params.end) qs.set("end", params.end);
+    return request<{ success: boolean; [key: string]: any }>({ endpoint: `/ai/memory-evolution/overview?${qs.toString()}`, method: "GET" });
+  },
+
+  async listEnterpriseMemories(params: { agentKey?: string | null; sessionId?: string | null; category?: string | null; search?: string; status?: string; scope?: string; limit?: number } = {}) {
+    const qs = new URLSearchParams();
+    if (params.agentKey) qs.set("agentKey", params.agentKey);
+    if (params.sessionId) qs.set("sessionId", params.sessionId);
+    if (params.category) qs.set("category", params.category);
+    if (params.search) qs.set("search", params.search);
+    if (params.status) qs.set("status", params.status);
+    if (params.scope) qs.set("scope", params.scope);
+    if (params.limit) qs.set("limit", String(params.limit));
+    return request<{ success: boolean; categories: Record<string, string>; items: any[]; categoryCounts: Record<string, { total: number; active: number }> }>({
+      endpoint: `/ai/memory-evolution/memories?${qs.toString()}`,
+      method: "GET",
+    });
+  },
+
+  async createEnterpriseMemory(payload: { agentKey?: string; sessionId?: string | null; memoryScope?: "agent" | "session" | "company_shared"; category: string; title: string; content: string; confidence?: number }) {
+    return request<{ success: boolean; memory: any }>({ endpoint: "/ai/memory-evolution/memories", method: "POST", body: payload });
+  },
+
+  async updateEnterpriseMemory(id: number | string, payload: { title?: string; content?: string; category?: string; memoryScope?: string; status?: "active" | "disabled" }) {
+    return request<{ success: boolean; memory: any }>({ endpoint: `/ai/memory-evolution/memories/${encodeURIComponent(String(id))}`, method: "PATCH", body: payload });
+  },
+
+  async deleteEnterpriseMemory(id: number | string) {
+    return request<{ success: boolean }>({ endpoint: `/ai/memory-evolution/memories/${encodeURIComponent(String(id))}`, method: "DELETE" });
+  },
+
+  async getCognitiveEvolution(agentKey?: string | null, limit = 60) {
+    const qs = new URLSearchParams({ limit: String(limit) });
+    if (agentKey) qs.set("agentKey", agentKey);
+    return request<{ success: boolean; identified: any[]; pendingApproval: any[]; applied: any[]; history: any[]; versions: any[]; counts: any }>({
+      endpoint: `/ai/memory-evolution/cognitive?${qs.toString()}`,
+      method: "GET",
+    });
+  },
+
+  async approveEvolutionProposal(id: number | string) {
+    return request<{ success: boolean; proposal: any }>({ endpoint: `/ai/memory-evolution/proposals/${encodeURIComponent(String(id))}/approve`, method: "POST" });
+  },
+
+  async rejectEvolutionProposal(id: number | string) {
+    return request<{ success: boolean; proposal: any }>({ endpoint: `/ai/memory-evolution/proposals/${encodeURIComponent(String(id))}/reject`, method: "POST" });
+  },
+
+  async rollbackEvolutionProposal(id: number | string) {
+    return request<{ success: boolean; proposal: any }>({ endpoint: `/ai/memory-evolution/proposals/${encodeURIComponent(String(id))}/rollback`, method: "POST" });
+  },
+
+  async getResultsAndConversations(params: { agentKey?: string | null; sessionId?: string | null; period?: string; start?: string; end?: string; search?: string; limit?: number } = {}) {
+    const qs = new URLSearchParams();
+    if (params.agentKey) qs.set("agentKey", params.agentKey);
+    if (params.sessionId) qs.set("sessionId", params.sessionId);
+    if (params.period) qs.set("period", params.period);
+    if (params.start) qs.set("start", params.start);
+    if (params.end) qs.set("end", params.end);
+    if (params.search) qs.set("search", params.search);
+    if (params.limit) qs.set("limit", String(params.limit));
+    return request<{ success: boolean; period: any; metrics: any; byAlgorithm: any[]; conversations: any[] }>({
+      endpoint: `/ai/memory-evolution/results?${qs.toString()}`,
+      method: "GET",
+    });
+  },
+
+  async explainConversationDecision(conversationId: number | string) {
+    return request<{ success: boolean; [key: string]: any }>({
+      endpoint: `/ai/memory-evolution/conversations/${encodeURIComponent(String(conversationId))}/explain`,
+      method: "GET",
+    });
+  },
+
   async createAIAgent(payload: any) {
     return request<{ success: boolean; agent: any }>({ endpoint: "/config/ai-agents", method: "POST", body: payload });
+  },
+
+  async getPromptTemplates() {
+    return request<any[]>({ endpoint: "/ai/prompt-templates", method: "GET" });
   },
 
   async updateAIAgent(key: string, payload: any) {
@@ -2135,6 +2547,30 @@ export const apiService = {
 
   async deleteStore(storeId: string) {
     return request<{ success: boolean; message?: string }>({ endpoint: `/stores/${encodeURIComponent(storeId)}`, method: "DELETE" });
+  },
+
+  async getStorePixSettings(storeId: string) {
+    return request<{ pix: StorePixSettings | null }>({ endpoint: `/stores/${encodeURIComponent(storeId)}/payment-settings`, method: "GET" });
+  },
+
+  async saveStorePixSettings(storeId: string, pix: StorePixSettingsInput) {
+    return request<{ success: boolean; pix: StorePixSettings; payload: string }>({
+      endpoint: `/stores/${encodeURIComponent(storeId)}/payment-settings`,
+      method: "PUT",
+      body: { pix },
+    });
+  },
+
+  async removeStorePixSettings(storeId: string) {
+    return request<{ success: boolean }>({ endpoint: `/stores/${encodeURIComponent(storeId)}/payment-settings/pix`, method: "DELETE" });
+  },
+
+  async getSessionPix(params: { sessionId?: string; storeId?: string; amount?: number }) {
+    const query = new URLSearchParams();
+    if (params.sessionId) query.set("sessionId", params.sessionId);
+    if (params.storeId) query.set("storeId", params.storeId);
+    if (params.amount && params.amount > 0) query.set("amount", String(params.amount));
+    return request<StorePixPayloadResponse>({ endpoint: `/stores/payment/pix?${query.toString()}`, method: "GET" });
   },
 
   async getConnections(options?: { throwOnError?: boolean }): Promise<any[]> {
@@ -2336,7 +2772,17 @@ export const apiService = {
         const raw = data as Record<string, unknown>;
         const nested = raw.data as Record<string, unknown> | undefined;
         if (nested?.sessions && Array.isArray(nested.sessions)) {
-          return parseSessionStatusPayload(nested.sessions).map(normalizeSessionInfo);
+          const sessionsList = parseSessionStatusPayload(nested.sessions).map(normalizeSessionInfo);
+          if (nested.status === "connected" || nested.connected === true) {
+            const targetId = String(nested.sessionId || "main").toLowerCase();
+            for (const s of sessionsList) {
+              if (String(s.id).toLowerCase() === targetId || String(s.name).toLowerCase().includes("principal")) {
+                s.status = "connected";
+                s.connected = true;
+              }
+            }
+          }
+          return sessionsList;
         }
         return parseSessionStatusPayload(data).map(normalizeSessionInfo);
       } catch (error) {
@@ -2401,7 +2847,7 @@ export const apiService = {
   },
   createCampaign: (payload: Partial<CampaignRecord> & Record<string, unknown>) =>
     request<CampaignRecord>({ endpoint: "/api/campaigns", method: "POST", body: payload }),
-  parseContext: async (formData: FormData) => axios.post(`${API_BASE_URL}/api/campaigns/parse-context`, formData, {
+  parseContext: async (formData: FormData) => axios.post(`${API_BASE_URL}/campaigns/parse-context`, formData, {
     headers: {
       ...await buildApiHeaders(),
       "Content-Type": "multipart/form-data",
@@ -2454,7 +2900,9 @@ export const apiService = {
     request<Record<string, unknown>>({ endpoint: `/api/contacts/${encodeURIComponent(phone)}/block`, method: "POST" }),
   unblockContact: (phone: string) =>
     request<Record<string, unknown>>({ endpoint: `/api/contacts/${encodeURIComponent(phone)}/unblock`, method: "POST" }),
-  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean }) =>
+  patchConversation: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean; pinnedQuickReplies?: string[]; pinned_quick_replies?: string[]; whatsappLabels?: string[]; whatsapp_labels?: string[] }) =>
+    request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
+  updateConversationMeta: (conversationId: string, payload: { status?: string; lead_temperature?: string; funnel_stage?: string; tags?: string[]; name?: string; notes?: string; is_pinned?: boolean; pinned?: boolean; archived?: boolean; phone?: string; unread_count?: number; unreadCount?: number; is_muted?: boolean; muted?: boolean; pinnedQuickReplies?: string[]; pinned_quick_replies?: string[]; whatsappLabels?: string[]; whatsapp_labels?: string[] }) =>
     request<Record<string, unknown>>({ endpoint: `/api/conversations/${encodeURIComponent(conversationId)}`, method: "PATCH", body: payload }),
   createConversation: (payload: { phone: string; name?: string; sessionId?: string }) => {
     invalidateCache("conversations");
@@ -2483,9 +2931,12 @@ export const apiService = {
   reprocessDeadLetter: (id: string, testing?: boolean) =>
     request<{ item: OutboundQueueItem }>({ endpoint: `/api/outbound-queue/dlq/${encodeURIComponent(id)}/reprocess`, method: "POST", body: { testing } }),
 
-  async getQuickReplies() {
+  async getQuickReplies(sessionId?: string) {
     try {
-      const data = await request<any[]>({ endpoint: "/api/quick-replies", method: "GET" });
+      const endpoint = withQuery("/api/quick-replies", {
+        sessionId: sessionId && sessionId !== "current" ? sessionId : undefined,
+      });
+      const data = await request<any[]>({ endpoint, method: "GET" });
       return Array.isArray(data) ? data : [];
     } catch {
       return [];
@@ -2641,6 +3092,53 @@ export const apiService = {
       method: "GET",
     });
   },
+  async createProduct(payload: any) {
+    return request<{ success: boolean; data: any; error?: string }>({
+      endpoint: "/api/products",
+      method: "POST",
+      body: payload,
+    });
+  },
+  async updateProduct(id: string, payload: any) {
+    return request<{ success: boolean; data: any; error?: string }>({
+      endpoint: `/api/products/${encodeURIComponent(id)}`,
+      method: "PUT",
+      body: payload,
+    });
+  },
+  async deleteProduct(id: string) {
+    return request<{ success: boolean; id: string; error?: string }>({
+      endpoint: `/api/products/${encodeURIComponent(id)}`,
+      method: "DELETE",
+    });
+  },
+  async uploadProductImage(fileOrBase64: File | string) {
+    if (typeof fileOrBase64 === "string") {
+      return request<{ success: boolean; url: string; fileName: string }>({
+        endpoint: "/api/products/upload-image",
+        method: "POST",
+        body: { image: fileOrBase64 },
+      });
+    }
+
+    const formData = new FormData();
+    formData.append("image", fileOrBase64);
+    const session = loadAdminAuthSession();
+    const token = session?.token || "";
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE_URL}/products/upload-image`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Falha ao enviar imagem do produto");
+    }
+    return await res.json() as { success: boolean; url: string; fileName: string };
+  },
   async syncWhatsAppCatalog(sessionId?: string) {
     return request<{ success: boolean; synced: number; waFetched?: number; total: number; data: any[]; message?: string }>({
       endpoint: "/api/catalog/sync",
@@ -2664,6 +3162,50 @@ export const apiService = {
       endpoint: "/api/whatsapp/labels",
       method: "POST",
       body: payload,
+    });
+  },
+  async updateWhatsAppLabel(id: string, payload: { name?: string; colorHex?: string; color?: number; sessionId?: string }) {
+    return request<{
+      success: boolean;
+      label: { id: string; name: string; color: number; color_hex: string; deleted?: boolean };
+    }>({
+      endpoint: `/api/whatsapp/labels/${encodeURIComponent(id)}`,
+      method: "PUT",
+      body: payload,
+    });
+  },
+  async deleteWhatsAppLabel(id: string, sessionId?: string) {
+    const query = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : "";
+    return request<{
+      success: boolean;
+      deleted: boolean;
+      labelId: string;
+    }>({
+      endpoint: `/api/whatsapp/labels/${encodeURIComponent(id)}${query}`,
+      method: "DELETE",
+    });
+  },
+  async syncWhatsAppLabels(sessionId?: string) {
+    return request<{
+      success: boolean;
+      labels: Array<{ id: string; name: string; color: number; color_hex: string; deleted?: boolean }>;
+      syncedCount: number;
+    }>({
+      endpoint: "/api/whatsapp/labels/sync",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async autoTagConversation(conversationId: string | number) {
+    return request<{
+      success: boolean;
+      tags: string[];
+      whatsappLabels: string[];
+      assigned: string[];
+      conversation: any;
+    }>({
+      endpoint: `/api/conversations/${encodeURIComponent(String(conversationId))}/auto-tag`,
+      method: "POST",
     });
   },
   async getCommerceCapabilities() {
@@ -2741,6 +3283,180 @@ export const apiService = {
       endpoint: "/api/commerce/send-product",
       method: "POST",
       body: payload,
+    });
+  },
+  async sendNativeCatalog(payload: {
+    phone?: string;
+    remoteJid?: string;
+    conversationId?: string;
+    sessionId?: string;
+    caption?: string;
+  }) {
+    return request<{ success: boolean; whatsappMessageId?: string; error?: string }>({
+      endpoint: "/api/commerce/send-catalog",
+      method: "POST",
+      body: payload,
+    });
+  },
+
+  // ── WebBridge Commerce Companion ──────────────────────────────
+  async getWebBridgeStatus(sessionId = "main") {
+    return request<{
+      success: boolean;
+      sessionId: string;
+      available: boolean;
+      status: string;
+      authenticated: boolean;
+      phone: string | null;
+      lastActive: number | null;
+      pid: number | null;
+      memoryMb: number;
+      lastSyncAt: string | null;
+      productCount: number;
+      error?: string;
+    }>({
+      endpoint: `/api/webbridge/status?sessionId=${encodeURIComponent(sessionId)}`,
+      method: "GET",
+    });
+  },
+  async getWebBridgeQR(sessionId = "main") {
+    return request<{
+      success: boolean;
+      sessionId: string;
+      authenticated: boolean;
+      status: string;
+      qrImage: string | null;
+      ref: string | null;
+      error?: string;
+    }>({
+      endpoint: `/api/webbridge/qr?sessionId=${encodeURIComponent(sessionId)}`,
+      method: "GET",
+    });
+  },
+  async connectWebBridge(sessionId = "main") {
+    return request<{ success: boolean; message: string; authenticated: boolean; status: string; error?: string }>({
+      endpoint: "/api/webbridge/connect",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async disconnectWebBridge(sessionId = "main") {
+    return request<{ success: boolean; message: string; error?: string }>({
+      endpoint: "/api/webbridge/disconnect",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async syncWebBridgeCatalog(sessionId = "main") {
+    return request<{
+      success: boolean;
+      extracted?: number;
+      upserted?: number;
+      total?: number;
+      products?: any[];
+      error?: string;
+    }>({
+      endpoint: "/api/webbridge/sync-catalog",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async testWebBridgeConnection(sessionId = "main") {
+    return request<{
+      success: boolean;
+      responseTimeMs: number;
+      state: any;
+      playwrightAvailable: boolean;
+      chromiumPath: string;
+      error?: string;
+    }>({
+      endpoint: "/api/webbridge/test-connection",
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async sendPuppetText(jid: string, text: string, sessionId = "main") {
+    return request<{ success: boolean; method?: string; error?: string }>({
+      endpoint: "/api/webbridge/puppet/send-text",
+      method: "POST",
+      body: { jid, text, sessionId },
+    });
+  },
+  async sendPuppetProduct(jid: string, product: Record<string, any>, sessionId = "main") {
+    return request<{ success: boolean; method?: string; error?: string }>({
+      endpoint: "/api/webbridge/puppet/send-product",
+      method: "POST",
+      body: { jid, product, sessionId },
+    });
+  },
+  async openPuppetChat(jid: string, sessionId = "main") {
+    return request<{ success: boolean; method?: string; error?: string }>({
+      endpoint: "/api/webbridge/puppet/open-chat",
+      method: "POST",
+      body: { jid, sessionId },
+    });
+  },
+
+  // ── Commercial Quotes Engine ──────────────────────────────────
+  async createQuote(payload: {
+    clientPhone: string;
+    clientName?: string;
+    conversationId?: string;
+    items: Array<{
+      productId: string;
+      code?: string;
+      name: string;
+      unitPrice: number;
+      quantity: number;
+      imageUrl?: string;
+    }>;
+    discountType?: "fixed" | "percent";
+    discountValue?: number;
+    shippingAmount?: number;
+    notes?: string;
+    validDays?: number;
+  }) {
+    return request<{ success: boolean; quote: any; error?: string }>({
+      endpoint: "/api/quotes",
+      method: "POST",
+      body: payload,
+    });
+  },
+  async listQuotes(params?: { clientPhone?: string; conversationId?: string; status?: string; limit?: number }) {
+    const q = new URLSearchParams();
+    if (params?.clientPhone) q.append("clientPhone", params.clientPhone);
+    if (params?.conversationId) q.append("conversationId", params.conversationId);
+    if (params?.status) q.append("status", params.status);
+    if (params?.limit) q.append("limit", String(params.limit));
+    return request<{ success: boolean; quotes: any[]; error?: string }>({
+      endpoint: `/api/quotes?${q.toString()}`,
+      method: "GET",
+    });
+  },
+  async getQuote(id: string) {
+    return request<{ success: boolean; quote: any; error?: string }>({
+      endpoint: `/api/quotes/${id}`,
+      method: "GET",
+    });
+  },
+  async sendQuote(id: string, sessionId = "main") {
+    return request<{ success: boolean; quote: any; whatsappMessageId?: string; error?: string }>({
+      endpoint: `/api/quotes/${id}/send`,
+      method: "POST",
+      body: { sessionId },
+    });
+  },
+  async acceptQuote(id: string) {
+    return request<{ success: boolean; quote: any; order?: any; error?: string }>({
+      endpoint: `/api/quotes/${id}/accept`,
+      method: "POST",
+    });
+  },
+  async rejectQuote(id: string, reason?: string) {
+    return request<{ success: boolean; quote: any; error?: string }>({
+      endpoint: `/api/quotes/${id}/reject`,
+      method: "POST",
+      body: { reason },
     });
   },
 };

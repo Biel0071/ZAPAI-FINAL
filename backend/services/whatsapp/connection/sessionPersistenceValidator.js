@@ -20,8 +20,9 @@
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
+const { getCanonicalSessionsDirectory, getSessionPath } = require('./sessionPaths');
 
-const SESSIONS_ROOT = path.join(__dirname, '..', '..', '..', 'sessions');
+const SESSIONS_ROOT = getCanonicalSessionsDirectory();
 const CREDS_FILE = 'creds.json';
 const REQUIRED_CRED_KEYS = ['noiseKey', 'signedIdentityKey', 'registrationId', 'me'];
 
@@ -45,7 +46,7 @@ const REQUIRED_CRED_KEYS = ['noiseKey', 'signedIdentityKey', 'registrationId', '
  * @returns {Promise<SessionValidation>}
  */
 async function validateSession(sessionId) {
-  const sessionPath = path.join(SESSIONS_ROOT, sessionId);
+  const sessionPath = getSessionPath(sessionId);
   const credsPath = path.join(sessionPath, CREDS_FILE);
   const warnings = [];
 
@@ -85,14 +86,28 @@ async function validateSession(sessionId) {
   try {
     const raw = await fsp.readFile(credsPath, 'utf8');
     creds = JSON.parse(raw);
-    result.credsValid = true;
   } catch (err) {
     warnings.push(`creds.json parse error: ${err.message}`);
     return result;
   }
 
-  // 4. Check required credential keys
+  // Guard against null, primitives, or arrays returned by JSON.parse
+  if (!creds || typeof creds !== 'object' || Array.isArray(creds)) {
+    result.credsValid = false;
+    result.credsComplete = false;
+    result.reason = 'creds_not_object';
+    result.missingKeys = [...REQUIRED_CRED_KEYS];
+    warnings.push('creds.json is not a valid JSON object');
+    return result;
+  }
+
+  result.credsValid = true;
+
+  // 4. Check required credential keys (including me.id for paired sessions)
   const missingKeys = REQUIRED_CRED_KEYS.filter((key) => !creds[key]);
+  if (creds.me && (!creds.me.id || typeof creds.me.id !== 'string')) {
+    missingKeys.push('me.id');
+  }
   result.missingKeys = missingKeys;
   result.credsComplete = missingKeys.length === 0;
 
@@ -129,8 +144,9 @@ async function validateSession(sessionId) {
  */
 async function listSessionIds() {
   try {
-    const entries = await fsp.readdir(SESSIONS_ROOT, { withFileTypes: true });
-    return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+    const rootDir = getCanonicalSessionsDirectory();
+    const entries = await fsp.readdir(rootDir, { withFileTypes: true });
+    return entries.filter((e) => e.isDirectory() && !e.name.startsWith('.')).map((e) => e.name);
   } catch {
     return [];
   }
@@ -184,7 +200,7 @@ async function validateAll() {
 async function fix(sessionIds) {
   const targets = sessionIds || await listSessionIds();
   for (const id of targets) {
-    const dir = path.join(SESSIONS_ROOT, id);
+    const dir = getSessionPath(id);
     await fsp.mkdir(dir, { recursive: true });
     console.log(`[SessionPersistenceValidator] Ensured directory: ${dir}`);
   }

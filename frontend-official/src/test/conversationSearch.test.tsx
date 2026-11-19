@@ -56,10 +56,12 @@ describe("Inbox server search", () => {
     act(() => useAppStore.getState().setActiveSessionId("other"));
     rerender({ query: "new" });
     await act(async () => vi.advanceTimersByTimeAsync(300));
-    await act(async () => pending[1]([conversation("new-match")]));
-    await act(async () => pending[0]([conversation("stale-match")]));
+    const newMatch = { ...conversation("new-match"), sessionId: "other" };
+    const staleMatch = { ...conversation("stale-match"), sessionId: "main" };
+    await act(async () => pending[1]([newMatch]));
+    await act(async () => pending[0]([staleMatch]));
     expect(onResults).toHaveBeenCalledOnce();
-    expect(onResults).toHaveBeenCalledWith([conversation("new-match")]);
+    expect(onResults).toHaveBeenCalledWith([newMatch]);
   });
 
   it("shows a failed search, retries it, and cancels results after clearing the field", async () => {

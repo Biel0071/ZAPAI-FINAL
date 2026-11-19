@@ -18,6 +18,7 @@
 - `components/evolution/HistoryBootstrapPanel.tsx`, modo `store`, reutiliza APIs comerciais e perfil da sessão com editor completo compartilhado/exclusivo. Não executa polling de histórico nesse modo; cadastro criado permanece disponível quando o vínculo falha.
 - `aiAgentService.js` reconcilia vínculos em criar/editar/atribuir, preserva propriedade comercial da sessão e evita herança arbitrária em conflitos legados. `automationEngine.js` bloqueia seleção ambígua. `historyRoutes.js` valida empresa/sessão/loja e preserva campos omitidos.
 - `ZaibotFloatingAssistant.tsx` monta sob demanda o copiloto canônico, hospedado uma vez em `MainLayout.tsx`. O shell autenticado preserva as páginas CRM existentes.
+- `zaiAssistantConfigService.ts` mantém um único avatar e a preferência individual do painel; `adminMaster.js` protege o controle global e por usuário com papel admin/master. O painel lateral não comanda o processamento das conversas.
 - Revisão de produção estende páginas, componentes e adaptadores existentes; dados indisponíveis não recebem resultados fictícios. Extração manual após alterações, sem hook automático.
 
 ## Atendentes, Assistente ZAI e lojas por WhatsApp (05/10/2026)

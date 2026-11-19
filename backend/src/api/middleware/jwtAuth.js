@@ -85,7 +85,11 @@ function getAuthToken(req) {
   return '';
 }
 
-function hasTenantMismatch(req, tokenTenantId) {
+function hasTenantMismatch(req, tokenTenantId, claims = {}) {
+  const role = String(claims.role || '').trim().toLowerCase();
+  const adminContext = String(req.headers?.['x-admin-company-context'] || '').trim();
+  const allowedTenants = new Set([tokenTenantId]);
+  if ((role === 'master' || role === 'master_admin') && adminContext) allowedTenants.add(adminContext);
   const candidates = [
     req.headers?.['x-tenant-id'],
     req.headers?.['x-company-id'],
@@ -101,7 +105,7 @@ function hasTenantMismatch(req, tokenTenantId) {
     return false;
   }
 
-  return candidates.some((tenantId) => tenantId !== tokenTenantId);
+  return candidates.some((tenantId) => !allowedTenants.has(tenantId));
 }
 
 function createJwtAuthMiddleware(options = {}) {
@@ -175,7 +179,7 @@ function createJwtAuthMiddleware(options = {}) {
       return res.status(401).json({ error: 'Token does not include tenant information.' });
     }
 
-    if (hasTenantMismatch(req, tenantId)) {
+    if (hasTenantMismatch(req, tenantId, verification.payload)) {
       return res.status(403).json({ error: 'Token tenant does not match request tenant.' });
     }
 

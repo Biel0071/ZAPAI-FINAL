@@ -10,8 +10,17 @@ class CartOrderListener {
    * Handle incoming Baileys orderMessage
    */
   async handleIncomingOrder(sock, messageData = {}, options = {}) {
-    const rawMsg = messageData.message || {};
+    const rawMsg = messageData.message || messageData || {};
+    let unwrapped = rawMsg;
+    try {
+      const { unwrapMessageContent } = require('../whatsapp/inbound/parser');
+      if (typeof unwrapMessageContent === 'function') {
+        unwrapped = unwrapMessageContent(rawMsg);
+      }
+    } catch (_) {}
+
     const orderMsg =
+      unwrapped?.orderMessage ||
       rawMsg.orderMessage ||
       rawMsg.ephemeralMessage?.message?.orderMessage ||
       rawMsg.viewOnceMessage?.message?.orderMessage ||

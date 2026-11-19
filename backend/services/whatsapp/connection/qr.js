@@ -14,6 +14,10 @@ async function toQrDataUrl(qr) {
     errorCorrectionLevel: 'M',
     margin: 1,
     width: 320,
+    color: {
+      dark: '#000000',
+      light: '#ffffff',
+    },
   });
 }
 

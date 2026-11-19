@@ -70,7 +70,7 @@ export const ObsidianMemoryModal: React.FC<ObsidianMemoryModalProps> = ({
   onOpenChange,
   graphData,
   agentName = "Camila",
-  storeName = "Depósito Vista Alegre"
+  storeName = ""
 }) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"graph" | "media" | "trace">("graph");

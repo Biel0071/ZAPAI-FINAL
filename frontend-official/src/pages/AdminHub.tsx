@@ -8,7 +8,9 @@ import {
   TrendUp, 
   GitCommit, 
   FileText, 
-  Flask 
+  Flask,
+  BookOpen,
+  Cpu,
 } from "@phosphor-icons/react";
 
 // Lazy load the existing admin pages
@@ -19,6 +21,8 @@ const MasterDeploymentsPage = React.lazy(() => import("./MasterDeployments"));
 const MasterVersionsPage = React.lazy(() => import("./MasterVersions"));
 const MasterLogsPage = React.lazy(() => import("./MasterLogs"));
 const TestsPage = React.lazy(() => import("./Tests"));
+const MasterAgentTemplatesPage = React.lazy(() => import("./MasterAgentTemplates"));
+const MasterAIProvidersPage = React.lazy(() => import("./MasterAIProviders"));
 
 export default function AdminHub() {
   const [activeTab, setActiveTab] = useState("queue");
@@ -61,6 +65,12 @@ export default function AdminHub() {
               <TabsTrigger value="tests" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary flex items-center gap-2 text-xs py-2">
                 <Flask size={16} /> Central de Testes
               </TabsTrigger>
+              <TabsTrigger value="agent-templates" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary flex items-center gap-2 text-xs py-2">
+                <BookOpen size={16} /> Prompts IA
+              </TabsTrigger>
+              <TabsTrigger value="ai-providers" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary flex items-center gap-2 text-xs py-2">
+                <Cpu size={16} /> Provedores IA
+              </TabsTrigger>
             </TabsList>
 
             <React.Suspense fallback={<div className="flex h-32 items-center justify-center text-muted-foreground text-sm">Carregando painel...</div>}>
@@ -83,6 +93,8 @@ export default function AdminHub() {
                 <TabsContent value="versions" className="m-0 border-0 p-0"><MasterVersionsPage /></TabsContent>
                 <TabsContent value="logs" className="m-0 border-0 p-0"><MasterLogsPage /></TabsContent>
                 <TabsContent value="tests" className="m-0 border-0 p-0"><TestsPage /></TabsContent>
+                <TabsContent value="agent-templates" className="m-0 border-0 p-0"><MasterAgentTemplatesPage /></TabsContent>
+                <TabsContent value="ai-providers" className="m-0 border-0 p-0"><MasterAIProvidersPage /></TabsContent>
               </div>
             </React.Suspense>
           </Tabs>

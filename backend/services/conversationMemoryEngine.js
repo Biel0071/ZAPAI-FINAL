@@ -27,6 +27,10 @@
 
 const { query } = require('../src/infrastructure/config/database');
 
+function getContextTokenService() {
+  return require('./contextTokenService');
+}
+
 const MEMORY_CATEGORIES = {
   TEMPORARY_CONTEXT: 'temporary_context',
   CONVERSATION_CONTEXT: 'conversation_context',
@@ -63,10 +67,11 @@ async function getConversationMemory({ contactId, phone, companyId = 'default', 
   const cleanSessionId = sessionId ? String(sessionId).trim() : null;
 
   try {
+    const tokenService = getContextTokenService();
     let res;
     if (cleanSessionId) {
       res = await query(
-        `SELECT contact_id, company_id, phone, name, intent, sentiment, session_id, tags, summary, metrics, messages, last_updated, updated_at
+        `SELECT contact_id, company_id, phone, name, intent, sentiment, session_id, tags, summary, metrics, messages, context_token, last_updated, updated_at
          FROM ai_conversation_memory
          WHERE (contact_id = $1 OR phone = $2) AND company_id = $3 AND session_id = $4
          LIMIT 1`,
@@ -74,7 +79,7 @@ async function getConversationMemory({ contactId, phone, companyId = 'default', 
       );
     } else {
       res = await query(
-        `SELECT contact_id, company_id, phone, name, intent, sentiment, session_id, tags, summary, metrics, messages, last_updated, updated_at
+        `SELECT contact_id, company_id, phone, name, intent, sentiment, session_id, tags, summary, metrics, messages, context_token, last_updated, updated_at
          FROM ai_conversation_memory
          WHERE (contact_id = $1 OR phone = $2) AND company_id = $3
          ORDER BY updated_at DESC
@@ -83,38 +88,65 @@ async function getConversationMemory({ contactId, phone, companyId = 'default', 
       );
     }
 
-    if (res.rows.length > 0) {
-      const row = res.rows[0];
-      const metrics = typeof row.metrics === 'object' && row.metrics !== null ? row.metrics : {};
-      
-      // Níveis de memória estruturados armazenados em metrics
-      const facts = metrics.facts || {};
-      const commercial = metrics.commercial || {
-        activeProduct: null,
-        capacity: null,
-        quantity: null,
-        quotedPrice: null,
-        deliveryCity: null,
-        paymentPreference: null,
+    const row = res.rows[0] || null;
+    let convTokenRow = null;
+    if (!row?.context_token) {
+      const convRes = await query(
+        `SELECT conv.context_token, conv.context_token_meta, conv.summary, conv.lead_intent, conv.funnel_stage, l.name, l.phone
+         FROM conversations conv
+         LEFT JOIN leads l ON l.id = conv.lead_id
+         WHERE conv.company_id = $1
+           AND (conv.remote_jid = $2 OR l.phone = $3 OR conv.remote_jid = $3)
+           AND conv.context_token IS NOT NULL
+         ORDER BY conv.last_message_at DESC NULLS LAST, conv.updated_at DESC
+         LIMIT 1`,
+        [cleanCompany, normalizedId, normalizedPhone]
+      ).catch(() => ({ rows: [] }));
+      convTokenRow = convRes.rows[0] || null;
+    }
+
+    const rawContextToken = row?.context_token || convTokenRow?.context_token || null;
+    const contextTokenDecoded = rawContextToken
+      ? tokenService.decodeContextToken(rawContextToken, cleanCompany)
+      : null;
+
+    if (row || contextTokenDecoded) {
+      const metrics = typeof row?.metrics === 'object' && row?.metrics !== null ? row.metrics : {};
+      const tokenFacts = contextTokenDecoded?.facts || {};
+      const tokenCommercial = contextTokenDecoded?.commercial || {};
+
+      // Níveis de memória estruturados armazenados em metrics (live overrides historical token)
+      const facts = { ...tokenFacts, ...(metrics.facts || {}) };
+      const commercial = {
+        activeProduct: tokenCommercial.activeProduct || null,
+        capacity: tokenCommercial.capacity || null,
+        quantity: tokenCommercial.quantity || null,
+        quotedPrice: tokenCommercial.quotedPrice || null,
+        deliveryCity: tokenCommercial.deliveryCity || null,
+        paymentPreference: tokenCommercial.paymentPreference || null,
+        ...(metrics.commercial || {}),
       };
       const pendingQuestions = metrics.pendingQuestions || [];
 
       return {
-        contactId: row.contact_id,
-        phone: row.phone,
-        name: row.name,
-        companyId: row.company_id,
+        contactId: row?.contact_id || normalizedId,
+        phone: row?.phone || convTokenRow?.phone || normalizedPhone,
+        name: row?.name || contextTokenDecoded?.name || convTokenRow?.name || 'Cliente',
+        companyId: row?.company_id || cleanCompany,
         sessionId,
-        intent: row.intent || 'information',
-        sentiment: row.sentiment || 'neutral',
-        tags: Array.isArray(row.tags) ? row.tags : [],
-        summary: row.summary || '',
-        messages: Array.isArray(row.messages) ? row.messages : [],
-        lastUpdated: row.last_updated,
+        intent: row?.intent || contextTokenDecoded?.intent || convTokenRow?.lead_intent || 'information',
+        sentiment: row?.sentiment || contextTokenDecoded?.sentiment || 'neutral',
+        tags: Array.isArray(row?.tags) ? row.tags : (contextTokenDecoded?.tags || []),
+        summary: row?.summary || convTokenRow?.summary || '',
+        messages: Array.isArray(row?.messages) ? row.messages : [],
+        lastUpdated: row?.last_updated || null,
         facts, // Nível 3
         commercial, // Nível 4
         pendingQuestions, // Nível 2
         metrics,
+        contextToken: rawContextToken,
+        contextTokenDecoded,
+        contextTokenMeta: metrics.contextTokenMeta || convTokenRow?.context_token_meta || null,
       };
     }
   } catch (err) {
@@ -495,7 +527,13 @@ async function persistConversationMemory(memory, companyId = 'default') {
         metrics = EXCLUDED.metrics,
         messages = EXCLUDED.messages,
         last_updated = NOW(),
-        updated_at = NOW()`,
+        updated_at = NOW()
+      WHERE ai_conversation_memory.messages IS DISTINCT FROM EXCLUDED.messages
+        OR ai_conversation_memory.summary IS DISTINCT FROM EXCLUDED.summary
+        OR ai_conversation_memory.intent IS DISTINCT FROM EXCLUDED.intent
+        OR ai_conversation_memory.sentiment IS DISTINCT FROM EXCLUDED.sentiment
+        OR ai_conversation_memory.tags IS DISTINCT FROM EXCLUDED.tags
+        OR (ai_conversation_memory.metrics - 'memoriesUpdatedCount') IS DISTINCT FROM (EXCLUDED.metrics - 'memoriesUpdatedCount')`,
       [
         contactId,
         cleanCompany,
@@ -553,6 +591,13 @@ function buildContextualPrompt(memory) {
     sections.push(factsList.join('\n'));
   }
 
+  if (memory.contextTokenDecoded) {
+    const tokenBlock = getContextTokenService().formatContextTokenForPrompt(memory.contextTokenDecoded);
+    if (tokenBlock) {
+      sections.push(tokenBlock);
+    }
+  }
+
   if (memory.metrics?.algorithm || memory.algorithm) {
     const algo = memory.metrics?.algorithm || memory.algorithm;
     let algoBlock = `ALGORITMO VINCULADO AO CLIENTE (${algo.code || algo.algorithmCode || 'ALGO-01'} - ${algo.name || algo.algorithmName || 'Padrão'}):\n` +
@@ -561,7 +606,7 @@ function buildContextualPrompt(memory) {
       algoBlock += `- Arquétipo do Comprador: ${algo.customerArchetypeLabel} (${algo.customerArchetype})\n` +
         `- Conduta Recomendada: ${algo.archetypeGuidance}\n`;
     }
-    algoBlock += `- Diretriz Estrita Anti-Delírio: ${algo.directive || 'Atenha-se 100% aos dados oficiais da loja Depósito Mais.'}`;
+    algoBlock += `- Diretriz Estrita Anti-Delírio: ${algo.directive || 'Atenha-se 100% aos dados oficiais cadastrados da loja.'}`;
     sections.push(algoBlock);
   }
 
@@ -572,9 +617,9 @@ function buildContextualPrompt(memory) {
   // Regras de Ouro de Continuidade, Verdade Oficial e Concisão
   sections.push(
     'REGRA CRÍTICA DE CONTINUIDADE E SEGUIMENTO REAL: Você JAMAIS deve pedir informações que já constam na memória acima. ' +
-    'Se o cliente fornecer um dado ou responder sua pergunta (como "De 5 mil litros", "no pix" ou o bairro dele), você DEVE responder e confirmar diretamente esse dado primeiro, e só então fazer uma pergunta de próximo passo. ' +
-    'Mantenha as respostas estritamente concisas (1 a 3 frases curtas, no padrão natural do WhatsApp pelo celular). ' +
-    'NUNCA invente preços, descontos, estoques ou prazos não cadastrados; atenha-se aos dados reais da loja Depósito Mais!'
+    'Se o cliente fornecer um dado ou responder sua pergunta, você DEVE confirmar diretamente esse dado primeiro, e só então fazer uma pergunta de próximo passo. ' +
+    'Mantenha a resposta alinhada ao estilo e extensão configurados para o atendente. ' +
+    'NUNCA invente preços, descontos, estoques ou prazos não cadastrados; atenha-se aos dados oficiais da loja.'
   );
 
   return sections.join('\n');

@@ -70,7 +70,7 @@ test('worker never uses a socket belonging to a different company', async () => 
   assert.equal(queue.listDeadLetter().find(item => item.id === accepted.id).lastFailure.code, 'SESSION_FORBIDDEN');
 });
 
-test('disconnected session queue items stay paused until explicit reactivation', async () => {
+test('disconnected session items stay paused until the reviewed all-items action approves them', async () => {
   sessionStatus = 'disconnected';
   sessionAutomationPaused = true;
   await queue.enqueue(payload({ nextAttemptAt: new Date().toISOString() }));
@@ -79,10 +79,12 @@ test('disconnected session queue items stay paused until explicit reactivation',
   await queue.processOneItem();
   assert.equal(sendCalls, 0);
   assert.equal(persisted.items[0].sessionPaused, true);
-  sessionAutomationPaused = false;
   assert.equal(await queue.resumeSessionItems({ companyId: 'tenant-a', sessionId: 'wa-a' }), 1);
+  assert.equal(persisted.items[0].sessionPaused, true);
+  assert.equal(persisted.items[0].sessionResumeApproved, true);
   await queue.processOneItem();
   assert.equal(sendCalls, 1);
+  assert.equal(sessionAutomationPaused, true);
 });
 
 test('contact approval resumes only matching work while the session remains paused', async () => {
@@ -96,7 +98,8 @@ test('contact approval resumes only matching work while the session remains paus
 
   assert.equal(sendCalls, 1);
   assert.equal(sessionAutomationPaused, true);
-  assert.notEqual(persisted.items.find(item => item.correlationId === 'review-a').sessionPaused, true);
+  assert.equal(persisted.items.find(item => item.correlationId === 'review-a').state, 'sent');
+  assert.equal(persisted.items.find(item => item.correlationId === 'review-a').sessionResumeApproved, false);
   assert.equal(persisted.items.find(item => item.correlationId === 'review-b').sessionPaused, true);
 });
 

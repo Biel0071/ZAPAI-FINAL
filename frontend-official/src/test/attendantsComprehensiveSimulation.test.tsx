@@ -203,6 +203,7 @@ const MOCK_CONNECTIONS = [
 vi.mock("@/core/services/apiService", () => ({
   apiService: {
     getAIAgents: vi.fn(),
+    getPromptTemplates: vi.fn().mockResolvedValue([]),
     getStores: vi.fn(),
     getConnections: vi.fn(),
     getAIStatus: vi.fn().mockResolvedValue({ enabled: true }),
@@ -443,11 +444,12 @@ describe("Comprehensive Attendants Frontend Simulation & Render Validation", () 
       tags: [],
     };
 
+    const AnySidebarPanel = SidebarPanel as any;
     await act(async () => {
       root?.render(
         <TooltipProvider>
           <MemoryRouter>
-            <SidebarPanel
+            <AnySidebarPanel
               isOpen={true}
               onClose={vi.fn()}
               selectedConversation={mockConversation as any}

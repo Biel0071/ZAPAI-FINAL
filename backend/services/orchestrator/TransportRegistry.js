@@ -76,7 +76,23 @@ class TransportRegistry {
     const active = this.getTransports(sId);
 
     // Baileys is the primary, lightweight default for all WhatsApp operations
-    const hasBaileys = active.some(t => t.engine === capabilityRegistry.ENGINES.BAILEYS && t.status === 'connected');
+    let hasBaileys = active.some(t => t.engine === capabilityRegistry.ENGINES.BAILEYS && t.status === 'connected');
+
+    // Auto-discover from active sessionManager if not yet registered in transport map
+    if (!hasBaileys) {
+      try {
+        const sessionManager = require('../sessionManager');
+        const s = sessionManager.getSession(sId) || (typeof sessionManager.getConnectedSessionOrNull === 'function' ? sessionManager.getConnectedSessionOrNull() : null);
+        if (s && s.sock && String(s.status || '').toLowerCase() === 'connected') {
+          this.registerTransport(sId, capabilityRegistry.ENGINES.BAILEYS, {
+            status: 'connected',
+            phone: s.phone || null,
+            companyId: s.companyId || context.companyId || 'default',
+          });
+          hasBaileys = true;
+        }
+      } catch (_) {}
+    }
     const hasWebBridge = active.some(t => t.engine === capabilityRegistry.ENGINES.WHATSAPP_WEB_BRIDGE && t.status === 'connected');
     const hasCloud = active.some(t => t.engine === capabilityRegistry.ENGINES.CLOUD_API && t.status === 'connected');
 

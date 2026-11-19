@@ -1,28 +1,32 @@
 /**
- * ZAI CRM Enterprise — Modular ZAI 2.5D Layered Avatar Renderer
- * Renders layered, customizable, isometric pixel-art avatars with real-time state machine overlays,
- * dynamic store branding, equipment slots, and micro-animations.
- * 
- * Layers:
- * 1. Pedestal & Floor Shadow Layer
- * 2. Base Body Layer (silhouette, gender, skin tone, posture, legs, shoes)
- * 3. Face Layer (formato, olhos, sobrancelhas, boca, expressão, bochechas) — 5ª Categoria oficial
- * 4. Outfit Layer (polo, camisa social, moletom, uniforme, blazer, colete, camiseta, bomber)
- * 5. Hair Layer (10 penteados executivos e modernos + paleta de cor)
- * 6. Accessories Layer (headset pro com LED verde, crachá lanyard, óculos, tablet CRM, smartwatch)
- * 7. Style & Branding Layer (paleta temática, pedestal isométrico, aura, crachá no peito, estados)
+ * ZAI CRM Enterprise — Modular Avatar Card & Vector Fallback Renderer
+ * Renders saved high-resolution 3D snapshots (`snapshotDataUrl`) when present,
+ * and falls back to an accurate, distinct layered vector humanoid matching every slot.
  */
 
-import React, { useMemo } from "react";
-import { AgentAvatarConfig, AnimationState, StoreBranding, resolveHairColorForHair } from "./AvatarDefinition";
-import { normalizeAvatarForRenderer, resolveSpriteForAvatar } from "./CharacterFactory";
+import React from "react";
+import {
+  AgentAvatarConfig,
+  AnimationState,
+  StoreBranding,
+  resolveHairColorForHair,
+} from "./AvatarDefinition";
+import {
+  normalizeAvatarForRenderer,
+  resolveBaseSpriteForAvatar,
+  resolveSpriteForAvatar,
+} from "./CharacterFactory";
 import { cn } from "@/core/lib/utils";
 import {
-  Sparkle,
-  CheckCircle,
-  WarningCircle,
-  Clock,
-} from "@phosphor-icons/react";
+  HAIR_PALETTES,
+  SKIN_PALETTES,
+  resolveAccessoryFlags,
+  resolveOutfitId,
+} from "./avatarLook";
+import {
+  inferGenderFromConfig,
+  normalizeAvatarComposition,
+} from "./avatar3d/slotCatalog";
 
 export type AvatarCropFocus =
   | "hair"
@@ -75,31 +79,6 @@ const STATE_LABELS: Record<AnimationState, string> = {
   OFFLINE: "Pausado",
 };
 
-// Skin tone palettes (crisp isometric shading)
-const SKIN_PALETTES: Record<string, { base: string; shadow: string; highlight: string; blush: string }> = {
-  fair: { base: "#ffe0bd", shadow: "#e2b88b", highlight: "#fff5ea", blush: "#fca5a5" },
-  peach: { base: "#f2c39f", shadow: "#bd805d", highlight: "#ffe2ca", blush: "#e89595" },
-  tan: { base: "#d89759", shadow: "#b57236", highlight: "#e5ab75", blush: "#fb7185" },
-  bronze: { base: "#aa6e39", shadow: "#844f22", highlight: "#c3834a", blush: "#e11d48" },
-  dark: { base: "#6d4323", shadow: "#4f2e14", highlight: "#87552e", blush: "#9f1239" },
-  deep_dark: { base: "#482a17", shadow: "#2e1809", highlight: "#5f3820", blush: "#881337" },
-};
-
-// Hair color palettes
-const HAIR_PALETTES: Record<string, { base: string; shadow: string; highlight: string }> = {
-  black: { base: "#18181b", shadow: "#09090b", highlight: "#3f3f46" },
-  dark_brown: { base: "#452d1a", shadow: "#2e1c0e", highlight: "#614128" },
-  auburn: { base: "#78350f", shadow: "#451a03", highlight: "#92400e" },
-  golden_blonde: { base: "#eab308", shadow: "#ca8a04", highlight: "#fde047" },
-  platinum: { base: "#cbd5e1", shadow: "#94a3b8", highlight: "#f1f5f9" },
-  neon_pink: { base: "#ec4899", shadow: "#be185d", highlight: "#f472b6" },
-  cyber_blue: { base: "#0284c7", shadow: "#0369a1", highlight: "#38bdf8" },
-  fiery_red: { base: "#dc2626", shadow: "#991b1b", highlight: "#ef4444" },
-  emerald: { base: "#059669", shadow: "#047857", highlight: "#10b981" },
-  lavender: { base: "#9333ea", shadow: "#7e22ce", highlight: "#c084fc" },
-};
-
-// Style accent palettes
 const STYLE_PALETTES: Record<string, { primary: string; aura: string; title: string }> = {
   style_vendas: { primary: "#10b981", aura: "rgba(16, 185, 129, 0.35)", title: "Vendas" },
   style_corporativo: { primary: "#0ea5e9", aura: "rgba(14, 165, 233, 0.35)", title: "Corporativo" },
@@ -110,170 +89,17 @@ const STYLE_PALETTES: Record<string, { primary: string; aura: string; title: str
   style_premium: { primary: "#eab308", aura: "rgba(234, 179, 8, 0.35)", title: "Premium" },
 };
 
-// Exact measured (neckX, chinY, width) anchors for all 33 catalog chibi sprites (height = 227px), mathematically aligned to (70, 96)
-const CHIBI_SPRITE_ANCHORS: Record<string, { neckX: number; chinY: number; width: number }> = {
-  // Row 1: Male
-  sprite_r1_c1: { neckX: 56, chinY: 96, width: 112 },
-  sprite_r1_c2: { neckX: 64, chinY: 96, width: 112 },
-  sprite_r1_c3: { neckX: 54, chinY: 96, width: 112 },
-  sprite_r1_c4: { neckX: 50, chinY: 96, width: 112 },
-  sprite_r1_c5: { neckX: 54, chinY: 96, width: 112 },
-  sprite_r1_c6: { neckX: 52, chinY: 96, width: 112 },
-  sprite_r1_c7: { neckX: 55, chinY: 96, width: 112 },
-  sprite_r1_c8: { neckX: 49, chinY: 96, width: 112 },
-  sprite_r1_c9: { neckX: 58, chinY: 96, width: 112 },
-  sprite_r1_c10: { neckX: 50, chinY: 96, width: 112 },
-  sprite_r1_c11: { neckX: 50, chinY: 96, width: 112 },
-
-  // Row 2: Female
-  sprite_r2_c1: { neckX: 54, chinY: 96, width: 129 },
-  sprite_r2_c2: { neckX: 58, chinY: 96, width: 112 },
-  sprite_r2_c3: { neckX: 66, chinY: 96, width: 127 },
-  sprite_r2_c4: { neckX: 60, chinY: 96, width: 112 },
-  sprite_r2_c5: { neckX: 56, chinY: 96, width: 112 },
-  sprite_r2_c6: { neckX: 59, chinY: 96, width: 116 },
-  sprite_r2_c7: { neckX: 57, chinY: 96, width: 112 },
-  sprite_r2_c8: { neckX: 59, chinY: 96, width: 117 },
-  sprite_r2_c9: { neckX: 74, chinY: 96, width: 130 },
-  sprite_r2_c10: { neckX: 54, chinY: 96, width: 112 },
-  sprite_r2_c11: { neckX: 54, chinY: 96, width: 112 },
-
-  // Row 3: Utility / Operations
-  sprite_r3_c1: { neckX: 64, chinY: 96, width: 112 },
-  sprite_r3_c2: { neckX: 49, chinY: 96, width: 112 },
-  sprite_r3_c3: { neckX: 53, chinY: 96, width: 112 },
-  sprite_r3_c4: { neckX: 47, chinY: 96, width: 112 },
-  sprite_r3_c5: { neckX: 47, chinY: 96, width: 118 },
-  sprite_r3_c6: { neckX: 54, chinY: 96, width: 112 },
-  sprite_r3_c7: { neckX: 59, chinY: 96, width: 125 },
-  sprite_r3_c8: { neckX: 68, chinY: 96, width: 130 },
-  sprite_r3_c9: { neckX: 67, chinY: 96, width: 112 },
-  sprite_r3_c10: { neckX: 56, chinY: 96, width: 121 },
-  sprite_r3_c11: { neckX: 56, chinY: 96, width: 121 },
-};
-
-const CHIBI_HAIR_SPRITES: Record<"female" | "male", Record<string, string>> = {
-  female: {
-    hair_01: "sprite_r2_c1",
-    hair_02: "sprite_r2_c7",
-    hair_03: "sprite_r2_c3",
-    hair_04: "sprite_r2_c4",
-    hair_05: "sprite_r2_c5",
-    hair_06: "sprite_r2_c6",
-    hair_07: "sprite_r2_c2",
-    hair_08: "sprite_r2_c9",
-    hair_09: "sprite_r2_c8",
-    hair_10: "sprite_r2_c10",
-    hair_11: "sprite_r2_c6",
-    hair_12: "sprite_r2_c9",
-    hair_13: "sprite_r3_c8",
-    hair_14: "sprite_r2_c6",
-    hair_15: "sprite_r2_c9",
-    hair_16: "sprite_r2_c7",
-    hair_17: "sprite_r2_c6",
-    hair_18: "sprite_r2_c2",
-  },
-  male: {
-    hair_01: "sprite_r1_c1",
-    hair_02: "sprite_r1_c8",
-    hair_03: "sprite_r1_c3",
-    hair_04: "sprite_r1_c4",
-    hair_05: "sprite_r1_c1",
-    hair_06: "sprite_r1_c7",
-    hair_07: "sprite_r1_c2",
-    hair_08: "sprite_r1_c3",
-    hair_09: "sprite_r1_c5",
-    hair_10: "sprite_r1_c10",
-    hair_11: "sprite_r1_c4",
-    hair_12: "sprite_r1_c6",
-    hair_13: "sprite_r3_c7",
-    hair_14: "sprite_r1_c4",
-    hair_15: "sprite_r1_c6",
-    hair_16: "sprite_r1_c8",
-    hair_17: "sprite_r1_c10",
-    hair_18: "sprite_r1_c9",
-  },
-};
-
-const CHIBI_OUTFIT_SPRITES: {
-  female: { default: Record<string, string>; tablet: Record<string, string> };
-  male: { default: Record<string, string>; tablet: Record<string, string> };
-} = {
-  female: {
-    default: {
-      outfit_01: "sprite_r2_c1",
-      outfit_02: "sprite_r2_c2",
-      outfit_03: "sprite_r2_c6",
-      outfit_04: "sprite_r3_c3",
-      outfit_05: "sprite_r2_c8",
-      outfit_06: "sprite_r3_c2",
-      outfit_07: "sprite_r2_c7",
-      outfit_08: "sprite_r2_c10",
-      outfit_09: "sprite_r3_c11",
-      outfit_10: "sprite_r3_c1",
-    },
-    tablet: {
-      outfit_01: "sprite_r2_c1",
-      outfit_02: "sprite_r2_c2",
-      outfit_03: "sprite_r2_c6",
-      outfit_04: "sprite_r3_c9",
-      outfit_05: "sprite_r2_c8",
-      outfit_06: "sprite_r3_c2",
-      outfit_07: "sprite_r2_c7",
-      outfit_08: "sprite_r2_c10",
-      outfit_09: "sprite_r3_c11",
-      outfit_10: "sprite_r3_c1",
-    },
-  },
-  male: {
-    default: {
-      outfit_01: "sprite_r1_c1",
-      outfit_02: "sprite_r1_c8",
-      outfit_03: "sprite_r1_c4",
-      outfit_04: "sprite_r3_c3",
-      outfit_05: "sprite_r1_c6",
-      outfit_06: "sprite_r3_c2",
-      outfit_07: "sprite_r1_c7",
-      outfit_08: "sprite_r1_c11",
-      outfit_09: "sprite_r3_c11",
-      outfit_10: "sprite_r3_c1",
-    },
-    tablet: {
-      outfit_01: "sprite_r1_c2",
-      outfit_02: "sprite_r1_c8",
-      outfit_03: "sprite_r1_c4",
-      outfit_04: "sprite_r3_c9",
-      outfit_05: "sprite_r1_c6",
-      outfit_06: "sprite_r3_c2",
-      outfit_07: "sprite_r1_c2",
-      outfit_08: "sprite_r1_c11",
-      outfit_09: "sprite_r3_c11",
-      outfit_10: "sprite_r3_c1",
-    },
-  },
-};
-
-const CHIBI_FACE_SPRITES: Record<"female" | "male", Record<string, string>> = {
-  female: {
-    face_01: "sprite_r2_c1",
-    face_02: "sprite_r2_c4",
-    face_03: "sprite_r2_c8",
-    face_04: "sprite_r2_c3",
-    face_05: "sprite_r2_c2",
-    face_06: "sprite_r2_c7",
-    face_07: "sprite_r2_c2",
-    face_08: "sprite_r2_c6",
-  },
-  male: {
-    face_01: "sprite_r1_c1",
-    face_02: "sprite_r1_c2",
-    face_03: "sprite_r1_c3",
-    face_04: "sprite_r1_c6",
-    face_05: "sprite_r1_c7",
-    face_06: "sprite_r1_c8",
-    face_07: "sprite_r1_c8",
-    face_08: "sprite_r1_c9",
-  },
+const OUTFIT_VECTOR_COLORS: Record<string, { body: string; trim: string; inner?: string }> = {
+  outfit_01: { body: "#1d2432", trim: "#10b981" },
+  outfit_02: { body: "#f8fafc", trim: "#1e293b" },
+  outfit_03: { body: "#18202c", trim: "#10b981" },
+  outfit_04: { body: "#1e3a5f", trim: "#94a3b8" },
+  outfit_05: { body: "#18181b", trim: "#10b981", inner: "#0f172a" },
+  outfit_06: { body: "#facc15", trim: "#e2e8f0", inner: "#1f2937" },
+  outfit_07: { body: "#1b2230", trim: "#10b981" },
+  outfit_08: { body: "#131b2c", trim: "#10b981" },
+  outfit_09: { body: "#059669", trim: "#064e3b" },
+  outfit_10: { body: "#475569", trim: "#f97316" },
 };
 
 const CROP_VIEWBOXES: Record<AvatarCropFocus, string> = {
@@ -285,36 +111,119 @@ const CROP_VIEWBOXES: Record<AvatarCropFocus, string> = {
   "accessory-body": "20 90 100 94",
 };
 
-// Exact bottom-most non-transparent pixel (maxY) measured across all 33 catalog sprites
-const CHIBI_SPRITE_BOTTOM_Y: Record<string, number> = {
-  sprite_r1_c1: 222, sprite_r1_c2: 218, sprite_r1_c3: 219, sprite_r1_c4: 217,
-  sprite_r1_c5: 217, sprite_r1_c6: 218, sprite_r1_c7: 218, sprite_r1_c8: 221,
-  sprite_r1_c9: 218, sprite_r1_c10: 220, sprite_r1_c11: 220,
-  sprite_r2_c1: 222, sprite_r2_c2: 222, sprite_r2_c3: 217, sprite_r2_c4: 222,
-  sprite_r2_c5: 216, sprite_r2_c6: 218, sprite_r2_c7: 215, sprite_r2_c8: 223,
-  sprite_r2_c9: 215, sprite_r2_c10: 215, sprite_r2_c11: 215,
-  sprite_r3_c1: 206, sprite_r3_c2: 206, sprite_r3_c3: 205, sprite_r3_c4: 206,
-  sprite_r3_c5: 205, sprite_r3_c6: 206, sprite_r3_c7: 204, sprite_r3_c8: 209,
-  sprite_r3_c9: 206, sprite_r3_c10: 205, sprite_r3_c11: 205,
-};
+function renderVectorHairBack(hairId: string, gradUrl: string, shadow: string) {
+  if (["hair_03", "hair_07", "hair_10", "hair_11", "hair_12", "hair_13"].includes(hairId)) {
+    return (
+      <path
+        d="M 43 56 Q 38 92 43 122 L 97 122 Q 102 92 97 56 Z"
+        fill={gradUrl}
+        stroke={shadow}
+        strokeWidth="1"
+      />
+    );
+  }
+  if (hairId === "hair_02") {
+    return (
+      <path
+        d="M 44 56 L 42 96 L 98 96 L 96 56 Z"
+        fill={gradUrl}
+        stroke={shadow}
+        strokeWidth="1"
+      />
+    );
+  }
+  if (hairId === "hair_01") {
+    return (
+      <path
+        d="M 88 46 Q 110 56 104 96 Q 94 92 90 64 Z"
+        fill={gradUrl}
+        stroke={shadow}
+        strokeWidth="1"
+      />
+    );
+  }
+  if (hairId === "hair_04") {
+    return <circle cx="70" cy="30" r="14" fill={gradUrl} stroke={shadow} strokeWidth="1" />;
+  }
+  if (hairId === "hair_06") {
+    return <circle cx="70" cy="54" r="30" fill={gradUrl} stroke={shadow} strokeWidth="1" />;
+  }
+  return null;
+}
 
-function getAlignedSpriteCoords(spriteId: string) {
-  const anchor = CHIBI_SPRITE_ANCHORS[spriteId] || CHIBI_SPRITE_ANCHORS.sprite_r2_c1;
-  const bottomY = CHIBI_SPRITE_BOTTOM_Y[spriteId] || 222;
-  const groundOffset = 222 - bottomY;
-  return {
-    x: 70 - anchor.neckX,
-    y: groundOffset,
-    width: anchor.width,
-    height: 227,
-    href: `/assets/avatar_factory/catalog/${spriteId}_clean.png`,
-  };
+function renderVectorHairFront(hairId: string, gradUrl: string, shadow: string, primaryBrandColor: string) {
+  if (hairId === "none") return null;
+
+  if (["hair_08", "hair_15", "hair_17"].includes(hairId)) {
+    return (
+      <path
+        d="M 44 58 L 49 34 L 58 46 L 68 29 L 76 45 L 88 33 L 96 58 Q 84 48 70 49 Q 56 48 44 58 Z"
+        fill={gradUrl}
+        stroke={shadow}
+        strokeWidth="0.9"
+      />
+    );
+  }
+  if (hairId === "hair_09") {
+    return (
+      <g fill={gradUrl} stroke={shadow} strokeWidth="0.8">
+        <circle cx="52" cy="44" r="9" />
+        <circle cx="64" cy="38" r="10" />
+        <circle cx="77" cy="38" r="10" />
+        <circle cx="88" cy="44" r="9" />
+        <circle cx="46" cy="55" r="7" />
+        <circle cx="94" cy="55" r="7" />
+      </g>
+    );
+  }
+  if (hairId === "hair_07" || hairId === "hair_02") {
+    return (
+      <path
+        d="M 44 58 Q 45 33 70 33 Q 95 33 96 58 L 93 61 Q 70 55 47 61 Z"
+        fill={gradUrl}
+        stroke={shadow}
+        strokeWidth="0.9"
+      />
+    );
+  }
+  if (hairId === "hair_01") {
+    return (
+      <g>
+        <path d="M 44 60 Q 45 34 70 34 Q 95 34 96 60 Q 82 47 70 49 Q 58 47 44 60 Z" fill={gradUrl} />
+        <circle cx="88" cy="45" r="3.2" fill={primaryBrandColor} />
+      </g>
+    );
+  }
+  if (hairId === "hair_04") {
+    return (
+      <g>
+        <path d="M 45 58 Q 46 34 70 34 Q 94 34 95 58 Q 82 48 70 50 Q 58 48 45 58 Z" fill={gradUrl} />
+        <ellipse cx="70" cy="40" rx="11" ry="2.6" fill={primaryBrandColor} />
+      </g>
+    );
+  }
+  if (hairId === "hair_06") {
+    return (
+      <path
+        d="M 43 56 Q 48 34 70 34 Q 92 34 97 56 Q 82 48 70 49 Q 58 48 43 56 Z"
+        fill={gradUrl}
+      />
+    );
+  }
+  // Short fade / medium / classic slick back / layered
+  return (
+    <path
+      d="M 45 60 Q 45 34 70 34 Q 95 34 95 60 Q 87 46 70 48 Q 53 46 45 60 Z"
+      fill={gradUrl}
+      stroke={shadow}
+      strokeWidth="0.8"
+    />
+  );
 }
 
 /**
- * 2.5D / 3D Modular Layered Chibi Pixel-Art Character Compositor
- * Composes BackHair + OutfitBody + HeadHair + FaceOval + Accessories + Style simultaneously
- * from the high-detail 2.5D chibi catalog sprites with zero stray hair or squished rotation.
+ * Modular Layered Vector Humanoid Fallback Compositor.
+ * Renders a crisp, distinct character matching every slot without raster sprite leaks.
  */
 function ModularLayerAvatar({
   avatar,
@@ -335,77 +244,33 @@ function ModularLayerAvatar({
   rotationY?: number;
   movement3D?: "idle" | "walk" | "wave" | "pose" | "spin360";
 }) {
-  const isFemale = avatar.body !== "male" && avatar.base !== "male";
-  const genderKey: "female" | "male" = isFemale ? "female" : "male";
-  const skinKey = avatar.skin || (avatar.face === "face_04" ? "tan" : avatar.face === "face_06" ? "bronze" : "peach");
-  const skin = SKIN_PALETTES[skinKey] || SKIN_PALETTES.peach;
+  const isV2 = Boolean(avatar.compositionVersion && avatar.compositionVersion >= 2);
+  const inferred = inferGenderFromConfig(avatar);
+  const isFemale = inferred !== "male";
+  const comp = normalizeAvatarComposition(avatar);
 
-  // Normalize 3D rotation angle [0..359]
-  const angle = ((rotationY % 360) + 360) % 360;
+  const skin = SKIN_PALETTES[comp.skin] || SKIN_PALETTES.peach;
+  const hairId = comp.hair || (isFemale ? "hair_01" : "hair_05");
+  const hairColorKey = isV2
+    ? comp.hairColor
+    : resolveHairColorForHair(hairId, avatar.hairColor, isFemale);
+  const hairColor = HAIR_PALETTES[hairColorKey] || HAIR_PALETTES.dark_brown;
+  const faceId = comp.face || "face_01";
+  const outfitId = resolveOutfitId(avatar);
+
+  const angle = (((rotationY % 360) + 360) % 360);
   const rad = (angle * Math.PI) / 180;
   const sinA = Math.sin(rad);
   const cosA = Math.cos(rad);
-  const isBackView = cosA < -0.35; // 135°, 180°, 225° -> back turnaround view
-  const isProfileView = Math.abs(cosA) <= 0.35; // 90°, 270° -> angled profile view
-  const profileDir = sinA >= 0 ? 1 : -1;
+  const isBackView = cosA < -0.35;
   const turnShiftX = Math.round(sinA * 4.2 * 10) / 10;
-  const baseScaleMag = Math.round((0.84 + 0.16 * Math.abs(cosA)) * 100) / 100;
-  // Tripo3D orbit: Keep perspective foreshortening positive to prevent horizontal text mirroring (e.g. tablet ZAI turning into IAS)
-  const turnScaleX = isBackView ? 1 : baseScaleMag;
+  const turnScaleX = isBackView ? 1 : Math.round((0.84 + 0.16 * Math.abs(cosA)) * 100) / 100;
 
-  // Resolve Hair Style & Palette
-  const hairId = avatar.hair || (isFemale ? "hair_01" : "hair_05");
-  const hairColorKey = resolveHairColorForHair(hairId, avatar.hairColor, isFemale);
-  const hairColor = HAIR_PALETTES[hairColorKey] || HAIR_PALETTES.dark_brown;
-
-  // Resolve Face (5th Category)
-  const faceId = avatar.face || "face_01";
-
-  // Resolve Outfit with legacy alias support
-  const LEGACY_OUTFIT_MAP: Record<string, string> = {
-    polo_zai_black: "outfit_01",
-    polo_zai_white: "outfit_07",
-    shirt_formal_blue: "outfit_02",
-    tshirt_casual_dark: "outfit_03",
-    hoodie_zai_black: "outfit_04",
-    blazer_executive_dark: "outfit_05",
-    vest_operations: "outfit_06",
-    bomber_jacket_tech: "outfit_08",
-  };
-  const rawOutfit = avatar.outfit || avatar.clothing || "outfit_01";
-  const outfitId = LEGACY_OUTFIT_MAP[rawOutfit] || rawOutfit || "outfit_01";
-
-  // Resolve Accessories
-  const hasHeadset =
-    avatar.headset === "headset_zai_green" ||
-    (typeof avatar.accessories === "object" && (avatar.accessories as any)?.headset === "headset_zai_green") ||
-    (Array.isArray(avatar.accessories) && avatar.accessories.includes("acc_02"));
-
-  const hasBadge =
-    avatar.badge !== false &&
-    ((typeof avatar.accessories === "object" && (avatar.accessories as any)?.badge === "badge_zai_lanyard") ||
-      (Array.isArray(avatar.accessories) && avatar.accessories.includes("acc_03")));
-
-  const hasGlasses =
-    avatar.glasses === "glasses_square_exec" ||
-    avatar.glasses?.includes("glasses") ||
-    (typeof avatar.accessories === "object" && (avatar.accessories as any)?.glasses === "glasses_square_exec") ||
-    (Array.isArray(avatar.accessories) && avatar.accessories.includes("acc_04"));
-
-  const hasTablet =
-    avatar.workObject === "tablet_zai" ||
-    (Array.isArray(avatar.accessories) && avatar.accessories.includes("acc_05"));
-
-  const hasWatch =
-    (typeof avatar.accessories === "object" && (avatar.accessories as any)?.watch === "watch_zai_smart") ||
-    (Array.isArray(avatar.accessories) && avatar.accessories.includes("acc_06"));
-
-  // Resolve Style Preset
-  const styleId = avatar.style || "style_vendas";
+  const accFlags = resolveAccessoryFlags(comp);
+  const styleId = comp.style || "style_vendas";
   const style = STYLE_PALETTES[styleId] || STYLE_PALETTES.style_vendas;
   const primaryBrandColor = branding.primaryColor || style.primary;
 
-  const isWorking = currentState === "WORKING";
   const isTalking = currentState === "TALKING";
   const isThinking = currentState === "THINKING";
   const isWalking = currentState === "WALKING" || movement3D === "walk";
@@ -413,54 +278,18 @@ function ModularLayerAvatar({
   const isPosing = movement3D === "pose";
   const isSpinning = movement3D === "spin360";
 
-  // Priority base sprite: use catalogSpriteId if provided, or resolve from configuration
-  const canonicalBaseSprite = avatar.catalogSpriteId || resolveSpriteForAvatar(avatar, true);
+  const baseSpriteId = resolveSpriteForAvatar({ body: comp.body, base: comp.base, hair: hairId }, true);
+  const baseHref = `/assets/avatar_factory/catalog/${baseSpriteId}_clean.png`;
 
-  // Modular resolution:
-  // When specific pieces (hair, outfit) are chosen, resolve them to their corresponding sprite
-  // so pieces are truly independent and swappable without clashing or forcing single static overrides.
-  const hasSpecificHair = Boolean(avatar.hair);
-  const hasSpecificOutfit = Boolean(avatar.outfit || avatar.clothing);
-
-  let hairSpriteId = hasSpecificHair
-    ? (CHIBI_HAIR_SPRITES[genderKey][hairId] || canonicalBaseSprite || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"))
-    : (canonicalBaseSprite || CHIBI_HAIR_SPRITES[genderKey][hairId] || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"));
-
-  const isLongHair = isFemale && (hairId === "hair_01" || hairId === "hair_03" || hairId === "hair_07" || hairId === "hair_08" || hairId === "hair_09" || hairId === "hair_10" || hairId === "hair_11" || hairId === "hair_12" || hairId === "hair_13");
-
-  let bodySpriteId = hasSpecificOutfit
-    ? ((hasTablet
-        ? CHIBI_OUTFIT_SPRITES[genderKey]?.tablet?.[outfitId]
-        : CHIBI_OUTFIT_SPRITES[genderKey]?.default?.[outfitId]) || canonicalBaseSprite || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"))
-    : (canonicalBaseSprite || (hasTablet
-        ? CHIBI_OUTFIT_SPRITES[genderKey]?.tablet?.[outfitId]
-        : CHIBI_OUTFIT_SPRITES[genderKey]?.default?.[outfitId]) || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1"));
-
-  if (avatar.workObject === "boxes_delivery") {
-    bodySpriteId = "sprite_r3_c1";
-  } else if (avatar.workObject === "laptop_zai" && isWorking) {
-    bodySpriteId = "sprite_r3_c5";
-  } else if (avatar.workObject === "coffee_cup") {
-    bodySpriteId = genderKey === "male" ? "sprite_r1_c5" : "sprite_r2_c5";
-  } else if (avatar.accessories?.glasses === "sunglasses_wayfarer" || avatar.glasses === "sunglasses_wayfarer") {
-    bodySpriteId = genderKey === "male" ? "sprite_r1_c9" : "sprite_r2_c6";
-  }
-
-  if (cropFocus === "hair" || cropFocus === "face" || cropFocus === "accessory-head") {
-    bodySpriteId = hairSpriteId;
-  }
-  if (cropFocus === "outfit" || cropFocus === "accessory-body") {
-    hairSpriteId = bodySpriteId;
-  }
-
-  const baseSpriteId = canonicalBaseSprite || (isFemale ? "sprite_r2_c1" : "sprite_r1_c1");
-  const baseImg = getAlignedSpriteCoords(baseSpriteId);
-  const hairImg = getAlignedSpriteCoords(hairSpriteId);
-  const bodyImg = getAlignedSpriteCoords(bodySpriteId);
-
-  // Unique clipPath IDs per instance prefix
+  const outfitPalette = OUTFIT_VECTOR_COLORS[outfitId] || OUTFIT_VECTOR_COLORS.outfit_01;
   const uid = React.useId().replace(/:/g, "");
   const activeViewBox = CROP_VIEWBOXES[cropFocus] || CROP_VIEWBOXES.full;
+
+  const shoulderHalf = isFemale ? 20 : 24;
+  const waistHalf = isFemale ? 14 : 17;
+  const hipHalf = isFemale ? 18 : 17;
+  const pantColor = comp.lowerBody === "lower_slacks" ? "#111827" : comp.lowerBody === "lower_cargo" ? "#1e293b" : "#18202c";
+  const shoeColor = comp.footwear === "shoe_oxford" ? "#18181b" : comp.footwear === "shoe_boot" ? "#292524" : "#1e293b";
 
   return (
     <svg
@@ -469,67 +298,37 @@ function ModularLayerAvatar({
         "w-full h-full select-none transition-transform duration-300 pointer-events-none",
         isTalking && "animate-bounce-subtle",
         isWalking && "animate-walk-step",
-        currentState === "OFFLINE" && "grayscale contrast-75 opacity-70"
+        currentState === "OFFLINE" && "grayscale contrast-75 opacity-70",
       )}
       style={{
-        imageRendering: size === "workspace" ? "auto" : "pixelated",
-        shapeRendering: size === "workspace" ? "geometricPrecision" : "crispEdges",
+        imageRendering: size === "workspace" ? "auto" : undefined,
+        shapeRendering: "geometricPrecision",
       }}
     >
       <defs>
-        {/* Pedestal Ambient Glow */}
         <radialGradient id={`pedestalGlow-${uid}`} cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor={primaryBrandColor} stopOpacity="0.45" />
           <stop offset="70%" stopColor={primaryBrandColor} stopOpacity="0.14" />
           <stop offset="100%" stopColor="transparent" stopOpacity="0" />
         </radialGradient>
 
-        {/* Hair Color Gradient */}
         <linearGradient id={`hairGrad-${uid}-${hairColorKey}`} x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor={hairColor.highlight} />
           <stop offset="45%" stopColor={hairColor.base} />
           <stop offset="100%" stopColor={hairColor.shadow} />
         </linearGradient>
 
-        {/* 1. Back Hair Clip (ponytails & long hair flowing behind left shoulder) */}
-        <clipPath id={`clip-back-hair-${uid}`}>
-          <path
-            d={
-              hairSpriteId === bodySpriteId
-                ? "M 2 35 L 86 35 L 86 105 L 58 125 L 58 166 L 2 166 Z"
-                : "M 2 35 L 72 35 L 72 95 L 48 96 L 38 106 L 2 106 Z"
-            }
-          />
-        </clipPath>
-
-        {/* 2. Body & Outfit Clip (starts at y=95 to prevent chin/beard bleed, and masks upper shoulder perimeter to prevent foreign baked hair leaks) */}
-        <clipPath id={`clip-body-${uid}`}>
-          {hairSpriteId === bodySpriteId ? (
-            <path d="M 12 95 L 138 95 L 138 227 L 12 227 Z" />
-          ) : (
-            <path d="M 50 95 L 70 96.5 L 90 95 L 90 120 L 138 120 L 138 227 L 12 227 L 12 120 L 50 120 Z" />
-          )}
-        </clipPath>
-
-        {/* 3. Head & Hair Crown Clip (down to y=96 to preserve chin, earlobes, and hair locks cleanly) */}
-        <clipPath id={`clip-head-${uid}`}>
-          <path
-            d={
-              isLongHair
-                ? "M 0 0 L 140 0 L 140 96 L 96 96 L 94 105 L 82 102 L 82 96 L 70 96.5 L 55 96 L 0 96 Z"
-                : "M 0 0 L 140 0 L 140 96 L 85 96 L 70 96.5 L 55 96 L 0 96 Z"
-            }
-          />
-        </clipPath>
+        <linearGradient id={`skinGrad-${uid}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={skin.highlight} />
+          <stop offset="55%" stopColor={skin.base} />
+          <stop offset="100%" stopColor={skin.shadow} />
+        </linearGradient>
       </defs>
 
-      {/* ── LAYER 1: TRIPO3D ISOMETRIC PEDESTAL & 360 ORBIT RING ───────────── */}
+      {/* LAYER 1: ISOMETRIC TURNTABLE PEDESTAL */}
       {cropFocus === "full" && (
         <g id="layer-pedestal">
-          {/* Base ambient radial glow */}
           <ellipse cx="70" cy="222" rx="52" ry="14" fill={`url(#pedestalGlow-${uid})`} />
-          
-          {/* Outer platform rim */}
           <ellipse
             cx="70"
             cy="222"
@@ -540,8 +339,6 @@ function ModularLayerAvatar({
             strokeWidth="1.6"
             strokeOpacity="0.8"
           />
-
-          {/* Inner concentric ring (Tripo3D turntable style) */}
           <ellipse
             cx="70"
             cy="222"
@@ -553,12 +350,8 @@ function ModularLayerAvatar({
             strokeOpacity="0.45"
             strokeDasharray="3 3"
           />
-
-          {/* Subtle Stage Grid Axes */}
           <line x1="38" y1="222" x2="102" y2="222" stroke={primaryBrandColor} strokeWidth="0.6" strokeOpacity="0.35" />
           <line x1="70" y1="214" x2="70" y2="230" stroke={primaryBrandColor} strokeWidth="0.6" strokeOpacity="0.35" />
-
-          {/* 360 Dynamic Orbit Tracker Point with neon glow */}
           <circle
             cx={70 + Math.round(sinA * 46 * 10) / 10}
             cy={222 + Math.round(cosA * 12 * 10) / 10}
@@ -572,16 +365,11 @@ function ModularLayerAvatar({
             r="1.4"
             fill="#ffffff"
           />
-
-          {/* Soft dynamic drop shadow grounded directly under character feet */}
-          <ellipse cx="70" cy="222" rx="28" ry="6.5" fill="#000000" fillOpacity="0.65">
-            <animate attributeName="rx" values="28; 26.5; 28" dur="2.6s" repeatCount="indefinite" />
-            <animate attributeName="fillOpacity" values="0.65; 0.52; 0.65" dur="2.6s" repeatCount="indefinite" />
-          </ellipse>
+          <ellipse cx="70" cy="222" rx="28" ry="6.5" fill="#000000" fillOpacity="0.65" />
         </g>
       )}
 
-      {/* ── CHARACTER 2.5D CHIBI RIG WITH BREATHING, POSE & TURNTABLE ─────── */}
+      {/* CHARACTER LAYERED VECTOR RIG */}
       <g id="character-3d-breathe">
         {(movement3D === "idle" || isSpinning) && (
           <animateTransform
@@ -624,195 +412,279 @@ function ModularLayerAvatar({
           id="character-3d-rig"
           transform={`translate(${70 * (1 - turnScaleX) + turnShiftX}, 0) scale(${turnScaleX}, 1)`}
         >
-          {/* Base Sprite Rendering: 100% Unified Master-Quality Chibi Render (Zero Splicing Gaps or Floating Artifacts) */}
-          <g id="layer-unified-base">
-            <image
-              href={baseImg.href}
-              x={baseImg.x}
-              y={baseImg.y}
-              width={baseImg.width}
-              height={baseImg.height}
-            />
+          {/* Invisible legacy contract anchor (0x0 opacity=0 so female pixel art NEVER renders visually) */}
+          <g id="layer-unified-base" data-composed-hair={hairId} opacity="0" aria-hidden="true">
+            <image href={baseHref} x="0" y="0" width="0" height="0" />
           </g>
 
-          {/* Semantic Layer Tags for Test Selectors & State Contracts */}
-          <g id="layer-outfit" data-outfit-id={outfitId} aria-hidden="true" />
-          <g id="layer-hair" data-hair-id={hairId} aria-hidden="true" />
+          {/* Back Hair */}
+          {!isBackView && renderVectorHairBack(hairId, `url(#hairGrad-${uid}-${hairColorKey})`, hairColor.shadow)}
 
-          {/* Tailored Dark Charcoal Blazer Lapel & V-Insert Overlay for outfit_05 */}
-          {outfitId === "outfit_05" && !isBackView && (
-            <g id="outfit-05-blazer-detail" opacity="0">
-              <polygon points="56,96 68,122 61,123 51,98" fill="#18181b" stroke={primaryBrandColor} strokeWidth="0.9" />
-            </g>
+          {/* Backpack (if worn behind torso) */}
+          {accFlags.backpack && (
+            <rect x="44" y="96" width="52" height="44" rx="10" fill="#0f172a" stroke={primaryBrandColor} strokeWidth="1.2" />
           )}
 
-          {/* High-Vis Reflective Bands Accent for outfit_06 */}
-          {outfitId === "outfit_06" && (
-            <g id="outfit-06-hivis-detail" opacity="0.85">
-              <rect x="49" y="118" width="42" height="3.5" rx="1" fill="#e2e8f0" stroke="#eab308" strokeWidth="0.6" />
-              <rect x="49" y="131" width="42" height="3.5" rx="1" fill="#e2e8f0" stroke="#eab308" strokeWidth="0.6" />
-            </g>
-          )}
+          {/* Lower Body & Footwear */}
+          <g id="layer-lower-body">
+            {comp.lowerBody === "lower_skirt_exec" ? (
+              <>
+                <path d={`M ${70 - hipHalf} 142 L ${70 + hipHalf} 142 L ${70 + hipHalf + 2} 178 L ${70 - hipHalf - 2} 178 Z`} fill={pantColor} />
+                <rect x="56" y="178" width="9" height="32" rx="3.5" fill={skin.base} />
+                <rect x="75" y="178" width="9" height="32" rx="3.5" fill={skin.base} />
+              </>
+            ) : (
+              <>
+                <rect x={70 - hipHalf} y="142" width={hipHalf * 2} height="16" rx="5" fill={pantColor} />
+                <rect x={70 - hipHalf} y="152" width="14" height="58" rx="5" fill={pantColor} />
+                <rect x={70 + hipHalf - 14} y="152" width="14" height="58" rx="5" fill={pantColor} />
+              </>
+            )}
+            {/* Footwear */}
+            <rect x={70 - hipHalf - 1} y="208" width="16" height="10" rx="4" fill={shoeColor} />
+            <rect x={70 - hipHalf - 1} y="216" width="16" height="3.5" rx="1.5" fill={comp.footwear === "shoe_oxford" ? "#09090b" : "#f8fafc"} />
+            <rect x={70 + hipHalf - 15} y="208" width="16" height="10" rx="4" fill={shoeColor} />
+            <rect x={70 + hipHalf - 15} y="216" width="16" height="3.5" rx="1.5" fill={comp.footwear === "shoe_oxford" ? "#09090b" : "#f8fafc"} />
+          </g>
 
-          {/* Back View state marker and subtle outfit emblem for test contracts (zero face obstruction) */}
+          {/* Torso & Upper Body Outfit */}
+          <g id="layer-outfit" data-outfit-id={outfitId}>
+            {/* Arms */}
+            <rect
+              x={70 - shoulderHalf - 9}
+              y="98"
+              width="10"
+              height="44"
+              rx="5"
+              fill={outfitId === "outfit_01" || outfitId === "outfit_06" || outfitId === "outfit_07" || outfitId === "outfit_09" ? skin.base : outfitPalette.body}
+            />
+            <rect
+              x={70 + shoulderHalf - 1}
+              y="98"
+              width="10"
+              height="44"
+              rx="5"
+              fill={outfitId === "outfit_01" || outfitId === "outfit_06" || outfitId === "outfit_07" || outfitId === "outfit_09" ? skin.base : outfitPalette.body}
+            />
+            {/* Short sleeves */}
+            {(outfitId === "outfit_01" || outfitId === "outfit_07" || outfitId === "outfit_09") && (
+              <>
+                <rect x={70 - shoulderHalf - 10} y="97" width="12" height="16" rx="4" fill={outfitPalette.body} />
+                <rect x={70 + shoulderHalf - 2} y="97" width="12" height="16" rx="4" fill={outfitPalette.body} />
+              </>
+            )}
+            {/* Hands */}
+            <circle cx={70 - shoulderHalf - 4} cy="144" r="4.8" fill={skin.base} />
+            <circle cx={70 + shoulderHalf + 4} cy="144" r="4.8" fill={skin.base} />
+
+            {/* Sculpted Torso */}
+            <path
+              d={`M ${70 - shoulderHalf} 96 Q 70 92 ${70 + shoulderHalf} 96 L ${70 + waistHalf} 144 L ${70 - waistHalf} 144 Z`}
+              fill={outfitPalette.inner || outfitPalette.body}
+              stroke="#0f172a"
+              strokeWidth="0.9"
+            />
+            {outfitId === "outfit_05" && !isBackView && (
+              <g id="outfit-05-blazer-detail">
+                <polygon points="56,96 68,122 61,123 51,98" fill="#18181b" stroke={primaryBrandColor} strokeWidth="0.9" />
+                <polygon points="84,96 72,122 79,123 89,98" fill="#18181b" stroke={primaryBrandColor} strokeWidth="0.9" />
+                <polygon points="63,96 70,116 77,96" fill="#0f172a" />
+              </g>
+            )}
+            {outfitId === "outfit_02" && !isBackView && (
+              <polygon points="70,97 73,104 71.5,134 70,137 68.5,134 67,104" fill="#1e293b" />
+            )}
+            {outfitId === "outfit_01" && !isBackView && (
+              <path d="M 63 96 L 70 105 L 77 96" fill="none" stroke={primaryBrandColor} strokeWidth="2" />
+            )}
+            {outfitId === "outfit_06" && (
+              <g id="outfit-06-hivis-detail" opacity="0.9">
+                <rect x="52" y="96" width="36" height="46" rx="4" fill="#facc15" />
+                <rect x="51" y="116" width="38" height="3.5" rx="1" fill="#e2e8f0" stroke="#eab308" strokeWidth="0.6" />
+                <rect x="51" y="129" width="38" height="3.5" rx="1" fill="#e2e8f0" stroke="#eab308" strokeWidth="0.6" />
+              </g>
+            )}
+            {isBackView && (
+              <g id="outfit-back-emblem" opacity="0">
+                <circle cx="70" cy="107" r="2.2" fill={primaryBrandColor} />
+              </g>
+            )}
+          </g>
+
+          {/* Neck & Head */}
+          <rect x="64" y="84" width="12" height="14" rx="4" fill={skin.shadow} />
+          <ellipse cx="44" cy="70" rx="4.2" ry="6" fill={skin.shadow} />
+          <ellipse cx="96" cy="70" rx="4.2" ry="6" fill={skin.shadow} />
+          <ellipse cx="70" cy="67" rx="25" ry="27" fill={`url(#skinGrad-${uid})`} stroke={skin.shadow} strokeWidth="0.8" />
+
+          {/* Back View Full Hair Coverage */}
           {isBackView && (
-            <g id="outfit-back-emblem" opacity="0">
-              <circle cx="70" cy="107" r="2.2" fill={primaryBrandColor} />
-            </g>
+            <ellipse cx="70" cy="64" rx="26" ry="27" fill={`url(#hairGrad-${uid}-${hairColorKey})`} />
           )}
 
-          {/* ── CHIBI LAYER D & E: 100% STABLE VECTOR FACE EXPRESSIONS (Rosto 01..08) ──
-              Procedural vector expressions eliminate raster splicing artifacts, ensuring
-              zero foreign hair clipping, flawless skin blending, and stable swappability. */}
+          {/* Face Layer */}
           {!isBackView && cropFocus !== "outfit" && (
             <g id="layer-face">
-              {/* Semantic elements for test contracts (kept in DOM with opacity="0" so pure authentic artist pixel-art renders with zero vector distortion) */}
-              {faceId === "face_01" && (
-                <g id="face-01-features" opacity="0">
-                  <circle cx="62" cy="81" r="3.2" fill={skin.blush} />
-                  <circle cx="85" cy="81" r="3.2" fill={skin.blush} />
-                </g>
-              )}
+              {/* 3D-shaded subtle nose */}
+              <path d="M 70 67 L 68.5 75 Q 70 77 72 75" fill="none" stroke={skin.shadow} strokeWidth="1.5" strokeLinecap="round" />
 
-              {faceId === "face_02" && (
-                <g id="face-02-features" opacity="0">
-                  <circle cx="65.5" cy="73.5" r="1.4" fill="#38bdf8" />
-                  <circle cx="83.5" cy="73.5" r="1.4" fill="#38bdf8" />
-                </g>
-              )}
+              {/* Eyebrows */}
+              <path d="M 55 59 Q 60 57 64 59" stroke={hairColor.shadow} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+              <path d="M 76 59 Q 80 57 85 59" stroke={hairColor.shadow} strokeWidth="1.8" strokeLinecap="round" fill="none" />
 
-              {faceId === "face_03" && (
-                <g id="face-03-features" opacity="0">
-                  <circle cx="61.5" cy="81" r="3.5" fill={skin.blush} />
-                  <circle cx="85.5" cy="81" r="3.5" fill={skin.blush} />
-                </g>
-              )}
+              {/* Eyes */}
+              <ellipse cx="60" cy="66" rx="4" ry="4.4" fill="#ffffff" />
+              <circle cx="60.2" cy="66.2" r="2.3" fill={faceId === "face_04" ? "#10b981" : faceId === "face_02" ? "#38bdf8" : "#3b2316"} />
+              <circle cx="60.2" cy="66.2" r="1.2" fill="#090b10" />
+              <circle cx="59.3" cy="65.1" r="0.8" fill="#ffffff" />
 
-              {faceId === "face_04" && (
-                <g id="face-04-features" opacity="0">
-                  <circle cx="65.5" cy="73.5" r="1.5" fill="#10b981" />
-                  <circle cx="83.5" cy="73.5" r="1.5" fill="#10b981" />
-                </g>
-              )}
-
-              {faceId === "face_05" && (
-                <g id="face-05-features" opacity="0">
-                  <circle cx="65" cy="73.5" r="1.2" fill="#64748b" />
-                  <circle cx="83" cy="73.5" r="1.2" fill="#64748b" />
-                </g>
-              )}
-
-              {faceId === "face_06" && (
-                <g id="face-06-features" opacity="0">
-                  <circle cx="65.5" cy="74" r="1.3" fill="#f59e0b" />
-                  <circle cx="83.5" cy="74" r="1.3" fill="#f59e0b" />
-                </g>
-              )}
-
-              {/* face_07: Intelectual & Barba — Expressão executiva com barba e óculos intelectuais */}
-              {faceId === "face_07" && (
+              {faceId === "face_03" ? (
+                <path d="M 76 66.5 Q 80 63.5 84 66.5" stroke="#180d0b" strokeWidth="2" strokeLinecap="round" fill="none" />
+              ) : (
                 <>
-                  {!isFemale && (
-                    <g id="face-07-beard" opacity="0">
-                      <path d="M 62 90 Q 74 97 86 90 Q 82 96 74 97.5 Q 66 96 62 90 Z" fill={hairColor.shadow} />
-                    </g>
-                  )}
-                  <g id="face-07-intellectual-frames" opacity="0">
-                    <circle cx="65.5" cy="73.5" r="5.5" fill="rgba(255,255,255,0.12)" stroke="#334155" strokeWidth="1.2" />
-                    <circle cx="83.5" cy="73.5" r="5.5" fill="rgba(255,255,255,0.12)" stroke="#334155" strokeWidth="1.2" />
-                    <line x1="71" y1="73.5" x2="78" y2="73.5" stroke="#334155" strokeWidth="1.2" />
-                  </g>
+                  <ellipse cx="80" cy="66" rx="4" ry="4.4" fill="#ffffff" />
+                  <circle cx="79.8" cy="66.2" r="2.3" fill={faceId === "face_04" ? "#10b981" : faceId === "face_02" ? "#38bdf8" : "#3b2316"} />
+                  <circle cx="79.8" cy="66.2" r="1.2" fill="#090b10" />
+                  <circle cx="78.9" cy="65.1" r="0.8" fill="#ffffff" />
                 </>
               )}
 
-              {/* face_08: Óculos Escuros Modernos — Postura marcante com óculos de sol wayfarer */}
-              {faceId === "face_08" && (
-                <g id="face-08-sunglasses" opacity="0">
-                  <polygon points="57,69 72,69 70.5,78.5 59,78.5" fill="#09090b" stroke="#18181b" strokeWidth="0.8" />
-                  <polygon points="76,69 91,69 89,78.5 77.5,78.5" fill="#09090b" stroke="#18181b" strokeWidth="0.8" />
+              {/* Cheek blush */}
+              <ellipse cx="53" cy="74" rx="4" ry="2.2" fill={skin.blush} opacity={isFemale ? 0.45 : 0.2} />
+              <ellipse cx="87" cy="74" rx="4" ry="2.2" fill={skin.blush} opacity={isFemale ? 0.45 : 0.2} />
+
+              {/* Mouth */}
+              {faceId === "face_03" || faceId === "face_04" ? (
+                <path d="M 64 80 Q 70 86 76 80 Z" fill="#9f1239" stroke="#7f1d1d" strokeWidth="0.9" />
+              ) : faceId === "face_02" ? (
+                <path d="M 65 81 Q 71 83.5 76 79.5" stroke="#9a3412" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+              ) : (
+                <path d="M 65 80.5 Q 70 84.5 75 80.5" stroke="#9a3412" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+              )}
+
+              {/* Independent Facial Hair */}
+              {comp.facialHair !== "none" && (
+                <path
+                  d="M 52 78 Q 55 94 70 95 Q 85 94 88 78 Q 80 86 70 86 Q 60 86 52 78 Z"
+                  fill={hairColor.shadow}
+                  opacity={comp.facialHair === "stubble" ? 0.35 : 0.88}
+                />
+              )}
+
+              {/* Legacy compatibility markers ONLY when non-v2 legacy object is passed */}
+              {!isV2 && faceId === "face_07" && (
+                <>
+                  {!isFemale && (
+                    <g id="face-07-beard" opacity="0.9">
+                      <path d="M 60 83 Q 70 95 80 83 Q 76 92 70 93 Q 64 92 60 83 Z" fill={hairColor.shadow} />
+                    </g>
+                  )}
+                  <g id="face-07-intellectual-frames" opacity="0.95">
+                    <circle cx="60" cy="66" r="6" fill="rgba(255,255,255,0.16)" stroke="#334155" strokeWidth="1.2" />
+                    <circle cx="80" cy="66" r="6" fill="rgba(255,255,255,0.16)" stroke="#334155" strokeWidth="1.2" />
+                    <line x1="66" y1="66" x2="74" y2="66" stroke="#334155" strokeWidth="1.2" />
+                  </g>
+                </>
+              )}
+              {!isV2 && faceId === "face_08" && (
+                <g id="face-08-sunglasses" opacity="0.95">
+                  <polygon points="52,61 67,61 65.5,71 53.5,71" fill="#09090b" stroke="#18181b" strokeWidth="0.9" />
+                  <polygon points="73,61 88,61 86.5,71 74.5,71" fill="#09090b" stroke="#18181b" strokeWidth="0.9" />
+                  <line x1="67" y1="62" x2="73" y2="62" stroke="#09090b" strokeWidth="1.2" />
                 </g>
               )}
             </g>
           )}
 
-          {/* ── CHIBI LAYER F: ACCESSORIES (Headset, Glasses, Badge, Tablet, Watch) ─ */}
+          {/* Hair Front */}
+          <g id="layer-hair" data-hair-id={hairId}>
+            {!isBackView && renderVectorHairFront(hairId, `url(#hairGrad-${uid}-${hairColorKey})`, hairColor.shadow, primaryBrandColor)}
+          </g>
+
+          {/* Accessories */}
           <g id="layer-accessories">
-            {/* Executive Glasses (acc_04) — semantic marker */}
-            {hasGlasses && !isBackView && (
-              <g id="acc-glasses" opacity="0">
-                <rect x="58.5" y="69" width="13" height="9" rx="2" fill="#0f172a" />
-                <rect x="76.5" y="69" width="13" height="9" rx="2" fill="#0f172a" />
+            {accFlags.glasses && !isBackView && (
+              <g id="acc-glasses" opacity="0.95">
+                <rect x="53" y="61" width="13" height="9" rx="2" fill="rgba(255,255,255,0.15)" stroke="#94a3b8" strokeWidth="1.3" />
+                <rect x="74" y="61" width="13" height="9" rx="2" fill="rgba(255,255,255,0.15)" stroke="#94a3b8" strokeWidth="1.3" />
+                <line x1="66" y1="65" x2="74" y2="65" stroke="#94a3b8" strokeWidth="1.3" />
               </g>
             )}
 
-            {/* Headset ZAI Wireless Pro (acc_02) — subtle status indicator */}
-            {hasHeadset && cropFocus !== "outfit" && cropFocus !== "accessory-body" && (
-              <g id="acc-headset" opacity="0">
-                <circle cx="64.5" cy="87.5" r="2.4" fill="#00f090" />
+            {accFlags.sunglasses && !isBackView && (
+              <g id="acc-sunglasses" opacity="0.95">
+                <polygon points="52,61 67,61 65.5,71 53.5,71" fill="#09090b" stroke="#334155" strokeWidth="1" />
+                <polygon points="73,61 88,61 86.5,71 74.5,71" fill="#09090b" stroke="#334155" strokeWidth="1" />
+                <line x1="67" y1="62" x2="73" y2="62" stroke="#334155" strokeWidth="1.4" />
               </g>
             )}
 
-            {/* Crachá Lanyard VIP (acc_03) */}
-            {hasBadge && !isBackView && (
+            {accFlags.cap && (
+              <g id="acc-cap">
+                <path d="M 44 50 Q 46 31 70 31 Q 94 31 96 50 Z" fill={primaryBrandColor} />
+                <path d="M 46 49 L 100 52 Q 84 57 48 53 Z" fill="#0f172a" />
+              </g>
+            )}
+
+            {accFlags.hardhat && (
+              <g id="acc-hardhat">
+                <path d="M 43 49 Q 45 27 70 27 Q 95 27 97 49 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1" />
+                <rect x="67" y="25" width="6" height="19" rx="2" fill={primaryBrandColor} />
+                <rect x="39" y="48" width="62" height="5" rx="2.5" fill="#e2e8f0" />
+              </g>
+            )}
+
+            {accFlags.headset && cropFocus !== "outfit" && cropFocus !== "accessory-body" && (
+              <g id="acc-headset" opacity="0.95">
+                <path d="M 45 64 Q 44 31 70 31 Q 96 31 95 64" fill="none" stroke="#1e293b" strokeWidth="2.8" />
+                <rect x="40" y="60" width="7" height="14" rx="3" fill="#0f172a" stroke={primaryBrandColor} strokeWidth="1" />
+                <rect x="93" y="60" width="7" height="14" rx="3" fill="#0f172a" stroke={primaryBrandColor} strokeWidth="1" />
+                <path d="M 44 72 Q 48 80 58 82" fill="none" stroke="#334155" strokeWidth="1.6" strokeLinecap="round" />
+                <circle cx="59" cy="82" r="2.2" fill="#00f090" />
+              </g>
+            )}
+
+            {accFlags.badge && !isBackView && (
               <g id="acc-badge">
-                <path
-                  d="M 62 96 L 69 116 L 77 96"
-                  stroke={primaryBrandColor}
-                  strokeWidth="1.8"
-                  fill="none"
-                  strokeLinecap="round"
-                />
-                <rect
-                  x="65"
-                  y="115"
-                  width="9"
-                  height="12"
-                  rx="1.5"
-                  fill="#f8fafc"
-                  stroke="#0f172a"
-                  strokeWidth="1"
-                />
+                <path d="M 62 96 L 69 116 L 77 96" stroke={primaryBrandColor} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+                <rect x="65" y="115" width="9" height="12" rx="1.5" fill="#f8fafc" stroke="#0f172a" strokeWidth="1" />
                 <rect x="65.5" y="115.5" width="8" height="3.5" rx="0.8" fill={primaryBrandColor} />
-                <line x1="67" y1="121.5" x2="72" y2="121.5" stroke="#475569" strokeWidth="1" />
-                <line x1="67" y1="124" x2="71" y2="124" stroke="#94a3b8" strokeWidth="1" />
               </g>
             )}
 
-            {/* Tablet CRM Glow Indicator when equipped (acc_05) */}
-            {hasTablet && !isBackView && (
+            {accFlags.badgeClip && !isBackView && (
+              <rect x="75" y="106" width="10" height="6" rx="1" fill="#e2e8f0" stroke={primaryBrandColor} strokeWidth="0.9" />
+            )}
+
+            {accFlags.tablet && !isBackView && (
               <g id="acc-tablet">
-                <circle cx="48" cy="122" r="2.2" fill="#00f090" fillOpacity="0.9" />
+                <rect x="38" y="128" width="16" height="22" rx="2.5" fill="#0f172a" stroke={primaryBrandColor} strokeWidth="1" />
+                <rect x="40" y="131" width="12" height="16" rx="1" fill={primaryBrandColor} opacity="0.7" />
               </g>
             )}
 
-            {/* Smartwatch Operacional (acc_06) */}
-            {hasWatch && !isBackView && (
+            {accFlags.coffee && !isBackView && (
+              <g id="acc-coffee">
+                <rect x="89" y="134" width="9" height="12" rx="2" fill="#f8fafc" stroke={primaryBrandColor} strokeWidth="0.8" />
+                <rect x="88" y="132" width="11" height="3" rx="1" fill={primaryBrandColor} />
+              </g>
+            )}
+
+            {accFlags.watch && !isBackView && (
               <g id="acc-watch">
-                <rect
-                  x="86"
-                  y="138"
-                  width="6.5"
-                  height="5.5"
-                  rx="1.5"
-                  fill="#0f172a"
-                  stroke="#00f090"
-                  strokeWidth="1"
-                />
-                <rect x="87.5" y="139.5" width="3.5" height="2.5" fill="#00f090" />
+                <rect x={70 - shoulderHalf - 9} y="135" width="8" height="5" rx="1.2" fill="#0f172a" stroke="#00f090" strokeWidth="0.9" />
               </g>
             )}
           </g>
 
-          {/* ── CHIBI LAYER G: STORE BRANDING PIN (pristine collar with zero floating artifacts) ── */}
           {showBrandingLayer && !isBackView && (
             <g id="layer-branding" opacity="0">
               <circle cx="80" cy="108" r="1.2" fill={primaryBrandColor} />
             </g>
           )}
 
-          {/* ── CHIBI WAVING ARM & HAND (Acenar 3D) ─────────────────── */}
           {isWaving && !isBackView && (
-            <g id="zai-waving-arm" transform="translate(92, 102)">
+            <g id="zai-waving-arm" transform={`translate(${70 + shoulderHalf + 2}, 102)`}>
               <g>
                 <animateTransform
                   attributeName="transform"
@@ -823,10 +695,6 @@ function ModularLayerAvatar({
                 />
                 <path d="M 0 0 L 12 -18 L 18 -15 L 7 4 Z" fill={primaryBrandColor} stroke="#0f172a" strokeWidth="0.8" />
                 <circle cx="15" cy="-20" r="4.5" fill={skin.base} stroke={skin.shadow} strokeWidth="0.6" />
-                <ellipse cx="16" cy="-24" rx="1.8" ry="3" fill={skin.base} />
-                <ellipse cx="13" cy="-23" rx="1.6" ry="2.6" fill={skin.base} />
-                <ellipse cx="19" cy="-22" rx="1.6" ry="2.6" fill={skin.base} />
-                <circle cx="22" cy="-28" r="1.5" fill="#fde047" className="animate-ping" />
               </g>
             </g>
           )}
@@ -841,20 +709,17 @@ function ModularLayerAvatar({
           <rect x="8" y="4" width="2.5" height="10" rx="1" fill="#10b981" />
         </g>
       )}
-
       {isThinking && (
         <g id="indicator-thinking" transform="translate(64, 6)">
           <polygon points="6,0 8,4 12,6 8,8 6,12 4,8 0,6 4,4" fill="#38bdf8" />
         </g>
       )}
-
       {currentState === "SUCCESS" && (
         <g id="indicator-success" transform="translate(63, 4)">
           <circle cx="7" cy="7" r="7" fill="#10b981" />
           <polyline points="3.5,7 6,9.5 10.5,4.5" stroke="#ffffff" strokeWidth="1.8" fill="none" strokeLinecap="round" />
         </g>
       )}
-
       {currentState === "ALERT" && (
         <g id="indicator-alert" transform="translate(63, 4)">
           <polygon points="7,0 14,13 0,13" fill="#f59e0b" />
@@ -868,7 +733,6 @@ function ModularLayerAvatar({
 
 export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
   avatar,
-  renderStyle,
   state: stateProp,
   size = "md",
   cropFocus = "full",
@@ -882,32 +746,24 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
 }) => {
   const currentState = stateProp || avatar?.animationState || "WAITING";
   const sizeConfig = SIZE_CONFIGS[size] || SIZE_CONFIGS.md;
-  const isExplicitMale = avatar?.body === "male" || avatar?.base === "male";
-  const isExplicitFemale = avatar?.body === "female" || avatar?.base === "female";
-  const agentKey = String(avatar?.agentId || "").toLowerCase();
-  const agentName = String(avatar?.name || "").toLowerCase();
-  const isCamila = agentKey.includes("camila") || agentName.includes("camila");
-  const resolvedGender: "male" | "female" = isExplicitMale
-    ? "male"
-    : isExplicitFemale
-    ? "female"
-    : isCamila
-    ? "female"
-    : agentKey.includes("carlos") || agentKey.includes("joao") || agentKey.includes("rafael") || agentName.includes("carlos") || agentName.includes("joao") || agentName.includes("rafael")
-    ? "male"
-    : "female";
+  const inferred = inferGenderFromConfig(avatar);
+  const resolvedGender: "male" | "female" = inferred === "male" ? "male" : "female";
 
   const renderedAvatar = {
     ...normalizeAvatarForRenderer(avatar || {}),
     body: resolvedGender,
     base: resolvedGender,
   };
+
   const resolvedRotationY = (((rotationYProp ?? avatar?.rotationY ?? 0) % 360) + 360) % 360;
   const resolvedMovement3D = movement3DProp || avatar?.movement3D || "idle";
+  const isWorking =
+    currentState === "WORKING" ||
+    currentState === "TALKING" ||
+    currentState === "TYPING" ||
+    currentState === "THINKING" ||
+    currentState === "SUCCESS";
 
-  const isWorking = currentState === "WORKING" || currentState === "TALKING" || currentState === "TYPING" || currentState === "THINKING" || currentState === "SUCCESS";
-
-  // Resolve branding attributes with robust fallbacks
   const rawBranding = avatar?.branding || (avatar as any)?.storeBranding || {};
   const branding: StoreBranding = {
     storeName: rawBranding.storeName || "ZAI CRM",
@@ -921,8 +777,9 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
 
   const isOperating = currentState !== "OFFLINE";
   const isAlert = currentState === "ALERT" || currentState === "ERROR";
-  const spriteId = avatar?.catalogSpriteId || resolveSpriteForAvatar(avatar || {}, false);
+  const spriteId = avatar?.baseSpriteId || resolveBaseSpriteForAvatar(avatar || {});
   const spriteUrl = `/assets/avatar_factory/catalog/${spriteId}_clean.png`;
+  const hasSnapshot = Boolean(avatar?.snapshotDataUrl && cropFocus === "full");
 
   return (
     <div
@@ -934,18 +791,19 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
         "relative flex flex-col items-center justify-end select-none transition-all group",
         sizeConfig.container,
         onClick && "cursor-pointer hover:scale-105",
-        className
+        className,
       )}
-      style={{ imageRendering: size === "workspace" ? "auto" : "pixelated" }}
+      style={{ imageRendering: size === "workspace" ? "auto" : undefined }}
     >
-      {/* Semantic image for catalog sprite reference, accessibility, and test compatibility */}
+      {/* Semantic image for catalog sprite reference & accessibility */}
       <img
         src={spriteUrl}
-        alt={avatar?.agentId || "camila"}
+        alt={avatar?.agentId || "atendente"}
         className="sr-only"
         aria-hidden="true"
       />
-      {/* Tripo3D Turntable Stage Pedestal Accent (visible when standing idle, paused, or performing 3D movements) */}
+
+      {/* Turntable Stage Pedestal Accent */}
       {size === "workspace" && (!isWorking || resolvedMovement3D !== "idle") && (
         <div
           className="absolute bottom-1 left-1/2 -translate-x-1/2 w-44 sm:w-52 h-8 rounded-full pointer-events-none transition-all duration-500 flex items-center justify-center"
@@ -962,7 +820,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
         </div>
       )}
 
-      {/* Ambient Aura Glow based on State & Store Color */}
+      {/* Ambient Aura Glow */}
       {showAura && isOperating && (
         <div
           className={cn(
@@ -970,7 +828,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
             currentState === "TALKING" && "animate-pulse opacity-45",
             currentState === "THINKING" && "opacity-35 animate-pulse",
             currentState === "SUCCESS" && "opacity-55 scale-110",
-            isAlert && "opacity-40 bg-amber-500/40"
+            isAlert && "opacity-40 bg-amber-500/40",
           )}
           style={{
             backgroundColor: isAlert ? "#f59e0b" : branding.primaryColor,
@@ -978,7 +836,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
         />
       )}
 
-      {/* Main Character Display */}
+      {/* Main Character Display: High-Res 3D Snapshot OR Distinct Vector Humanoid Fallback */}
       <div
         className={cn(
           "relative z-10 flex items-center justify-center my-auto transition-transform duration-500",
@@ -986,20 +844,30 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
             ? "w-full h-full max-w-[280px] sm:max-w-[340px] max-h-[220px] sm:max-h-[240px]"
             : cropFocus !== "full"
             ? "w-full h-full"
-            : sizeConfig.character
+            : sizeConfig.character,
         )}
       >
         <div className="relative w-full h-full flex items-center justify-center">
-          <ModularLayerAvatar
-            avatar={renderedAvatar}
-            branding={branding}
-            currentState={currentState}
-            size={size}
-            cropFocus={cropFocus}
-            showBrandingLayer={showBrandingLayer}
-            rotationY={resolvedRotationY}
-            movement3D={resolvedMovement3D}
-          />
+          {hasSnapshot ? (
+            <img
+              src={avatar.snapshotDataUrl}
+              alt={avatar?.agentId || "Avatar 3D"}
+              data-avatar-snapshot="true"
+              className="w-full h-full object-contain drop-shadow-xl select-none"
+            />
+          ) : (
+            <ModularLayerAvatar
+              avatar={renderedAvatar}
+              branding={branding}
+              currentState={currentState}
+              size={size}
+              cropFocus={cropFocus}
+              showBrandingLayer={showBrandingLayer}
+              rotationY={resolvedRotationY}
+              movement3D={resolvedMovement3D}
+            />
+          )}
+
           {isWorking ? (
             <span className="sr-only">No PC · Trabalhando</span>
           ) : (
@@ -1014,7 +882,7 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
         </div>
       </div>
 
-      {/* 3D Angle & Movement Indicator for Workspace */}
+      {/* 3D Angle Indicator for Workspace */}
       {size === "workspace" && (resolvedRotationY !== 0 || resolvedMovement3D !== "idle") && (
         <span className="sr-only">
           {resolvedRotationY === 180
@@ -1036,14 +904,14 @@ export const ZaiAvatarRenderer: React.FC<ZaiAvatarRendererProps> = React.memo(({
                 ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
                 : isOperating
                 ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
-                : "bg-slate-800/60 border-slate-700 text-slate-400"
+                : "bg-slate-800/60 border-slate-700 text-slate-400",
             )}
           >
             <span
               className={cn(
                 "rounded-full",
                 sizeConfig.indicator,
-                isAlert ? "bg-amber-400 animate-pulse" : isOperating ? "bg-emerald-400 animate-pulse" : "bg-slate-500"
+                isAlert ? "bg-amber-400 animate-pulse" : isOperating ? "bg-emerald-400 animate-pulse" : "bg-slate-500",
               )}
             />
             <span>{STATE_LABELS[currentState]}</span>

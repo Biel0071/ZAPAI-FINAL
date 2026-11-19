@@ -48,6 +48,7 @@ import { type AppUserRole, useUserRole } from "@/state/hooks/useUserRole";
 import { OperationalStatusBadge } from "@/components/enterprise/OperationalStatusBadge";
 import { useAppStore } from "@/state/stores/appStore";
 import { useSystemHealthStore } from "@/state/stores/systemHealthStore";
+import { apiService } from "@/core/services/apiService";
 
 const SIDEBAR_COLLAPSE_EVENT = "sidebar:collapsed";
 
@@ -59,15 +60,16 @@ type SidebarNavItem = {
   badge?: string;
   /** Feature em desenvolvimento: visível só p/ admin, exibida em cinza e não-clicável. */
   dev?: boolean;
+  module?: "inbox" | "contacts" | "campaigns";
 };
 
 const crmItems: SidebarNavItem[] = [
   { icon: SquaresFour, label: "Dashboard", path: "/dashboard", minRole: "user" },
-  { icon: ChatCircleDots, label: "Inbox", path: "/inbox", minRole: "user", badge: "LIVE" },
+  { icon: ChatCircleDots, label: "Inbox", path: "/inbox", minRole: "user", badge: "LIVE", module: "inbox" },
   { icon: Broadcast, label: "Conexões", path: "/connections", minRole: "user" },
   { icon: Headset, label: "Atendente IA", path: "/attendants", minRole: "user" },
-  { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user" },
-  { icon: Users, label: "Contatos", path: "/contacts", minRole: "user" },
+  { icon: Megaphone, label: "Campanhas", path: "/campaigns", minRole: "user", module: "campaigns" },
+  { icon: Users, label: "Contatos", path: "/contacts", minRole: "user", module: "contacts" },
 ];
 
 const adminItems: SidebarNavItem[] = [];
@@ -87,6 +89,7 @@ export function Sidebar() {
     }
   });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [licensedModules, setLicensedModules] = useState<string[] | null>(null);
   const [adminOpen, setAdminOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -103,6 +106,16 @@ export function Sidebar() {
   const { toast } = useToast();
   const health = useSystemHealthStore((state) => state.health);
   const startPollingHealth = useSystemHealthStore((state) => state.startPolling);
+
+  useEffect(() => {
+    let active = true;
+    void apiService.getCompanyEntitlements().then((result) => {
+      if (active) setLicensedModules(result.modules);
+    }).catch(() => {
+      if (active) setLicensedModules(null);
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const handleOpen = () => setMobileOpen(true);
@@ -140,8 +153,8 @@ export function Sidebar() {
     }
   }, [location.pathname]);
   const visibleCrmItems = useMemo(
-    () => crmItems.filter((item) => roleLevel[role] >= roleLevel[item.minRole ?? "user"]),
-    [role, roleLevel],
+    () => crmItems.filter((item) => roleLevel[role] >= roleLevel[item.minRole ?? "user"] && (!item.module || licensedModules === null || licensedModules.includes(item.module))),
+    [role, roleLevel, licensedModules],
   );
 
   const visibleAdminItems = useMemo(

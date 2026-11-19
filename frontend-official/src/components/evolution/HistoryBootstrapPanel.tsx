@@ -496,18 +496,10 @@ function HistoryBootstrapLegacy({
                 Responda os passos da loja e sincronize fatos detectados automaticamente das conversas do WhatsApp.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs rounded-xl font-medium border-primary/40 text-primary hover:bg-primary/10 gap-1.5"
-                onClick={() => void handleSyncFacts()}
-                disabled={syncingFacts || !sessionId}
-              >
-                <Lightning className={`h-3.5 w-3.5 ${syncingFacts ? 'animate-spin' : ''}`} weight="fill" />
-                {syncingFacts ? 'Detectando fatos...' : 'Sincronizar dados das conversas'}
-              </Button>
-            </div>
+            <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[10px] font-semibold gap-1">
+              <CheckCircle className="h-3 w-3" />
+              Fatos sincronizados automaticamente
+            </Badge>
           </div>
 
           {/* Fatos detectados das conversas */}
@@ -822,7 +814,6 @@ function HistoryBootstrapLegacy({
         {status.history_requests_without_response > 0 && <p className="text-sm text-amber-500 dark:text-amber-400 font-medium">{status.history_requests_without_response} conversas sem resposta à solicitação de histórico anterior. Isso não confirma que todo o histórico foi recuperado.</p>}
         {status.last_error && <p role="alert" className="text-sm text-destructive">{status.last_error}</p>}
         <div className="flex flex-wrap gap-2 pt-1">
-          <Button variant="outline" className="rounded-xl text-xs h-8.5 font-medium" disabled={busy} onClick={() => action(() => requestApiEndpoint(`${base}/resume`, 'POST'), 'Retomada solicitada. O processamento ocorre em segundo plano.')}>Retomar sincronização e análise</Button>
           <Button variant="outline" className="rounded-xl text-xs h-8.5 font-medium" disabled={busy} onClick={() => void loadMediaEvidence()}>Ver mídias do histórico</Button>
         </div>
         {showMedia && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Mídias do histórico">

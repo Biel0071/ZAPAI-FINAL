@@ -11,8 +11,9 @@ router.get('/capabilities', (req, res) => commerceController.getCapabilities(req
 router.get('/catalog', (req, res) => commerceController.getCatalog(req, res));
 router.post('/sync', (req, res) => commerceController.syncCatalog(req, res));
 
-// Send native products
+// Send native products and catalog
 router.post('/send-product', (req, res) => commerceController.sendProduct(req, res));
+router.post('/send-catalog', (req, res) => commerceController.sendCatalog(req, res));
 
 // Order management routes
 router.get('/orders', (req, res) => commerceController.listOrders(req, res));

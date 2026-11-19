@@ -48,9 +48,10 @@ describe("WhatsApp Style Conversation Rail & Menu", () => {
       onUpdateTags: vi.fn(),
     };
 
+    const AnyCollapsedRow = CollapsedConversationRow as any;
     await act(async () => {
       root.render(
-        <CollapsedConversationRow
+        <AnyCollapsedRow
           index={0}
           style={{ height: 64, width: 64 }}
           data={rowData as any}
@@ -102,9 +103,10 @@ describe("WhatsApp Style Conversation Rail & Menu", () => {
       onUpdateTags: vi.fn(),
     };
 
+    const AnyConversationRow = ConversationRow as any;
     await act(async () => {
       root.render(
-        <ConversationRow
+        <AnyConversationRow
           index={0}
           style={{ height: 72, width: 340 }}
           data={rowData as any}

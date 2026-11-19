@@ -1,0 +1,194 @@
+{
+  "timestamp": "2026-11-04T02:53:39.378Z",
+  "backendHealth": {
+    "success": false,
+    "timestamp": "2026-11-04T02:53:39.837Z",
+    "summary": {
+      "total": 16,
+      "passed": 11,
+      "failed": 1,
+      "warned": 4
+    },
+    "services": {
+      "pm2": {
+        "status": "warn",
+        "detail": "PM2 not available or not running"
+      },
+      "nginx": {
+        "status": "ok",
+        "detail": "Windows Host — nginx status check skipped"
+      }
+    },
+    "database": {
+      "postgres": {
+        "status": "ok",
+        "detail": "SELECT 1 in 111ms | server_time=Tue Nov 03 2026 23:53:39 GMT-0300 (Horário Padrão de Brasília)"
+      },
+      "migrations": {
+        "status": "ok",
+        "detail": "55 migrations applied"
+      }
+    },
+    "memory": {
+      "heap": {
+        "status": "ok",
+        "detail": "heap=7MB rss=57MB"
+      },
+      "system": {
+        "status": "ok",
+        "detail": "Windows Host — system memory check skipped"
+      },
+      "disk": {
+        "status": "ok",
+        "detail": "Windows Host — disk check skipped"
+      },
+      "cpu": {
+        "status": "ok",
+        "detail": "Windows Host — CPU check skipped"
+      }
+    },
+    "sessions": {
+      "baileys": {
+        "status": "warn",
+        "detail": "No sessions found — scan QR to connect WhatsApp"
+      }
+    },
+    "websocket": {
+      "route": {
+        "status": "warn",
+        "detail": "WS route error: connect ECONNREFUSED 127.0.0.1:4025"
+      }
+    },
+    "checks": [
+      {
+        "name": "postgres",
+        "status": "ok",
+        "detail": "SELECT 1 in 111ms | server_time=Tue Nov 03 2026 23:53:39 GMT-0300 (Horário Padrão de Brasília)",
+        "timestamp": "2026-11-04T02:53:39.674Z"
+      },
+      {
+        "name": "postgres_tables",
+        "status": "ok",
+        "detail": "82 public tables",
+        "timestamp": "2026-11-04T02:53:39.712Z"
+      },
+      {
+        "name": "redis",
+        "status": "warn",
+        "detail": "REDIS_URL not configured — Redis disabled",
+        "timestamp": "2026-11-04T02:53:39.713Z"
+      },
+      {
+        "name": "sessions_dir",
+        "status": "ok",
+        "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\sessions",
+        "timestamp": "2026-11-04T02:53:39.714Z"
+      },
+      {
+        "name": "logs_dir",
+        "status": "ok",
+        "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\logs",
+        "timestamp": "2026-11-04T02:53:39.716Z"
+      },
+      {
+        "name": "uploads_dir",
+        "status": "ok",
+        "detail": "C:\\projetos\\ZAPAI-FINAL\\backend\\uploads",
+        "timestamp": "2026-11-04T02:53:39.717Z"
+      },
+      {
+        "name": "disk_space",
+        "status": "ok",
+        "detail": "Windows Host — disk check skipped",
+        "timestamp": "2026-11-04T02:53:39.717Z"
+      },
+      {
+        "name": "memory_heap",
+        "status": "ok",
+        "detail": "heap=7MB rss=57MB",
+        "timestamp": "2026-11-04T02:53:39.717Z"
+      },
+      {
+        "name": "memory_system",
+        "status": "ok",
+        "detail": "Windows Host — system memory check skipped",
+        "timestamp": "2026-11-04T02:53:39.717Z"
+      },
+      {
+        "name": "cpu_usage",
+        "status": "ok",
+        "detail": "Windows Host — CPU check skipped",
+        "timestamp": "2026-11-04T02:53:39.717Z"
+      },
+      {
+        "name": "backend_http",
+        "status": "fail",
+        "detail": "Connection refused: connect ECONNREFUSED 127.0.0.1:4025",
+        "timestamp": "2026-11-04T02:53:39.726Z"
+      },
+      {
+        "name": "websocket_route",
+        "status": "warn",
+        "detail": "WS route error: connect ECONNREFUSED 127.0.0.1:4025",
+        "timestamp": "2026-11-04T02:53:39.728Z"
+      },
+      {
+        "name": "baileys_sessions",
+        "status": "warn",
+        "detail": "No sessions found — scan QR to connect WhatsApp",
+        "timestamp": "2026-11-04T02:53:39.728Z"
+      },
+      {
+        "name": "pm2_process",
+        "status": "warn",
+        "detail": "PM2 not available or not running",
+        "timestamp": "2026-11-04T02:53:39.773Z"
+      },
+      {
+        "name": "nginx",
+        "status": "ok",
+        "detail": "Windows Host — nginx status check skipped",
+        "timestamp": "2026-11-04T02:53:39.773Z"
+      },
+      {
+        "name": "migrations",
+        "status": "ok",
+        "detail": "55 migrations applied",
+        "timestamp": "2026-11-04T02:53:39.837Z"
+      }
+    ]
+  },
+  "frontendServed": true,
+  "websocketRouteOk": false,
+  "buildSuccess": true,
+  "testsSuccess": false,
+  "whatsappSessions": [
+    {
+      "id": "broken_session_test",
+      "hasAuth": false,
+      "status": "No credentials"
+    },
+    {
+      "id": "main",
+      "hasAuth": false,
+      "status": "No credentials"
+    }
+  ],
+  "pagesStatus": {
+    "Dashboard": "Homologado",
+    "Inbox": "Homologado",
+    "Connections": "Homologado",
+    "Analytics": "Homologado",
+    "Runtime": "Falha",
+    "WebSocket": "Falha",
+    "Mapa": "Homologado",
+    "Performance": "Pendente"
+  },
+  "failures": [
+    "Healthcheck do backend retornou falha estrutural.",
+    "Falha no handshake do Socket.IO: connect ECONNREFUSED 127.0.0.1:4025",
+    "Testes unitários falharam: Command failed: npm run test",
+    "Falha no crawler E2E Playwright: Command failed: npx playwright test tests/ui/discovery-crawler.spec.ts"
+  ],
+  "e2eDiscoverySuccess": false
+}

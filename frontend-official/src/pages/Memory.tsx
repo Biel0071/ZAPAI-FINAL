@@ -465,12 +465,9 @@ function ScopedMemory({ sessionId }: { sessionId: string }) {
                       <CardDescription className="text-xs">Ajuste o comportamento do mecanismo de aprendizado.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <p className="text-sm">Memória automática desta conexão. Configure vínculo com loja e evolução na tela de Conexões.</p>
-                      <div className="flex flex-col gap-2 pt-2">
-                        <Button variant="outline" className="w-full rounded-xl text-xs h-9 font-medium gap-1.5 border-border/80 hover:bg-muted/50" onClick={handleFlush} disabled={flushing}>
-                          <Database className="h-3.5 w-3.5" />
-                          {flushing ? "Sincronizando..." : "Sincronizar no PostgreSQL"}
-                        </Button>
+                      <div className="flex items-center gap-2 p-2.5 rounded-xl bg-background/50 border border-border/50 text-xs text-muted-foreground">
+                        <Checks className="h-4 w-4 text-emerald-400" />
+                        <span>Persistência contínua ativa em segundo plano (PostgreSQL)</span>
                       </div>
                     </CardContent>
                   </Card>

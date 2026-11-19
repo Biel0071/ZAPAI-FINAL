@@ -20,7 +20,14 @@ async function listQuickReplies(req, res) {
   const companyId = company(req, res);
   if (!companyId) return;
   try {
-    return res.status(200).json(await quickReplyService.listQuickReplies({ companyId, category: req.query?.category, search: req.query?.search }));
+    const userRole = req.userRole || req.user?.role || req.authRole || req.headers['x-user-role'];
+    return res.status(200).json(await quickReplyService.listQuickReplies({
+      companyId,
+      category: req.query?.category,
+      search: req.query?.search,
+      sessionId: req.query?.sessionId,
+      role: userRole,
+    }));
   } catch (error) { return fail(res, error, 'Não foi possível carregar as respostas rápidas.'); }
 }
 

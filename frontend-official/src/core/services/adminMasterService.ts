@@ -99,7 +99,7 @@ function resolveEndpoint(endpoint: string): string {
   return path.startsWith("/api/") ? `${API_ORIGIN}${path}` : `${API_BASE_URL}${path}`;
 }
 
-async function requestJson(endpoint: string, method: "GET" | "POST", body?: JsonRecord): Promise<unknown> {
+async function requestJson(endpoint: string, method: "GET" | "POST" | "PATCH", body?: JsonRecord): Promise<unknown> {
   if (method === "GET") {
     const unavailableUntil = unavailableEndpoints.get(endpoint);
     if (unavailableUntil && unavailableUntil > Date.now()) {
@@ -119,7 +119,7 @@ async function requestJson(endpoint: string, method: "GET" | "POST", body?: Json
       method,
       signal: controller.signal,
       headers: apiHeaders,
-      body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
+      body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
     });
 
     const raw = await response.text();
@@ -475,6 +475,37 @@ export type MasterAdminRow = {
   status: string | null;
   lastAccess: string | null;
 };
+
+export type ZaiAssistantAdminSettings = {
+  globalEnabled: boolean;
+  users: Array<MasterAdminRow & { tenantId: string; enabled: boolean }>;
+};
+
+export async function loadZaiAssistantAdminSettings(): Promise<ZaiAssistantAdminSettings> {
+  const payload = await requestJson("/api/master/zai-assistant", "GET") as JsonRecord;
+  const users = Array.isArray(payload.users) ? payload.users as JsonRecord[] : [];
+  return {
+    globalEnabled: payload.globalEnabled !== false,
+    users: users.map((item) => ({
+      id: String(item.id),
+      name: String(item.name ?? "Usuário"),
+      email: toText(item.email),
+      role: toText(item.role),
+      status: "Ativo",
+      lastAccess: null,
+      tenantId: String(item.tenantId ?? ""),
+      enabled: item.enabled === true,
+    })),
+  };
+}
+
+export async function updateZaiAssistantGlobal(enabled: boolean): Promise<void> {
+  await requestJson("/api/master/zai-assistant/global", "PATCH", { enabled });
+}
+
+export async function updateZaiAssistantUser(userId: string, enabled: boolean): Promise<void> {
+  await requestJson(`/api/master/zai-assistant/users/${encodeURIComponent(userId)}`, "PATCH", { enabled });
+}
 
 export async function loadMasterVersions(): Promise<MasterVersionRow[]> {
   const payload = await requestJson("/api/cluster/deployments", "GET");

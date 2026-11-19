@@ -225,11 +225,8 @@ export default function Inbox() {
       onSelect: (id: string) => {
         const normalizedId = String(id);
         state.setSelectedConversationId(normalizedId);
-        void state.loadConversationMessages(normalizedId, { force: true }).finally(() => {
-          state.scrollToLatestMessage("auto");
-          window.setTimeout(() => state.scrollToLatestMessage("auto"), 120);
-          window.setTimeout(() => state.scrollToLatestMessage("auto"), 320);
-        });
+        state.scrollToLatestMessage("auto");
+        window.setTimeout(() => state.scrollToLatestMessage("auto"), 80);
         if (state.isMobile) {
           state.setMobileScreen("chat");
           useAppStore.getState().setIsMobileChatOpen(true);
@@ -452,7 +449,14 @@ export default function Inbox() {
   // Sidebar props mapped
   const sidebarProps = {
     selectedConversation: state.selectedConversation,
-    isCustomerOnline: Boolean(state.isTyping || state.selectedConversation?.status === "online"),
+    isCustomerOnline: Boolean(
+      state.isTyping ||
+      state.selectedConversation?.status === "online" ||
+      (state.selectedConversation as any)?.status === "available" ||
+      (state.selectedConversation as any)?.presence === "online" ||
+      (state.selectedConversation as any)?.presence === "available" ||
+      (state.selectedConversation as any)?.isOnline === true
+    ),
     lastSeenLabel: state.selectedConversation
       ? formatConversationTimestamp(
           (state.selectedConversation as any).lastMessageAt ||
@@ -713,7 +717,7 @@ export default function Inbox() {
               filter={state.filter}
               setFilter={state.setFilter}
               funnelFilter={funnelFilter}
-              setFunnelFilter={setFunnelFilter}
+              setFunnelFilter={(val: any) => setFunnelFilter(val)}
               filteredConversations={filteredConversations}
               allConversations={state.conversations}
               conversationCounts={state.conversationCounts}

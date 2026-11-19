@@ -84,6 +84,9 @@ export function resolveMediaUrl(url?: string | null): string | null {
       normalized = normalized.replace(/^[a-zA-Z]:/i, "");
     }
     let cleanPath = normalized.replace(/^\/+/, "");
+    if (/^assets\//i.test(cleanPath)) {
+      return `/${cleanPath}`;
+    }
     if (!/^(uploads|media|upload|public|api)\//i.test(cleanPath)) cleanPath = `uploads/${cleanPath}`;
     finalUrl = `${BACKEND_BASE_URL}/${cleanPath}`;
   }
@@ -118,7 +121,8 @@ export async function authorizeMediaUrl(rawUrl?: string | null, force = false): 
   const resolved = resolveMediaUrl(rawUrl);
   if (!resolved) return null;
   if (/^(data:|blob:)/.test(resolved)) return { url: resolved, expiresAt: 0 };
-  const media = new URL(resolved);
+  if (/^\/assets\//i.test(resolved)) return { url: resolved, expiresAt: 0 };
+  const media = new URL(resolved, typeof window === "undefined" ? "http://localhost" : window.location.origin);
   if (!/^\/(?:api\/)?(?:media|upload|uploads)\//i.test(media.pathname)) return { url: resolved, expiresAt: 0 };
   const session = loadAdminAuthSession();
   if (!session?.token) return null;
@@ -167,7 +171,7 @@ export function inferMediaTypeFromSource(source?: string): "image" | "video" | "
 }
 
 export function inferConversationMessageType(conversation: Conversation): "text" | "image" | "video" | "audio" | "file" | "sticker" {
-  if (conversation.lastMessageType && conversation.lastMessageType !== "text") return conversation.lastMessageType;
+  if (conversation.lastMessageType && conversation.lastMessageType !== "text") return conversation.lastMessageType as any;
   const normalized = (conversation.lastMessage ?? "").trim().toLowerCase();
   if (normalized.includes("image") || normalized.startsWith("[image]")) return "image";
   if (normalized.includes("video") || normalized.startsWith("[video]")) return "video";
@@ -205,7 +209,11 @@ export function parseChatsLoadedPayload(payload: unknown): Conversation[] {
       const item = entry as Record<string, unknown>;
       const rawId = String(item.id ?? item.conversationId ?? item.conversation_id ?? item.chatId ?? item.chat_id ?? "").trim();
       const rawPhone = String(item.phone ?? item.phoneNumber ?? item.jid ?? item.remoteJid ?? item.chatId ?? item.chat_id ?? "").trim();
-      const rawName = String((item.contactName ?? item.name ?? item.pushName ?? rawPhone) || "Contato").trim();
+      const candidateContactName = String(item.contactName ?? "").trim();
+      const candidateName = String(item.name ?? "").trim();
+      const rawName = (candidateName && (candidateName.length > candidateContactName.length || candidateContactName.length <= 2))
+        ? candidateName
+        : (candidateContactName || candidateName || String(item.pushName ?? rawPhone ?? "Contato").trim());
       const normalizedLastMessageType = String(item.lastMessageType ?? item.messageType ?? item.mediaType ?? "text").toLowerCase();
       const lastMessageType =
         normalizedLastMessageType === "image" ||

@@ -6,9 +6,9 @@
  * Faz a ponte segura entre Gateway Financeiro, Pedidos e CRM.
  */
 
-const crypto = require('crypto');
 const eventNormalizer = require('./EventNormalizer');
 const { query: dbQuery } = require('../../src/infrastructure/config/database');
+const paymentSettings = require('../payments/storePaymentSettings');
 
 class PaymentEngine {
   constructor() {
@@ -20,6 +20,8 @@ class PaymentEngine {
    */
   async createPayment({
     companyId = 'default',
+    storeId,
+    sessionId,
     conversationId,
     orderId,
     amount,
@@ -35,13 +37,22 @@ class PaymentEngine {
     const paymentId = `pay_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const cleanPhone = (customerPhone || '').replace(/\D/g, '');
 
-    // Gerador de Pix Estático/Dinâmico padrão BACEN
-    const pixKey = '553193672075';
-    const pixCopyAndPaste = `00020126580014BR.GOV.BCB.PIX0136${pixKey}520400005303986540${numAmount.toFixed(2)}5802BR5921DEPOSITO VISTA ALEGRE6009BELOHORIZONTE62070503***6304${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+    let pixCopyAndPaste = null;
+    let pixStoreId = storeId || null;
+    if (method === 'pix') {
+      const { storeId: resolvedStoreId, pix } = await paymentSettings.resolvePixConfig({ companyId, storeId, sessionId });
+      if (!pix) throw new Error('PIX não configurado para esta loja. Cadastre a chave PIX em Atendente IA › Loja e dados comerciais.');
+      pixStoreId = resolvedStoreId;
+      pixCopyAndPaste = paymentSettings.buildStorePixPayload(pix, {
+        amount: numAmount,
+        txid: paymentId.replace(/[^A-Za-z0-9]/g, '').slice(-25),
+      });
+    }
 
     const paymentRecord = {
       paymentId,
       companyId,
+      storeId: pixStoreId,
       conversationId,
       orderId: orderId || null,
       amount: numAmount,
@@ -51,8 +62,8 @@ class PaymentEngine {
       customerPhone: cleanPhone,
       customerName: customerName || 'Cliente',
       description: description || `Cobrança ZAPFLOW #${paymentId}`,
-      pixCode: method === 'pix' ? pixCopyAndPaste : null,
-      paymentUrl: `https://pagamento.zapai.com/pay/${paymentId}`,
+      pixCode: pixCopyAndPaste,
+      paymentUrl: null,
       createdAt: new Date().toISOString(),
       dueDate: dueDate || new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
     };
@@ -103,8 +114,8 @@ class PaymentEngine {
     if (payment.orderId && isConfirmed) {
       try {
         await dbQuery(
-          'UPDATE customer_orders SET status = $1, updated_at = NOW() WHERE order_id = $2',
-          ['confirmed', payment.orderId]
+          'UPDATE customer_orders SET status = $1, updated_at = NOW() WHERE order_id = $2 AND company_id = $3',
+          ['confirmed', payment.orderId, payment.companyId]
         );
       } catch (err) {
         console.warn('[PAYMENT-ENGINE] Failed to update order status on payment confirmation:', err.message);

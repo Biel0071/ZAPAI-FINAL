@@ -1,4 +1,4 @@
-export type NodeLifecycleStatus = "ONLINE" | "OFFLINE" | "DEGRADED" | "DEPLOYING" | "RESTARTING" | "UNHEALTHY" | "RECOVERING";
+export type NodeLifecycleStatus = "ONLINE" | "OFFLINE" | "DEGRADED" | "DEPLOYING" | "RESTARTING" | "UNHEALTHY" | "RECOVERING" | "UNKNOWN";
 
 export type NodeHealthState = "healthy" | "unhealthy" | "unknown";
 
@@ -103,15 +103,15 @@ export type NodeControlPlane = {
 
 export type ClusterOverview = {
   totalNodes: number;
-  onlineNodes: number;
-  totalSessions: number;
-  totalMessages: number;
-  queueSize: number;
-  websocketConnections: number;
-  unhealthyNodes: number;
-  failedDeploys: number;
-  redisUsageMb: number;
-  postgresUsageMb: number;
+  onlineNodes: number | null;
+  totalSessions: number | null;
+  totalMessages: number | null;
+  queueSize: number | null;
+  websocketConnections: number | null;
+  unhealthyNodes: number | null;
+  failedDeploys: number | null;
+  redisUsageMb: number | null;
+  postgresUsageMb: number | null;
 };
 
 export type NodeDetailsBundle = {

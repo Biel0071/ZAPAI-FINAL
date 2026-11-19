@@ -1,0 +1,952 @@
+[
+  {
+    "testFile": "test/activeChatSheet.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/ActiveChatPane",
+        "resolvedPath": "pages\\Inbox\\components\\ActiveChatPane.tsx",
+        "timers": [
+          {
+            "line": 455,
+            "text": "const interval = setInterval(() => {"
+          },
+          {
+            "line": 506,
+            "text": "setTimeout(() => {"
+          },
+          {
+            "line": 538,
+            "text": "const timer = window.setInterval(updateRemaining, 250);"
+          },
+          {
+            "line": 939,
+            "text": "setTimeout(() => {"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/aiMessageFeedback.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/components/inbox/AIMessageFeedback",
+        "resolvedPath": "components\\inbox\\AIMessageFeedback.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/aiRuntimeContracts.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/components/ai/AgentProfileModal",
+        "resolvedPath": "components\\ai\\AgentProfileModal.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/pages/AI/FlowsTab",
+        "resolvedPath": "pages\\AI\\FlowsTab.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/pages/AI/OperationsTab",
+        "resolvedPath": "pages\\AI\\OperationsTab.tsx",
+        "timers": [
+          {
+            "line": 188,
+            "text": "const interval = setInterval(fetchOperationsData, 20000);"
+          }
+        ]
+      },
+      {
+        "importPath": "@/components/ai/AgentCustomizerModal",
+        "resolvedPath": "components\\ai\\AgentCustomizerModal.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/ai/VoiceStudioDrawer",
+        "resolvedPath": "components\\ai\\VoiceStudioDrawer.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/ai/NewAgentWizardModal",
+        "resolvedPath": "components\\ai\\NewAgentWizardModal.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/pages/AI/EvolutionTab",
+        "resolvedPath": "pages\\AI\\EvolutionTab.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/attendantsComprehensiveSimulation.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Attendants/AttendantsPage",
+        "resolvedPath": "pages\\Attendants\\AttendantsPage.tsx",
+        "timers": [
+          {
+            "line": 558,
+            "text": "setTimeout(() => { void fetchData(); }, 150);"
+          },
+          {
+            "line": 1274,
+            "text": "const timerInterval = setInterval(() => {"
+          }
+        ]
+      },
+      {
+        "importPath": "@/pages/AI/AgentTab",
+        "resolvedPath": "pages\\AI\\AgentTab.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/pages/Inbox/components/SidebarPanel",
+        "resolvedPath": "pages\\Inbox\\components\\SidebarPanel.tsx",
+        "timers": [
+          {
+            "line": 812,
+            "text": "setTimeout(() => setCopiedPhone(false), 2000);"
+          },
+          {
+            "line": 1210,
+            "text": "setTimeout(() => setCopiedPhone(false), 2000);"
+          }
+        ]
+      },
+      {
+        "importPath": "@/components/avatar-engine/ZaiAvatarRenderer",
+        "resolvedPath": "components\\avatar-engine\\ZaiAvatarRenderer.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/avatar-engine/AvatarEditorModal",
+        "resolvedPath": "components\\avatar-engine\\AvatarEditorModal.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/attendants/exampleAttendants",
+        "resolvedPath": "components\\attendants\\exampleAttendants.ts",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/avatar-engine/CharacterFactory",
+        "resolvedPath": "components\\avatar-engine\\CharacterFactory.ts",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/ui/tooltip",
+        "resolvedPath": "components\\ui\\tooltip.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/state/stores/appStore",
+        "resolvedPath": "state\\stores\\appStore.ts",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/attendantsDesignSystemAndBrainGraph.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/components/attendants/AttendantItemCard",
+        "resolvedPath": "components\\attendants\\AttendantItemCard.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/attendants/AddAttendantCard",
+        "resolvedPath": "components\\attendants\\AddAttendantCard.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/attendants/exampleAttendants",
+        "resolvedPath": "components\\attendants\\exampleAttendants.ts",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/evolution/MemoryDetailDrawer",
+        "resolvedPath": "components\\evolution\\MemoryDetailDrawer.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/evolution/ActiveBrainGraph",
+        "resolvedPath": "components\\evolution\\ActiveBrainGraph.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/ui/pagination",
+        "resolvedPath": "components\\ui\\pagination.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/attendantsUnified.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Attendants/AttendantsPage",
+        "resolvedPath": "pages\\Attendants\\AttendantsPage.tsx",
+        "timers": [
+          {
+            "line": 558,
+            "text": "setTimeout(() => { void fetchData(); }, 150);"
+          },
+          {
+            "line": 1274,
+            "text": "const timerInterval = setInterval(() => {"
+          }
+        ]
+      },
+      {
+        "importPath": "@/components/avatar-engine/AvatarEditorModal",
+        "resolvedPath": "components\\avatar-engine\\AvatarEditorModal.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/ui/tooltip",
+        "resolvedPath": "components\\ui\\tooltip.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/state/stores/appStore",
+        "resolvedPath": "state\\stores\\appStore.ts",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/campaignBusinessHoursAndAvatar.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "../pages/Campaigns",
+        "resolvedPath": "pages\\Campaigns.tsx",
+        "timers": [
+          {
+            "line": 417,
+            "text": "const [intervalSeconds, setIntervalSeconds] = useState<number[]>([10]);"
+          },
+          {
+            "line": 467,
+            "text": "setIntervalSeconds([115]);"
+          },
+          {
+            "line": 474,
+            "text": "setIntervalSeconds([45]);"
+          },
+          {
+            "line": 481,
+            "text": "setIntervalSeconds([15]);"
+          },
+          {
+            "line": 643,
+            "text": "setIntervalSeconds([10]);"
+          },
+          {
+            "line": 719,
+            "text": "setIntervalSeconds([campaign.settings?.intervalSeconds ?? 10]);"
+          },
+          {
+            "line": 1246,
+            "text": "setIntervalSeconds([intervalValue]);"
+          },
+          {
+            "line": 1295,
+            "text": "const timer = window.setInterval(() => {"
+          },
+          {
+            "line": 2709,
+            "text": "onChange={(next) => setIntervalSeconds([next])}"
+          }
+        ]
+      },
+      {
+        "importPath": "../components/avatar-engine/ZaiAvatarRenderer",
+        "resolvedPath": "components\\avatar-engine\\ZaiAvatarRenderer.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "../components/avatar-engine/AvatarDefinition",
+        "resolvedPath": "components\\avatar-engine\\AvatarDefinition.ts",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/commercialSession.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/components/evolution/HistoryBootstrapPanel",
+        "resolvedPath": "components\\evolution\\HistoryBootstrapPanel.tsx",
+        "timers": [
+          {
+            "line": 317,
+            "text": "const timer = setInterval(load, 30000);"
+          },
+          {
+            "line": 340,
+            "text": "let timer: ReturnType<typeof setTimeout>;"
+          },
+          {
+            "line": 343,
+            "text": "if (!stopped) timer = setTimeout(poll, 8000);"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/conversationScoresInteractivity.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/components/evolution/ConversationScoresSection",
+        "resolvedPath": "components\\evolution\\ConversationScoresSection.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/conversationSearch.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/hooks/useInboxState",
+        "resolvedPath": "pages\\Inbox\\hooks\\useInboxState.ts",
+        "timers": [
+          {
+            "line": 101,
+            "text": "const timer = window.setTimeout(() => {"
+          },
+          {
+            "line": 581,
+            "text": "scrollTimerRef.current = window.setTimeout(runScroll, 180);"
+          },
+          {
+            "line": 1738,
+            "text": "const intervalId = window.setInterval(() => {"
+          },
+          {
+            "line": 1935,
+            "text": "const t1 = setTimeout(scroll, 100);"
+          },
+          {
+            "line": 1936,
+            "text": "const t2 = setTimeout(scroll, 300);"
+          },
+          {
+            "line": 2023,
+            "text": "const timer = setTimeout(() => {"
+          },
+          {
+            "line": 2135,
+            "text": "const intervalId = window.setInterval(() => {"
+          },
+          {
+            "line": 2447,
+            "text": "const fallbackTimerId = window.setTimeout(() => {"
+          },
+          {
+            "line": 3673,
+            "text": "intervalId = window.setInterval(() => {"
+          }
+        ]
+      },
+      {
+        "importPath": "@/pages/Inbox/hooks/useInboxState",
+        "resolvedPath": "pages\\Inbox\\hooks\\useInboxState.ts",
+        "timers": [
+          {
+            "line": 101,
+            "text": "const timer = window.setTimeout(() => {"
+          },
+          {
+            "line": 581,
+            "text": "scrollTimerRef.current = window.setTimeout(runScroll, 180);"
+          },
+          {
+            "line": 1738,
+            "text": "const intervalId = window.setInterval(() => {"
+          },
+          {
+            "line": 1935,
+            "text": "const t1 = setTimeout(scroll, 100);"
+          },
+          {
+            "line": 1936,
+            "text": "const t2 = setTimeout(scroll, 300);"
+          },
+          {
+            "line": 2023,
+            "text": "const timer = setTimeout(() => {"
+          },
+          {
+            "line": 2135,
+            "text": "const intervalId = window.setInterval(() => {"
+          },
+          {
+            "line": 2447,
+            "text": "const fallbackTimerId = window.setTimeout(() => {"
+          },
+          {
+            "line": 3673,
+            "text": "intervalId = window.setInterval(() => {"
+          }
+        ]
+      },
+      {
+        "importPath": "@/state/stores/appStore",
+        "resolvedPath": "state\\stores\\appStore.ts",
+        "timers": []
+      },
+      {
+        "importPath": "@/pages/Inbox",
+        "resolvedPath": "pages\\Inbox.tsx",
+        "timers": [
+          {
+            "line": 230,
+            "text": "window.setTimeout(() => state.scrollToLatestMessage(\"auto\"), 120);"
+          },
+          {
+            "line": 231,
+            "text": "window.setTimeout(() => state.scrollToLatestMessage(\"auto\"), 320);"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/dashboardTwoHubs.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Dashboard",
+        "resolvedPath": "pages\\Dashboard.tsx",
+        "timers": [
+          {
+            "line": 108,
+            "text": "const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void load(); }, HEAVY_REFRESH_MS);"
+          },
+          {
+            "line": 139,
+            "text": "const intervalId = window.setInterval(() => {"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/evolutionTabHonesty.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/AI/EvolutionTab",
+        "resolvedPath": "pages\\AI\\EvolutionTab.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/evolution/MemoryDetailDrawer",
+        "resolvedPath": "components\\evolution\\MemoryDetailDrawer.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/flowExecutionBanner.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/FlowExecutionBanner",
+        "resolvedPath": "pages\\Inbox\\components\\FlowExecutionBanner.tsx",
+        "timers": [
+          {
+            "line": 115,
+            "text": "const timer = setInterval(() => setNow(Date.now()), 250);"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/historyBootstrap.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/components/evolution/HistoryBootstrapPanel",
+        "resolvedPath": "components\\evolution\\HistoryBootstrapPanel.tsx",
+        "timers": [
+          {
+            "line": 317,
+            "text": "const timer = setInterval(load, 30000);"
+          },
+          {
+            "line": 340,
+            "text": "let timer: ReturnType<typeof setTimeout>;"
+          },
+          {
+            "line": 343,
+            "text": "if (!stopped) timer = setTimeout(poll, 8000);"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/inboxCatalogPopover.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/CatalogSelectorPopover",
+        "resolvedPath": "pages\\Inbox\\components\\CatalogSelectorPopover.tsx",
+        "timers": [
+          {
+            "line": 599,
+            "text": "await new Promise((r) => setTimeout(r, 400));"
+          }
+        ]
+      },
+      {
+        "importPath": "@/pages/Inbox/components/MessageRow",
+        "resolvedPath": "pages\\Inbox\\components\\MessageRow.tsx",
+        "timers": [
+          {
+            "line": 490,
+            "text": "const timeoutId = window.setTimeout(() => setMediaLoading(false), 2500);"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/inboxCircuitBreakerFlashingRed.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/ConversationRow",
+        "resolvedPath": "pages\\Inbox\\components\\ConversationRow.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/inboxDisparoCard.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/MessageRow",
+        "resolvedPath": "pages\\Inbox\\components\\MessageRow.tsx",
+        "timers": [
+          {
+            "line": 490,
+            "text": "const timeoutId = window.setTimeout(() => setMediaLoading(false), 2500);"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/inboxOrderCard.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/MessageRow",
+        "resolvedPath": "pages\\Inbox\\components\\MessageRow.tsx",
+        "timers": [
+          {
+            "line": 490,
+            "text": "const timeoutId = window.setTimeout(() => setMediaLoading(false), 2500);"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/inboxPanel.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/SidebarPanel",
+        "resolvedPath": "pages\\Inbox\\components\\SidebarPanel.tsx",
+        "timers": [
+          {
+            "line": 812,
+            "text": "setTimeout(() => setCopiedPhone(false), 2000);"
+          },
+          {
+            "line": 1210,
+            "text": "setTimeout(() => setCopiedPhone(false), 2000);"
+          }
+        ]
+      },
+      {
+        "importPath": "@/pages/Inbox/components/QuickResponseModal",
+        "resolvedPath": "pages\\Inbox\\components\\QuickResponseModal.tsx",
+        "timers": [
+          {
+            "line": 163,
+            "text": "setTimeout(() => {"
+          },
+          {
+            "line": 204,
+            "text": "setTimeout(() => {"
+          }
+        ]
+      },
+      {
+        "importPath": "@/pages/lovable/pages/InboxView",
+        "resolvedPath": "pages\\lovable\\pages\\InboxView.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/inboxReconstruction.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/ActiveChatPane",
+        "resolvedPath": "pages\\Inbox\\components\\ActiveChatPane.tsx",
+        "timers": [
+          {
+            "line": 455,
+            "text": "const interval = setInterval(() => {"
+          },
+          {
+            "line": 506,
+            "text": "setTimeout(() => {"
+          },
+          {
+            "line": 538,
+            "text": "const timer = window.setInterval(updateRemaining, 250);"
+          },
+          {
+            "line": 939,
+            "text": "setTimeout(() => {"
+          }
+        ]
+      },
+      {
+        "importPath": "@/pages/Inbox/components/ZaiAssistantComposer",
+        "resolvedPath": "pages\\Inbox\\components\\ZaiAssistantComposer.tsx",
+        "timers": [
+          {
+            "line": 93,
+            "text": "const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);"
+          },
+          {
+            "line": 126,
+            "text": "const timer = setTimeout(async () => {"
+          },
+          {
+            "line": 158,
+            "text": "const t1 = setTimeout(() => setTimelineStep(\"intent\"), 900);"
+          },
+          {
+            "line": 159,
+            "text": "const t2 = setTimeout(() => setTimelineStep(\"context\"), 2100);"
+          },
+          {
+            "line": 160,
+            "text": "const t3 = setTimeout(() => setTimelineStep(\"generating\"), 3500);"
+          },
+          {
+            "line": 180,
+            "text": "timerIntervalRef.current = setInterval(() => {"
+          }
+        ]
+      },
+      {
+        "importPath": "@/components/inbox/TagIconBadge",
+        "resolvedPath": "components\\inbox\\TagIconBadge.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/leadDrawerProduction.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/components/contacts/LeadDrawer",
+        "resolvedPath": "components\\contacts\\LeadDrawer.tsx",
+        "timers": [
+          {
+            "line": 369,
+            "text": "setTimeout(() => setCopiedPhone(false), 2000);"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/messageFooter.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/MessageRow",
+        "resolvedPath": "pages\\Inbox\\components\\MessageRow.tsx",
+        "timers": [
+          {
+            "line": 490,
+            "text": "const timeoutId = window.setTimeout(() => setMediaLoading(false), 2500);"
+          }
+        ]
+      },
+      {
+        "importPath": "@/pages/Inbox/utils",
+        "resolvedPath": "pages\\Inbox\\utils.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/mobileApp.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/state/hooks/use-mobile",
+        "resolvedPath": "state\\hooks\\use-mobile.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/layout/MobileBottomNav",
+        "resolvedPath": "components\\layout\\MobileBottomNav.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/state/stores/appStore",
+        "resolvedPath": "state\\stores\\appStore.ts",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/productionPages.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Settings",
+        "resolvedPath": "pages\\Settings.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/pages/Contacts",
+        "resolvedPath": "pages\\Contacts.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/pages/Connections",
+        "resolvedPath": "pages\\Connections.tsx",
+        "timers": [
+          {
+            "line": 296,
+            "text": "const intervalId = window.setInterval(() => {"
+          },
+          {
+            "line": 335,
+            "text": "const timer = window.setInterval(load, 8000);"
+          },
+          {
+            "line": 408,
+            "text": "const intervalId = window.setInterval(() => {"
+          }
+        ]
+      },
+      {
+        "importPath": "@/pages/Campaigns",
+        "resolvedPath": "pages\\Campaigns.tsx",
+        "timers": [
+          {
+            "line": 417,
+            "text": "const [intervalSeconds, setIntervalSeconds] = useState<number[]>([10]);"
+          },
+          {
+            "line": 467,
+            "text": "setIntervalSeconds([115]);"
+          },
+          {
+            "line": 474,
+            "text": "setIntervalSeconds([45]);"
+          },
+          {
+            "line": 481,
+            "text": "setIntervalSeconds([15]);"
+          },
+          {
+            "line": 643,
+            "text": "setIntervalSeconds([10]);"
+          },
+          {
+            "line": 719,
+            "text": "setIntervalSeconds([campaign.settings?.intervalSeconds ?? 10]);"
+          },
+          {
+            "line": 1246,
+            "text": "setIntervalSeconds([intervalValue]);"
+          },
+          {
+            "line": 1295,
+            "text": "const timer = window.setInterval(() => {"
+          },
+          {
+            "line": 2709,
+            "text": "onChange={(next) => setIntervalSeconds([next])}"
+          }
+        ]
+      },
+      {
+        "importPath": "@/components/ai/ZaibotFloatingAssistant",
+        "resolvedPath": "components\\ai\\ZaibotFloatingAssistant.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/quickReplyCategoryAppearance.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/SidebarPanel",
+        "resolvedPath": "pages\\Inbox\\components\\SidebarPanel.tsx",
+        "timers": [
+          {
+            "line": 812,
+            "text": "setTimeout(() => setCopiedPhone(false), 2000);"
+          },
+          {
+            "line": 1210,
+            "text": "setTimeout(() => setCopiedPhone(false), 2000);"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "testFile": "test/runtimeProviderRealtimeMessage.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/state/providers/RuntimeProvider",
+        "resolvedPath": "state\\providers\\RuntimeProvider.tsx",
+        "timers": [
+          {
+            "line": 210,
+            "text": "const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);"
+          },
+          {
+            "line": 214,
+            "text": "const historyRefreshTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());"
+          },
+          {
+            "line": 215,
+            "text": "const conversationRefreshDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());"
+          },
+          {
+            "line": 227,
+            "text": "const timer = setTimeout(() => {"
+          },
+          {
+            "line": 348,
+            "text": "refreshTimerRef.current = setTimeout(() => void loadFromApi({ forceConversations: true }), 600);"
+          },
+          {
+            "line": 358,
+            "text": "setTimeout(() => {"
+          },
+          {
+            "line": 521,
+            "text": "historyRefreshTimersRef.current.set(activeId, setTimeout(() => {"
+          },
+          {
+            "line": 667,
+            "text": "const timer = window.setTimeout(() => {"
+          }
+        ]
+      },
+      {
+        "importPath": "@/state/stores/appStore",
+        "resolvedPath": "state\\stores\\appStore.ts",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/stackedTagsBadge.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/components/inbox/StackedTagsBadge",
+        "resolvedPath": "components\\inbox\\StackedTagsBadge.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/storesPage.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Stores/StoresPage",
+        "resolvedPath": "pages\\Stores\\StoresPage.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/unifiedAI.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/AI",
+        "resolvedPath": "pages\\AI.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/layout/Sidebar",
+        "resolvedPath": "components\\layout\\Sidebar.tsx",
+        "timers": [
+          {
+            "line": 123,
+            "text": "const t1 = setTimeout(() => window.dispatchEvent(new Event(\"resize\")), 100);"
+          },
+          {
+            "line": 124,
+            "text": "const t2 = setTimeout(() => window.dispatchEvent(new Event(\"resize\")), 220);"
+          }
+        ]
+      },
+      {
+        "importPath": "@/components/ui/tooltip",
+        "resolvedPath": "components\\ui\\tooltip.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/waLabelsSlashBubble.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/quickReplySlash",
+        "resolvedPath": "pages\\Inbox\\quickReplySlash.ts",
+        "timers": []
+      },
+      {
+        "importPath": "@/pages/Inbox/messageOrigin",
+        "resolvedPath": "pages\\Inbox\\messageOrigin.ts",
+        "timers": []
+      },
+      {
+        "importPath": "@/components/inbox/WhatsappLabelBadges",
+        "resolvedPath": "components\\inbox\\WhatsappLabelBadges.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/whatsappConversationMenu.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/pages/Inbox/components/ChatListPanel",
+        "resolvedPath": "pages\\Inbox\\components\\ChatListPanel.tsx",
+        "timers": []
+      },
+      {
+        "importPath": "@/pages/Inbox/components/ConversationRow",
+        "resolvedPath": "pages\\Inbox\\components\\ConversationRow.tsx",
+        "timers": []
+      }
+    ]
+  },
+  {
+    "testFile": "test/zaiPlatformAssistant.test.tsx",
+    "importedComponents": [
+      {
+        "importPath": "@/components/ai/ZaiPlatformAssistantView",
+        "resolvedPath": "components\\ai\\ZaiPlatformAssistantView.tsx",
+        "timers": []
+      }
+    ]
+  }
+]

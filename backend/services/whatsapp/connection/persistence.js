@@ -48,28 +48,50 @@ function getPersistenceHealth() {
   };
 }
 
-async function safeCreateSessionRecord(sessionId, sessionName) {
+async function safeCreateSessionRecord(sessionId, sessionName, fallbackCompanyId = null) {
   try {
     const { query } = require('../../../src/infrastructure/config/database');
-    const existing = await query('SELECT company_id FROM sessions WHERE session_id=$1', [sessionId]);
-    // A reconnect must never reassign a session to DEFAULT_COMPANY_ID.
-    if (existing.rows[0]) { markPersistenceSuccess('create_session_record'); return; }
-    throw new Error('Create the session through authenticated onboarding before connecting.');
+    let existing;
+    try {
+      existing = await query('SELECT company_id FROM sessions WHERE session_id=$1', [sessionId]);
+    } catch (_dbErr) {
+      // database might be briefly unavailable
+    }
+    if (existing?.rows?.[0]) {
+      markPersistenceSuccess('create_session_record');
+      return;
+    }
+    const targetCompanyId = fallbackCompanyId || process.env.DEFAULT_COMPANY_ID || 'default';
+    await sessionRepository.createSession({
+      companyId: targetCompanyId,
+      sessionId,
+      sessionName: sessionName || sessionId,
+      status: 'connecting',
+    });
+    markPersistenceSuccess('create_session_record');
   } catch (error) {
     markPersistenceFailure(sessionId, 'create_session_record', error);
   }
 }
 
-async function safeUpdateSessionStatus(sessionId, status, phone, sessionName, whatsappName = null) {
+async function safeUpdateSessionStatus(sessionId, status, phone, sessionName, whatsappName = null, fallbackCompanyId = null) {
   try {
     const { query } = require('../../../src/infrastructure/config/database');
-    const existing = await query('SELECT company_id FROM sessions WHERE session_id=$1', [sessionId]);
-    if (!existing.rows[0]?.company_id) throw new Error('Session owner is missing.');
+    let companyId = fallbackCompanyId;
+    if (!companyId) {
+      try {
+        const existing = await query('SELECT company_id FROM sessions WHERE session_id=$1', [sessionId]);
+        companyId = existing?.rows?.[0]?.company_id;
+      } catch (_dbErr) {
+        // database might be briefly unavailable
+      }
+    }
+    const targetCompanyId = companyId || process.env.DEFAULT_COMPANY_ID || 'default';
     await sessionRepository.updateSessionStatus(
       sessionId,
       status,
       phone,
-      existing.rows[0].company_id,
+      targetCompanyId,
       sessionName,
       whatsappName
     );

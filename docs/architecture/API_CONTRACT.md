@@ -40,6 +40,30 @@
 
 ## Sistema
 
+## Empresas, cadastro e licenças (055)
+
+| Método | Endpoint | Acesso | Finalidade |
+|---|---|---|---|
+| `POST` | `/api/auth/company-registration` | Link público válido | Envia solicitação pendente. Body: `token`, `companyName`, `responsibleName`, `username`, `email`, `password` (12+ caracteres). |
+| `POST` | `/api/admin/master/registration-links` | `master` / `master_admin` | Gera link manual de uso único; `validHours` aceita 1–168 e o padrão é 72. |
+| `GET` | `/api/admin/master/registration-requests` | Master | Lista solicitações sem dados de senha. |
+| `POST` | `/api/admin/master/registration-requests/:id/approve\|reject` | Master | Aprova ou rejeita solicitação pendente. Aprovação cria empresa e administrador. |
+| `GET` | `/api/admin/master/companies` | Master | Lista empresas e contagens básicas de usuários/lojas. |
+| `POST` | `/api/admin/master/license-plans` | Master | Cria plano manual: `{name, modules, numberLimit}`. Módulos permitidos: `inbox`, `contacts`, `campaigns`. |
+| `POST` | `/api/admin/master/companies/:companyId/licenses` | Master | Emite token de licença vinculado à empresa e plano; retorna o token uma vez. `expiresAt` é opcional. |
+| `GET` | `/api/admin/master/licenses` | Master | Lista status de licenças sem expor hashes ou tokens. |
+| `POST` | `/api/admin/master/licenses/:id/revoke` | Master | Revoga uma licença emitida. |
+| `PATCH` | `/api/admin/master/companies/:id/status` | Master | Ativa ou suspende uma empresa. |
+| `POST` | `/api/licenses/redeem` | Admin da empresa | Resgata token destinado à empresa autenticada; uso único. |
+| `GET` | `/api/company/entitlements` | Autenticado na empresa | Informa módulos e limites efetivos para interface. |
+| `PATCH` | `/api/company` | Admin da empresa | Atualiza nome e responsável sem alterar o `tenant_id` legado. |
+| `GET` | `/api/company/users/modules` | Admin da empresa | Lista restrições individuais de módulos. |
+| `PUT` | `/api/company/users/:id/modules/:module` | Admin da empresa | Restringe ou reabilita um módulo já concedido pelo pacote, sem ampliar o pacote. |
+
+Os controles administrativos de empresa, usuários e `master` verificam papel e tenant no backend. `x-admin-company-context` só é aceito quando o JWT tem papel `master`/`master_admin` e a empresa existe e está ativa. Antes do resgate de pacote, empresas legadas preservam o acesso existente; após o resgate, routers de Inbox, contatos, campanhas e criação de sessão aplicam o pacote e as restrições individuais.
+
+O Assistente ZAI global usa `GET /api/ai/evolution/zai-assistant-config` e `PUT` no mesmo path para preferência de interação por usuário. Os endpoints `/api/admin/master/zai-assistant*` controlam disponibilidade global e por usuário; a ativação visual não é uma chave de controle da análise WhatsApp.
+
 ### GET /api/health
 Healthcheck — público, sem autenticação.
 

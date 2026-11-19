@@ -857,6 +857,14 @@ async function runDispatchLoop(state, io) {
       emitProgress(state, io);
       await persistProgress(state);
 
+      if (state.pauseAfterApprovedContacts === true && state.pendingQueue.length > 0) {
+        state.status = 'paused';
+        state.sessionPaused = true;
+        await persistProgress(state);
+        emitProgress(state, io);
+        break;
+      }
+
       // Retry on backpressure
       if (result?.retry) {
         state.pendingQueue.unshift(contact);
@@ -1030,7 +1038,8 @@ async function resumeSessionCampaigns({ companyId, sessionId, io }) {
   let resumed = 0;
   for (const campaign of campaigns) {
     if (campaign.status !== 'paused' || campaign.queue?.pausedBySession !== true
-      || String(campaign.settings?.sessionId || 'main') !== String(sessionId)) continue;
+      || String(campaign.settings?.sessionId || 'main') !== String(sessionId)
+      || activeCampaigns.get(campaign.id)?.sessionPaused === true) continue;
     const current = activeCampaigns.get(campaign.id);
     if (current && current.sessionPaused !== true) {
       resumeCampaign(campaign.id, io, companyId);
@@ -1104,6 +1113,7 @@ async function resumeSessionContact({ companyId, sessionId, phone, io }) {
     state.pauseAfterApprovedContacts = true;
     state.sessionPaused = true;
     state.status = 'running';
+    state.pendingQueue = [contact];
     state.metrics.startedAt = campaign.startedAt || new Date().toISOString();
     activeCampaigns.delete(campaign.id);
     activeCampaigns.set(campaign.id, state);
@@ -1144,8 +1154,35 @@ async function cancelSessionContact({ companyId, sessionId, phone }) {
 async function resumeSessionAutomationSet({ companyId, sessionId, io }) {
   const queue = require('./outboundQueueService');
   const queueItems = await queue.resumeSessionItems({ companyId, sessionId });
-  const campaigns = await resumeSessionCampaigns({ companyId, sessionId, io });
-  return { queueItems, campaigns };
+  const campaigns = await campaignRepository.listCampaigns(companyId);
+  let resumedCampaigns = 0;
+  for (const campaign of campaigns) {
+    if (campaign.queue?.pausedBySession !== true
+      || String(campaign.settings?.sessionId || 'main') !== String(sessionId)
+      || activeCampaigns.get(campaign.id)?.processing) continue;
+    const sent = new Set((campaign.queue?.sentContactIds || []).map(String));
+    const cancelled = new Set((campaign.queue?.cancelledContactIds || []).map(String));
+    const approved = (campaign.selectedContacts || [])
+      .filter((contact) => !sent.has(campaignContactKey(contact)) && !cancelled.has(campaignContactKey(contact)))
+      .map(campaignContactKey);
+    if (!approved.length) continue;
+    const nextQueue = { ...campaign.queue, paused: true, pausedBySession: true, sessionResumedContactIds: approved };
+    const updated = await campaignRepository.updateCampaign(campaign.id, { queue: nextQueue }, companyId);
+    const state = createCampaignState({ ...updated, queue: nextQueue, companyId });
+    const session = resolveCampaignSession(sessionId, companyId, true);
+    if (!session) throw new Error('Conecte o WhatsApp antes de retomar as campanhas revisadas.');
+    state.pendingQueue = (campaign.selectedContacts || []).filter((contact) => approved.includes(campaignContactKey(contact)));
+    state.sessionId = session.sessionId || session.id || session.name || sessionId;
+    state.allowSessionResume = true;
+    state.pauseAfterApprovedContacts = false;
+    state.sessionPaused = false;
+    state.status = 'running';
+    state.metrics.startedAt = campaign.startedAt || new Date().toISOString();
+    activeCampaigns.set(campaign.id, state);
+    runDispatchLoop(state, io).catch((error) => console.error(`[CampaignEngine] Reviewed campaign dispatch failed for ${campaign.id}:`, error?.message || error));
+    resumedCampaigns++;
+  }
+  return { queueItems, campaigns: resumedCampaigns };
 }
 
 function cancelCampaign(campaignId, companyId) {

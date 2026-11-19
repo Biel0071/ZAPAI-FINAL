@@ -18,6 +18,7 @@ function fixture({ agents, profiles = [], failProfile = false } = {}) {
     { company_id: 'tenant-a', id: 'store-b', name: 'Loja B', knowledge: 'CATALOGO_LOJA_B' },
   ];
   const statements = [];
+  const avatarUpserts = [];
   const settings = {
     getSetting: async key => ({ key, value: JSON.stringify(savedAgents) }),
     setSetting: async (key, value) => { statements.push({ sql: 'legacy cache persistence', params: [key] }); savedAgents = JSON.parse(value); },
@@ -74,21 +75,56 @@ function fixture({ agents, profiles = [], failProfile = false } = {}) {
     const found = await client.query('SELECT session_id FROM sessions WHERE company_id=$1 AND session_id=$2', [companyId, sessionId]);
     if (!found.rows.length) throw new Error('Conexão não encontrada.');
   } };
+  const attendantRepo = {
+    syncAgent: async () => {},
+    upsertAttendant: async (companyId, data) => {
+      avatarUpserts.push({ companyId, data: copy(data) });
+      return { id: `${companyId}:${data.key}` };
+    },
+    assignToConnection: async () => {},
+    assignToStore: async () => {},
+    listAttendants: async (companyId) => savedAgents.map((agent) => ({ id: `${companyId}:${agent.key}` })),
+    removeConnectionAssignment: async () => {},
+    removeSessionAssignments: async () => {},
+    deleteAttendant: async () => {},
+  };
   const module = { exports: {} };
   vm.runInNewContext(source, { module, exports: module.exports, console,
     process: { env: { DEFAULT_COMPANY_ID: 'default' } },
     require: name => name.endsWith('/systemSettingsRepository') ? settings
       : name.endsWith('/config/database') ? database
       : name.endsWith('/aiMemoryEngine') ? memory
+      : name.endsWith('/attendantRepository') ? attendantRepo
+      : name.endsWith('/agentBehaviorCompiler') ? require('../src/ai/agents/engine/agentBehaviorCompiler')
       : name === 'crypto' ? crypto : {},
   }, { filename: 'aiAgentService.js' });
   return {
     service: module.exports, statements,
+    avatarUpserts,
     agents: () => copy(savedAgents), profiles: () => copy(savedProfiles),
     replaceAgents: value => { savedAgents = copy(value); },
     assign: (agentKey, sessionId = 'line-a', companyId = 'tenant-a') => module.exports.assignAgentToSession({ companyId, sessionId, agentKey }),
   };
 }
+
+test('avatar updates synchronize the composed config to the relational attendant under its tenant key', async () => {
+  const f = fixture();
+  await f.service.updateAgentAvatar('tenant-a', 'sales', {
+    avatar: '/assets/avatar_factory/catalog/sprite_r2_c7_clean.png',
+    avatarConfig: { hair: 'hair_02', baseSpriteId: 'sprite_r2_c7', outfit: 'outfit_03' },
+    appearance: { hair: 'hair_02', outfit: 'outfit_03' },
+  });
+
+  assert.equal(f.avatarUpserts.length, 1);
+  assert.equal(f.avatarUpserts[0].companyId, 'tenant-a');
+  assert.equal(f.avatarUpserts[0].data.key, 'sales');
+  assert.equal(f.avatarUpserts[0].data.avatar_url, '/assets/avatar_factory/catalog/sprite_r2_c7_clean.png');
+  assert.deepEqual(f.avatarUpserts[0].data.avatar_config, {
+    hair: 'hair_02', baseSpriteId: 'sprite_r2_c7', outfit: 'outfit_03',
+  });
+  assert.equal(f.avatarUpserts[0].data.appearance.hair, 'hair_02');
+  assert.equal(f.avatarUpserts[0].data.appearance.outfit, 'outfit_03');
+});
 
 test('assignment rejects another company connection before changing any attendant', async () => {
   const f = fixture();

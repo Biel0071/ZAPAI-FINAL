@@ -29,11 +29,14 @@ async function readAccessToken(): Promise<{ token: string | null; tenantId: stri
 
 export async function buildApiHeaders(): Promise<Record<string, string>> {
   const { token, tenantId } = await readAccessToken();
+  let adminCompanyContext = "";
+  try { adminCompanyContext = window.localStorage.getItem("zai_admin_company_context") || ""; } catch { /* unavailable storage */ }
 
   return {
     Accept: "application/json",
     "Content-Type": "application/json",
     "x-tenant-id": getCurrentTenantId(),
+    ...(adminCompanyContext ? { "x-admin-company-context": adminCompanyContext } : {}),
     "ngrok-skip-browser-warning": "true",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };

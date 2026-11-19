@@ -63,19 +63,25 @@ export const HighlightedMessageText = memo(function HighlightedMessageText({
   );
 });
 
+export function getNameInitials(name: string | null | undefined, fallback: string): string {
+  if (!name || typeof name !== "string") return fallback;
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.match(/[\p{L}\p{N}]/u)?.[0] ?? "")
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return initials || fallback;
+}
+
 export function getInitials(name?: string | null): string {
   if (!name || typeof name !== "string") return "C";
   const trimmed = name.trim();
   if (trimmed.startsWith("Cliente WhatsApp")) return "CW";
   if (/^[+\d\s().-]+$/.test(trimmed)) return "WA";
-  return (
-    trimmed
-      .split(" ")
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((word) => word[0]?.toUpperCase() ?? "")
-      .join("") || "C"
-  );
+  return getNameInitials(trimmed, "C");
 }
 
 export function formatTime(value?: string | number): string {
@@ -187,7 +193,7 @@ export function formatContactPhone(phone: string, isGroup?: boolean): {
   }
   const clean = raw.replace(/@.*$/, "").replace(/\D/g, "");
   const isLid = raw.includes("@lid") || (clean.length >= 14 && clean.length <= 16 && !clean.startsWith("55"));
-  const display = formatPhoneNumber(phone);
+  const display = isLid ? "Número oculto pelo WhatsApp" : formatPhoneNumber(phone);
   return { display, isLid, isGroup: false, raw, shortId: clean.slice(-4) };
 }
 
@@ -482,7 +488,11 @@ export function parseChatsLoadedPayload(payload: unknown): Conversation[] {
       const item = entry as Record<string, unknown>;
       const rawId = String(item.id ?? item.conversationId ?? item.conversation_id ?? item.chatId ?? item.chat_id ?? "").trim();
       const rawPhone = String(item.phone ?? item.phoneNumber ?? item.jid ?? item.remoteJid ?? item.remote_jid ?? item.chatId ?? item.chat_id ?? "").trim();
-      const rawName = String((item.contactName ?? item.name ?? item.pushName ?? rawPhone) || "Contato").trim();
+      const candidateContactName = String(item.contactName ?? "").trim();
+      const candidateName = String(item.name ?? "").trim();
+      const rawName = (candidateName && (candidateName.length > candidateContactName.length || candidateContactName.length <= 2))
+        ? candidateName
+        : (candidateContactName || candidateName || String(item.pushName ?? rawPhone ?? "Contato").trim());
       const normalizedLastMessageType = String(item.lastMessageType ?? item.messageType ?? item.mediaType ?? "text").toLowerCase();
       const lastMessageType =
         normalizedLastMessageType === "image" ||
@@ -1113,7 +1123,8 @@ export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]):
       if (String(candidate.id) === String(message.id)) return true;
       const candidateWaId = (candidate as any).whatsappMessageId || (candidate as any).externalMessageId;
       if (candidateWaId && messageWaId && String(candidateWaId) === String(messageWaId)) return true;
-      if (!message.fromMe || !candidate.fromMe || messageWaId || candidateWaId) return false;
+      if (Boolean(candidate.fromMe) !== Boolean(message.fromMe)) return false;
+      if (messageWaId || candidateWaId) return false;
       if ((candidate.content ?? "").trim() !== (message.content ?? "").trim()) return false;
       const candidateTime = new Date(String(candidate.createdAt ?? (candidate as any).timestamp ?? "")).getTime();
       return Number.isFinite(messageTime) && Number.isFinite(candidateTime) && Math.abs(messageTime - candidateTime) <= 3000;
@@ -1143,14 +1154,12 @@ export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]):
       }
     }
 
-    // Realtime ACKs can arrive once from the HTTP response and again from
-    // Socket.IO with different local IDs but the same persisted content.
-    // Collapse only an exact outgoing text duplicate inside a short window;
-    // repeated operator messages outside that window remain independent.
-    if (existingIdx === undefined && item.fromMe && !String(item.id).startsWith("temp-")) {
+    // Collapse exact duplicates in a short window for both inbound and outbound messages
+    if (existingIdx === undefined && !String(item.id).startsWith("temp-")) {
       const itemTime = new Date(String(item.createdAt ?? item.timestamp ?? "")).getTime();
       existingIdx = result.findIndex((candidate) => {
-        if (!candidate.fromMe || String(candidate.id).startsWith("temp-")) return false;
+        if (Boolean(candidate.fromMe) !== Boolean(item.fromMe)) return false;
+        if (String(candidate.id).startsWith("temp-")) return false;
         if ((candidate.content ?? "").trim() !== (item.content ?? "").trim()) return false;
         const candidateWaId = (candidate as any).whatsappMessageId || (candidate as any).externalMessageId;
         const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
@@ -1168,8 +1177,19 @@ export function mergeMessagesById(base: ChatMessage[], incoming: ChatMessage[]):
       const itemWaId = (item as any).whatsappMessageId || (item as any).externalMessageId;
       if (itemWaId) waIdMap.set(String(itemWaId), newIdx);
     } else {
-      if (String(result[existingIdx].id).startsWith("temp-") && !String(item.id).startsWith("temp-")) {
+      const current = result[existingIdx];
+      const isCurrentTemp = String(current.id).startsWith("temp-");
+      const isItemTemp = String(item.id).startsWith("temp-");
+      if (isCurrentTemp && !isItemTemp) {
         result[existingIdx] = item;
+      } else if (!isItemTemp) {
+        // Merge real-time status and ACK updates without duplicate bubbles
+        result[existingIdx] = {
+          ...current,
+          ...item,
+          status: item.status || current.status,
+          ack: (item as any).ack !== undefined ? (item as any).ack : (current as any).ack,
+        };
       }
     }
   }
@@ -1252,7 +1272,7 @@ export function isPotentialDuplicateMessage(base: ChatMessage[], incoming: ChatM
 }
 
 export function inferConversationMessageType(conversation: Conversation): "text" | "image" | "video" | "audio" | "file" | "sticker" {
-  if (conversation.lastMessageType && conversation.lastMessageType !== "text") return conversation.lastMessageType;
+  if (conversation.lastMessageType && conversation.lastMessageType !== "text") return conversation.lastMessageType as any;
   const normalized = (conversation.lastMessage ?? "").trim().toLowerCase();
   if (normalized.includes("image") || normalized.startsWith("[image]")) return "image";
   if (normalized.includes("video") || normalized.startsWith("[video]")) return "video";
@@ -1267,16 +1287,16 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   if (normStatus === "sending" || normStatus === "pending" || normStatus === "retry") {
     return {
       symbol: "1V",
-      className: "text-amber-500 animate-pulse",
-      label: normStatus === "pending" ? "Na fila de envio" : normStatus === "retry" ? "Nova tentativa na fila" : "Preparando envio",
+      className: "text-muted-foreground/70 animate-pulse",
+      label: normStatus === "pending" ? "Na fila de envio" : normStatus === "retry" ? "Nova tentativa na fila" : "Enviando...",
       icon: "clock",
     };
   }
   if (normStatus === "failed" || normStatus === "blocked" || normStatus === "error") {
     return {
       symbol: "1V",
-      className: "text-destructive font-bold",
-      label: "Falha no envio",
+      className: "text-red-500 font-bold",
+      label: normStatus === "blocked" ? "Contato bloqueado / Não entregue" : "Falha no envio (não entregue)",
       icon: "failed",
     };
   }
@@ -1284,15 +1304,15 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
     return {
       symbol: "2V",
       className: "text-emerald-500 font-bold",
-      label: "Lida no WhatsApp",
+      label: "Lida pelo destinatário",
       icon: "read",
     };
   }
   if (normStatus === "device_ack" || normStatus === "delivered" || normStatus === "received") {
     return {
       symbol: "2V",
-      className: "text-emerald-500 font-bold",
-      label: "Entregue no WhatsApp",
+      className: "text-muted-foreground/80",
+      label: "Entregue ao aparelho",
       icon: "delivered",
     };
   }
@@ -1300,7 +1320,7 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
     return {
       symbol: "1V",
       className: "text-muted-foreground/70",
-      label: "Enviada ao WhatsApp",
+      label: "Enviada ao servidor WhatsApp",
       icon: "sent",
     };
   }
@@ -1308,8 +1328,8 @@ export function getMessageStatusMeta(status?: ChatMessage["status"]) {
   return {
     symbol: "1V",
     className: "text-muted-foreground/70",
-    label: "Status não informado",
-    icon: "clock",
+    label: "Enviada",
+    icon: "sent",
   };
 }
 

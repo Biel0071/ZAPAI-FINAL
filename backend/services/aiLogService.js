@@ -57,12 +57,18 @@ async function saveLogEntry(entry, store) {
     contactName: entry.contactName || '',
     messageSent: entry.messageSent || '',
     messageReceived: entry.messageReceived || '',
-    provider: entry.provider || 'openai',
+    provider: entry.provider || 'zai',
     model: entry.model || '',
     promptTokens: Number(entry.promptTokens) || 0,
     completionTokens: Number(entry.completionTokens) || 0,
     totalTokens: Number(entry.totalTokens) || 0,
     sessionId: entry.sessionId || null,
+    agentKey: entry.agentKey || null,
+    routingMode: entry.routingMode || null,
+    credentialScope: entry.credentialScope || null,
+    latencyMs: entry.latencyMs != null ? Math.round(Number(entry.latencyMs) || 0) : null,
+    estimatedCostUsd: entry.estimatedCostUsd != null ? Number(entry.estimatedCostUsd) : 0,
+    effectiveConfig: entry.effectiveConfig || {},
   };
 
   // 1. Save to in-memory store
@@ -102,8 +108,11 @@ async function saveLogEntry(entry, store) {
   if (canonicalConversation) {
     try {
       await query(
-        `INSERT INTO ai_logs (conversation_id, contact_name, message_sent, message_received, provider, model, prompt_tokens, completion_tokens, total_tokens, timestamp, session_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        `INSERT INTO ai_logs (
+          conversation_id, contact_name, message_sent, message_received, provider, model,
+          prompt_tokens, completion_tokens, total_tokens, timestamp, session_id,
+          company_id, agent_key, routing_mode, credential_scope, latency_ms, estimated_cost_usd, effective_config
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb)`,
         [
           logEntry.conversationId,
           logEntry.contactName,
@@ -116,6 +125,13 @@ async function saveLogEntry(entry, store) {
           logEntry.totalTokens,
           logEntry.timestamp,
           logEntry.sessionId,
+          logEntry.companyId,
+          logEntry.agentKey,
+          logEntry.routingMode,
+          logEntry.credentialScope,
+          logEntry.latencyMs,
+          logEntry.estimatedCostUsd,
+          JSON.stringify(logEntry.effectiveConfig || {}),
         ]
       );
     } catch (err) {
@@ -165,6 +181,8 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
   let promptTokensToday = 0;
   let completionTokensToday = 0;
   let messagesToday = 0;
+  let estimatedCostToday = null;
+  let avgLatencyMs = null;
   let memoryFacts = 0;
   let tokensPerConversation = {};
 
@@ -174,6 +192,8 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
       const scope = logScope(companyId, sessionId);
       const todayRes = await query(`SELECT COALESCE(SUM(a.total_tokens), 0) AS total,
         COALESCE(SUM(a.prompt_tokens), 0) AS prompt, COALESCE(SUM(a.completion_tokens), 0) AS completion,
+        COALESCE(SUM(a.estimated_cost_usd), 0) AS total_cost,
+        AVG(a.latency_ms) FILTER (WHERE a.latency_ms IS NOT NULL) AS avg_latency,
         COUNT(*) AS count ${scope.sql} AND a.timestamp >= CURRENT_DATE`, scope.params);
       if (todayRes.rows.length > 0) {
         const row = todayRes.rows[0];
@@ -181,6 +201,8 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
         promptTokensToday = Number(row.prompt);
         completionTokensToday = Number(row.completion);
         messagesToday = Number(row.count);
+        estimatedCostToday = row.total_cost != null ? Number(Number(row.total_cost).toFixed(6)) : null;
+        avgLatencyMs = row.avg_latency != null ? Math.round(Number(row.avg_latency)) : null;
       }
 
       // If ai_logs has 0 tokens today, check today's AI messages in the messages table
@@ -253,10 +275,10 @@ async function getMetrics(store, sessionId, verifiedCompanyId) {
         completionTokensToday,
         messagesToday,
         aiResponsesToday: messagesToday,
-        estimatedCostToday: null,
+        estimatedCostToday,
         memoryFacts,
         aiMemories: memoryFacts,
-        avgLatencyMs: null,
+        avgLatencyMs,
         socketLatencyMs: null,
         model: null,
         provider: null,

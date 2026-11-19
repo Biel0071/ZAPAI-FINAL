@@ -124,6 +124,8 @@ export function NewAgentWizardModal({
   // Available data from backend
   const [stores, setStores] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [promptTemplates, setPromptTemplates] = useState<any[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
   // Wizard state
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
@@ -167,11 +169,16 @@ export function NewAgentWizardModal({
         setSelectedSessionId("");
         toast({ title: "Não foi possível carregar os WhatsApps", variant: "destructive" });
       });
+
+      apiService.getPromptTemplates().then((res) => {
+        setPromptTemplates(Array.isArray(res) ? res : Array.isArray((res as any)?.data) ? (res as any).data : []);
+      }).catch(() => setPromptTemplates([]));
     }
   }, [visible, defaultRole]);
 
   const selectedStore = stores.find((s) => s.id === selectedStoreId) || null;
   const selectedSession = sessions.find((s) => (s.sessionId || s.id) === selectedSessionId) || null;
+  const selectedTemplate = promptTemplates.find((template) => template.id === selectedTemplateId) || null;
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
@@ -200,7 +207,16 @@ export function NewAgentWizardModal({
       status: selectedSession ? "active" : "paused",
       personalityType: personality,
       tone: personality === "tecnico" ? "objective" : personality === "amigavel" ? "warm" : "commercial",
-      personality: `Você é ${name.trim()}, atendente digital oficial da loja ${selectedStore?.name || "ZAI"}. Especialidade: ${role}. Atue com tom ${personality}, prestativo e acolhedor, tirando dúvidas com precisão comercial.`,
+      personality: selectedTemplate
+        ? `${String(selectedTemplate.prompt_text || "")
+            .replace(/{{\s*agent\.name\s*}}/g, name.trim())
+            .replace(/{{\s*agent\.role\s*}}/g, role)
+            .replace(/{{\s*store\.name\s*}}/g, selectedStore?.name || "sua loja")
+            .replace(/{{\s*store\.verifiedFacts\s*}}/g, "consulte somente os fatos confirmados no perfil da loja")
+            .replace(/{{\s*contact\.(?:name|phone)\s*}}/g, "dados do contato disponíveis na conversa")}
+\n\nTom de atendimento: ${personality}. Seja prestativo e acolhedor. Não invente fatos comerciais.`
+        : `Você é ${name.trim()}, atendente digital oficial da loja ${selectedStore?.name || "ZAI"}. Especialidade: ${role}. Atue com tom ${personality}, prestativo e acolhedor, tirando dúvidas com precisão comercial.`,
+      promptTemplate: selectedTemplate ? { id: selectedTemplate.id, versionId: selectedTemplate.version_id, version: selectedTemplate.version } : null,
       avatar: gender === "female" ? "/assets/evolution/camila_avatar.png" : "/assets/evolution/joao_avatar.png",
       avatarConfig: {
         agentId: agentKey || `attendant-${Date.now()}`,
@@ -523,6 +539,23 @@ export function NewAgentWizardModal({
                   );
                 })}
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="agent-prompt-template" className="text-xs font-semibold text-foreground">Modelo de prompt publicado (opcional)</label>
+              <select
+                id="agent-prompt-template"
+                value={selectedTemplateId}
+                onChange={(event) => setSelectedTemplateId(event.target.value)}
+                className="w-full h-9 rounded-xl border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                <option value="">Usar instrução padrão</option>
+                {promptTemplates.filter((template) => template.status === "published").map((template) => (
+                  <option key={`${template.id}:${template.version_id}`} value={template.id}>
+                    {template.title} · {template.niche} · v{template.version}
+                  </option>
+                ))}
+              </select>
+              {selectedTemplate && <p className="text-[11px] text-muted-foreground">Versão publicada será copiada para este atendente; alterações futuras no modelo não mudarão esta configuração.</p>}
             </div>
           </div>
         )}

@@ -20,6 +20,31 @@ test('learning metrics preserve tenant-scoped zero and leave unmeasured quality 
   assert.ok(calls.every(call => call.params[0] === 'tenant-empty'));
 });
 
+test('learning metrics scope conversation XP and conversions to the requested attendant', async () => {
+  const calls = [];
+  const engine = new HumanAttendanceLearner({ query: async (sql, params) => {
+    calls.push({ sql, params });
+    if (/conversation_evolution_scores/.test(sql)) {
+      return { rows: [{ real_conv_xp: params[1] === 'joao_silva' ? 120 : 900, scored_count: params[1] === 'joao_silva' ? 2 : 9 }] };
+    }
+    if (/FROM conversations/.test(sql)) return { rows: [{ total: params[1] === 'joao_silva' ? '1' : '6' }] };
+    return { rows: [{ total: '10', total_exp: '4', human_samples: '4', positive_exp: '2' }] };
+  } });
+  const joao = await engine.calculateAgentLevel({ companyId: 'tenant-a', agentKey: 'joao_silva', force: true });
+  const camila = await engine.calculateAgentLevel({ companyId: 'tenant-a', agentKey: 'camila', force: true });
+  assert.equal(joao.scoredConversationsCount, 2);
+  assert.equal(camila.scoredConversationsCount, 9);
+  assert.equal(joao.conversionsCount, 1);
+  assert.equal(camila.conversionsCount, 6);
+  assert.notEqual(joao.totalXp, camila.totalXp);
+  assert.equal(joao.successRate, 50);
+  assert.equal(joao.naturalnessScore, 50);
+  assert.equal(joao.metricScope.conversations, 'attendant');
+  assert.equal(joao.metricScope.learning, 'store');
+  const scoped = calls.filter(call => /conversation_evolution_scores|FROM conversations/.test(call.sql));
+  assert.ok(scoped.every(call => call.params[0] === 'tenant-a' && ['joao_silva', 'camila'].includes(call.params[1])));
+});
+
 test('learning metrics propagate query failure without fabricated progress', async () => {
   const engine = new HumanAttendanceLearner({ query: async () => { throw new Error('offline'); } });
   await assert.rejects(engine.calculateAgentLevel({ companyId: 'tenant-error' }), /offline/);

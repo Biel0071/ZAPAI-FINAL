@@ -224,3 +224,8 @@ test('10. OrderConfirmationEngine creates authentic order from catalog and dispa
   const { query } = require('../src/infrastructure/config/database');
   await query('DELETE FROM customer_orders WHERE id = $1', [res.order.id]);
 });
+
+test.after(async () => {
+  const { closeDatabase } = require('../src/infrastructure/config/database');
+  await closeDatabase();
+});

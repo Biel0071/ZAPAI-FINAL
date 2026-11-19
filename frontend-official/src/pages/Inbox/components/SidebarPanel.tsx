@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, memo } from "react";
+import { useEffect, useMemo, useState, memo, useCallback } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -34,12 +34,14 @@ import {
   Pencil,
   Phone,
   Pin,
+  PinOff,
   Plus,
   Rocket,
   Search,
   Send,
   Shield,
   ShoppingBag,
+  Smartphone,
   Star,
   Store,
   Tag,
@@ -51,6 +53,9 @@ import {
   X,
   Zap,
   Volume2,
+  Check,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -74,10 +79,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InboxSectionBoundary } from "@/components/system/InboxSectionBoundary";
 import { useProtectedMediaUrl } from "@/core/runtime/hooks/useProtectedMediaUrl";
-import { apiService, type ChatMessage, type Conversation } from "@/core/services/apiService";
+import { notify } from "@/core/services/notifyService";
+import { apiService, requestApiEndpoint, type ChatMessage, type Conversation } from "@/core/services/apiService";
 import type { AiMemoryRecord, InboxAiRuntime, PreviewMediaState, QuickReplyCategoryAppearance, QuickReplyItem } from "../types";
 import {
   extractMessageAssetUrl,
@@ -97,8 +104,13 @@ import {
 import { cn } from "@/core/lib/utils";
 import { QuickResponseModal } from "./QuickResponseModal";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useUserRole } from "@/state/hooks/useUserRole";
+import { useAppStore } from "@/state/stores/appStore";
+
+const remoteMediaCache = new Map<string, { media: ChatMessage[]; cachedAt: number }>();
 
 interface SidebarPanelProps {
+  isOpen?: boolean;
   selectedConversation: Conversation | null;
   isCustomerOnline?: boolean;
   lastSeenLabel?: string;
@@ -152,6 +164,8 @@ interface SidebarPanelProps {
   onClose?: () => void;
   onAttachMedia?: (message: ChatMessage) => void;
   isWhatsappConnected?: boolean;
+  selectedLead?: any;
+  setConversations?: React.Dispatch<React.SetStateAction<Conversation[]>>;
 }
 
 const SECTIONS = [
@@ -258,6 +272,21 @@ const PRESET_CATEGORY_COLORS = [
   { name: "Ardósia", hex: "#64748b" },
 ];
 
+const OFFICIAL_WPP_COLORS = [
+  { name: "Verde WhatsApp", hex: "#00d26a", index: 0 },
+  { name: "Azul Claro", hex: "#5ac8fa", index: 1 },
+  { name: "Azul Índigo", hex: "#5856d6", index: 2 },
+  { name: "Rosa", hex: "#ff2d55", index: 3 },
+  { name: "Laranja", hex: "#ff9500", index: 4 },
+  { name: "Amarelo Ouro", hex: "#ffcc00", index: 5 },
+  { name: "Púrpura", hex: "#af52de", index: 6 },
+  { name: "Vermelho Alerta", hex: "#ff3b30", index: 7 },
+  { name: "Azul Real", hex: "#007aff", index: 8 },
+  { name: "Verde Esmeralda", hex: "#34c759", index: 9 },
+  { name: "Marrom Dourado", hex: "#a2845e", index: 10 },
+  { name: "Cinza", hex: "#8e8e93", index: 11 },
+];
+
 function SharedMediaCard({
   message,
   onOpen,
@@ -353,6 +382,35 @@ function SharedMediaCard({
   );
 }
 
+export const FUNNEL_STAGES = [
+  { id: "new_lead", label: "Novo Lead", color: "border-sky-500/40 text-sky-400 bg-sky-500/10", icon: "🌱" },
+  { id: "qualifying", label: "Qualificação", color: "border-indigo-500/40 text-indigo-400 bg-indigo-500/10", icon: "🎯" },
+  { id: "price_sent", label: "Orçamento", color: "border-amber-500/40 text-amber-400 bg-amber-500/10", icon: "📑" },
+  { id: "negotiation", label: "Negociação", color: "border-orange-500/40 text-orange-400 bg-orange-500/10", icon: "🤝" },
+  { id: "payment_pending", label: "Pagamento", color: "border-emerald-500/40 text-emerald-400 bg-emerald-500/10", icon: "💳" },
+  { id: "won", label: "Fechado", color: "border-green-500/50 text-green-300 bg-green-500/20", icon: "🏆" },
+] as const;
+
+export const LEAD_TEMPERATURES = [
+  { id: "hot", label: "Quente", icon: "🔥", color: "border-red-500/40 text-red-400 bg-red-500/10" },
+  { id: "warm", label: "Morno", icon: "🌤️", color: "border-amber-500/40 text-amber-400 bg-amber-500/10" },
+  { id: "cold", label: "Frio", icon: "❄️", color: "border-blue-500/40 text-blue-400 bg-blue-500/10" },
+] as const;
+
+export const SYSTEM_TAG_TRANSLATIONS: Record<string, { label: string; icon?: string }> = {
+  price_request: { label: "Pediu Preço", icon: "💬" },
+  price_sent: { label: "Orçamento Enviado", icon: "📑" },
+  send_price: { label: "Enviar Preço", icon: "📤" },
+  warm: { label: "Lead Quente", icon: "🔥" },
+  cold: { label: "Lead Frio", icon: "❄️" },
+  hot: { label: "Super Quente", icon: "⚡" },
+  ficha_gerada: { label: "Ficha Gerada", icon: "📋" },
+  question: { label: "Dúvida", icon: "❓" },
+  educate: { label: "Educando Lead", icon: "💡" },
+  out_of_context: { label: "Fora de Contexto", icon: "🔄" },
+  handover_human: { label: "Transf. Humano", icon: "👤" },
+};
+
 export const SidebarPanel = memo(function SidebarPanel({
   selectedConversation,
   rightPanelTab,
@@ -407,6 +465,8 @@ export const SidebarPanel = memo(function SidebarPanel({
   isWhatsappConnected = true,
   isCustomerOnline,
   lastSeenLabel,
+  selectedLead,
+  setConversations,
 }: SidebarPanelProps) {
   const [showDetailedPresence, setShowDetailedPresence] = useState(false);
   const [fileFilter, setFileFilter] = useState("all");
@@ -414,6 +474,271 @@ export const SidebarPanel = memo(function SidebarPanel({
   const [previewReply, setPreviewReply] = useState<QuickReplyItem | null>(null);
   const [savingNotes, setSavingNotes] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [localTagInput, setLocalTagInput] = useState("");
+  const [realLabels, setRealLabels] = useState<Array<{ id: string; name: string; color: number; color_hex: string }>>([]);
+  const [loadingRealLabels, setLoadingRealLabels] = useState(false);
+  const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+  const [editLabelName, setEditLabelName] = useState("");
+  const [editLabelColorHex, setEditLabelColorHex] = useState("#00d26a");
+  const [isCreatingNewLabel, setIsCreatingNewLabel] = useState(false);
+  const [newLabelColorHex, setNewLabelColorHex] = useState("#00d26a");
+  const [autoTagging, setAutoTagging] = useState(false);
+  const [updatingFunnel, setUpdatingFunnel] = useState(false);
+  const [showSystemTags, setShowSystemTags] = useState(false);
+
+  const { role } = useUserRole();
+  const isAdmin = role === "admin" || role === "master";
+  const sessions = useAppStore((state) => state.sessions);
+  const activeSessionId = useAppStore((state) => state.activeSessionId);
+  const [adminSelectedSession, setAdminSelectedSession] = useState<string>("current");
+
+  const availableSessions = useMemo(() => {
+    return (sessions || []).filter((s) => Boolean(s && s.id));
+  }, [sessions]);
+
+  // Contact pinned quick replies
+  const conversationPinnedIds: string[] = useMemo(() => {
+    const list =
+      (selectedConversation as any)?.pinnedQuickReplies ||
+      (selectedConversation as any)?.pinned_quick_replies;
+    return Array.isArray(list) ? list : [];
+  }, [
+    (selectedConversation as any)?.pinnedQuickReplies,
+    (selectedConversation as any)?.pinned_quick_replies,
+    selectedConversation?.id,
+  ]);
+
+  const [contactPinnedIds, setContactPinnedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setContactPinnedIds(conversationPinnedIds);
+  }, [conversationPinnedIds, selectedConversation?.id]);
+
+  const handleTogglePinToContact = async (replyId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!selectedConversation?.id) {
+      notify.info("Selecione uma conversa para vincular esta resposta.");
+      return;
+    }
+
+    const isAlreadyPinned = contactPinnedIds.includes(replyId);
+    const nextPinned = isAlreadyPinned
+      ? contactPinnedIds.filter((id) => id !== replyId)
+      : [...contactPinnedIds, replyId];
+
+    setContactPinnedIds(nextPinned);
+
+    if (setConversations) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConversation.id
+            ? { ...c, pinnedQuickReplies: nextPinned, pinned_quick_replies: nextPinned }
+            : c
+        )
+      );
+    }
+
+    try {
+      await apiService.updateConversationMeta(selectedConversation.id, {
+        pinnedQuickReplies: nextPinned,
+      });
+      notify.success(
+        isAlreadyPinned
+          ? "Resposta desvinculada deste contato."
+          : "Resposta vinculada com sucesso a este contato!"
+      );
+    } catch (err) {
+      console.error("[SidebarPanel] Falha ao atualizar respostas vinculadas:", err);
+      notify.error("Não foi possível salvar o vínculo com o contato.");
+    }
+  };
+
+  const isCustomerPresenceOnline = Boolean(
+    isCustomerOnline ||
+    selectedConversation?.status === "online" ||
+    (selectedConversation as any)?.status === "available" ||
+    (selectedConversation as any)?.presence === "online" ||
+    (selectedConversation as any)?.presence === "available" ||
+    (selectedConversation as any)?.isOnline === true
+  );
+
+  const handleUpdateFunnelStage = async (stageId: string) => {
+    if (!selectedConversation || updatingFunnel) return;
+    try {
+      setUpdatingFunnel(true);
+      await apiService.patchConversation(selectedConversation.id, { funnel_stage: stageId });
+      if (setConversations) {
+        setConversations((prev) =>
+          prev.map((c) => (c.id === selectedConversation.id ? { ...c, funnel_stage: stageId } : c))
+        );
+      }
+      notify.success(`Etapa atualizada para "${FUNNEL_STAGES.find((s) => s.id === stageId)?.label || stageId}"`);
+    } catch (e) {
+      console.error("Erro ao atualizar etapa do funil", e);
+      notify.error("Falha ao atualizar etapa do funil.");
+    } finally {
+      setUpdatingFunnel(false);
+    }
+  };
+
+  const handleUpdateTemperature = async (tempId: string) => {
+    if (!selectedConversation) return;
+    try {
+      await apiService.patchConversation(selectedConversation.id, { lead_temperature: tempId });
+      if (setConversations) {
+        setConversations((prev) =>
+          prev.map((c) => (c.id === selectedConversation.id ? { ...c, lead_temperature: tempId } : c))
+        );
+      }
+      notify.success(`Temperatura atualizada para "${LEAD_TEMPERATURES.find((t) => t.id === tempId)?.label || tempId}"`);
+    } catch (e) {
+      console.error("Erro ao atualizar temperatura", e);
+      notify.error("Falha ao atualizar temperatura.");
+    }
+  };
+
+  const loadRealLabels = useCallback(async (sessionId?: string) => {
+    try {
+      setLoadingRealLabels(true);
+      if (typeof apiService.getWhatsAppLabels !== "function") return;
+      const res = await apiService.getWhatsAppLabels(sessionId);
+      if (res?.labels && Array.isArray(res.labels)) {
+        const valid = res.labels.filter(
+          (l) => !l.deleted && l.name && !["não lidas", "favoritos", "grupos"].includes(l.name.toLowerCase().trim())
+        );
+        setRealLabels(
+          valid.map((l) => ({
+            id: String(l.id),
+            name: l.name,
+            color: typeof l.color === "number" ? l.color : 0,
+            color_hex: l.color_hex || "#00d26a",
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to load WhatsApp labels:", err);
+    } finally {
+      setLoadingRealLabels(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRealLabels(selectedConversation?.sessionId);
+  }, [loadRealLabels, selectedConversation?.sessionId]);
+
+  const handleToggleRealLabel = async (labelName: string) => {
+    if (!selectedConversation?.id) return;
+    const isSelected = activeWhatsAppLabels.some(
+      (t) => t.toLowerCase().trim() === labelName.toLowerCase().trim()
+    );
+    const nextLabels = isSelected
+      ? activeWhatsAppLabels.filter((t) => t.toLowerCase().trim() !== labelName.toLowerCase().trim())
+      : [...activeWhatsAppLabels, labelName];
+
+    if (setConversations) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedConversation.id
+            ? { ...c, whatsappLabels: nextLabels, whatsapp_labels: nextLabels }
+            : c
+        )
+      );
+    }
+
+    try {
+      await apiService.patchConversation(selectedConversation.id, {
+        whatsappLabels: nextLabels,
+      });
+      notify.success(isSelected ? `Etiqueta "${labelName}" desvinculada.` : `Etiqueta "${labelName}" aplicada!`);
+    } catch {
+      notify.error("Não foi possível atualizar a etiqueta no WhatsApp.");
+    }
+  };
+
+  const handleCreateRealLabel = async () => {
+    const trimmed = localTagInput.trim();
+    if (!trimmed) return;
+    try {
+      const colorIdx = OFFICIAL_WPP_COLORS.findIndex((c) => c.hex.toLowerCase() === newLabelColorHex.toLowerCase());
+      const res = await apiService.createWhatsAppLabel({
+        name: trimmed,
+        colorHex: newLabelColorHex,
+        color: colorIdx >= 0 ? colorIdx : 0,
+        sessionId: selectedConversation?.sessionId,
+      });
+      if (res?.success && res.label) {
+        await handleAddTagToSelectedConversation(res.label.name);
+        setLocalTagInput("");
+        setIsCreatingNewLabel(false);
+        notify.success(`Etiqueta "${res.label.name}" criada e associada!`);
+        void loadRealLabels(selectedConversation?.sessionId);
+      }
+    } catch (err: any) {
+      notify.error(err.message || "Erro ao criar etiqueta.");
+    }
+  };
+
+  const handleSaveEditLabel = async (id: string) => {
+    const trimmed = editLabelName.trim();
+    if (!trimmed) return;
+    try {
+      const colorIdx = OFFICIAL_WPP_COLORS.findIndex((c) => c.hex.toLowerCase() === editLabelColorHex.toLowerCase());
+      const res = await apiService.updateWhatsAppLabel(id, {
+        name: trimmed,
+        colorHex: editLabelColorHex,
+        color: colorIdx >= 0 ? colorIdx : 0,
+        sessionId: selectedConversation?.sessionId,
+      });
+      if (res?.success) {
+        notify.success("Etiqueta atualizada!");
+        setEditingLabelId(null);
+        void loadRealLabels(selectedConversation?.sessionId);
+      }
+    } catch (err: any) {
+      notify.error(err.message || "Erro ao editar etiqueta.");
+    }
+  };
+
+  const handleDeleteLabel = async (id: string, name: string) => {
+    try {
+      await apiService.deleteWhatsAppLabel(id, selectedConversation?.sessionId);
+      handleRemoveTagFromSelectedConversation(name);
+      notify.success(`Etiqueta "${name}" excluída.`);
+      void loadRealLabels(selectedConversation?.sessionId);
+    } catch (err: any) {
+      notify.error(err.message || "Erro ao excluir etiqueta.");
+    }
+  };
+
+  const handleSyncLabels = async () => {
+    try {
+      setLoadingRealLabels(true);
+      const res = await apiService.syncWhatsAppLabels(selectedConversation?.sessionId);
+      notify.success(`${res?.syncedCount || 0} etiquetas sincronizadas do WhatsApp.`);
+      void loadRealLabels(selectedConversation?.sessionId);
+    } catch (err: any) {
+      notify.error(err.message || "Erro ao sincronizar etiquetas.");
+    } finally {
+      setLoadingRealLabels(false);
+    }
+  };
+
+  const handleAutoTagWithAi = async () => {
+    if (!selectedConversation?.id) return;
+    try {
+      setAutoTagging(true);
+      const res = await apiService.autoTagConversation(selectedConversation.id);
+      if (res?.success) {
+        notify.success(`IA aplicou etiquetas: ${res.assigned?.join(", ") || "Atualizado"}`);
+        void loadRealLabels(selectedConversation.sessionId);
+      }
+    } catch (err: any) {
+      notify.error(err.message || "Não foi possível analisar e auto-etiquetar a conversa.");
+    } finally {
+      setAutoTagging(false);
+    }
+  };
   const [qrTypeFilter, setQrTypeFilter] = useState<"all" | "text" | "audio" | "video" | "image" | "flow">("all");
   const [qrPillFilter, setQrPillFilter] = useState<"all" | "favorites" | "uncategorized">("all");
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -529,9 +854,43 @@ export const SidebarPanel = memo(function SidebarPanel({
     return (orderedSections[0]?.id as any) || "ai";
   }, [rightPanelTab, orderedSections]);
 
-  const clientPhone = useMemo(() => {
-    if (!selectedConversation) return "";
-    const candidates = [
+  const phoneMeta = useMemo(() => {
+    if (!selectedConversation) {
+      return { display: "Número não informado", isRealPhone: false, isLid: false, isGroup: false, raw: "", badge: null };
+    }
+
+    const rawJid = String(selectedConversation.chatId || selectedConversation.phone || "").trim();
+    const rawDigits = String(selectedConversation.phone || selectedConversation.chatId || "").replace(/@.*$/, "").replace(/\D/g, "");
+
+    if (rawJid.endsWith("@g.us") || rawJid.includes("@g.us") || selectedConversation.isGroup) {
+      return { display: "Grupo WhatsApp", isRealPhone: false, isLid: false, isGroup: true, raw: rawJid, badge: "Grupo" };
+    }
+
+    // System accounts (e.g. WhatsApp Business official announcements 0@s.whatsapp.net)
+    const isSystemAccount =
+      rawJid === "0@s.whatsapp.net" ||
+      rawJid.includes("status@broadcast") ||
+      rawDigits === "0" ||
+      ((selectedConversation.contactName || "").toLowerCase().includes("whatsapp business") && rawDigits.length < 8);
+
+    if (isSystemAccount) {
+      return {
+        display: "Canal Oficial WhatsApp",
+        isRealPhone: false,
+        isLid: false,
+        isGroup: false,
+        raw: "",
+        badge: "Oficial",
+      };
+    }
+
+    // 1. Direct candidates from backend (including mapped_phone from whatsapp_lid_mappings and selectedLead)
+    const directCandidates = [
+      (selectedConversation as any).mapped_phone,
+      (selectedConversation as any).mappedPhone,
+      selectedLead?.phone,
+      (selectedLead as any)?.whatsapp,
+      (selectedLead as any)?.celular,
       selectedConversation.phone,
       (selectedConversation as any).customerPhone,
       (selectedConversation as any).contactPhone,
@@ -539,17 +898,97 @@ export const SidebarPanel = memo(function SidebarPanel({
       (selectedConversation as any).whatsappNumber,
       selectedConversation.chatId,
       (selectedConversation as any).jid,
-      selectedConversation.id,
     ];
-    for (const cand of candidates) {
+
+    for (const cand of directCandidates) {
       if (!cand || typeof cand !== "string") continue;
       const cleanDigits = cand.replace(/@.*$/, "").replace(/\D/g, "");
       if (cleanDigits.length >= 10 && cleanDigits.length <= 13) {
-        return formatPhoneNumber(cand);
+        return {
+          display: formatPhoneNumber(cand),
+          isRealPhone: true,
+          isLid: false,
+          isGroup: false,
+          raw: cleanDigits,
+          badge: "WhatsApp Verificado",
+        };
       }
     }
-    return selectedConversation.phone ? formatPhoneNumber(selectedConversation.phone) : "";
-  }, [selectedConversation]);
+
+    // 2. Scan conversation messages for customer order/contact details
+    if (Array.isArray(messages) && messages.length > 0) {
+      for (const m of messages) {
+        const text = m.content || "";
+        if (!text) continue;
+
+        // Explicit phone label in message: Telefone/Celular/Whats
+        const labelMatch = text.match(/(?:Telefone|Celular|Whats(?:App)?|Tel|Cel|Contato)\s*[:=-]?\s*([+0-9()\s-]{8,22})/i);
+        if (labelMatch) {
+          let digits = labelMatch[1].replace(/\D/g, "");
+          if (digits.length === 10 || digits.length === 11) {
+            if (!digits.startsWith("55")) digits = "55" + digits;
+          }
+          if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+            return {
+              display: formatPhoneNumber(digits),
+              isRealPhone: true,
+              isLid: false,
+              isGroup: false,
+              raw: digits,
+              badge: "Detectado no Pedido",
+            };
+          }
+        }
+
+        // Standalone Brazilian mobile phone: DD + 9XXXX-XXXX
+        const brMatch = text.match(/(?:\+?55\s?)?(?:\(?([1-9]{2})\)?\s?)?(9\d{4})[-\s]?(\d{4})/);
+        if (brMatch) {
+          let digits = brMatch[0].replace(/\D/g, "");
+          if (digits.length === 10 || digits.length === 11) {
+            if (!digits.startsWith("55")) digits = "55" + digits;
+          }
+          if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+            return {
+              display: formatPhoneNumber(digits),
+              isRealPhone: true,
+              isLid: false,
+              isGroup: false,
+              raw: digits,
+              badge: "Detectado na Conversa",
+            };
+          }
+        }
+      }
+    }
+
+    // 3. Fallback for pure LID
+    const isLid = String(selectedConversation.phone || selectedConversation.chatId || "").includes("@lid") || (rawDigits.length >= 14 && rawDigits.length <= 16);
+    if (isLid) {
+      return {
+        display: `ID WhatsApp: ${rawDigits}`,
+        isRealPhone: false,
+        isLid: true,
+        isGroup: false,
+        raw: rawDigits,
+        badge: "LID Multi-Device",
+      };
+    }
+
+    if (rawDigits && rawDigits.length >= 8 && rawDigits.length <= 13) {
+      return {
+        display: formatPhoneNumber(rawDigits),
+        isRealPhone: true,
+        isLid: false,
+        isGroup: false,
+        raw: rawDigits,
+        badge: null,
+      };
+    }
+
+    return { display: "Número não informado", isRealPhone: false, isLid: false, isGroup: false, raw: "", badge: null };
+  }, [selectedConversation, messages, selectedLead]);
+
+  const clientPhone = phoneMeta.display;
 
   const categories = useMemo(
     () => Array.from(new Set((quickReplies || []).map((reply) => reply.category).filter(Boolean))),
@@ -564,6 +1003,31 @@ export const SidebarPanel = memo(function SidebarPanel({
 
   const filteredReplies = useMemo(() => {
     return (quickReplies || []).filter((reply) => {
+      // Session filter
+      if (!isAdmin) {
+        // Normal user only sees active session + global
+        const itemSession = (reply as any).sessionId ? String((reply as any).sessionId).trim() : null;
+        const isGlobal = (reply as any).scopeLevel === "global" || !itemSession;
+        if (activeSessionId && itemSession && itemSession !== activeSessionId && !isGlobal) {
+          return false;
+        }
+      } else {
+        // Admin user filter
+        if (adminSelectedSession === "current" && activeSessionId) {
+          const itemSession = (reply as any).sessionId ? String((reply as any).sessionId).trim() : null;
+          const isGlobal = (reply as any).scopeLevel === "global" || !itemSession;
+          if (itemSession && itemSession !== activeSessionId && !isGlobal) {
+            return false;
+          }
+        } else if (adminSelectedSession !== "all" && adminSelectedSession !== "current") {
+          const itemSession = (reply as any).sessionId ? String((reply as any).sessionId).trim() : null;
+          const isGlobal = (reply as any).scopeLevel === "global" || !itemSession;
+          if (itemSession !== adminSelectedSession && !isGlobal) {
+            return false;
+          }
+        }
+      }
+
       // Search query
       const matchesSearch = `${reply.title} ${reply.text}`
         .toLocaleLowerCase()
@@ -590,7 +1054,12 @@ export const SidebarPanel = memo(function SidebarPanel({
 
       return true;
     });
-  }, [quickReplies, responseSearchQuery, quickReplyCategory, qrPillFilter, qrTypeFilter]);
+  }, [quickReplies, responseSearchQuery, quickReplyCategory, qrPillFilter, qrTypeFilter, isAdmin, adminSelectedSession, activeSessionId]);
+
+  const pinnedRepliesForContact = useMemo(() => {
+    if (!contactPinnedIds.length) return [];
+    return (quickReplies || []).filter((r) => contactPinnedIds.includes(r.id));
+  }, [quickReplies, contactPinnedIds]);
 
   // Group quick replies by category for intermediate-level view
   const groupedReplies = useMemo(() => {
@@ -719,33 +1188,39 @@ export const SidebarPanel = memo(function SidebarPanel({
   const [loadingMedia, setLoadingMedia] = useState(false);
 
   useEffect(() => {
-    if (!selectedConversation?.id) {
+    const convId = selectedConversation?.id ? String(selectedConversation.id) : null;
+    if (!convId) {
       setRemoteMediaMessages([]);
       return;
     }
+
+    const cached = remoteMediaCache.get(convId);
+    if (cached && Date.now() - cached.cachedAt < 120_000) {
+      setRemoteMediaMessages(cached.media);
+      return;
+    }
+
     let isCancelled = false;
-    const fetchConversationMedia = async () => {
+    const timer = setTimeout(async () => {
       setLoadingMedia(true);
       try {
-        const origin = typeof window !== "undefined" && window.location?.origin && !window.location.origin.startsWith("null") ? window.location.origin : "";
-        const url = `${origin}/api/conversations/${encodeURIComponent(selectedConversation.id)}/media`;
-        const resp = await fetch(url).catch(() => null);
-        if (resp && resp.ok) {
-          const data = await resp.json();
-          if (!isCancelled && Array.isArray(data?.media)) {
-            setRemoteMediaMessages(data.media);
-          }
+        const data = await requestApiEndpoint<{ success?: boolean; media?: any[] }>(
+          `/api/conversations/${encodeURIComponent(convId)}/media`
+        ).catch(() => null);
+        if (!isCancelled && Array.isArray(data?.media)) {
+          setRemoteMediaMessages(data.media);
+          remoteMediaCache.set(convId, { media: data.media, cachedAt: Date.now() });
         }
       } catch (err) {
         // Silent fallback in test/mock environments
       } finally {
         if (!isCancelled) setLoadingMedia(false);
       }
-    };
+    }, 250);
 
-    fetchConversationMedia();
     return () => {
       isCancelled = true;
+      clearTimeout(timer);
     };
   }, [selectedConversation?.id]);
 
@@ -797,7 +1272,7 @@ export const SidebarPanel = memo(function SidebarPanel({
 
   const chooseReply = (reply: QuickReplyItem) => {
     const entries = reply.isFlow ? reply.steps ?? [] : reply.items ?? [];
-    if (reply.isFlow || (reply.steps && reply.steps.length > 1) || (reply.items && reply.items.length > 1) || entries.some((entry) => entry.type !== "text") || reply.mediaUrl) {
+    if (reply.isFlow || (reply.steps && reply.steps.length > 1) || (reply.items && reply.items.length > 1) || entries.some((entry) => entry.type !== "text") || (reply as any).mediaUrl) {
       setPreviewReply(reply);
     } else {
       setMessageInput(getQuickReplyPreviewText(reply, variableContext));
@@ -878,6 +1353,61 @@ export const SidebarPanel = memo(function SidebarPanel({
     if (name.includes("@s.whatsapp.net")) name = name.replace(/@s\.whatsapp\.net.*/, "").trim();
     return name || (rawPhone ? formatPhoneNumber(rawPhone) : "Contato");
   }, [selectedConversation?.contactName, selectedConversation?.phone]);
+
+  // Split official WhatsApp labels from internal AI classifier tags
+  const { activeWhatsAppLabels, aiSystemTags } = useMemo(() => {
+    // 1. Gather all tags and labels from conversation
+    const rawConvLabels: string[] = Array.isArray(selectedConversation?.whatsappLabels) && selectedConversation.whatsappLabels.length > 0
+      ? selectedConversation.whatsappLabels
+      : (Array.isArray((selectedConversation as any)?.whatsapp_labels) && (selectedConversation as any).whatsapp_labels.length > 0
+          ? (selectedConversation as any).whatsapp_labels
+          : []);
+
+    const allTags = Array.isArray(selectedConversation?.tags) ? selectedConversation.tags : [];
+    
+    // 2. Identify known system AI tags
+    const aiTags: string[] = [];
+    const fromTagsOfficial: string[] = [];
+    
+    for (const t of allTags) {
+      const lower = String(t).toLowerCase().trim();
+      const isAiTag = Boolean(
+        SYSTEM_TAG_TRANSLATIONS[lower] ||
+        ["price_request", "warm", "cold", "hot", "send_price", "price_sent", "ficha_gerada", "question", "educate", "out_of_context", "handover_human", "new_lead", "closed", "ready_to_buy", "purchase_intent", "close_sale"].includes(lower)
+      );
+      
+      const matchesRealLabel = realLabels.some((lbl) => lbl.name.toLowerCase().trim() === lower);
+      
+      if (matchesRealLabel) {
+        fromTagsOfficial.push(t);
+      } else if (isAiTag) {
+        aiTags.push(t);
+      } else {
+        fromTagsOfficial.push(t);
+      }
+    }
+
+    // Merge and deduplicate official WhatsApp labels case-insensitively
+    const seen = new Map<string, string>();
+    for (const name of [...rawConvLabels, ...fromTagsOfficial]) {
+      const lower = String(name).toLowerCase().trim();
+      const isAi = Boolean(
+        SYSTEM_TAG_TRANSLATIONS[lower] ||
+        ["price_request", "warm", "cold", "hot", "send_price", "price_sent", "ficha_gerada", "question", "educate", "out_of_context", "handover_human", "new_lead", "closed", "ready_to_buy", "purchase_intent", "close_sale"].includes(lower)
+      );
+      if (isAi || !lower) continue;
+      
+      // Prefer the official casing from realLabels if available
+      const matchedReal = realLabels.find((lbl) => lbl.name.toLowerCase().trim() === lower);
+      const canonicalName = matchedReal?.name || name;
+      
+      if (!seen.has(lower)) {
+        seen.set(lower, canonicalName);
+      }
+    }
+
+    return { activeWhatsAppLabels: Array.from(seen.values()), aiSystemTags: aiTags };
+  }, [selectedConversation?.whatsappLabels, (selectedConversation as any)?.whatsapp_labels, selectedConversation?.tags, realLabels]);
 
   const panelContent = !isWhatsappConnected ? (
     <div className="flex h-full min-h-0 w-full flex-col items-center justify-center p-6 text-center text-muted-foreground select-none">
@@ -1123,20 +1653,16 @@ export const SidebarPanel = memo(function SidebarPanel({
                       {getInitials(cleanName)}
                     </AvatarFallback>
                   </Avatar>
-                  {/* Presença do contato: Bolinha Verde para Online / Vermelha para Offline */}
-                  <span
-                    className="absolute -bottom-0.5 -left-0.5 z-10 flex h-3.5 w-3.5 items-center justify-center pointer-events-none"
-                    title={(isCustomerOnline ?? (selectedConversation.status === "online")) ? "Cliente online no WhatsApp" : "Cliente offline"}
-                  >
-                    {(isCustomerOnline ?? (selectedConversation.status === "online")) ? (
-                      <>
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
-                      </>
-                    ) : (
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-background shadow-xs" />
-                    )}
-                  </span>
+                  {/* Presença do contato: Sincronizada 100% com o header central */}
+                  {isCustomerPresenceOnline && (
+                    <span
+                      className="absolute -bottom-0.5 -left-0.5 z-10 flex h-3.5 w-3.5 items-center justify-center pointer-events-none"
+                      title="Cliente online no WhatsApp"
+                    >
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-background shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => void handleRefreshAvatar()}
@@ -1157,62 +1683,85 @@ export const SidebarPanel = memo(function SidebarPanel({
                   >
                     {cleanName}
                   </p>
+                  {/* Telefone / Identificador completo logo abaixo do nome */}
+                  <p className="text-[11px] font-mono text-muted-foreground select-all truncate mt-0.5" title="Telefone / Identificador WhatsApp">
+                    {phoneMeta.display}
+                  </p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    {/* Status interativo clicável: alterna entre Online/Offline e Última visualização */}
+                    {/* Status interativo clicável: sincronizado com header central */}
                     <button
                       type="button"
                       onClick={() => setShowDetailedPresence((prev) => !prev)}
                       className={cn(
                         "inline-flex items-center gap-1 text-[11px] font-medium transition-colors hover:underline cursor-pointer rounded px-1 py-0.2 -ml-1",
-                        (isCustomerOnline ?? (selectedConversation.status === "online")) ? "text-emerald-400 hover:bg-emerald-500/10" : "text-muted-foreground hover:bg-muted"
+                        isCustomerPresenceOnline ? "text-emerald-400 hover:bg-emerald-500/10" : "text-muted-foreground hover:bg-muted"
                       )}
                       title="Clique para alternar entre status e última visualização"
                     >
                       <span
                         className={cn(
                           "h-1.5 w-1.5 rounded-full inline-block shrink-0",
-                          (isCustomerOnline ?? (selectedConversation.status === "online")) ? "bg-emerald-400 animate-pulse" : "bg-rose-500"
+                          isCustomerPresenceOnline ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground/40"
                         )}
                       />
                       <span>
                         {showDetailedPresence
-                          ? ((isCustomerOnline ?? (selectedConversation.status === "online")) ? "Online agora" : (lastSeenLabel ? `Visto: ${lastSeenLabel}` : "Visto recentemente"))
-                          : ((isCustomerOnline ?? (selectedConversation.status === "online")) ? "Online" : "Offline")}
+                          ? (isCustomerPresenceOnline ? "Online agora" : (lastSeenLabel ? `Visto: ${lastSeenLabel}` : "Visto recentemente"))
+                          : (isCustomerPresenceOnline ? "Online" : (lastSeenLabel ? `Visto: ${lastSeenLabel}` : "Visto recentemente"))}
                       </span>
                     </button>
                     <span className="text-muted-foreground/40">•</span>
                     <span className="truncate text-[11px] font-medium text-foreground/80">
-                      {selectedConversation.funnel_stage || "Lead Quente"}
+                      {FUNNEL_STAGES.find((s) => s.id === selectedConversation.funnel_stage)?.label || selectedConversation.funnel_stage || "Novo Lead"}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Destaque do Número do Cliente com Botão de Copiar (Imagem 5) */}
+              {/* Destaque do Número do Cliente com Botão de Copiar */}
               <div className="flex items-center justify-between rounded-lg bg-emerald-500/[0.08] border border-emerald-500/20 px-2.5 py-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="h-7 w-7 rounded-md bg-emerald-500/15 flex items-center justify-center text-emerald-400 shrink-0">
                     <Phone className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-medium text-emerald-400/90 uppercase tracking-wider">Número WhatsApp</p>
-                    <p className="text-xs font-bold text-foreground font-mono select-all truncate">
-                      {clientPhone || selectedConversation.phone || "Número não informado"}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-[10px] font-medium text-emerald-400/90 uppercase tracking-wider">
+                        {phoneMeta.isGroup
+                          ? "Grupo WhatsApp"
+                          : phoneMeta.isLid
+                          ? "Identificador WhatsApp"
+                          : phoneMeta.isRealPhone
+                          ? "Número WhatsApp"
+                          : "Contato WhatsApp"}
+                      </p>
+                      {phoneMeta.badge && (
+                        <span className={cn(
+                          "px-1.5 py-0.2 rounded text-[9px] font-semibold border",
+                          phoneMeta.isRealPhone 
+                            ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/35"
+                            : "bg-sky-500/20 text-sky-300 border-sky-500/35"
+                        )}>
+                          {phoneMeta.badge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-bold text-foreground font-mono select-all break-all mt-0.5">
+                      {phoneMeta.display}
                     </p>
                   </div>
                 </div>
-                {(clientPhone || selectedConversation.phone) && (
+                {phoneMeta.raw && (
                   <Button
                     size="sm"
                     variant="ghost"
                     className="h-7 gap-1 px-2 text-[11px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 shrink-0"
                     onClick={() => {
-                      const num = (clientPhone || selectedConversation.phone || "").replace(/\D/g, "");
-                      navigator.clipboard.writeText(num || selectedConversation.phone || "");
+                      navigator.clipboard.writeText(phoneMeta.raw);
                       setCopiedPhone(true);
                       setTimeout(() => setCopiedPhone(false), 2000);
                     }}
-                    title="Copiar número de telefone"
+                    title="Copiar número / identificador"
                   >
                     <Copy className="h-3 w-3" />
                     {copiedPhone ? "Copiado!" : "Copiar"}
@@ -1220,7 +1769,7 @@ export const SidebarPanel = memo(function SidebarPanel({
                 )}
               </div>
 
-              {/* 2-column compact grid for Origem & Etapa */}
+              {/* 2-column compact grid: Origem & Acesso à Ficha 360 do Contato */}
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 border border-border/40">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Origem</p>
@@ -1228,33 +1777,344 @@ export const SidebarPanel = memo(function SidebarPanel({
                     {getConversationSourceLabel(selectedConversation)}
                   </p>
                 </div>
-                <div className="rounded-lg bg-muted/40 px-2.5 py-1.5 border border-border/40">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Etapa</p>
-                  <p className="mt-0.5 truncate text-xs font-semibold text-foreground">
-                    {selectedConversation.funnel_stage || "Lead Quente"}
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("zapflow:open-lead-modal"))}
+                  className="rounded-lg bg-muted/40 hover:bg-muted/70 px-2.5 py-1.5 border border-border/40 text-left transition-colors cursor-pointer group"
+                  title="Abrir ficha completa do contato com Afunilamento de IA e Análise de Conversa"
+                >
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                    <span>Ficha 360</span>
+                    <Sparkles className="h-2.5 w-2.5 text-primary group-hover:scale-110 transition-transform" />
                   </p>
-                </div>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-primary">
+                    Ver Contatos &rarr;
+                  </p>
+                </button>
               </div>
 
-              {/* Stacked Overlapping Tags Badge */}
-              <div className="border-t border-border/40 pt-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[11px] font-medium text-muted-foreground">Etiquetas</p>
-                  <span className="text-[9.5px] text-muted-foreground/70">Clique para gerenciar</span>
+              {/* Seção de Etiquetas de Contato - Padrão Oficial WhatsApp Web */}
+              <div className="border-t border-border/40 pt-2.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5 text-primary" />
+                    <p className="text-xs font-bold text-foreground">Etiquetas WhatsApp</p>
+                    {activeWhatsAppLabels.length > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-primary/15 text-primary border border-primary/25">
+                        {activeWhatsAppLabels.length}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {/* Botão de Auto-Etiquetamento Inteligente com IA */}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-1.5 text-[10px] font-semibold gap-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-md"
+                      onClick={handleAutoTagWithAi}
+                      disabled={autoTagging}
+                      title="Ler conversa com IA e aplicar etiquetas reais automaticamente"
+                    >
+                      <Sparkles className={cn("h-3 w-3", autoTagging && "animate-spin text-emerald-400")} />
+                      <span>{autoTagging ? "Analisando..." : "Auto-IA"}</span>
+                    </Button>
+
+                    <Popover open={tagPickerOpen} onOpenChange={setTagPickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[11px] font-medium gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-md"
+                        >
+                          <Plus className="h-3 w-3" />
+                          <span>Etiquetas</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="end"
+                        side="bottom"
+                        className="w-80 p-3 bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl rounded-xl z-50 text-foreground"
+                      >
+                        <div className="space-y-3">
+                          {/* Header do Menu de Etiquetas */}
+                          <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                            <div className="flex items-center gap-1.5">
+                              <Tag className="h-3.5 w-3.5 text-primary" />
+                              <p className="text-xs font-bold text-foreground">Etiquetas WhatsApp</p>
+                              <span className="text-[10px] text-muted-foreground">({realLabels.length})</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                                onClick={handleSyncLabels}
+                                title="Sincronizar etiquetas com WhatsApp"
+                                disabled={loadingRealLabels}
+                              >
+                                <RefreshCw className={cn("h-3 w-3", loadingRealLabels && "animate-spin text-primary")} />
+                              </Button>
+                              <button
+                                type="button"
+                                onClick={() => setTagPickerOpen(false)}
+                                className="p-1 rounded text-muted-foreground hover:text-foreground"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Lista de Etiquetas Reais com Checkbox e Cores */}
+                          <div className="max-h-56 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                            {loadingRealLabels && realLabels.length === 0 ? (
+                              <div className="py-4 text-center text-xs text-muted-foreground">Carregando etiquetas...</div>
+                            ) : realLabels.length === 0 ? (
+                              <div className="py-4 text-center text-xs text-muted-foreground">Nenhuma etiqueta encontrada.</div>
+                            ) : (
+                              realLabels.map((lbl) => {
+                                const isSelected = activeWhatsAppLabels.some(
+                                  (t) => t.toLowerCase().trim() === lbl.name.toLowerCase().trim()
+                                );
+                                const isEditing = editingLabelId === lbl.id;
+
+                                if (isEditing) {
+                                  return (
+                                    <div key={lbl.id} className="p-2 rounded-lg bg-muted/40 border border-primary/30 space-y-2">
+                                      <div className="flex gap-1.5 items-center">
+                                        <Input
+                                          value={editLabelName}
+                                          onChange={(e) => setEditLabelName(e.target.value)}
+                                          className="h-6 text-xs bg-background"
+                                          autoFocus
+                                        />
+                                        <Button
+                                          size="sm"
+                                          className="h-6 px-2 text-[10px] font-bold"
+                                          onClick={() => handleSaveEditLabel(lbl.id)}
+                                        >
+                                          Salvar
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 px-1.5 text-[10px]"
+                                          onClick={() => setEditingLabelId(null)}
+                                        >
+                                          X
+                                        </Button>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {OFFICIAL_WPP_COLORS.map((col) => (
+                                          <button
+                                            key={col.hex}
+                                            type="button"
+                                            onClick={() => setEditLabelColorHex(col.hex)}
+                                            className={cn(
+                                              "h-3.5 w-3.5 rounded-full transition-transform",
+                                              editLabelColorHex.toLowerCase() === col.hex.toLowerCase()
+                                                ? "scale-125 ring-2 ring-primary ring-offset-1"
+                                                : "hover:scale-110 opacity-70 hover:opacity-100"
+                                            )}
+                                            style={{ backgroundColor: col.hex }}
+                                            title={col.name}
+                                          />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <div
+                                    key={lbl.id}
+                                    className={cn(
+                                      "flex items-center justify-between px-2.5 py-1.5 rounded-lg cursor-pointer transition-all border group",
+                                      isSelected
+                                        ? "bg-primary/10 border-primary/40 text-foreground"
+                                        : "hover:bg-muted/30 border-transparent text-muted-foreground hover:text-foreground"
+                                    )}
+                                    onClick={() => handleToggleRealLabel(lbl.name)}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <span
+                                        className="h-3 w-3 rounded-full shrink-0 shadow-xs"
+                                        style={{ backgroundColor: lbl.color_hex || "#00d26a" }}
+                                      />
+                                      <span className="text-xs font-medium truncate">{lbl.name}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingLabelId(lbl.id);
+                                          setEditLabelName(lbl.name);
+                                          setEditLabelColorHex(lbl.color_hex || "#00d26a");
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-primary transition-opacity"
+                                        title="Editar etiqueta"
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteLabel(lbl.id, lbl.name);
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
+                                        title="Excluir etiqueta"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+
+                                      <div
+                                        className={cn(
+                                          "h-4 w-4 rounded border flex items-center justify-center transition-colors shrink-0",
+                                          isSelected
+                                            ? "bg-primary border-primary text-primary-foreground"
+                                            : "border-muted-foreground/40 bg-background/50"
+                                        )}
+                                      >
+                                        {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          {/* Criar Nova Etiqueta WhatsApp */}
+                          <div className="pt-2 border-t border-border/40 space-y-2">
+                            {!isCreatingNewLabel ? (
+                              <button
+                                type="button"
+                                onClick={() => setIsCreatingNewLabel(true)}
+                                className="w-full flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors py-1"
+                              >
+                                <Plus className="h-3.5 w-3.5 text-primary" />
+                                <span>+ Criar nova etiqueta WhatsApp</span>
+                              </button>
+                            ) : (
+                              <div className="space-y-2 p-2 bg-muted/20 rounded-lg border border-border/60 animate-in fade-in-0">
+                                <div className="flex gap-1.5">
+                                  <Input
+                                    placeholder="Nome da etiqueta..."
+                                    value={localTagInput}
+                                    onChange={(e) => setLocalTagInput(e.target.value)}
+                                    className="h-7 text-xs bg-background"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        void handleCreateRealLabel();
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-2.5 text-xs font-bold shrink-0"
+                                    disabled={!localTagInput.trim()}
+                                    onClick={() => void handleCreateRealLabel()}
+                                  >
+                                    Salvar
+                                  </Button>
+                                </div>
+                                <div className="flex flex-wrap gap-1 pt-1">
+                                  {OFFICIAL_WPP_COLORS.map((col) => (
+                                    <button
+                                      key={col.hex}
+                                      type="button"
+                                      onClick={() => setNewLabelColorHex(col.hex)}
+                                      className={cn(
+                                        "h-3.5 w-3.5 rounded-full transition-transform",
+                                        newLabelColorHex.toLowerCase() === col.hex.toLowerCase()
+                                          ? "scale-125 ring-2 ring-primary ring-offset-1"
+                                          : "hover:scale-110 opacity-70 hover:opacity-100"
+                                      )}
+                                      style={{ backgroundColor: col.hex }}
+                                      title={col.name}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
+
+                {/* Badges de Etiquetas Reais do WhatsApp com Cores Oficiais */}
                 <div className="pt-0.5">
-                  <StackedTagsBadge
-                    tags={selectedConversation.tags ?? []}
-                    maxVisible={4}
-                    size="sm"
-                    showCountLabel={true}
-                    interactive={true}
-                    align="start"
-                    side="bottom"
-                    onAddTag={(tag) => handleAddTagToSelectedConversation(tag)}
-                    onRemoveTag={(tag) => handleRemoveTagFromSelectedConversation(tag)}
-                  />
-                  <WhatsappLabelBadges labels={selectedConversation.whatsappLabels} maxVisible={6} className="mt-1.5" />
+                  {activeWhatsAppLabels.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {activeWhatsAppLabels.map((tag) => {
+                        const matched = realLabels.find((l) => l.name.toLowerCase().trim() === tag.toLowerCase().trim());
+                        const customHex = matched?.color_hex;
+                        return (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium border transition-all shadow-xs"
+                            style={
+                              customHex
+                                ? {
+                                    backgroundColor: `${customHex}18`,
+                                    borderColor: `${customHex}60`,
+                                    color: customHex,
+                                  }
+                                : undefined
+                            }
+                          >
+                            <span
+                              className="h-2 w-2 rounded-full shrink-0"
+                              style={{ backgroundColor: customHex || "#00d26a" }}
+                            />
+                            <span className="font-semibold">{tag}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleRealLabel(tag)}
+                              className="hover:opacity-80 p-0.5 rounded-full hover:bg-background/20 cursor-pointer"
+                              title={`Remover etiqueta ${tag}`}
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setTagPickerOpen(true)}
+                      className="w-full py-2 px-3 rounded-lg border border-dashed border-border/70 hover:border-primary/50 bg-muted/20 hover:bg-primary/5 transition-all flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary cursor-pointer"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Adicionar etiqueta do WhatsApp</span>
+                    </button>
+                  )}
+
+                  {/* Redirecionamento limpo para os padrões de IA na Ficha do Contato */}
+                  {aiSystemTags.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => window.dispatchEvent(new CustomEvent("zapflow:open-lead-modal"))}
+                      className="w-full mt-2.5 py-1.5 px-2.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[11px] font-medium flex items-center justify-between transition-colors group cursor-pointer"
+                      title="Padrões e tags identificados pelo algoritmo de IA nesta conversa"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="h-3 w-3 text-emerald-400 group-hover:scale-110 transition-transform" />
+                        <span>{aiSystemTags.length} Padrões de IA no Contato</span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground group-hover:text-foreground">Ver na Ficha &rarr;</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1320,6 +2180,34 @@ export const SidebarPanel = memo(function SidebarPanel({
                 {onRetryQuickReplyCategoryAppearance && <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-[11px]" onClick={() => void onRetryQuickReplyCategoryAppearance().catch(() => undefined)}>Tentar novamente</Button>}
               </div>
             )}
+            {/* Admin Connection Filter */}
+            {isAdmin && (
+              <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-muted/40 border border-border/50 text-xs mb-1">
+                <div className="flex items-center gap-1.5 text-muted-foreground shrink-0 font-medium text-[11px]">
+                  <Smartphone className="h-3.5 w-3.5 text-primary" />
+                  <span>Conexão:</span>
+                </div>
+                <select
+                  value={adminSelectedSession}
+                  onChange={(e) => setAdminSelectedSession(e.target.value)}
+                  className="flex-1 bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary truncate"
+                  aria-label="Filtrar respostas rápidas por conexão"
+                >
+                  <option value="current">
+                    Este WhatsApp ({activeSessionId || "atual"})
+                  </option>
+                  <option value="all">
+                    ✦ Todos os WhatsApps (Todas as conexões)
+                  </option>
+                  {availableSessions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name || s.id} ({s.phone || s.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Top Filter Pills */}
             <div className="space-y-2">
               <div className="flex flex-wrap gap-1">
@@ -1476,6 +2364,63 @@ export const SidebarPanel = memo(function SidebarPanel({
                 <ImportWhatsappQuickRepliesDialog />
               </div>
             </div>
+
+            {/* Seção de Respostas Vinculadas a este Contato */}
+            {pinnedRepliesForContact.length > 0 && (
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-2.5 shadow-sm space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                    <Pin className="h-3.5 w-3.5 fill-emerald-400 text-emerald-400 -rotate-45" />
+                    Vinculadas ao Contato ({pinnedRepliesForContact.length})
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/80">Fixas para este lead</span>
+                </div>
+                <div className="space-y-1.5">
+                  {pinnedRepliesForContact.map((reply) => (
+                    <div
+                      key={`contact-pinned-${reply.id}`}
+                      className="group relative flex items-center justify-between rounded-lg border border-emerald-500/20 bg-background/80 p-2 hover:border-emerald-500/40 transition-colors"
+                    >
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-foreground truncate">{reply.title}</span>
+                          {reply.category && (
+                            <span className="rounded bg-muted px-1.5 py-0.2 text-[9px] text-muted-foreground uppercase">{reply.category}</span>
+                          )}
+                          {(reply as any).sessionId && (
+                            <span className="rounded bg-primary/10 text-primary px-1 text-[9px] font-mono">{(reply as any).sessionId}</span>
+                          )}
+                        </div>
+                        <p className="line-clamp-1 text-[11px] text-muted-foreground/90 mt-0.5">{reply.text}</p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                          title="Desvincular deste contato"
+                          onClick={(e) => void handleTogglePinToContact(reply.id, e)}
+                        >
+                          <PinOff className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="default"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium gap-1"
+                          title="Enviar para este contato"
+                          onClick={() => void sendQuickReply(reply, 0)}
+                        >
+                          <Send className="h-3 w-3" />
+                          <span>Enviar</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Replies List */}
             {quickRepliesLoading ? (
@@ -1684,6 +2629,11 @@ export const SidebarPanel = memo(function SidebarPanel({
                                   <span className="truncate text-xs font-semibold text-foreground/95 shrink-0 max-w-[55%]">
                                     {reply.title || reply.text}
                                   </span>
+                                  {(reply as any).sessionId && (
+                                    <span className="rounded bg-primary/10 text-primary px-1 text-[9px] font-mono shrink-0">
+                                      {(reply as any).sessionId}
+                                    </span>
+                                  )}
                                   <span className="truncate text-[11px] text-muted-foreground font-normal">
                                     {reply.isFlow ? "Fluxo sequencial" : getQuickReplyPreviewText(reply, variableContext)}
                                   </span>
@@ -1716,6 +2666,10 @@ export const SidebarPanel = memo(function SidebarPanel({
                                     <DropdownMenuItem onClick={() => setPreviewReply(reply)}>
                                       <Eye className="mr-2 h-3.5 w-3.5" />
                                       Editar e enviar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={(e) => void handleTogglePinToContact(reply.id, e)}>
+                                      <Pin className="mr-2 h-3.5 w-3.5 text-emerald-400" />
+                                      {contactPinnedIds.includes(reply.id) ? "Desvincular deste contato" : "Vincular a este contato"}
                                     </DropdownMenuItem>
 
                                     <DropdownMenuSeparator />
@@ -1788,6 +2742,35 @@ export const SidebarPanel = memo(function SidebarPanel({
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top">Prévia / Rascunho</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+
+                                {/* Pin to Contact Button */}
+                                <TooltipProvider delayDuration={150}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className={cn(
+                                          "h-6 w-6 transition-colors",
+                                          contactPinnedIds.includes(reply.id)
+                                            ? "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                                            : "text-muted-foreground/60 hover:text-emerald-400 hover:bg-emerald-500/10"
+                                        )}
+                                        aria-label={contactPinnedIds.includes(reply.id) ? "Desvincular deste contato" : "Vincular a este contato"}
+                                        onClick={(e) => void handleTogglePinToContact(reply.id, e)}
+                                      >
+                                        {contactPinnedIds.includes(reply.id) ? (
+                                          <Pin className="h-3 w-3 fill-emerald-400 -rotate-45" />
+                                        ) : (
+                                          <Pin className="h-3 w-3 -rotate-45" />
+                                        )}
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      {contactPinnedIds.includes(reply.id) ? "Desvincular deste contato" : "Vincular a este contato"}
+                                    </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
 

@@ -72,14 +72,11 @@ export function StackedTagsBadge({
 
     if (descriptor.type === "icon") {
       const IconComponent = TAG_PHOSPHOR_ICONS[descriptor.value] || Tag;
-      return <IconComponent className={cn(iconSize, "opacity-80 text-foreground/90")} weight="bold" />;
+      return <IconComponent className={cn(iconSize, "text-foreground/90")} weight="bold" />;
     }
 
     return (
-      <span
-        className="inline-block shrink-0 select-none leading-none opacity-85 grayscale contrast-125"
-        style={{ filter: "grayscale(100%) contrast(120%)" }}
-      >
+      <span className="inline-block shrink-0 select-none leading-none">
         {descriptor.value}
       </span>
     );

@@ -907,28 +907,89 @@ function bindSharedSocketEvents() {
   });
 
   const recentMessageStatusEvents = new Map<string, number>();
-  const messageStatusEvents = ["message_status", "message:status", "messages.update", "whatsapp:message_status"];
+  const messageStatusEvents = [
+    "message_status",
+    "message:status",
+    "message:ack",
+    "messages.update",
+    "message:update",
+    "message-update",
+    "whatsapp:message_status",
+  ];
+
+  function normalizeAckStatus(status: unknown): string {
+    if (status === null || status === undefined) return "sent";
+    if (typeof status === "number") {
+      switch (status) {
+        case 0: return "failed";
+        case 1: return "pending";
+        case 2: return "sent";
+        case 3: return "delivered";
+        case 4: return "read";
+        case 5: return "played";
+        default: return "sent";
+      }
+    }
+    const str = String(status).trim().toLowerCase();
+    if (str === "0" || str === "error" || str === "failed" || str === "blocked") return "failed";
+    if (str === "1" || str === "pending" || str === "sending") return "pending";
+    if (str === "2" || str === "server_ack" || str === "sent") return "sent";
+    if (str === "3" || str === "delivery_ack" || str === "device_ack" || str === "delivered" || str === "received") return "delivered";
+    if (str === "4" || str === "read" || str === "viewed") return "read";
+    if (str === "5" || str === "played") return "played";
+    return str;
+  }
+
+  const dispatchStatusUpdate = (messageId: string, rawStatus: unknown, convId?: string) => {
+    if (!messageId || rawStatus === undefined || rawStatus === null) return;
+    const normalizedStatus = normalizeAckStatus(rawStatus);
+    const dedupeKey = `${messageId}:${normalizedStatus}`;
+    const now = Date.now();
+    const previousAt = recentMessageStatusEvents.get(dedupeKey);
+    if (previousAt && now - previousAt < 3000) return;
+    recentMessageStatusEvents.set(dedupeKey, now);
+    if (recentMessageStatusEvents.size > 1000) {
+      for (const [key, timestamp] of recentMessageStatusEvents) {
+        if (now - timestamp >= 3000) recentMessageStatusEvents.delete(key);
+      }
+    }
+    notifySubscribers((subscriber) => subscriber.onMessageStatus?.({
+      messageId,
+      status: normalizedStatus,
+      conversationId: convId,
+    }));
+  };
+
   messageStatusEvents.forEach((eventName) => {
-    sharedSocket?.on(eventName, (payload: { id?: string; messageId?: string; message_id?: string; status?: string; conversationId?: string; conversation_id?: string; chatId?: string; chat_id?: string; phone?: string }) => {
-      const messageId = payload.id ?? payload.messageId ?? payload.message_id;
-      const status = payload.status;
-      const conversationId = payload.conversationId ?? payload.conversation_id ?? payload.chatId ?? payload.chat_id ?? payload.phone;
-      if (messageId && status) {
-        const dedupeKey = `${messageId}:${String(status).toLowerCase()}`;
-        const now = Date.now();
-        const previousAt = recentMessageStatusEvents.get(dedupeKey);
-        if (previousAt && now - previousAt < 5000) return;
-        recentMessageStatusEvents.set(dedupeKey, now);
-        if (recentMessageStatusEvents.size > 1000) {
-          for (const [key, timestamp] of recentMessageStatusEvents) {
-            if (now - timestamp >= 5000) recentMessageStatusEvents.delete(key);
+    sharedSocket?.on(eventName, (payload: any) => {
+      if (!payload) return;
+      if (Array.isArray(payload.updates)) {
+        for (const u of payload.updates) {
+          const msgId = u?.key?.id || u?.id;
+          const status = u?.update?.status ?? u?.status;
+          const convId = u?.key?.remoteJid || payload?.sessionId;
+          if (msgId && status !== undefined) {
+            dispatchStatusUpdate(msgId, status, convId);
           }
         }
-        notifySubscribers((subscriber) => subscriber.onMessageStatus?.({
-          messageId,
-          status,
-          conversationId,
-        }));
+        return;
+      }
+      if (Array.isArray(payload)) {
+        for (const item of payload) {
+          const msgId = item?.id ?? item?.messageId ?? item?.key?.id;
+          const status = item?.status ?? item?.update?.status;
+          const convId = item?.conversationId ?? item?.chatId ?? item?.key?.remoteJid;
+          if (msgId && status !== undefined) {
+            dispatchStatusUpdate(msgId, status, convId);
+          }
+        }
+        return;
+      }
+      const messageId = payload.id ?? payload.messageId ?? payload.message_id ?? payload.key?.id;
+      const status = payload.status ?? payload.update?.status;
+      const conversationId = payload.conversationId ?? payload.conversation_id ?? payload.chatId ?? payload.chat_id ?? payload.phone ?? payload.key?.remoteJid;
+      if (messageId && status !== undefined) {
+        dispatchStatusUpdate(messageId, status, conversationId);
       }
     });
   });

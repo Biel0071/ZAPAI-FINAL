@@ -98,6 +98,9 @@ async function readQuickReplies(companyId = null) {
         mediaType,
         aiMemory,
         filename,
+        sessionId: row.session_id || null,
+        storeId: row.store_id || null,
+        scopeLevel: row.scope_level || (row.session_id ? 'session' : 'global'),
         updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
       };
@@ -145,13 +148,16 @@ async function writeQuickReplies(items, companyId, removedId = null) {
       });
 
       const saved = await query(
-        `INSERT INTO quick_replies (id, company_id, title, content, category, tags, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        `INSERT INTO quick_replies (id, company_id, title, content, category, tags, session_id, store_id, scope_level, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
          ON CONFLICT (id) DO UPDATE SET
            title = EXCLUDED.title,
            content = EXCLUDED.content,
            category = EXCLUDED.category,
            tags = EXCLUDED.tags,
+           session_id = COALESCE(EXCLUDED.session_id, quick_replies.session_id),
+           store_id = COALESCE(EXCLUDED.store_id, quick_replies.store_id),
+           scope_level = COALESCE(EXCLUDED.scope_level, quick_replies.scope_level),
            updated_at = NOW()
          WHERE quick_replies.company_id = EXCLUDED.company_id
          RETURNING id`,
@@ -162,6 +168,9 @@ async function writeQuickReplies(items, companyId, removedId = null) {
           contentPayload,
           item.category || 'general',
           item.tags || [],
+          item.sessionId || null,
+          item.storeId || null,
+          item.scopeLevel || (item.sessionId ? 'session' : 'global'),
         ]
       );
       if (!saved.rows?.length) throw Object.assign(new Error('Resposta rápida pertence a outra empresa.'), { status: 403 });
@@ -399,6 +408,9 @@ function normalizeQuickReply(payload = {}) {
     mediaUrl: payload.mediaUrl ? String(payload.mediaUrl).trim() : undefined,
     mediaType: payload.mediaType ? String(payload.mediaType).trim().toLowerCase() : undefined,
     filename: payload.filename ? String(payload.filename).trim() : undefined,
+    sessionId: payload.sessionId ? String(payload.sessionId).trim() : null,
+    storeId: payload.storeId ? String(payload.storeId).trim() : null,
+    scopeLevel: payload.scopeLevel || (payload.sessionId ? 'session' : 'global'),
     companyId: requireCompanyId(payload.companyId),
     steps: Array.isArray(payload.steps) ? payload.steps.map((step) => ({
       id: step.id || `step-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -435,8 +447,30 @@ async function listQuickReplies(filters = {}) {
   const all = await readQuickReplies(filters.companyId);
   const category = filters.category ? normalizeCategory(filters.category) : null;
   const term = String(filters.search || '').trim().toLowerCase();
+  const sessionId = filters.sessionId ? String(filters.sessionId).trim() : null;
+  const userRole = String(filters.role || filters.userRole || '').trim().toLowerCase();
+  const isAdmin = ['admin', 'master', 'master_admin', 'superadmin', 'owner'].includes(userRole);
 
   return all
+    .filter((item) => {
+      // Role-based session scoping
+      if (!isAdmin) {
+        // Normal user is strictly scoped to their assigned sessionId or global
+        if (sessionId && sessionId !== 'all') {
+          const itemSession = item.sessionId ? String(item.sessionId).trim() : null;
+          const isGlobal = item.scopeLevel === 'global' || !itemSession;
+          if (itemSession !== sessionId && !isGlobal) return false;
+        }
+      } else {
+        // Admin user: if explicit sessionId provided and !== 'all', filter by it + global
+        if (sessionId && sessionId !== 'all') {
+          const itemSession = item.sessionId ? String(item.sessionId).trim() : null;
+          const isGlobal = item.scopeLevel === 'global' || !itemSession;
+          if (itemSession !== sessionId && !isGlobal) return false;
+        }
+      }
+      return true;
+    })
     .filter((item) => (category ? item.category === category : true))
     .filter((item) => {
       if (!term) {

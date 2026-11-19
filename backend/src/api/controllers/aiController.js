@@ -261,15 +261,22 @@ async function testReply(req, res) {
     const result = await testAIConnection({
       store,
       companyId: req.authTenantId,
+      userId,
+      role,
       sessionId: req.body?.sessionId,
       providerId: req.body?.providerId,
       model: req.body?.model,
+      routingMode: req.body?.routingMode || req.body?.agent?.routingMode,
+      personalityPreset: req.body?.personalityPreset || req.body?.agent?.personalityPreset,
+      objective: req.body?.objective || req.body?.agent?.objective,
+      tone: req.body?.tone || req.body?.agent?.tone,
       message: req.body?.message,
       prompt: req.body?.prompt,
       agentKey: req.body?.agentKey,
       agentName: req.body?.agentName,
       agent: req.body?.agent,
       temperature: req.body?.temperature,
+      maxTokens: req.body?.maxTokens || req.body?.agent?.maxTokens,
       responseStyle: req.body?.responseStyle || req.body?.agent?.responseStyle,
       history: req.body?.history,
       maxWords: req.body?.maxWords || req.body?.agent?.maxWords,
@@ -288,6 +295,34 @@ async function testReply(req, res) {
     });
   } catch (error) {
     return res.status(500).json({ success: false, error: error.message || 'AI test failed.' });
+  }
+}
+
+async function compareBehaviorReplies(req, res) {
+  if (!req.authTenantId) return res.status(401).json({ success: false, error: 'Autenticação obrigatória.' });
+  try {
+    const role = req.auth?.role || 'user';
+    const userId = req.auth?.sub || req.auth?.username || 'user';
+    const message = String(req.body?.message || '').trim();
+    if (!message) {
+      return res.status(400).json({ success: false, error: 'Pergunta de teste é obrigatória.' });
+    }
+    const store = getStore(req);
+    const { compareAgentBehaviors } = require('../../../services/ai.service');
+    const results = await compareAgentBehaviors({
+      store,
+      companyId: req.authTenantId,
+      userId,
+      role,
+      sessionId: req.body?.sessionId || null,
+      agentKey: req.body?.agentKey || null,
+      message,
+      history: Array.isArray(req.body?.history) ? req.body.history : [],
+      variants: Array.isArray(req.body?.variants) ? req.body.variants : [],
+    });
+    return res.status(200).json({ success: true, message, variants: results });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao comparar personalidades.' });
   }
 }
 
@@ -966,11 +1001,11 @@ async function testVoice(req, res) {
 
 async function transcribe(req, res) {
   try {
-    const { mediaUrl } = req.body;
+    const mediaUrl = req.body?.mediaUrl || req.body?.media_url || req.body?.url || req.body?.audioUrl || req.body?.path || req.body?.fileName;
     if (!mediaUrl) {
       return res.status(400).json({ error: 'URL do áudio não informada.' });
     }
-    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || req.body.companyId || 'default';
+    const companyId = req.headers['x-company-id'] || req.headers['x-tenant-id'] || req.auth?.tenantId || req.body?.companyId || 'default';
     const { transcribeAudio } = require('../../../services/ai.service');
     const text = await transcribeAudio({ mediaUrl, companyId });
     return res.json({ text });
@@ -1394,6 +1429,7 @@ module.exports = {
   getZaiUsage,
   rechargeZaiUsage,
   testReply,
+  compareBehaviorReplies,
   testProviders,
   refinePrompt,
   analyzeUploadedMedia,

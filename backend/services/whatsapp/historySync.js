@@ -8,13 +8,38 @@ const agents = require('../../src/ai/agents/services/aiAgentService');
 const { activeSessions } = require('./state/registry');
 const { emitToTenant } = require('../realtime/tenantRooms');
 
+const DEFAULT_INDIVIDUAL_HISTORY_DAYS = Math.max(1, Number(process.env.INDIVIDUAL_MSG_RETENTION_DAYS || 30));
+const DEFAULT_GROUP_HISTORY_HOURS = Math.max(1, Number(process.env.GROUP_MSG_RETENTION_HOURS || 168));
+
 function isSyncableJid(jid) { return /@(s\.whatsapp\.net|lid|g\.us)$/.test(String(jid)); }
 function individual(jid) { return /@(s\.whatsapp\.net|lid)$/.test(String(jid)); }
 
-function encodeItems(messages, chats, proto, origin = 'unknown', { includeGroups = true } = {}) {
+function encodeItems(
+  messages,
+  chats,
+  proto,
+  origin = 'unknown',
+  { includeGroups = true, maxIndividualAgeDays = null, maxGroupAgeHours = null } = {}
+) {
   const chatMap = new Map(chats.map(c => [c.id, c]));
   const filterFn = includeGroups ? isSyncableJid : individual;
-  return messages.filter(m => m?.key?.id && filterFn(m.key.remoteJid) && m.message && !unwrapMessageContent(m.message).protocolMessage).map(m => {
+  const nowMs = Date.now();
+  return messages.filter(m => {
+    if (!m?.key?.id || !filterFn(m.key.remoteJid) || !m.message || unwrapMessageContent(m.message).protocolMessage) {
+      return false;
+    }
+    const seconds = Number(m.messageTimestamp || 0);
+    if (seconds > 0) {
+      const isGroup = String(m.key.remoteJid || '').endsWith('@g.us');
+      const maxAgeMs = isGroup
+        ? (maxGroupAgeHours ? maxGroupAgeHours * 60 * 60 * 1000 : null)
+        : (maxIndividualAgeDays ? maxIndividualAgeDays * 24 * 60 * 60 * 1000 : null);
+      if (maxAgeMs && (nowMs - seconds * 1000) > maxAgeMs) {
+        return false;
+      }
+    }
+    return true;
+  }).map(m => {
     const seconds = Number(m.messageTimestamp || 0);
     const date = new Date(seconds * 1000);
     const chat = chatMap.get(m.key.remoteJid);
@@ -81,7 +106,11 @@ class HistorySync {
     }
     const { proto } = await import('@whiskeysockets/baileys');
     await this.repository.enqueueChats(companyId, sessionId, chats.filter(c => isSyncableJid(c?.id)).map(c => ({ id: c.id, name: c.name || c.subject || null, archived: Boolean(c.archived || c.archive) })));
-    await this.repository.enqueue(companyId, sessionId, encodeItems(messages, chats, proto, origin, { includeGroups: true }));
+    await this.repository.enqueue(companyId, sessionId, encodeItems(messages, chats, proto, origin, {
+      includeGroups: true,
+      maxIndividualAgeDays: DEFAULT_INDIVIDUAL_HISTORY_DAYS,
+      maxGroupAgeHours: DEFAULT_GROUP_HISTORY_HOURS,
+    }));
   }
 
   async decodeItem(item) {
@@ -263,6 +292,7 @@ class HistorySync {
       LEFT JOIN whatsapp_history_requests r
         ON r.company_id=h.company_id AND r.session_id=h.session_id AND r.chat_jid=h.chat_jid
       WHERE h.company_id=$1 AND h.session_id=$2 AND h.occurred_at IS NOT NULL
+        AND h.occurred_at >= NOW() - ($3 * INTERVAL '1 day')
         AND h.message_key NOT LIKE 'stored:%'
         AND (r.oldest_key IS NULL OR r.oldest_key<>h.message_key OR
           (r.status IN ('waiting','waiting_retry_1','waiting_retry_2','waiting_retry_3') AND r.requested_at < NOW() -
@@ -270,7 +300,7 @@ class HistorySync {
               WHEN 'waiting_retry_2' THEN INTERVAL '1 hour' ELSE INTERVAL '6 hours' END))
       ORDER BY h.occurred_at ASC
       LIMIT 1
-    `, [companyId, sessionId])).rows[0];
+    `, [companyId, sessionId, DEFAULT_INDIVIDUAL_HISTORY_DAYS])).rows[0];
 
     // Fallback: If no candidate in whatsapp_history_items, check messages table
     if (!row) {
@@ -283,6 +313,7 @@ class HistorySync {
           SELECT DISTINCT ON (COALESCE(remote_jid,phone)) company_id,session_id,remote_jid,phone,whatsapp_message_id,from_me,timestamp,created_at
           FROM messages WHERE company_id=$1 AND session_id=$2
             AND whatsapp_message_id IS NOT NULL AND whatsapp_message_id NOT LIKE 'stored:%'
+            AND COALESCE(timestamp, created_at) >= NOW() - ($3 * INTERVAL '1 day')
           ORDER BY COALESCE(remote_jid,phone),COALESCE(timestamp,created_at) ASC,id ASC
         ) m
         LEFT JOIN whatsapp_history_requests r
@@ -296,7 +327,7 @@ class HistorySync {
                 WHEN 'waiting_retry_2' THEN INTERVAL '1 hour' ELSE INTERVAL '6 hours' END))
         ORDER BY COALESCE(m.timestamp, m.created_at) ASC
         LIMIT 1
-      `, [companyId, sessionId])).rows[0];
+      `, [companyId, sessionId, DEFAULT_INDIVIDUAL_HISTORY_DAYS])).rows[0];
     }
 
     if (!row) return;
@@ -399,11 +430,12 @@ class HistorySync {
       LEFT JOIN whatsapp_history_requests r
         ON r.company_id=h.company_id AND r.session_id=h.session_id AND r.chat_jid=h.chat_jid
       WHERE h.company_id=$1 AND h.session_id=$2 AND h.occurred_at IS NOT NULL
+        AND h.occurred_at >= NOW() - ($4 * INTERVAL '1 day')
         AND h.message_key NOT LIKE 'stored:%'
         AND (r.oldest_key IS NULL OR r.oldest_key<>h.message_key)
       ORDER BY h.chat_jid, h.occurred_at ASC
       LIMIT $3
-    `, [companyId, sessionId, count])).rows;
+    `, [companyId, sessionId, count, DEFAULT_INDIVIDUAL_HISTORY_DAYS])).rows;
 
     // Fallback: If whatsapp_history_items has fewer than count candidates, also search messages table
     if (rows.length < count) {
@@ -419,6 +451,7 @@ class HistorySync {
           SELECT DISTINCT ON (COALESCE(remote_jid,phone)) company_id,session_id,remote_jid,phone,whatsapp_message_id,from_me,timestamp,created_at
           FROM messages WHERE company_id=$1 AND session_id=$2
             AND whatsapp_message_id IS NOT NULL AND whatsapp_message_id NOT LIKE 'stored:%'
+            AND COALESCE(timestamp, created_at) >= NOW() - ($4 * INTERVAL '1 day')
           ORDER BY COALESCE(remote_jid,phone),COALESCE(timestamp,created_at) ASC,id ASC
         ) m
         LEFT JOIN whatsapp_history_requests r
@@ -426,11 +459,11 @@ class HistorySync {
         WHERE m.company_id = $1 AND m.session_id = $2
           AND m.whatsapp_message_id IS NOT NULL
           AND m.whatsapp_message_id NOT LIKE 'stored:%'
-          ${existingJids.length ? `AND COALESCE(m.remote_jid, m.phone) NOT IN (${existingJids.map((_, i) => `$${i + 4}`).join(',')})` : ''}
+          ${existingJids.length ? `AND COALESCE(m.remote_jid, m.phone) NOT IN (${existingJids.map((_, i) => `$${i + 5}`).join(',')})` : ''}
           AND (r.oldest_key IS NULL OR r.oldest_key <> m.whatsapp_message_id)
         ORDER BY COALESCE(m.remote_jid, m.phone), COALESCE(m.timestamp, m.created_at) ASC
         LIMIT $3
-      `, [companyId, sessionId, remaining, ...existingJids])).rows;
+      `, [companyId, sessionId, remaining, DEFAULT_INDIVIDUAL_HISTORY_DAYS, ...existingJids])).rows;
       rows = rows.concat(fallbackRows);
     }
 

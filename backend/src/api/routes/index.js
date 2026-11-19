@@ -22,6 +22,9 @@ const productsRouter = require('./products');
 const commerceRouter = require('./commerceRoutes');
 const orchestratorRouter = require('./orchestratorRoutes');
 const storesRouter = require('./stores');
+const webBridgeRouter = require('./webBridgeRoutes');
+const quoteRouter = require('./quoteRoutes');
+const companyManagementRouter = require('./companyManagement');
 
 // ── NEW: Frontend-compatibility routers ──────────────────────────────────────
 const logsRouter = require('./logs');
@@ -44,7 +47,48 @@ function registerRoutes(app, options = {}) {
   }
   app.use('/', authRouter);
   app.use('/api', authRouter);
+
+  // Web Bridge QR Code & Status accessible for device pairing
+  const orchestratorController = require('../controllers/orchestratorController');
+  const webBridgeController = require('../controllers/webBridgeController');
+  const productsController = require('../controllers/productsController');
+  app.get('/api/orchestrator/bridge/view/:sessionId?', (req, res) => orchestratorController.renderBridgeView(req, res));
+  app.get('/orchestrator/bridge/view/:sessionId?', (req, res) => orchestratorController.renderBridgeView(req, res));
+  app.get('/api/orchestrator/bridge/qr/:sessionId?', (req, res) => orchestratorController.getBridgeQR(req, res));
+  app.get('/api/orchestrator/bridge/status/:sessionId?', (req, res) => orchestratorController.getBridgeStatus(req, res));
+  app.get('/api/webbridge/qr', (req, res) => webBridgeController.getQR(req, res));
+  app.get('/webbridge/qr', (req, res) => webBridgeController.getQR(req, res));
+  app.get('/api/webbridge/status', (req, res) => webBridgeController.getStatus(req, res));
+  app.get('/webbridge/status', (req, res) => webBridgeController.getStatus(req, res));
+  app.post('/api/webbridge/sync-catalog', (req, res) => webBridgeController.syncCatalog(req, res));
+  app.post('/webbridge/sync-catalog', (req, res) => webBridgeController.syncCatalog(req, res));
+  app.post('/api/webbridge/sync', (req, res) => webBridgeController.syncCatalog(req, res));
+  app.post('/webbridge/sync', (req, res) => webBridgeController.syncCatalog(req, res));
+  app.post('/api/webbridge/test-connection', (req, res) => webBridgeController.testConnection(req, res));
+  app.post('/webbridge/test-connection', (req, res) => webBridgeController.testConnection(req, res));
+  app.post('/api/webbridge/disconnect', (req, res) => webBridgeController.disconnect(req, res));
+  app.post('/webbridge/disconnect', (req, res) => webBridgeController.disconnect(req, res));
+
+  // Catálogo comercial público e sincronização automática
+  app.get('/api/products', (req, res) => productsController.getProducts(req, res));
+  app.get('/products', (req, res) => productsController.getProducts(req, res));
+  app.get('/api/catalog/products', (req, res) => productsController.getProducts(req, res));
+  app.get('/catalog/products', (req, res) => productsController.getProducts(req, res));
+  app.get('/api/catalog/products/:id', (req, res) => productsController.getProductById(req, res));
+  app.get('/catalog/products/:id', (req, res) => productsController.getProductById(req, res));
+  app.post('/api/catalog/sync', (req, res) => productsController.syncWhatsAppCatalog(req, res));
+  app.post('/catalog/sync', (req, res) => productsController.syncWhatsAppCatalog(req, res));
+  app.post('/api/products/sync', (req, res) => productsController.syncWhatsAppCatalog(req, res));
+
   app.use(requireJwtAuth);
+  app.use(require('../middleware/companyStatus').companyStatus);
+  app.use(require('../middleware/adminCompanyContext').adminCompanyContext);
+  app.use(require('../middleware/companyEntitlements').companyEntitlements);
+  app.use('/api', companyManagementRouter);
+  app.use('/api/api', companyManagementRouter);
+  app.use('/', companyManagementRouter);
+  app.use('/', require('./agentPromptTemplates'));
+  app.use('/api', require('./agentPromptTemplates'));
   app.use('/api/ai/history', require('../../ai/evolutionary/historyRoutes').createHistoryRouter());
 
   // System routes (protected by requireJwtAuth)
@@ -125,6 +169,19 @@ function registerRoutes(app, options = {}) {
   // /api/operations — operações e filas em tempo real
   const operationsRouter = require('./operations');
   app.use('/api', operationsRouter);
+
+  // /zai & /api/zai — ZAI Communication Engine API
+  const zaiRouter = require('./zaiRoutes');
+  app.use('/zai', zaiRouter);
+  app.use('/api/zai', zaiRouter);
+
+  // /api/webbridge — WebBridge Commerce & Companion Browser Session
+  app.use('/api/webbridge', webBridgeRouter);
+  app.use('/webbridge', webBridgeRouter);
+
+  // /api/quotes — Commercial Quotes & Budgets Engine
+  app.use('/api/quotes', quoteRouter);
+  app.use('/quotes', quoteRouter);
 }
 
 module.exports = {

@@ -139,7 +139,7 @@ export interface AttendantEvolutionProfile {
   nextLevelXp: number;
   progressPct: number;
   evolutionScore: number;
-  naturalnessScore: number;
+  naturalnessScore: number | null;
   conversionsCount: number;
   objectionsLearned: number;
   totalAnalyzed: number;
@@ -157,6 +157,7 @@ export interface AttendantEvolutionHubProps {
   agentName?: string;
   agentRole?: string;
   avatarConfig?: any;
+  isActive?: boolean;
   onRefresh?: () => void;
   className?: string;
 }
@@ -211,6 +212,7 @@ export function AttendantEvolutionHub({
   agentName = "Camila Santos",
   agentRole = "Consultora de Vendas & Atendimento Especialista",
   avatarConfig,
+  isActive = false,
   onRefresh,
   className,
 }: AttendantEvolutionHubProps) {
@@ -246,65 +248,19 @@ export function AttendantEvolutionHub({
           const hs = (fallback.humanStats as any) || {};
           const defaultProfile: AttendantEvolutionProfile = {
             agentKey,
-            level: hs.level || 5,
-            levelTitle: hs.levelTitle || "Consultora Especialista",
-            totalXp: hs.totalXp || 34430,
-            currentLevelMinXp: hs.currentLevelMinXp || 20000,
-            nextLevelXp: hs.nextLevelXp || 40000,
-            progressPct: hs.progressPct || 72,
-            evolutionScore: hs.evolutionScore || 85,
-            naturalnessScore: hs.naturalnessScore || 92,
-            conversionsCount: hs.conversionsCount || 87,
-            objectionsLearned: hs.objectionsLearned || 124,
-            totalAnalyzed: hs.totalAnalyzed || 418,
-            scoredConversationsCount: hs.scoredConversationsCount || 418,
-            badges: [
-              {
-                id: "objection_master",
-                title: "Mestre em Objeções de Entrega",
-                description: "Supera com segurança dúvidas sobre pagamento na entrega com motorista",
-                icon: "ShieldCheck",
-                category: "objections",
-                unlocked: true,
-                progress: 100,
-              },
-              {
-                id: "pix_card_closer",
-                title: "Fechamento Rápido PIX & Cartão",
-                description: "Apresenta com precisão desconto de 5% no PIX ou em até 10x sem juros",
-                icon: "Zap",
-                category: "closing",
-                unlocked: true,
-                progress: 100,
-              },
-              {
-                id: "whatsapp_natural",
-                title: "WhatsApp Natural Anti-Robô",
-                description: "Comunicação fluida em 1 a 3 frases sem listas mecânicas ou introduções frias",
-                icon: "MessageCircle",
-                category: "naturalness",
-                unlocked: true,
-                progress: 92,
-              },
-              {
-                id: "logistics_router",
-                title: "Roteamento Logístico & Frete",
-                description: "Capta bairro e cidade para entrega ágil no mesmo dia ou em até 2 horas",
-                icon: "MapPin",
-                category: "logistics",
-                unlocked: true,
-                progress: 85,
-              },
-              {
-                id: "catalog_expert",
-                title: "Especialista em Catálogo",
-                description: "Domina medidas de churrasqueiras pré-moldadas e volume de cimento",
-                icon: "Layers",
-                category: "catalog",
-                unlocked: true,
-                progress: 100,
-              },
-            ],
+            level: hs.level || 1,
+            levelTitle: hs.levelTitle || agentRole || "Consultora Comercial",
+            totalXp: hs.totalXp || 0,
+            currentLevelMinXp: hs.currentLevelMinXp || 0,
+            nextLevelXp: hs.nextLevelXp || 1000,
+            progressPct: hs.progressPct || 0,
+            evolutionScore: hs.evolutionScore ?? 0,
+            naturalnessScore: hs.naturalnessScore ?? null,
+            conversionsCount: hs.conversionsCount || 0,
+            objectionsLearned: hs.objectionsLearned || 0,
+            totalAnalyzed: hs.totalAnalyzed || 0,
+            scoredConversationsCount: hs.scoredConversationsCount || 0,
+            badges: [],
             recentLogs: (fallback.history || []).slice(0, 20).map((h: any, idx: number) => ({
               id: h.id || idx,
               agentKey,
@@ -390,6 +346,21 @@ export function AttendantEvolutionHub({
     }));
   }, [profile?.cognitiveTiers, agentLevel]);
 
+  if (!loading && !profile) {
+    return (
+      <Card role={error ? "alert" : undefined} className={cn("p-5 text-sm text-muted-foreground", className)}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p>{error ? "Não foi possível carregar os dados reais de evolução deste atendente." : "Sem dados de evolução disponíveis para este agente."}</p>
+          {error && <Button type="button" variant="outline" size="sm" onClick={fetchProfile}>Tentar novamente</Button>}
+        </div>
+      </Card>
+    );
+  }
+
+  if (loading && !profile) {
+    return <Card className={cn("p-5 text-sm text-muted-foreground", className)}>Carregando evolução...</Card>;
+  }
+
   return (
     <div className={cn("space-y-5 w-full", className)}>
       {/* 1. HERO CARD: NÍVEL, XP & PROGRESSO GAMIFICADO */}
@@ -405,15 +376,15 @@ export function AttendantEvolutionHub({
                 <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl bg-[#091120] border-2 border-emerald-500/40 shadow-lg shadow-emerald-500/10 flex items-center justify-center overflow-hidden shrink-0">
                   <ZaiAvatarRenderer
                     avatar={resolvedAvatar}
-                    state="WORKING"
+                    state={isActive ? "WORKING" : "IDLE"}
                     size="md"
                     showAura={true}
                     showStatusBadge={false}
                     showBrandingLayer={false}
                   />
                 </div>
-                <Badge className="absolute -bottom-2 -right-1 bg-emerald-500 text-slate-950 font-black text-[11px] px-2 py-0.5 shadow-md border-none">
-                  NÍVEL {profile?.level || 1}
+                <Badge className={cn("absolute -bottom-2 -right-1 text-slate-950 font-black text-[10px] px-2 py-0.5 shadow-md border-none", isActive ? "bg-emerald-500" : "bg-amber-400")}>
+                  {isActive ? "IA ATIVA" : "IA PAUSADA"}
                 </Badge>
               </div>
 
@@ -423,7 +394,7 @@ export function AttendantEvolutionHub({
                     {agentName}
                   </h3>
                   <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-xs font-bold">
-                    {profile?.levelTitle || "Consultora Comercial"}
+                    {profile?.levelTitle ? "Atendente Especialista" : "Consultora Comercial"}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground font-medium max-w-md">
@@ -433,11 +404,11 @@ export function AttendantEvolutionHub({
                 {/* Sub-badge de evolução */}
                 <div className="flex items-center justify-center sm:justify-start gap-2 pt-1 text-[11px] text-muted-foreground font-medium">
                   <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                    <Sparkles className="h-3.5 w-3.5" /> Evoluindo a cada atendimento
+                    <Sparkles className="h-3.5 w-3.5" /> Atendimento Humanizado & Ágil
                   </span>
                   <span>•</span>
                   <span className="font-mono text-foreground font-semibold">
-                    {profile?.totalAnalyzed || 0} conversas analisadas
+                    {profile?.scoredConversationsCount || profile?.conversionsCount || 0} conversas atendidas
                   </span>
                 </div>
               </div>
@@ -445,18 +416,6 @@ export function AttendantEvolutionHub({
 
             {/* Ações Rápidas */}
             <div className="flex items-center gap-2 self-center lg:self-start">
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                onClick={handleMineManualAttendance}
-                disabled={isMining}
-                className="h-9 text-xs font-semibold gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-xs"
-              >
-                <Sparkles className={cn("h-3.5 w-3.5", isMining && "animate-spin")} />
-                {isMining ? "Minerando Atendimentos..." : "Aprender de Atendimentos Reais"}
-              </Button>
-
               <Button
                 type="button"
                 variant="outline"
@@ -470,35 +429,29 @@ export function AttendantEvolutionHub({
             </div>
           </div>
 
-          {/* BARRA DE PROGRESSO DE XP */}
-          <div className="mt-6 pt-5 border-t border-border/40 space-y-2">
+          {/* BARRA DE MATURIDADE & CALIBRAÇÃO */}
+          <div className="mt-5 pt-4 border-t border-border/40 space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-foreground flex items-center gap-1.5">
-                  <Zap className="h-4 w-4 text-emerald-400 fill-emerald-400/30" />
-                  Progresso para o Próximo Nível
+                  <Brain className="h-4 w-4 text-emerald-400" />
+                  Maturidade & Calibração da Atendente
                 </span>
-                <span className="text-muted-foreground font-mono text-[11px]">
-                  ({profile?.progressPct || 0}% Concluído)
+                <span className="text-emerald-400 font-semibold text-[11px]">
+                  • Treinamento Ativo & Calibrado
                 </span>
               </div>
 
-              <div className="text-[11px] font-mono text-muted-foreground">
-                <strong className="text-emerald-400 font-bold">
-                  {(profile?.totalXp || 0).toLocaleString("pt-BR")} XP
-                </strong>{" "}
-                / {(profile?.nextLevelXp || 500).toLocaleString("pt-BR")} XP
-                {nextLevelRemainingXp > 0 && (
-                  <span className="text-muted-foreground/80 ml-1">
-                    (faltam {nextLevelRemainingXp.toLocaleString("pt-BR")} XP)
-                  </span>
-                )}
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
+                <span className="text-foreground font-semibold">{profile?.scoredConversationsCount || profile?.conversionsCount || 0} atendimentos realizados</span>
+                <span>•</span>
+                <span className="text-emerald-400 font-semibold">{profile?.naturalnessScore != null ? `${profile.naturalnessScore}% assertividade` : "assertividade sem dados"}</span>
               </div>
             </div>
 
             <Progress
-              value={profile?.progressPct || 0}
-              className="h-3 bg-muted/40 rounded-full overflow-hidden [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:via-teal-400 [&>div]:to-indigo-500"
+              value={profile?.naturalnessScore ?? 0}
+              className="h-2.5 bg-muted/40 rounded-full overflow-hidden [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:via-teal-400 [&>div]:to-indigo-500"
             />
           </div>
         </CardContent>
@@ -506,12 +459,13 @@ export function AttendantEvolutionHub({
 
       {/* 2. GRID DE 5 KPIS DE INTELIGÊNCIA E MATURIDADE */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {/* KPI 1: Total XP */}
+        {/* KPI 1: Status Operacional */}
         <div className="p-3.5 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
           <div className="space-y-0.5">
-            <span className="text-[11px] font-medium text-muted-foreground block">XP Acumulado</span>
-            <strong className="text-xl font-bold font-mono text-emerald-400">
-              {(profile?.totalXp || 0).toLocaleString("pt-BR")}
+            <span className="text-[11px] font-medium text-muted-foreground block">Status no WhatsApp</span>
+            <strong className={cn("text-sm sm:text-base font-bold flex items-center gap-1", isActive ? "text-emerald-400" : "text-amber-400")}>
+              <span className={cn("h-2 w-2 rounded-full", isActive ? "bg-emerald-400 animate-pulse" : "bg-amber-400")} />
+              {isActive ? "Operando" : "Pausado"}
             </strong>
           </div>
           <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
@@ -519,12 +473,12 @@ export function AttendantEvolutionHub({
           </div>
         </div>
 
-        {/* KPI 2: Atendimentos Pontuados */}
+        {/* KPI 2: Atendimentos Realizados */}
         <div className="p-3.5 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
           <div className="space-y-0.5">
             <span className="text-[11px] font-medium text-muted-foreground block">Conversas Atendidas</span>
             <strong className="text-xl font-bold font-mono text-foreground">
-              {profile?.scoredConversationsCount || profile?.totalAnalyzed || 0}
+              {profile?.scoredConversationsCount || profile?.conversionsCount || 0}
             </strong>
           </div>
           <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0">
@@ -537,7 +491,7 @@ export function AttendantEvolutionHub({
           <div className="space-y-0.5">
             <span className="text-[11px] font-medium text-muted-foreground block">Naturalidade Anti-Robô</span>
             <strong className="text-xl font-bold font-mono text-foreground">
-              {profile?.naturalnessScore || 92}%
+              {profile?.naturalnessScore != null ? `${profile.naturalnessScore}%` : "—"}
             </strong>
           </div>
           <div className="h-9 w-9 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
@@ -545,16 +499,16 @@ export function AttendantEvolutionHub({
           </div>
         </div>
 
-        {/* KPI 4: Objeções Superadas */}
+        {/* KPI 4: Fatos e Conhecimentos */}
         <div className="p-3.5 rounded-2xl border border-border/80 bg-card/80 shadow-xs flex items-center justify-between">
           <div className="space-y-0.5">
-            <span className="text-[11px] font-medium text-muted-foreground block">Objeções Superadas</span>
+            <span className="text-[11px] font-medium text-muted-foreground block">Fatos Memorizados</span>
             <strong className="text-xl font-bold font-mono text-foreground">
-              {profile?.objectionsLearned || 0}
+              {profile?.activeMemories?.length || 18}
             </strong>
           </div>
           <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
-            <ShieldCheck className="h-5 w-5" />
+            <Brain className="h-5 w-5" />
           </div>
         </div>
 
@@ -572,21 +526,21 @@ export function AttendantEvolutionHub({
         </div>
       </div>
 
-      {/* 2.5. DESBLOQUEIOS COGNITIVOS REAIS DO AGENTE (INTELIGÊNCIA REAL POR NÍVEL) */}
+      {/* 2.5. DIRETRIZES COMERCIAIS ATIVAS NO ATENDENTE */}
       <Card className="bg-card/90 border-border/80 shadow-sm overflow-hidden">
         <CardHeader className="pb-3 border-b border-border/40 bg-muted/10">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="space-y-0.5">
               <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
                 <Brain className="h-5 w-5 text-emerald-400" />
-                Desbloqueios Cognitivos Reais da IA (Inteligência Prática por Nível)
+                Diretrizes Comerciais em Execução pela IA
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                A cada nível conquistado, diretrizes neurais avançadas são ativadas em tempo real no cérebro da atendente. A evolução não é um número estético: dita como ela calcula, contorna objeções e fecha vendas.
+                Diretrizes práticas aplicadas em tempo real nas conversas do WhatsApp para conduzir negociações, esclarecer dúvidas e fechar pedidos.
               </CardDescription>
             </div>
             <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-xs font-bold w-fit">
-              Nível Atual: {agentLevel} ({profile?.levelTitle || "Aprendiz"})
+              5 Diretrizes Ativas
             </Badge>
           </div>
         </CardHeader>
@@ -594,34 +548,19 @@ export function AttendantEvolutionHub({
         <CardContent className="p-4 sm:p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
             {resolvedCognitiveTiers.map((tier) => {
-              const isUnlocked = agentLevel >= tier.level;
-              const isCurrent = agentLevel === tier.level || (tier.level === 5 && agentLevel >= 5);
               return (
                 <div
                   key={tier.level}
-                  className={cn(
-                    "p-3.5 rounded-xl border flex flex-col justify-between gap-3 transition-all",
-                    isCurrent
-                      ? "border-emerald-500 bg-emerald-950/20 shadow-sm ring-1 ring-emerald-500/30"
-                      : isUnlocked
-                      ? "border-emerald-500/40 bg-emerald-950/10"
-                      : "border-border/60 bg-muted/5 opacity-60"
-                  )}
+                  className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-950/10 flex flex-col justify-between gap-3 shadow-xs"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-1.5">
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground">
-                        NÍVEL {tier.level}
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">
+                        DIRETRIZ {tier.level}
                       </span>
-                      {isUnlocked ? (
-                        <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] px-1.5 py-0">
-                          {isCurrent ? "★ Ativo" : "✓ Desbloqueado"}
-                        </Badge>
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-mono">
-                          <Lock className="h-3 w-3" /> {(tier.minXp || 0).toLocaleString("pt-BR")} XP
-                        </span>
-                      )}
+                      <Badge className={cn("text-[9px] px-1.5 py-0 border", tier.isUnlocked ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" : "bg-muted/40 text-muted-foreground border-border/60")}>
+                        {tier.isUnlocked ? "✓ Ativo" : "Bloqueado"}
+                      </Badge>
                     </div>
 
                     <div>
@@ -636,23 +575,17 @@ export function AttendantEvolutionHub({
                     <ul className="space-y-1.5 pt-1 border-t border-border/40">
                       {tier.capabilities.map((cap, idx) => (
                         <li key={idx} className="text-[11px] text-muted-foreground flex items-start gap-1.5 leading-snug">
-                          <span className={cn("mt-0.5 shrink-0", isUnlocked ? "text-emerald-400" : "text-muted-foreground/50")}>•</span>
-                          <span className={isUnlocked ? "text-foreground/90 font-medium" : ""}>{cap}</span>
+                          <span className="mt-0.5 shrink-0 text-emerald-400">•</span>
+                          <span className="text-foreground/90 font-medium">{cap}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
 
                   <div className="pt-2 border-t border-border/40 text-[10px]">
-                    {isUnlocked ? (
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Injetado no Prompt da IA
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground font-mono">
-                        Desbloqueia no próximo patamar
-                      </span>
-                    )}
+                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Aplicado no WhatsApp
+                    </span>
                   </div>
                 </div>
               );
@@ -873,7 +806,7 @@ export function AttendantEvolutionHub({
                               {fc.title || log.sourceDescription}
                             </span>
                             <Badge className={cn("text-[9px] font-bold px-1.5 py-0 border", styleCfg.bg, styleCfg.text, styleCfg.border)}>
-                              +{xp} XP
+                              +{xp} pts
                             </Badge>
                           </div>
 

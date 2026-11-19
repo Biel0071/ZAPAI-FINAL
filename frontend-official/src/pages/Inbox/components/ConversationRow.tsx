@@ -17,7 +17,11 @@ import {
   Sparkle,
   WarningCircle,
   BellSimpleSlash,
+  Check,
+  Checks,
+  Clock,
 } from "@phosphor-icons/react";
+import { getMessageStatusMeta } from "../utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -79,7 +83,14 @@ export interface ConversationRowData {
 
 const BUSINESS_TAG_OPTIONS = ["Novo Lead", "Cliente", "Orçamento", "Venda", "Suporte", "VIP", "Urgente"] as const;
 
-export const ConversationRow = memo(function ConversationRow(props: RowComponentProps<ConversationRowData>) {
+export type ConversationRowProps = Partial<RowComponentProps<ConversationRowData>> & {
+  index: number;
+  style: React.CSSProperties;
+  data?: ConversationRowData | any;
+  isScrolling?: boolean;
+};
+
+export const ConversationRow = memo(function ConversationRow(props: ConversationRowProps) {
   const { index, style } = props;
   const data: ConversationRowData = ((props as any).data || props) as ConversationRowData;
   const {
@@ -133,6 +144,8 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
     if (name.includes("@s.whatsapp.net")) {
       name = name.replace(/@s\.whatsapp\.net.*/, "").trim();
     }
+    // Remove lead-status emoji noise like 🔴 or ⭕ if present in the contact name
+    name = name.replace(/[\u{1F534}\u{2B55}\u{26D4}\u{274C}]/gu, "").trim();
     const digitsOnly = name.replace(/\D/g, "");
     if (digitsOnly.length >= 10 && (digitsOnly === name || name.startsWith("+") || name.startsWith("55"))) {
       return formatPhoneNumber(name);
@@ -199,6 +212,14 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
   
   const typingState = getTypingState();
   const isTyping = typingState === "composing" || typingState === "recording" || typingState === true;
+  const isOnline = Boolean(
+    isTyping ||
+    conversation.status === "online" ||
+    (conversation.status as string) === "available" ||
+    (conversation as any).presence === "online" ||
+    (conversation as any).presence === "available" ||
+    (conversation as any).isOnline === true
+  );
   const draftPreview = draftsByConversationId?.[conversation.id]?.draft?.trim() || "";
   const isSelected = selectedChatIds.includes(conversation.id);
   const { timeLeft, isWaiting: isAiCountdownActive } = useAiCountdown(conversation.ai_reactivate_at);
@@ -321,14 +342,12 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-80" />
                 <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-600 border-2 border-background shadow-[0_0_10px_rgba(37,99,235,0.9)]" />
               </span>
-            ) : (isTyping || conversation.status === "online") ? (
+            ) : isOnline ? (
               <span className="relative flex h-3 w-3" title="Contato online no momento">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-background shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
               </span>
-            ) : (
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-background shadow-xs" title="Contato offline" />
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -336,56 +355,65 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
           <div className="flex items-center justify-between gap-1.5">
             <h4 className="text-xs md:text-sm font-semibold text-foreground/95 leading-none flex items-center gap-1.5 min-w-0 flex-1">
               <span className="truncate min-w-0">{cleanDisplayName}</span>
-              {/* Presence dot: green if online/typing, red when offline */}
-              <span
-                className={cn(
-                  "inline-flex h-2 w-2 rounded-full shrink-0",
-                  (isTyping || conversation.status === "online")
-                    ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-pulse"
-                    : "bg-rose-500/75"
-                )}
-                title={(isTyping || conversation.status === "online") ? "Contato online" : "Contato offline"}
-                aria-label={(isTyping || conversation.status === "online") ? "Online" : "Offline"}
-              />
+              {/* Presence dot: green if online/typing, NO red dot when offline */}
+              {isOnline && (
+                <span
+                  className="inline-flex h-2 w-2 rounded-full shrink-0 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] animate-pulse"
+                  title="Contato online"
+                  aria-label="Online"
+                />
+              )}
               {leadStatus.state === "intervencao" && (
                 <span className="sr-only" title={leadStatus.tooltip}>INTERVENÇÃO</span>
               )}
               {leadStatus.state === "finalizado" && (
                 <span className="sr-only" title={leadStatus.tooltip}>AGUARDA PIX AGUARDANDO PAGAMENTO</span>
               )}
-              {conversation.tags && conversation.tags.length > 0 && (
-                <div
-                  className="inline-flex items-center shrink-0 ml-1.5"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <StackedTagsBadge
-                    tags={conversation.tags}
-                    maxVisible={3}
-                    size="xs"
-                    interactive={true}
-                    side="right"
-                    align="start"
-                    onAddTag={(tag) => {
-                      const currentTags = conversation.tags ?? [];
-                      if (!currentTags.includes(tag)) {
-                        onUpdateTags(conversation.id, [...currentTags, tag]);
-                      }
-                    }}
-                    onRemoveTag={(tag) => {
-                      const currentTags = conversation.tags ?? [];
-                      onUpdateTags(conversation.id, currentTags.filter((t) => t !== tag));
-                    }}
-                  />
-                </div>
-              )}
-              <WhatsappLabelBadges labels={conversation.whatsappLabels} maxVisible={1} className="ml-1.5 shrink-0" />
+              <WhatsappLabelBadges labels={conversation.whatsappLabels} maxVisible={2} className="ml-1.5 shrink min-w-0" />
+              {(() => {
+                const wLabelsLower = new Set((conversation.whatsappLabels || []).map((l: string) => l.toLowerCase()));
+                const cleanUserTags = (conversation.tags || []).filter((t: string) => {
+                  const lower = t.toLowerCase();
+                  if (wLabelsLower.has(lower)) return false;
+                  if (["handover_human", "out_of_context", "cold", "warm", "price_request", "price_sent", "send_price"].includes(lower)) return false;
+                  return true;
+                });
+                if (cleanUserTags.length === 0) return null;
+                return (
+                  <div
+                    className="inline-flex items-center shrink-0 ml-1.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <StackedTagsBadge
+                      tags={cleanUserTags}
+                      maxVisible={2}
+                      size="xs"
+                      interactive={true}
+                      side="right"
+                      align="start"
+                      onAddTag={(tag) => {
+                        const currentTags = conversation.tags ?? [];
+                        if (!currentTags.includes(tag)) {
+                          onUpdateTags(conversation.id, [...currentTags, tag]);
+                        }
+                      }}
+                      onRemoveTag={(tag) => {
+                        const currentTags = conversation.tags ?? [];
+                        onUpdateTags(conversation.id, currentTags.filter((t) => t !== tag));
+                      }}
+                    />
+                  </div>
+                );
+              })()}
             </h4>
             <div className="flex items-center gap-1.5 shrink-0 ml-1">
               {isPinned && (
                 <PushPin weight="fill" className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               )}
               {isMuted && (
-                <BellSimpleSlash className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" title="Silenciado" />
+                <span title="Silenciado">
+                  <BellSimpleSlash className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                </span>
               )}
               <span className="text-[10px] text-muted-foreground/70 font-medium tabular-nums">
                 {formatConversationTimestamp((conversation as any).lastMessageAt || (conversation as any).lastInteractionAt || (conversation as any).timestamp || conversation.updatedAt)}
@@ -416,7 +444,21 @@ export const ConversationRow = memo(function ConversationRow(props: RowComponent
                     <span className="font-semibold text-primary">Rascunho:</span> {draftPreview}
                   </span>
                 ) : (
-                  <span className="truncate min-w-0">{conversation.lastMessage || "Sem mensagens"}</span>
+                  <span className="inline-flex items-center gap-1 truncate min-w-0">
+                    {conversation.lastMessageFromMe && (
+                      <span className="inline-flex items-center shrink-0">
+                        {(() => {
+                          const meta = getMessageStatusMeta(conversation.lastMessageStatus);
+                          if (meta.icon === "clock") return <Clock className="h-3 w-3 text-muted-foreground/60 animate-pulse" />;
+                          if (meta.icon === "failed") return <Check className="h-3 w-3 text-red-500 font-bold" weight="bold" />;
+                          if (meta.icon === "read") return <Checks className="h-3 w-3 text-emerald-500 font-bold" weight="bold" />;
+                          if (meta.icon === "delivered") return <Checks className="h-3 w-3 text-muted-foreground/70" />;
+                          return <Check className="h-3 w-3 text-muted-foreground/70" />;
+                        })()}
+                      </span>
+                    )}
+                    <span className="truncate">{conversation.lastMessage || "Sem mensagens"}</span>
+                  </span>
                 )}
               </p>
               <div className="flex items-center gap-1 shrink-0 pr-0.5">

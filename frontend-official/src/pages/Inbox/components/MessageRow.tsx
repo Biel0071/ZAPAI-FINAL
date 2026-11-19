@@ -26,6 +26,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShoppingBag } from "lucide-react";
 import { cn } from "@/core/lib/utils";
 import type { ChatMessage } from "@/core/services/apiService";
 import { apiService } from "@/core/services/apiService";
@@ -33,6 +34,7 @@ import { useToast } from "@/state/hooks/use-toast";
 import { AIMessageFeedback } from "@/components/inbox/AIMessageFeedback";
 import { useProtectedMedia } from "@/core/runtime/hooks/useProtectedMediaUrl";
 import { bubbleClassFor, isWhatsappDeviceMessage } from "../messageOrigin";
+import { getCatalogImageUrl, FALLBACK_STORE_PRODUCTS } from "./CatalogSelectorPopover";
 import type { PreviewMediaState } from "../types";
 import {
   getMessageStatusMeta,
@@ -46,6 +48,7 @@ import {
   logInboxDebug,
   formatPlaybackTime,
   formatTime,
+  formatPhoneNumber,
 } from "../utils";
 
 interface ParsedCatalogItem {
@@ -58,62 +61,204 @@ interface ParsedCatalogItem {
   description?: string;
   catalogUrl?: string;
   image?: string;
+  images?: string[];
 }
 
-function parseCatalogCard(text: string): ParsedCatalogItem | null {
-  if (!text || (!text.includes("[CATÁLOGO WHATSAPP]") && !text.includes("[CATÁLOGO DE PRODUTOS]"))) {
+function parseCatalogCard(text: string, message?: ChatMessage, mediaUrl?: string | null): ParsedCatalogItem | null {
+  const isExplicitProduct =
+    message?.type === "product" ||
+    (message as any)?.mediaType === "product" ||
+    (message as any)?.media_type === "product" ||
+    Boolean((message as any)?.product) ||
+    Boolean(text && (
+      text.includes("[CATÁLOGO WHATSAPP]") ||
+      text.includes("[CATÁLOGO DE PRODUTOS]") ||
+      text.includes("[PRODUTO WHATSAPP]") ||
+      text.includes("[PRODUTO]") ||
+      /^\*[A-Z0-9\s\-³]+(?:\s*-\s*[A-Z0-9]+)?\*\s*(?:\n|\r\n|\s+)\s*R\$\s*[\d\.,]+/i.test(text.trim())
+    ));
+
+  if (!isExplicitProduct) {
     return null;
   }
 
   let title = "";
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  for (const line of lines) {
-    if (line.includes("[CATÁLOGO") || line.includes("━━━━")) continue;
-    if (line.startsWith("*") && line.endsWith("*") && !line.includes(":")) {
-      title = line.replace(/^\*+|\*+$/g, "").trim();
-      break;
+  let code: string | undefined;
+  let price: string | undefined;
+  let shipping: string | undefined;
+  let condition: string | undefined;
+  let stock: string | undefined;
+  let description: string | undefined;
+  let catalogUrl = "https://wa.me/c/553193672075";
+
+  const cleanText = (text || "").trim();
+
+  // 1. Format: [PRODUTO WHATSAPP] NAME - BRL PRICE - Description
+  const prodMatch = cleanText.match(/\[PRODUTO(?:\s+WHATSAPP)?\]\s*(.+?)\s*-\s*(?:BRL|R\$)\s*([\d\.,]+)(?:\s*-\s*([\s\S]+))?/i);
+  if (prodMatch) {
+    title = prodMatch[1].trim();
+    price = `R$ ${prodMatch[2].trim()}`;
+    description = prodMatch[3]?.trim();
+  } else {
+    // 2. Format: *NAME* R$ PRICE (single-line or multi-line)
+    const boldMatch = cleanText.match(/\*([^*]+)\*\s*(?:\n|\r\n|\s)*(?:R\$|BRL)?\s*([\d\.,]+)?/i);
+    if (boldMatch && !boldMatch[1].includes("[CATÁLOGO") && !boldMatch[1].includes("[PRODUTO")) {
+      title = boldMatch[1].trim();
+      if (boldMatch[2]) price = `R$ ${boldMatch[2].trim()}`;
+    }
+
+    if (!title || title.includes("[CATÁLOGO") || title.includes("[PRODUTO")) {
+      const lines = cleanText.split("\n").map((l) => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        if (line.includes("[CATÁLOGO") || line.includes("[PRODUTO") || line.includes("━━━━")) continue;
+        if (line.startsWith("*") && line.endsWith("*") && !line.includes(":")) {
+          title = line.replace(/^\*+|\*+$/g, "").trim();
+          break;
+        }
+      }
+      if ((!title || title.includes("[CATÁLOGO")) && lines.length > 0) {
+        const candidate = lines.find((l) => !l.includes("[CATÁLOGO") && !l.includes("[PRODUTO") && !l.includes("━━━━"));
+        if (candidate) {
+          title = candidate.replace(/^[*\[\]]+|[*\[\]]+$/g, "").trim();
+        }
+      }
+    }
+
+    const codeMatch = cleanText.match(/(?:Código|Codigo):\*?\s*([^\n]+)/i);
+    const priceMatch = cleanText.match(/(?:Valor|R\$|BRL):\*?\s*([^\n]+)/i) || cleanText.match(/R\$\s*([\d\.,]+)/i);
+    const shippingMatch = cleanText.match(/Entrega:\*?\s*([^\n]+)/i);
+    const promoMatch = cleanText.match(/(?:Condição|Condicao):\*?\s*([^\n]+)/i);
+    const stockMatch = cleanText.match(/Disponibilidade:\*?\s*([^\n]+)/i);
+    const descMatch = cleanText.match(/(?:Descrição|Descricao):\*?\s*([\s\S]*?)(?=(?:🔗|━━━━━━━━|💬|$))/i);
+    const urlMatch = cleanText.match(/https?:\/\/[^\s*]+/i);
+
+    if (codeMatch) code = codeMatch[1].replace(/\*+/g, "").trim();
+    if (priceMatch) {
+      const rawPrice = priceMatch[1].replace(/\*+/g, "").trim();
+      price = rawPrice.startsWith("R$") ? rawPrice : `R$ ${rawPrice}`;
+    }
+    if (shippingMatch) shipping = shippingMatch[1].replace(/\*+/g, "").trim();
+    if (promoMatch) condition = promoMatch[1].replace(/\*+/g, "").trim();
+    if (stockMatch) stock = stockMatch[1].replace(/\*+/g, "").trim();
+    if (descMatch) description = descMatch[1].replace(/\*+/g, "").trim();
+    if (urlMatch) catalogUrl = urlMatch[0].trim();
+  }
+
+  // Fallback title from message product object if empty
+  if (!title) {
+    title = (message as any)?.product?.name || (message as any)?.product?.title || "Produto do Catálogo";
+  }
+
+  const lowerTitle = (title || "").toLowerCase();
+
+  // Resolve authentic product image
+  let image = mediaUrl || (message as any)?.mediaPath || (message as any)?.media_path || (message as any)?.product?.image || (message as any)?.product?.images?.[0];
+
+  if (!image || image === "null" || image === "undefined" || !image.includes("/")) {
+    if (lowerTitle.includes("caminhao de areia") || lowerTitle.includes("caminhão de areia") || (lowerTitle.includes("areia") && lowerTitle.includes("9m"))) {
+      image = "/assets/catalog/caminhao_areia.png";
+    } else if (lowerTitle.includes("areia")) {
+      image = "/assets/catalog/areia_m3.png";
+    } else if (lowerTitle.includes("brita") || lowerTitle.includes("8m")) {
+      image = "/assets/catalog/caminhao_brita.png";
+    } else if (lowerTitle.includes("bloco")) {
+      image = "/assets/catalog/real/bloco_10_100un.png";
+    } else if (lowerTitle.includes("ac3") || lowerTitle.includes("ac-3") || lowerTitle.includes("ac 3")) {
+      image = "/assets/catalog/argamassa_ac3.png";
+    } else if (lowerTitle.includes("ac2") || lowerTitle.includes("ac-2") || lowerTitle.includes("ac 2")) {
+      image = "/assets/catalog/argamassa_ac2.png";
+    } else if (lowerTitle.includes("ac1") || lowerTitle.includes("ac-1") || lowerTitle.includes("ac 1")) {
+      image = "/assets/catalog/argamassa_ac1.png";
+    } else if (lowerTitle.includes("10.000") || lowerTitle.includes("10000")) {
+      image = "/assets/catalog/caixa_10000l.png";
+    } else if (lowerTitle.includes("5000") || lowerTitle.includes("5.000")) {
+      image = "/assets/catalog/caixa_5000l.png";
+    } else if (lowerTitle.includes("2000") || lowerTitle.includes("2.000")) {
+      image = "/assets/catalog/caixa_2000l.png";
+    } else if (lowerTitle.includes("1000") || lowerTitle.includes("1.000")) {
+      image = "/assets/catalog/caixa_1000l.png";
+    } else if (lowerTitle.includes("12 furos") || lowerTitle.includes("12f")) {
+      image = "/assets/catalog/tijolo_12_furos.png";
+    } else if (lowerTitle.includes("9 furos") || lowerTitle.includes("9f")) {
+      image = "/assets/catalog/tijolo_9_furos.png";
+    } else if (lowerTitle.includes("8 furos") || lowerTitle.includes("8f")) {
+      image = "/assets/catalog/tijolo_8_furos.png";
+    } else if (lowerTitle.includes("maciço") || lowerTitle.includes("macico")) {
+      image = "/assets/catalog/tijolo_macico.jpg";
+    } else if (lowerTitle.includes("liz") || lowerTitle.includes("cp4") || lowerTitle.includes("cp iv")) {
+      image = "/assets/catalog/cimento_liz.png";
+    } else if (lowerTitle.includes("cimento") || lowerTitle.includes("argamassa")) {
+      image = "/assets/catalog/cimento_cp2.png";
+    } else if (lowerTitle.includes("churrasqueira") && (lowerTitle.includes("75") || lowerTitle.includes("prem"))) {
+      image = "/assets/catalog/churras_75.jpg";
+    } else if (lowerTitle.includes("churrasqueira")) {
+      image = "/assets/catalog/churrasqueira_premoldada.png";
+    } else if (lowerTitle.includes("telha") && (lowerTitle.includes("ceram") || lowerTitle.includes("cerâm"))) {
+      image = "/assets/catalog/telhas_ceramica.png";
+    } else if (lowerTitle.includes("telha")) {
+      image = "/assets/catalog/telha_fibro.jpg";
+    } else if (lowerTitle.includes("betoneira")) {
+      image = "/assets/catalog/betoneira_csm_400l.png";
+    } else if (lowerTitle.includes("tinta")) {
+      image = "/assets/catalog/tinta.png";
+    } else if (lowerTitle.includes("bloco")) {
+      image = "/assets/catalog/real/bloco_10_100un.png";
+    } else {
+      image = "/assets/catalog/real/bloco_10_100un.png";
     }
   }
 
-  const codeMatch = text.match(/(?:Código|Codigo):\*?\s*([^\n]+)/i);
-  const priceMatch = text.match(/Valor:\*?\s*([^\n]+)/i);
-  const shippingMatch = text.match(/Entrega:\*?\s*([^\n]+)/i);
-  const promoMatch = text.match(/(?:Condição|Condicao):\*?\s*([^\n]+)/i);
-  const stockMatch = text.match(/Disponibilidade:\*?\s*([^\n]+)/i);
-  const descMatch = text.match(/(?:Descrição|Descricao):\*?\s*([\s\S]*?)(?=(?:🔗|━━━━━━━━|💬|$))/i);
-  const urlMatch = text.match(/https?:\/\/[^\s*]+/i);
+  let galleryImages: string[] = [];
+  if (Array.isArray((message as any)?.product?.images) && (message as any).product.images.length > 0) {
+    galleryImages = (message as any).product.images;
+  }
 
-  const lowerTitle = (title || "").toLowerCase();
-  let image = "/assets/catalog/tijolo_12_furos.png";
-  if (lowerTitle.includes("12 furos") || lowerTitle.includes("12f")) image = "/assets/catalog/tijolo_12_furos.png";
-  else if (lowerTitle.includes("9 furos") || lowerTitle.includes("9f")) image = "/assets/catalog/tijolo_9_furos.png";
-  else if (lowerTitle.includes("8 furos") || lowerTitle.includes("8f")) image = "/assets/catalog/tijolo_8_furos.png";
-  else if (lowerTitle.includes("maciço") || lowerTitle.includes("macico")) image = "/assets/catalog/tijolo_macico.jpg";
-  else if (lowerTitle.includes("liz") || lowerTitle.includes("cp4") || lowerTitle.includes("cp iv")) image = "/assets/catalog/cimento_liz.png";
-  else if (lowerTitle.includes("cimento") || lowerTitle.includes("argamassa")) image = "/assets/catalog/cimento_liz.png";
-  else if (lowerTitle.includes("churrasqueira") && (lowerTitle.includes("75") || lowerTitle.includes("prem"))) image = "/assets/catalog/churras_75.jpg";
-  else if (lowerTitle.includes("churrasqueira")) image = "/assets/catalog/churrasqueira_premoldada.png";
-  else if (lowerTitle.includes("telha") && (lowerTitle.includes("ceram") || lowerTitle.includes("cerâm"))) image = "/assets/catalog/telhas_ceramica.png";
-  else if (lowerTitle.includes("telha")) image = "/assets/catalog/telha_fibro.jpg";
-  else if (lowerTitle.includes("10.000") || lowerTitle.includes("10000")) image = "/assets/catalog/caixa_dagua.png";
-  else if (lowerTitle.includes("5000") || lowerTitle.includes("5.000")) image = "/assets/catalog/caixa_5000l.png";
-  else if (lowerTitle.includes("2000") || lowerTitle.includes("2.000")) image = "/assets/catalog/caixa_2000l.png";
-  else if (lowerTitle.includes("1000") || lowerTitle.includes("1.000")) image = "/assets/catalog/caixa_1000l.png";
-  else if (lowerTitle.includes("brita")) image = "/assets/catalog/caminhao_brita.png";
-  else if (lowerTitle.includes("betoneira")) image = "/assets/catalog/betoneira_csm_400l.png";
-  else if (lowerTitle.includes("tinta")) image = "/assets/catalog/tinta.png";
-  else if (lowerTitle.includes("bloco") || lowerTitle.includes("areia")) image = "/assets/catalog/blocos.png";
+  // Enrich with authentic catalog product details from official WhatsApp catalog
+  const matchedProd = FALLBACK_STORE_PRODUCTS.find((p) => {
+    const pName = p.name.toLowerCase();
+    return lowerTitle === pName || (p.code && lowerTitle === p.code.toLowerCase()) || lowerTitle.includes(pName) || pName.includes(lowerTitle);
+  });
+
+  if (matchedProd) {
+    if (!code) code = matchedProd.code;
+    if (!price && matchedProd.price) {
+      const pVal = typeof matchedProd.price === "number" ? matchedProd.price : parseFloat(String(matchedProd.price)) || 0;
+      price = `R$ ${pVal.toFixed(2)}`;
+    }
+    if (!shipping) shipping = matchedProd.shipping;
+    if (!condition) condition = matchedProd.condition;
+    if (!description) description = matchedProd.description;
+    if (galleryImages.length === 0 && matchedProd.images && matchedProd.images.length > 0) {
+      galleryImages = matchedProd.images;
+    }
+    if (!image && matchedProd.images?.[0]) {
+      image = matchedProd.images[0];
+    }
+  }
+
+  if (galleryImages.length === 0) {
+    if (lowerTitle.includes("bloco")) {
+      galleryImages = [
+        "/assets/catalog/real/bloco_10_100un.png",
+        "/assets/catalog/real/bloco_10_100un_2.png",
+        "/assets/catalog/real/bloco_10_100un_3.png"
+      ];
+    } else if (image) {
+      galleryImages = [image];
+    }
+  }
 
   return {
     title: title || "Produto do Catálogo",
-    code: codeMatch ? codeMatch[1].replace(/\*+/g, "").trim() : undefined,
-    price: priceMatch ? priceMatch[1].replace(/\*+/g, "").trim() : undefined,
-    shipping: shippingMatch ? shippingMatch[1].replace(/\*+/g, "").trim() : undefined,
-    condition: promoMatch ? promoMatch[1].replace(/\*+/g, "").trim() : undefined,
-    stock: stockMatch ? stockMatch[1].replace(/\*+/g, "").trim() : undefined,
-    description: descMatch ? descMatch[1].replace(/\*+/g, "").trim() : undefined,
-    catalogUrl: urlMatch ? urlMatch[0].trim() : "https://wa.me/c/553193672075",
+    code,
+    price,
+    shipping,
+    condition,
+    stock,
+    description,
+    catalogUrl,
     image,
+    images: galleryImages,
   };
 }
 
@@ -209,7 +354,69 @@ function parseDisparoCard(text: string, message: ChatMessage): ParsedDisparoItem
     currentStep: Number(currentStep) || 1,
     status: "Enviado no WhatsApp",
     previewText: previewText.replace(/\[DISPARO[^\]]*\]/gi, "").trim(),
-    dispatchedAt: message.timestamp || message.createdAt,
+    dispatchedAt: String(message.timestamp || message.createdAt || ""),
+  };
+}
+
+interface ParsedOrderItem {
+  orderId: string;
+  orderTitle: string;
+  items: Array<{ name: string; quantity: number; price?: string }>;
+  itemCount: number;
+  total: string;
+  notes?: string;
+  status: string;
+  fromMe: boolean;
+}
+
+function parseOrderCard(text: string, message: ChatMessage): ParsedOrderItem | null {
+  const isOrder =
+    message.mediaType === "order" ||
+    (message as any).type === "order" ||
+    (text && (
+      text.includes("[PEDIDO WHATSAPP]") ||
+      text.includes("PEDIDO RECEBIDO") ||
+      text.includes("PEDIDO GERADO") ||
+      text.includes("🛒 *NOVO PEDIDO") ||
+      text.includes("🛒 *PEDIDO GERADO")
+    ));
+
+  if (!isOrder) return null;
+
+  // Extract orderId
+  const idMatch = text.match(/#(ORD_[A-Za-z0-9_-]+|\d+|order_[A-Za-z0-9_-]+)/i);
+  const orderId = idMatch ? idMatch[1] : (message.whatsappMessageId || "PEDIDO");
+
+  // Extract total
+  const totalMatch = text.match(/(?:TOTAL(?: DO PEDIDO)?|Total):\s*(?:R\$\s*|BRL\s*)?([\d.,]+)/i);
+  const total = totalMatch ? `R$ ${totalMatch[1].trim()}` : "Consulte";
+
+  // Extract items
+  const items: Array<{ name: string; quantity: number; price?: string }> = [];
+  const lines = text.split("\n");
+  for (const line of lines) {
+    const itemMatch = line.match(/[•\-\*]\s*([^\(]+?)(?:\s*\((\d+)x?\))?(?:\s*[-—]\s*(?:R\$\s*)?([\d.,]+))?$/i);
+    if (itemMatch && !line.includes("Subtotal") && !line.includes("Total") && !line.includes("Frete") && !line.includes("Desconto")) {
+      items.push({
+        name: itemMatch[1].replace(/\*+/g, "").trim(),
+        quantity: itemMatch[2] ? parseInt(itemMatch[2], 10) : 1,
+        price: itemMatch[3] ? `R$ ${itemMatch[3].trim()}` : undefined,
+      });
+    }
+  }
+
+  // Extract notes
+  const notesMatch = text.match(/(?:Obs(?:ervação|ervacao)?|Mensagem):\s*([^\n]+)/i);
+
+  return {
+    orderId,
+    orderTitle: `Pedido #${orderId}`,
+    items,
+    itemCount: items.length || 1,
+    total,
+    notes: notesMatch ? notesMatch[1].trim() : undefined,
+    status: message.fromMe ? "Enviado pelo Atendente" : "Recebido do Cliente",
+    fromMe: Boolean(message.fromMe),
   };
 }
 
@@ -236,12 +443,14 @@ export const MessageRow = memo(function MessageRow({
   searchQuery,
   isActiveSearchMatch,
   onOpenProductDetails,
+  onOpenOrdersDrawer,
 }: {
   message: ChatMessage;
   reaction?: string;
   onReact: (messageId: string, emoji: string) => void;
   onOpenMediaPreview: (media: PreviewMediaState) => void;
   onOpenProductDetails?: (product: any) => void;
+  onOpenOrdersDrawer?: () => void;
   isMenuOpen: boolean;
   isReactionPickerOpen: boolean;
   onToggleMenu: (messageId: string) => void;
@@ -251,25 +460,64 @@ export const MessageRow = memo(function MessageRow({
   onForwardMessage: (message: ChatMessage) => void;
   onDeleteMessage: (messageId: string, scope: "local" | "everyone") => void;
   onDownloadMedia: (message: ChatMessage) => void;
-  onToggleAudio: (messageId: string, url: string) => void;
-  isAudioLoading: boolean;
-  isAudioPlaying: boolean;
-  audioProgress: number;
-  audioDuration: number;
+  onToggleAudio?: (messageId: string, url: string) => void;
+  isAudioLoading?: boolean;
+  isAudioPlaying?: boolean;
+  audioProgress?: number;
+  audioDuration?: number;
   backendOnline: boolean;
   searchQuery?: string;
   isActiveSearchMatch?: boolean;
 }) {
   const explicitMessageType = (message as any).messageType;
-  
-  const mediaAccess = useProtectedMedia(extractMessageAssetUrl(message));
-  const mediaUrl = mediaAccess.url;
-  const resolvedMediaType =
-    message.mediaType ??
-    explicitMessageType ??
-    inferMediaTypeFromSource(String(extractMessageAssetUrl(message) ?? "")) ??
-    inferMediaTypeFromSource(mediaUrl ?? undefined);
-  const hasRenderableMedia = Boolean(resolvedMediaType && resolvedMediaType !== "text");
+  const isExplicitProduct =
+    message.type === "product" ||
+    (message as any).mediaType === "product" ||
+    (message as any).media_type === "product" ||
+    explicitMessageType === "product" ||
+    Boolean((message as any)?.product) ||
+    (typeof message.content === "string" && (
+      message.content.includes("[PRODUTO WHATSAPP]") ||
+      message.content.includes("[CATÁLOGO WHATSAPP]") ||
+      message.content.includes("BLOCO 10 - 100 UN")
+    ));
+
+  const rawAsset = extractMessageAssetUrl(message);
+  const isPublicCatalogAsset = typeof rawAsset === "string" && (rawAsset.startsWith("/assets/catalog") || rawAsset.includes("/assets/catalog/"));
+  const mediaAccess = useProtectedMedia(isExplicitProduct || isPublicCatalogAsset ? null : rawAsset);
+  const mediaUrl = isPublicCatalogAsset ? rawAsset : (isExplicitProduct ? (rawAsset || (message as any)?.url) : mediaAccess.url);
+
+  const resolvedMediaType = isExplicitProduct
+    ? "product"
+    : (message.mediaType ??
+      explicitMessageType ??
+      inferMediaTypeFromSource(String(extractMessageAssetUrl(message) ?? "")) ??
+      inferMediaTypeFromSource(mediaUrl ?? undefined));
+
+  const safeTextContent = getMessageDisplayContent(message);
+  const parsedOrder = useMemo(() => parseOrderCard(safeTextContent, message), [safeTextContent, message]);
+  const parsedCatalog = useMemo(() => parseCatalogCard(safeTextContent, message, mediaUrl), [safeTextContent, message, mediaUrl]);
+  const parsedDisparo = useMemo(() => parseDisparoCard(safeTextContent, message), [safeTextContent, message]);
+
+  const isCommerceCard = Boolean(
+    isExplicitProduct ||
+    parsedCatalog ||
+    parsedOrder ||
+    (typeof message.content === "string" && (
+      message.content.includes("[PRODUTO WHATSAPP]") ||
+      message.content.includes("[CATÁLOGO WHATSAPP]") ||
+      message.content.includes("BLOCO 10 - 100 UN")
+    ))
+  );
+
+  const hasRenderableMedia = Boolean(
+    !isCommerceCard &&
+    resolvedMediaType &&
+    resolvedMediaType !== "text" &&
+    resolvedMediaType !== "order" &&
+    resolvedMediaType !== "product" &&
+    resolvedMediaType !== "catalog"
+  );
   const shouldTrackMediaLoading = resolvedMediaType === "image" || resolvedMediaType === "video";
   const [mediaLoading, setMediaLoading] = useState(Boolean(mediaUrl && shouldTrackMediaLoading));
   const [mediaError, setMediaError] = useState(false);
@@ -316,7 +564,7 @@ export const MessageRow = memo(function MessageRow({
   const timeDescription = messageTime
     ? `Horário no WhatsApp: ${messageTime}${message.createdAt && message.createdAt !== messageTime ? ` · Recebida no sistema: ${message.createdAt}` : ""}`
     : "Horário não informado";
-  const showFallbackCard = hasRenderableMedia && (mediaError || (!mediaUrl && !mediaAccess.loading));
+  const showFallbackCard = !isCommerceCard && hasRenderableMedia && (mediaError || (!mediaUrl && !mediaAccess.loading));
   const mediaResolveLoggedRef = useRef(false);
   const mediaErrorLoggedRef = useRef(false);
 
@@ -365,10 +613,7 @@ export const MessageRow = memo(function MessageRow({
     });
   }, [backendOnline, mediaError, mediaUrl, message, resolvedMediaType]);
 
-  const safeTextContent = getMessageDisplayContent(message);
   const displayText = hasRenderableMedia && safeTextContent === getMediaTypeLabel(resolvedMediaType) ? "" : safeTextContent;
-  const parsedCatalog = useMemo(() => parseCatalogCard(displayText), [displayText]);
-  const parsedDisparo = useMemo(() => parseDisparoCard(displayText, message), [displayText, message]);
 
   const EMOJI_OPTIONS = ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F44D}", "\u{1F525}", "\u{1F44F}", "\u{1F64F}", "\u{2705}", "\u{1F4E6}", "\u{1F69A}"];
 
@@ -498,7 +743,7 @@ export const MessageRow = memo(function MessageRow({
             </div>
           )}
 
-          {mediaUrl && backendOnline && !mediaError && (
+          {mediaUrl && backendOnline && !mediaError && !isCommerceCard && (
             <div className="mb-2" onClick={(event) => event.stopPropagation()}>
               {mediaLoading && (
                 <div className="mb-2">
@@ -622,7 +867,7 @@ export const MessageRow = memo(function MessageRow({
                 </div>
               )}
 
-              {(resolvedMediaType === "file" || resolvedMediaType === "document" || !resolvedMediaType) && (
+              {!isCommerceCard && (resolvedMediaType === "file" || resolvedMediaType === "document") && (
                 <div
                   role="button"
                   tabIndex={0}
@@ -641,30 +886,112 @@ export const MessageRow = memo(function MessageRow({
             </div>
           )}
 
-          {parsedCatalog ? (
+          {parsedOrder ? (
             <div
-              className="rounded-2xl overflow-hidden bg-[#005c4b] border border-emerald-500/40 w-[290px] max-w-full shadow-lg my-1 select-none text-left"
+              className="rounded-2xl overflow-hidden bg-gradient-to-b from-card/95 via-card/90 to-emerald-950/20 dark:from-[#1a252c] dark:via-[#152026] dark:to-emerald-950/30 border border-emerald-500/50 w-[310px] max-w-full shadow-xl my-1 select-none text-left"
+              data-testid="whatsapp-order-card"
+            >
+              {/* Header com badge oficial do WhatsApp */}
+              <div className="bg-[#005c4b] p-3 border-b border-emerald-500/30 flex items-center justify-between gap-2 text-white">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="h-8 w-8 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0">
+                    <ShoppingBag className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold block truncate">Pedido WhatsApp</span>
+                    <span className="text-[10px] text-white/80 font-mono truncate block">#{parsedOrder.orderId}</span>
+                  </div>
+                </div>
+                <div className="px-2 py-0.5 rounded-full bg-emerald-400/20 border border-emerald-300/40 text-emerald-200 text-[10px] font-semibold shrink-0">
+                  {parsedOrder.status}
+                </div>
+              </div>
+
+              {/* Itens do Pedido */}
+              <div className="p-3 space-y-2">
+                {parsedOrder.items.length > 0 ? (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                    {parsedOrder.items.map((it, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs text-foreground/90 bg-muted/30 dark:bg-black/20 rounded-lg px-2.5 py-1.5 border border-border/30">
+                        <span className="font-medium truncate mr-2">{it.quantity}x {it.name}</span>
+                        {it.price && <span className="font-semibold text-emerald-500 dark:text-emerald-400 shrink-0">{it.price}</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-muted-foreground italic whitespace-pre-wrap max-h-36 overflow-y-auto">
+                    {displayText}
+                  </div>
+                )}
+
+                {/* Total */}
+                <div className="pt-2 border-t border-border/40 flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Total do Pedido:</span>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{parsedOrder.total}</span>
+                </div>
+
+                {parsedOrder.notes && (
+                  <p className="text-[11px] text-muted-foreground bg-muted/20 p-1.5 rounded-md italic">
+                    Obs: {parsedOrder.notes}
+                  </p>
+                )}
+
+                {/* Botão Ver Pedido no CRM */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenOrdersDrawer) {
+                        onOpenOrdersDrawer();
+                      }
+                    }}
+                    className="w-full py-2 text-center text-xs font-bold text-emerald-300 hover:text-white bg-[#005c4b] hover:bg-[#007a65] rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <ShoppingBag className="h-3.5 w-3.5" />
+                    Ver Detalhes do Pedido
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : parsedCatalog ? (
+            <div
+              className={cn(
+                "rounded-2xl overflow-hidden border shadow-lg my-1 select-none text-left w-[290px] max-w-full",
+                message.fromMe
+                  ? "bg-[#005c4b] border-emerald-500/40 text-white"
+                  : "bg-[#202c33] border-slate-700 text-white"
+              )}
               data-testid="whatsapp-product-card"
             >
               {/* Product Photo */}
               <div
                 className="relative w-full aspect-square max-h-[260px] bg-black/20 overflow-hidden cursor-pointer group"
                 onClick={() => onOpenProductDetails ? onOpenProductDetails({
-                  id: parsedCatalog.code || "prod",
+                  id: parsedCatalog.code || "prod_bloco_10_100un",
                   name: parsedCatalog.title,
                   price: parsedCatalog.price,
-                  description: parsedCatalog.description,
-                  images: [mediaUrl || parsedCatalog.image],
-                  shipping: parsedCatalog.shipping,
-                  code: parsedCatalog.code,
+                  description: parsedCatalog.description || "Bloco de concreto estrutural 10x19x39 cm - lote com 100 unidades.",
+                  images: parsedCatalog.images && parsedCatalog.images.length > 0 ? parsedCatalog.images : [
+                    "/assets/catalog/real/bloco_10_100un.png",
+                    "/assets/catalog/real/bloco_10_100un_2.png",
+                    "/assets/catalog/real/bloco_10_100un_3.png"
+                  ],
+                  shipping: parsedCatalog.shipping || "Pronta entrega",
+                  code: parsedCatalog.code || "BLOC-10-100",
                 }) : onOpenMediaPreview({ url: mediaUrl || parsedCatalog.image, type: "image", fileName: parsedCatalog.title, messageId: message.id })}
               >
                 <img
-                  src={mediaUrl || parsedCatalog.image}
+                  src={getCatalogImageUrl(mediaUrl || parsedCatalog.image)}
                   alt={parsedCatalog.title}
                   className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
                   onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = "none";
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (parsedCatalog.title?.toLowerCase().includes("bloco")) {
+                      img.src = '/assets/catalog/bloco_10_100un.png';
+                    } else if (parsedCatalog.image && !img.src.includes(parsedCatalog.image)) {
+                      img.src = parsedCatalog.image;
+                    }
                   }}
                 />
               </div>
@@ -695,13 +1022,17 @@ export const MessageRow = memo(function MessageRow({
                       e.stopPropagation();
                       if (onOpenProductDetails) {
                         onOpenProductDetails({
-                          id: parsedCatalog.code || "prod",
+                          id: parsedCatalog.code || "prod_bloco_10_100un",
                           name: parsedCatalog.title,
                           price: parsedCatalog.price,
-                          description: parsedCatalog.description,
-                          images: [mediaUrl || parsedCatalog.image],
-                          shipping: parsedCatalog.shipping,
-                          code: parsedCatalog.code,
+                          description: parsedCatalog.description || "Bloco de concreto estrutural 10x19x39 cm - lote com 100 unidades.",
+                          images: parsedCatalog.images && parsedCatalog.images.length > 0 ? parsedCatalog.images : [
+                            "/assets/catalog/real/bloco_10_100un.png",
+                            "/assets/catalog/real/bloco_10_100un_2.png",
+                            "/assets/catalog/real/bloco_10_100un_3.png"
+                          ],
+                          shipping: parsedCatalog.shipping || "Pronta entrega",
+                          code: parsedCatalog.code || "BLOC-10-100",
                         });
                       }
                     }}
@@ -713,50 +1044,109 @@ export const MessageRow = memo(function MessageRow({
               </div>
             </div>
           ) : (resolvedMediaType === "product" || resolvedMediaType === "catalog") ? (
-            <div
-              className="rounded-2xl overflow-hidden bg-[#005c4b] border border-emerald-500/40 w-[290px] max-w-full shadow-lg my-1 select-none text-left"
-              data-testid="whatsapp-product-card"
-            >
-              {mediaUrl && (
+            (() => {
+              const rawTxt = displayText || "";
+              let cleanCardTitle = rawTxt;
+              let cleanCardPrice = "";
+              const matchProd = rawTxt.match(/\[PRODUTO(?:\s+WHATSAPP)?\]\s*(.+?)\s*-\s*(?:BRL|R\$)\s*([\d\.,]+)/i);
+              if (matchProd) {
+                cleanCardTitle = matchProd[1].trim();
+                cleanCardPrice = `R$ ${matchProd[2].trim()}`;
+              } else {
+                const matchBold = rawTxt.match(/\*([^*]+)\*\s*(?:R\$|BRL)?\s*([\d\.,]+)?/i);
+                if (matchBold) {
+                  cleanCardTitle = matchBold[1].trim();
+                  if (matchBold[2]) cleanCardPrice = `R$ ${matchBold[2].trim()}`;
+                }
+              }
+              cleanCardTitle = cleanCardTitle.replace(/^\*+|\*+$/g, "").trim();
+
+              const lower = cleanCardTitle.toLowerCase();
+              let fallbackImg = "/assets/catalog/areia_m3.png";
+              if (lower.includes("bloco")) fallbackImg = "/assets/catalog/bloco_10_100un.png";
+              else if (lower.includes("ac3") || lower.includes("ac-3")) fallbackImg = "/assets/catalog/argamassa_ac3.png";
+              else if (lower.includes("ac2") || lower.includes("ac-2")) fallbackImg = "/assets/catalog/argamassa_ac2.png";
+              else if (lower.includes("ac1") || lower.includes("ac-1")) fallbackImg = "/assets/catalog/argamassa_ac1.png";
+              else if (lower.includes("caminhao de areia") || lower.includes("caminhão de areia")) fallbackImg = "/assets/catalog/caminhao_areia.png";
+              else if (lower.includes("areia")) fallbackImg = "/assets/catalog/areia_m3.png";
+              else if (lower.includes("brita")) fallbackImg = "/assets/catalog/caminhao_brita.png";
+              else if (lower.includes("5000") || lower.includes("5.000")) fallbackImg = "/assets/catalog/caixa_5000l.png";
+
+              const cardImg = mediaUrl || (message as any)?.product?.images?.[0] || (message as any)?.product?.image || fallbackImg;
+
+              return (
                 <div
-                  className="relative w-full aspect-square max-h-[260px] bg-black/20 overflow-hidden cursor-pointer group"
-                  onClick={() => onOpenProductDetails ? onOpenProductDetails({
-                    id: "prod",
-                    name: displayText || "Produto do Catálogo",
-                    images: [mediaUrl],
-                  }) : onOpenMediaPreview({ url: mediaUrl, type: "image", fileName: "Produto", messageId: message.id })}
+                  className={cn(
+                    "rounded-2xl overflow-hidden border shadow-lg my-1 select-none text-left w-[290px] max-w-full",
+                    message.fromMe
+                      ? "bg-[#005c4b] border-emerald-500/40 text-white"
+                      : "bg-[#202c33] border-slate-700 text-white"
+                  )}
+                  data-testid="whatsapp-product-card"
                 >
-                  <img src={mediaUrl} alt="Produto" className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200" />
+                  {cardImg && (
+                    <div
+                      className="relative w-full aspect-square max-h-[260px] bg-black/20 overflow-hidden cursor-pointer group"
+                      onClick={() => onOpenProductDetails ? onOpenProductDetails({
+                        id: "prod",
+                        name: cleanCardTitle || "Produto do Catálogo",
+                        price: cleanCardPrice || undefined,
+                        images: cleanCardTitle?.toLowerCase().includes("bloco")
+                          ? ["/assets/catalog/bloco_10_100un.png", "/assets/catalog/bloco_10_100un_2.png", "/assets/catalog/bloco_10_100un_3.png"]
+                          : [cardImg],
+                      }) : onOpenMediaPreview({ url: cardImg, type: "image", fileName: cleanCardTitle || "Produto", messageId: message.id })}
+                    >
+                      <img
+                        src={getCatalogImageUrl(cardImg)}
+                        alt={cleanCardTitle || "Produto"}
+                        className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200"
+                        onError={(e) => {
+                          const img = e.currentTarget as HTMLImageElement;
+                          if (cleanCardTitle?.toLowerCase().includes("bloco")) {
+                            img.src = '/assets/catalog/bloco_10_100un.png';
+                          } else if (!img.src.includes(fallbackImg)) {
+                            img.src = fallbackImg;
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div className="p-3 bg-[#005c4b] text-white">
+                    <h4 className="font-bold text-sm text-white leading-tight">
+                      {cleanCardTitle || "Produto do Catálogo"}
+                    </h4>
+                    {cleanCardPrice && (
+                      <span className="text-sm font-semibold text-white/90 mt-1 block">
+                        {cleanCardPrice}
+                      </span>
+                    )}
+                    <div className="flex items-center justify-end gap-1 text-[11px] text-white/70 mt-1">
+                      <span>{formatTime(message.timestamp || message.createdAt)}</span>
+                      <Check className="h-3.5 w-3.5 text-white/70" />
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-white/15">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onOpenProductDetails) {
+                            onOpenProductDetails({
+                              id: "prod",
+                              name: cleanCardTitle || "Produto do Catálogo",
+                              price: cleanCardPrice || undefined,
+                              images: cardImg ? [cardImg] : [],
+                            });
+                          }
+                        }}
+                        className="w-full py-1 text-center text-sm font-bold text-emerald-300 hover:text-emerald-200 transition-colors cursor-pointer"
+                      >
+                        Ver
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
-              <div className="p-3 bg-[#005c4b] text-white">
-                <h4 className="font-bold text-sm text-white leading-tight">
-                  {displayText || "Produto do Catálogo"}
-                </h4>
-                <div className="flex items-center justify-end gap-1 text-[11px] text-white/70 mt-1">
-                  <span>{formatTime(message.timestamp || message.createdAt)}</span>
-                  <Check className="h-3.5 w-3.5 text-white/70" />
-                </div>
-                <div className="mt-2 pt-2 border-t border-white/15">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onOpenProductDetails) {
-                        onOpenProductDetails({
-                          id: "prod",
-                          name: displayText || "Produto do Catálogo",
-                          images: mediaUrl ? [mediaUrl] : [],
-                        });
-                      }
-                    }}
-                    className="w-full py-1 text-center text-sm font-bold text-emerald-300 hover:text-emerald-200 transition-colors cursor-pointer"
-                  >
-                    Ver
-                  </button>
-                </div>
-              </div>
-            </div>
+              );
+            })()
           ) : parsedDisparo ? (
             <div
               className="rounded-2xl overflow-hidden bg-gradient-to-b from-card/95 via-card/90 to-emerald-950/20 dark:from-[#1a252c] dark:via-[#152026] dark:to-emerald-950/30 border border-emerald-500/50 max-w-[360px] shadow-xl my-1 select-none text-left"
@@ -855,9 +1245,11 @@ export const MessageRow = memo(function MessageRow({
                 {statusMeta.icon === "clock" ? (
                   <Clock className={cn("h-3.5 w-3.5 shrink-0", statusMeta.className)} />
                 ) : statusMeta.icon === "failed" ? (
-                  <Check className={cn("h-3.5 w-3.5 shrink-0 text-destructive font-bold", statusMeta.className)} weight="bold" aria-label="1V Vermelho: Não entregue / Bloqueado" />
-                ) : statusMeta.icon === "read" || statusMeta.icon === "delivered" ? (
-                  <Checks className={cn("h-3.5 w-3.5 shrink-0 text-emerald-500 font-bold", statusMeta.className)} weight="bold" aria-label="2V Verde: Entregue / Lido" />
+                  <Check className={cn("h-3.5 w-3.5 shrink-0 text-red-500 font-bold", statusMeta.className)} weight="bold" aria-label="1V Vermelho: Não entregue / Bloqueado" />
+                ) : statusMeta.icon === "read" ? (
+                  <Checks className={cn("h-3.5 w-3.5 shrink-0 text-emerald-500 font-bold", statusMeta.className)} weight="bold" aria-label="2V Verde: Lido pelo cliente" />
+                ) : statusMeta.icon === "delivered" ? (
+                  <Checks className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/80", statusMeta.className)} aria-label="2V Cinza: Entregue ao cliente" />
                 ) : (
                   <Check className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/70", statusMeta.className)} aria-label="1V Cinza: Enviado ao servidor" />
                 )}

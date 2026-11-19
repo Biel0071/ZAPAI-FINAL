@@ -1,0 +1,29 @@
+<svg viewBox="135 180 945 855" width="512" height="512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer Speech Bubble Arc in Pure Black -->
+  <path
+    d="M 317 450 C 365 305, 500 212, 660 212 C 878 212, 1055 388, 1055 606.5 C 1055 824.5, 878 1001, 660 1001 C 586 1001, 517 980, 458 944 L 282 1004 C 268 1009, 259 997, 265 983 L 352 752 C 356 741, 369 737, 376 743 C 382 749, 382 759, 378 769 L 304 962 L 455 910 C 464 907, 472 909, 480 915 C 533 952, 595 973, 660 973 C 863 973, 1027 809, 1027 606.5 C 1027 404, 863 240, 660 240 C 507 240, 377 325, 317 450 Z"
+    fill="#000000"
+  />
+
+  <!-- Left Circuit Traces in Pure Black -->
+  <g>
+    <circle cx="245" cy="500" r="20" stroke="#000000" stroke-width="14" fill="none" />
+    <path d="M 268 492 H 442 L 479 530 H 457 L 434 507 H 268 Z" fill="#000000" />
+    <circle cx="184" cy="590" r="19.5" stroke="#000000" stroke-width="13.5" fill="none" />
+    <path d="M 207 583 H 395 L 411 600 L 592 609 L 402 613 L 386 597 H 207 Z" fill="#000000" />
+    <circle cx="256" cy="680" r="19.5" stroke="#000000" stroke-width="13.5" fill="none" />
+    <path d="M 279 673 L 532 681 L 279 689 Z" fill="#000000" />
+  </g>
+
+  <!-- Stylized Z Letter — Main Body in Pure Black -->
+  <path
+    d="M 530 424 H 852 C 884 424, 901 456, 880 482 L 559 852 H 485 C 461 852, 452 824, 469 804 L 720 515 H 526 C 499 515, 484 494, 484 470 C 484 443, 503 424, 530 424 Z"
+    fill="#000000"
+  />
+
+  <!-- Stylized Z Letter — Detached Bottom-Right Bar in Pure Black -->
+  <path
+    d="M 671 758 H 870 C 871 798, 842 852, 795 852 H 588 L 671 758 Z"
+    fill="#000000"
+  />
+</svg>

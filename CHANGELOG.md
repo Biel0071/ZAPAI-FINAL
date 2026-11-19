@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased — PIX da loja e correções da auditoria
+
+- PIX por loja: cadastro em Atendente IA › Loja e dados comerciais; gerador BR Code padrão BACEN com CRC16; atalho PIX do Inbox, cobrança da conversa e `PaymentEngine` usam o cadastro e recusam quando não há PIX.
+- Endpoints `GET|PUT /api/stores/:id/payment-settings`, `DELETE /api/stores/:id/payment-settings/pix`, `GET /api/stores/payment/pix`. `PUT /api/stores/:id` preserva `settings` quando omitido.
+- Operações por conversa passam a exigir a empresa autenticada; criação de cobrança usa o tenant da autenticação.
+- Evolução: XP, conversas e fechamentos por atendente; métricas da loja rotuladas; sem medalhas, pontuações ou diretrizes ativas inventadas.
+- Conexões só mostram atendente com vínculo explícito; pré-aquecimento do compositor IA não gera mais 409; requisições repetidas de health/config/evolução deduplicadas.
+- UI: abas de Atendentes sem truncar, seções numeradas, campo de chave oculto para Provedor ZAI, iniciais com emoji, LID como "Número oculto", perfil master com papel exibido.
+
+## Unreleased — auditoria geral de atendentes e instâncias
+
+- Inbox descarta contadores da instância anterior ao trocar de WhatsApp e ignora respostas atrasadas de outra sessão.
+- Atalhos "PIX" e "Contato" do Inbox, catálogo e cards de conexão não usam mais nome, telefone ou chave PIX fixos de uma loja.
+- Atendentes: card "WhatsApp do atendimento" segue a instância ativa; gênero do avatar ignora acentos; objetivo em texto livre aparece como "Objetivo Personalizado" sem ser sobrescrito.
+- Evolução mostra "IA PAUSADA"/"Pausado" quando o atendente está pausado.
+- Relatório completo em `docs/reports/2026-11-16-bug-tracking.md`.
+## Unreleased — templates de prompt versionados
+
+- Templates de atendente passam por `draft`/`published`/`archived`, guardam a origem da versão no agente e só aparecem no wizard quando publicados; a publicação rejeita fatos comerciais pendentes e campos dinâmicos fora da lista permitida.
+- Master administra versões globais com auditoria. Administradores da empresa podem clonar padrões, revisar uma cópia própria e vincular apenas versões publicadas à loja selecionada; a edição global não altera cópias existentes.
+- Endpoints autenticados: `GET /api/ai/prompt-templates`, `POST /api/ai/prompt-templates`, `POST /api/ai/prompt-templates/:templateId/clone-platform`, `POST|PUT /api/ai/prompt-templates/:templateId/versions[/:versionId]`, `POST /api/ai/prompt-templates/:templateId/versions/:versionId/publish`, `GET|PUT /api/ai/stores/:storeId/prompt-template`; rotas de plataforma ficam sob `/api/admin/master/agent-templates`.
+- Migration 056 cria catálogo, versões e vínculo tenant/store com chaves compatíveis às tabelas de loja; testes de integração exercitam publicação, escopo cruzado e vínculo.
+
+## Unreleased — empresas, licenças e Configurações
+
+- Configurações usam seções internas agrupadas; somente master acessa o hub da plataforma e o contexto de outra empresa é validado pelo backend antes de consultas tenant-scoped.
+- Cadastro por link expira e só pode ser usado uma vez. Solicitações ficam pendentes, senha é armazenada com bcrypt e a aprovação master cria empresa e usuário administrador sem envio automático de e-mail.
+- Migração 055 cria o registro canônico de empresas preservando IDs de `tenant_id`/`company_id`, registra o relatório de vínculos e mantém acesso legado até a empresa resgatar um pacote.
+- Planos e tokens de licença são administrados manualmente; o token é salvo como hash, fica vinculado a uma empresa, pode ser resgatado uma vez e revogado. Backend valida módulos e limite de números.
+- A equipe de cada empresa pode ser mantida no próprio hub; permissões individuais só reduzem os módulos do pacote, e empresas suspensas têm o acesso tenant bloqueado.
+- O mascote único do ZAI é montado uma vez no layout persistente e abre o copiloto em painel lateral. Preferências de interação não desativam a análise WhatsApp.
+
+## Unreleased — painel administrativo e Assistente ZAI
+
+- Indicadores do Cluster exibem indisponibilidade como “—”, e status não reportado permanece desconhecido; uptime aparece em formato legível e o gráfico de três pontos foi removido por não representar histórico.
+- O painel lateral do ZAI tem ativação individual, separada do processamento das conversas, e usa um único mascote. Admins podem controlar a disponibilidade global e as preferências por usuário.
+- `GET /api/master/zai-assistant` lista ativações; `PATCH /api/master/zai-assistant/global` e `PATCH /api/master/zai-assistant/users/:id` atualizam controles administrativos, protegidos pelo papel admin/master.
+
 ## Unreleased — pausa segura das automações por conexão
 
 - Ao desconectar um número, a pausa das automações, tarefas outbound pendentes e campanhas em execução fica persistida por sessão. A reconexão não retoma disparos nem respostas da IA automaticamente.

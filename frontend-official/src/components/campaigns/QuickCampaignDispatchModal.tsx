@@ -173,17 +173,17 @@ export function QuickCampaignDispatchModal({
       } else {
         // Disparar mensagem avulsa com simulação humanizada
         await apiService.sendMessage({
-          to: targetPhone,
-          content: customText.trim(),
+          phone: targetPhone,
+          text: customText.trim(),
           sessionId: session,
           simulatedTyping: cadence === "human",
           typingDelayMs: cadence === "human" ? 6000 : 1000,
-        });
+        } as any);
       }
 
       // Save formatted disparo card message to conversation database
       try {
-        await apiService.createMessage({
+        await (apiService as any).createMessage?.({
           conversationId: contact.id,
           phone: targetPhone,
           text: `[DISPARO REALIZADO]\n📢 Fluxo: ${flowName}\n🛡️ Modo: ${cadenceLabel}\n📱 Destinatário: ${contact.name} (${formatPhoneNumber(targetPhone)})\n⏱️ Etapas: ${resolvedSteps.length} etapa(s)\n━━━━━━━━━━━━━━━━━━━━\n${previewText}`,

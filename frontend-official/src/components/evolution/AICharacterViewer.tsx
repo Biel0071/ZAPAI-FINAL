@@ -152,7 +152,7 @@ export const ATTENDANT_PRESETS = [
 export const AICharacterViewer: React.FC<AICharacterViewerProps> = ({
   agentName = "Camila",
   agentRole = "Assistente de Vendas",
-  storeName = "Depósito Vista Alegre",
+  storeName = "",
   themeColor = "#10b981",
   isOnline,
   onToggleOnline,

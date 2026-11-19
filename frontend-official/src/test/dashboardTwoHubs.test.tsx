@@ -72,6 +72,7 @@ const hoisted = vi.hoisted(() => {
   const state = {
     sessions: [{ id: "sess-1", status: "connected", phone: "5511999990000" }],
     conversations,
+    setActiveSessionId: vi.fn(),
     updateApiHealth: vi.fn(),
   };
   return { conversations, state };

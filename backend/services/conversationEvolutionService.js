@@ -656,9 +656,9 @@ async function getConversationScores({
     await sweepRecentConversations({ companyId: cleanCompany, agentKey, limit: 30 });
   }
 
-  const conditions = ['s.company_id = $1'];
-  const params = [cleanCompany];
-  let paramIndex = 2;
+  const conditions = ['s.company_id = $1', 's.agent_key = $2'];
+  const params = [cleanCompany, agentKey];
+  let paramIndex = 3;
 
   if (algorithm && algorithm !== 'todos') {
     conditions.push(`s.algorithm_code = $${paramIndex}`);
@@ -689,8 +689,8 @@ async function getConversationScores({
        COUNT(*) FILTER (WHERE conversion_xp > 0)::int as total_conversions,
        COUNT(*) FILTER (WHERE sheet_xp > 0)::int as total_sheets
      FROM conversation_evolution_scores s
-     WHERE s.company_id = $1`,
-    [cleanCompany]
+     WHERE s.company_id = $1 AND s.agent_key = $2`,
+    [cleanCompany, agentKey]
   );
   const summaryStats = statsRes.rows[0] || {};
 
@@ -698,10 +698,10 @@ async function getConversationScores({
   const algoDistRes = await query(
     `SELECT algorithm_code, COUNT(*)::int as count, COALESCE(SUM(total_xp), 0)::int as total_xp
      FROM conversation_evolution_scores
-     WHERE company_id = $1
+     WHERE company_id = $1 AND agent_key = $2
      GROUP BY algorithm_code
      ORDER BY count DESC`,
-    [cleanCompany]
+    [cleanCompany, agentKey]
   );
 
   // Paginated scores
@@ -833,8 +833,8 @@ async function extractAndPersistConversationLearning(conv, messages, evaluation,
       });
     }
 
+    const aiMemoryEvolutionService = require('./aiMemoryEvolutionService');
     for (const item of insights) {
-      // Registrar no log de evolução
       await query(
         `INSERT INTO agent_evolution_log (
           agent_key, company_id, change_type, source_description, fields_changed, applied_by, created_at
@@ -842,7 +842,7 @@ async function extractAndPersistConversationLearning(conv, messages, evaluation,
         [
           agentKey,
           cleanCompany,
-          `Aprendizado em Atendimento #${numId} (${clientName}): ${item.title} (+${item.xp} XP)`,
+          `Sinal observado no Atendimento #${numId} (${clientName}): ${item.title} (+${item.xp} XP)`,
           JSON.stringify({
             conversationId: numId,
             contactName: clientName,
@@ -854,33 +854,19 @@ async function extractAndPersistConversationLearning(conv, messages, evaluation,
         ]
       ).catch(() => {});
 
-      // Upsert no agent_memory_nodes
-      const crypto = require('crypto');
-      const nodeKey = `insight:${crypto.createHash('md5').update(item.title).digest('hex').slice(0, 16)}`;
-      await query(
-        `INSERT INTO agent_memory_nodes (
-          company_id, agent_key, node_key, node_type, label, content, searchable_text, properties, weight, created_at, last_seen_at
-        ) VALUES ($1, $2, $3, 'evolution_insight', $4, $5, $6, $7::jsonb, 1, NOW(), NOW())
-        ON CONFLICT (company_id, agent_key, node_key) DO UPDATE SET
-          weight = agent_memory_nodes.weight + 1,
-          last_seen_at = NOW(),
-          content = EXCLUDED.content,
-          properties = agent_memory_nodes.properties || EXCLUDED.properties`,
-        [
-          cleanCompany,
-          agentKey,
-          nodeKey,
-          item.title,
-          item.content,
-          `${item.title} ${item.content} ${item.category}`,
-          JSON.stringify({
-            category: item.category,
-            lastConversationId: numId,
-            lastClientName: clientName,
-            xp: item.xp,
-          }),
-        ]
-      ).catch(() => {});
+      await aiMemoryEvolutionService.proposeEvolutionLearning({
+        companyId: cleanCompany,
+        agentKey,
+        sessionId: conv.session_id || null,
+        patternType: item.category,
+        title: item.title,
+        beforeBehavior: 'Sem diretriz padronizada registrada para este padrão de atendimento',
+        afterBehavior: item.content,
+        evidenceItems: [{ conversationId: numId, contactName: clientName, excerpt: String(item.content || '').slice(0, 180) }],
+        impactMetrics: { xpObserved: item.xp },
+        sourceRole: 'evolution_engine',
+        minConfirmationsForApproval: 3,
+      }).catch(() => {});
     }
   } catch (err) {
     console.warn('[ConversationEvolution] extractAndPersistConversationLearning warning:', err.message);
@@ -933,8 +919,8 @@ async function getAgentEvolutionProfile(agentKey = 'camila', companyId = 'defaul
   const badges = [
     {
       id: 'objection_master',
-      title: 'Mestre em Objeções de Entrega',
-      description: 'Supera com segurança dúvidas sobre pagamento na entrega com motorista',
+      title: 'Mestre em Objeções',
+      description: 'Responde dúvidas de pagamento, frete e prazo sem perder o cliente',
       icon: 'ShieldCheck',
       category: 'objections',
       unlocked: objections >= 1 || totalXp >= 1500,
@@ -943,7 +929,7 @@ async function getAgentEvolutionProfile(agentKey = 'camila', companyId = 'defaul
     {
       id: 'pix_card_closer',
       title: 'Fechamento Rápido PIX & Cartão',
-      description: 'Apresenta com precisão desconto de 5% no PIX ou em até 10x sem juros',
+      description: 'Apresenta as condições de pagamento cadastradas pela loja e conduz ao fechamento',
       icon: 'Zap',
       category: 'closing',
       unlocked: conversions >= 1 || totalXp >= 3000,
@@ -961,7 +947,7 @@ async function getAgentEvolutionProfile(agentKey = 'camila', companyId = 'defaul
     {
       id: 'logistics_router',
       title: 'Roteamento Logístico & Frete',
-      description: 'Capta bairro e cidade para entrega ágil no mesmo dia ou em até 2 horas',
+      description: 'Coleta bairro e cidade para calcular entrega com os dados da loja',
       icon: 'MapPin',
       category: 'logistics',
       unlocked: scoredCount >= 3 || totalXp >= 2000,
@@ -969,8 +955,8 @@ async function getAgentEvolutionProfile(agentKey = 'camila', companyId = 'defaul
     },
     {
       id: 'catalog_expert',
-      title: 'Especialista em Catálogo de Construção',
-      description: 'Domina medidas de churrasqueiras pré-moldadas e volume de cimento por lote',
+      title: 'Especialista em Catálogo',
+      description: 'Responde medidas, modelos e quantidades a partir do catálogo da loja',
       icon: 'Layers',
       category: 'catalog',
       unlocked: totalXp >= 4000,

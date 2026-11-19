@@ -53,21 +53,15 @@ export default function Login() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="relative z-10 w-full max-w-md rounded-lg border border-border/80 bg-card/95 p-6 shadow-lg"
+        className="relative z-10 w-full max-w-sm rounded-2xl border border-border/70 bg-card/95 p-7 shadow-2xl backdrop-blur-sm"
       >
-        <header className="mb-6 space-y-2">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 border border-primary/25 shadow-glow p-1.5">
-              <BrandLogo size={44} />
-            </div>
-            <div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-foreground leading-none">ZAI</h1>
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-                CRM Enterprise
-              </span>
-            </div>
+        <header className="mb-7 flex flex-col items-center justify-center text-center">
+          <div className="relative flex items-center justify-center transition-transform duration-300 hover:scale-105">
+            <BrandLogo
+              size={92}
+              className="filter drop-shadow-[0_10px_28px_rgba(16,185,129,0.35)] dark:drop-shadow-[0_10px_32px_rgba(16,185,129,0.45)]"
+            />
           </div>
-          <p className="text-sm text-muted-foreground">Plataforma inteligente de atendimento e automação.</p>
         </header>
 
         {authError && (

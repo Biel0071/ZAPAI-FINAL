@@ -134,28 +134,11 @@ async function createAIAgent(req, res) {
     }
 
     const companyId = getCompanyId(req);
-    if (!payload.sessionIds || !Array.isArray(payload.sessionIds) || payload.sessionIds.length === 0) {
-      try {
-        const { pool } = require('../../infrastructure/config/database');
-        const rows = (await pool.query('SELECT session_id FROM sessions WHERE company_id=$1', [companyId])).rows;
-        if (rows.length > 0) {
-          payload.sessionIds = rows.map(r => r.session_id);
-        } else {
-          const placeholder = `main_${companyId}`;
-          await pool.query(
-            `INSERT INTO sessions (company_id, session_id, session_name, status, connected, created_at, updated_at)
-             VALUES ($1, $2, $2, 'disconnected', false, NOW(), NOW())
-             ON CONFLICT (session_id) DO NOTHING`,
-            [companyId, placeholder]
-          ).catch(() => {});
-          payload.sessionIds = [placeholder];
-        }
-      } catch (_) {
-        payload.sessionIds = [`main_${companyId}`];
-      }
+    if (!Array.isArray(payload.sessionIds)) {
+      payload.sessionIds = [];
     }
 
-    const agent = await aiAgentService.createAgent(payload, companyId);
+    const agent = await aiAgentService.createAgent(payload, companyId, { actor: req.auth || {} });
     return res.status(201).json({ agent, success: true });
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Failed to create AI agent.' });
@@ -164,10 +147,42 @@ async function createAIAgent(req, res) {
 
 async function updateAIAgent(req, res) {
   try {
-    const agent = await aiAgentService.updateAgent(req.params?.key, req.body || {}, getCompanyId(req));
+    const agent = await aiAgentService.updateAgent(req.params?.key, req.body || {}, getCompanyId(req), { actor: req.auth || {} });
     return res.status(200).json({ agent, success: true });
   } catch (error) {
     return res.status(400).json({ error: error.message || 'Failed to update AI agent.' });
+  }
+}
+
+async function getAgentBehaviorCatalog(req, res) {
+  try {
+    const { getBehaviorCatalog } = require('../../ai/agents/engine/agentBehaviorCompiler');
+    return res.status(200).json({ success: true, ...getBehaviorCatalog() });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function getAgentVersions(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    const key = req.params?.key;
+    const versions = await aiAgentService.listAgentVersions(companyId, key, Number(req.query?.limit) || 30);
+    return res.status(200).json({ success: true, versions });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao carregar versões do atendente.' });
+  }
+}
+
+async function rollbackAgentVersion(req, res) {
+  try {
+    const companyId = getCompanyId(req);
+    const key = req.params?.key;
+    const versionId = req.params?.versionId;
+    const agent = await aiAgentService.restoreAgentVersion(companyId, key, versionId, req.auth || {});
+    return res.status(200).json({ success: true, agent, message: 'Configuração restaurada com sucesso.' });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message || 'Falha ao restaurar versão do atendente.' });
   }
 }
 
@@ -206,9 +221,15 @@ async function updateAIAgentAvatar(req, res) {
   try {
     const key = req.params?.key;
     const companyId = getCompanyId(req);
-    const { avatarConfig, personalityVisual } = req.body || {};
+    const { avatarConfig, personalityVisual, avatar, appearance, character } = req.body || {};
 
-    const updated = await aiAgentService.updateAgentAvatar(companyId, key, avatarConfig, personalityVisual);
+    const updated = await aiAgentService.updateAgentAvatar(companyId, key, {
+      avatarConfig,
+      personalityVisual,
+      avatar,
+      appearance,
+      character,
+    }, undefined, { actor: req.auth || {} });
     return res.status(200).json({ success: true, agent: updated, message: 'Avatar do agente atualizado com sucesso.' });
   } catch (error) {
     return res.status(400).json({ success: false, error: error.message || 'Falha ao atualizar avatar do agente.' });
@@ -524,69 +545,25 @@ async function getPipelineLogs(req, res) {
   }
 }
 
-const crypto = require('crypto');
-
-const IV_LENGTH = 16;
-
-function getEncryptionKey() {
-  const rawKey = process.env.ENCRYPTION_KEY || '';
-  if (!rawKey) {
-    console.error('[CRYPTO] CRITICAL WARNING: ENCRYPTION_KEY is empty in process.env at evaluation time (Controller).');
-  }
-  return crypto.createHash('sha256').update(rawKey).digest();
-}
+const aiCredentialVault = require('../../../services/aiCredentialVault');
+const aiModelRouter = require('../../../services/aiModelRouter');
 
 function encrypt(text) {
-  if (!text) return '';
-  const currentKey = getEncryptionKey();
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv('aes-256-cbc', currentKey, iv);
-  let encrypted = cipher.update(text);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return iv.toString('hex') + ':' + encrypted.toString('hex');
+  return aiCredentialVault.encryptSecret(text, { scope: 'company', companyId: 'default' });
 }
 
 function decrypt(text) {
   if (!text) return '';
-  if (!text.includes(':')) {
-    return text;
-  }
-  const currentKey = getEncryptionKey();
   try {
-    const parts = text.split(':');
-    const iv = Buffer.from(parts.shift(), 'hex');
-    const encryptedText = Buffer.from(parts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', currentKey, iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
+    return aiCredentialVault.decryptSecret(text);
   } catch (err) {
-    // If that fails, try legacy decryption fallback to avoid data loss on rotation
-    try {
-      const legacyKey = crypto.createHash('sha256').update(process.env.JWT_SECRET || 'ZAPFLOW_SECURE_SALT_KEY_2026').digest();
-      const parts = text.split(':');
-      const iv = Buffer.from(parts.shift(), 'hex');
-      const encryptedText = Buffer.from(parts.join(':'), 'hex');
-      const decipher = crypto.createDecipheriv('aes-256-cbc', legacyKey, iv);
-      let decrypted = decipher.update(encryptedText);
-      decrypted = Buffer.concat([decrypted, decipher.final()]);
-      console.warn('[CRYPTO] Decrypted using legacy fallback key. Please rotate credentials.');
-      return decrypted.toString();
-    } catch (legacyErr) {
-      console.error('[CRYPTO] Decryption failed for both current and legacy keys:', legacyErr.message);
-      return text;
-    }
+    console.error('[CRYPTO] Decryption failed:', err.message);
+    return '';
   }
 }
 
 function maskApiKey(key) {
-  if (!key) return '';
-  if (key.includes('*****')) return key;
-  if (key.length <= 8) return '*****';
-  if (key.startsWith('sk-')) {
-    return 'sk-*****' + key.slice(-4);
-  }
-  return key.slice(0, 3) + '*****' + key.slice(-4);
+  return aiCredentialVault.maskSecret(key);
 }
 
 async function getUserProviders(req, res) {
@@ -682,10 +659,142 @@ async function saveUserProvider(req, res) {
       api_key: maskApiKey(decrypt(rows[0].api_key))
     };
 
+    // Dual-write into AES-256-GCM vault (company scope) when raw key was provided
+    if (api_key && !String(api_key).includes('*****') && !String(api_key).includes('••••')) {
+      await aiCredentialVault.saveCredential({
+        scope: 'company',
+        companyId: userTenant,
+        providerId: provider,
+        apiKey: api_key,
+        defaultModel: model || null,
+        enabled: isEnabled,
+        actor: req.auth || { username: authUsername },
+      }).catch(() => {});
+    }
+
     return res.status(200).json({ success: true, provider: savedRow });
   } catch (error) {
     console.error('[aiConfigController] saveUserProvider failed:', error);
     return res.status(500).json({ error: error.message || 'Failed to save user provider.' });
+  }
+}
+
+async function getAvailableAIProviders(req, res) {
+  try {
+    const tenantId = req.authTenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Authentication required.' });
+    const role = String(req.auth?.role || 'user').toLowerCase();
+    const isMaster = role === 'master' || role === 'master_admin' || role === 'admin_master' || role === 'superadmin';
+    const catalog = await aiModelRouter.getProviderCatalog({
+      companyId: tenantId,
+      agentKey: String(req.query.agentKey || '').trim(),
+      includeMaster: isMaster,
+      forceDiscovery: req.query.refresh === '1',
+    });
+    return res.status(200).json({ success: true, ...catalog });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao carregar provedores de IA.' });
+  }
+}
+
+async function getAICredentials(req, res) {
+  try {
+    const tenantId = req.authTenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Authentication required.' });
+    const role = String(req.auth?.role || 'user').toLowerCase();
+    const isMaster = role === 'master' || role === 'master_admin' || role === 'admin_master';
+    const credentials = await aiCredentialVault.listMaskedCredentials({
+      companyId: tenantId,
+      includeMaster: isMaster && req.query.includeMaster === '1',
+    });
+    const auditLogs = await aiCredentialVault.listAuditLogs({
+      companyId: tenantId,
+      includeMaster: isMaster && req.query.includeMaster === '1',
+      limit: 40,
+    });
+    return res.status(200).json({ success: true, credentials, auditLogs });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message || 'Falha ao consultar credenciais.' });
+  }
+}
+
+async function saveAICredential(req, res) {
+  try {
+    const tenantId = req.authTenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Authentication required.' });
+    const body = req.body || {};
+    const requestedScope = aiCredentialVault.normalizeScope(body.scope || 'company');
+    const role = String(req.auth?.role || 'user').toLowerCase();
+    const isMaster = role === 'master' || role === 'master_admin' || role === 'admin_master';
+    if (requestedScope === 'master' && !isMaster) {
+      return res.status(403).json({ success: false, error: 'Apenas o administrador Master pode gerenciar credenciais globais.' });
+    }
+    const credential = await aiCredentialVault.saveCredential({
+      scope: requestedScope,
+      companyId: requestedScope === 'master' ? '__master__' : tenantId,
+      agentKey: body.agentKey || '',
+      providerId: body.providerId,
+      apiKey: body.apiKey,
+      defaultModel: body.defaultModel || null,
+      label: body.label || null,
+      enabled: body.enabled !== false,
+      actor: req.auth || {},
+    });
+    return res.status(200).json({ success: true, credential });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message || 'Falha ao salvar credencial.' });
+  }
+}
+
+async function revokeAICredential(req, res) {
+  try {
+    const tenantId = req.authTenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Authentication required.' });
+    const role = String(req.auth?.role || 'user').toLowerCase();
+    const isMaster = role === 'master' || role === 'master_admin' || role === 'admin_master';
+    const revoked = await aiCredentialVault.revokeCredential({
+      id: req.params.id,
+      companyId: tenantId,
+      allowMaster: isMaster,
+      actor: req.auth || {},
+    });
+    if (!revoked) return res.status(404).json({ success: false, error: 'Credencial não encontrada.' });
+    return res.status(200).json({ success: true, credential: revoked });
+  } catch (error) {
+    const status = String(error.message || '').includes('FORBIDDEN') ? 403 : 400;
+    return res.status(status).json({ success: false, error: error.message || 'Falha ao revogar credencial.' });
+  }
+}
+
+async function testAICredential(req, res) {
+  try {
+    const tenantId = req.authTenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Authentication required.' });
+    const body = req.body || {};
+    const result = await aiModelRouter.probeProvider({
+      providerId: body.providerId,
+      modelId: body.modelId || '',
+      apiKey: body.apiKey || '',
+      scope: body.scope || 'company',
+      companyId: tenantId,
+      agentKey: body.agentKey || '',
+      credentialId: body.credentialId || null,
+      actor: req.auth || {},
+    });
+    return res.status(200).json({ success: result.ok, ...result });
+  } catch (error) {
+    return res.status(500).json({ success: false, ok: false, error: error.message || 'Falha ao testar conexão.' });
+  }
+}
+
+async function updateAIRouterPolicy(req, res) {
+  try {
+    const tenantId = req.authTenantId;
+    if (!tenantId) return res.status(401).json({ error: 'Authentication required.' });
+    const policy = await aiModelRouter.upsertRouterPolicy(tenantId, req.body || {}, req.auth || {});
+    return res.status(200).json({ success: true, policy });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message || 'Falha ao salvar política do roteador.' });
   }
 }
 
@@ -767,6 +876,16 @@ async function getMemoryGraph(req, res) {
     const agentKey = req.query.agentKey || 'camila';
     const limit = Number(req.query.limit) || 60;
     const sessionId = req.query.sessionId || null;
+    const agentService = require('../../ai/agents/services/aiAgentService');
+    const agents = await agentService.listAgents(companyId);
+    const agent = agents.find((item) => String(item.key) === String(agentKey));
+    if (!agent) return res.status(404).json({ success: false, error: 'Atendente não encontrado nesta empresa.' });
+    if (sessionId) {
+      await aiMemoryEngine.assertSession(companyId, sessionId);
+      if (!Array.isArray(agent.sessionIds) || !agent.sessionIds.includes(String(sessionId))) {
+        return res.status(403).json({ success: false, error: 'Atendente não está vinculado a esta conexão.' });
+      }
+    }
     const agentMemoryGraphService = require('../../../services/agentMemoryGraphService');
     const snapshot = await agentMemoryGraphService.getGraphSnapshot(agentKey, companyId, limit, sessionId);
     return res.status(200).json({ success: true, data: snapshot });
@@ -1091,6 +1210,15 @@ module.exports = {
   getPipelineLogs,
   getUserProviders,
   saveUserProvider,
+  getAvailableAIProviders,
+  getAICredentials,
+  saveAICredential,
+  revokeAICredential,
+  testAICredential,
+  updateAIRouterPolicy,
+  getAgentBehaviorCatalog,
+  getAgentVersions,
+  rollbackAgentVersion,
   getMemoryAnalytics,
   searchMemory,
   flushMemory,

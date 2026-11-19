@@ -149,6 +149,35 @@ const WPP_PALETTE = [
   { name: "Roxo", hex: "#af52de" },
 ];
 
+export const FUNNEL_STAGES_PIPELINE = [
+  { id: "new_lead", label: "Novo Lead", color: "border-sky-500/40 text-sky-400 bg-sky-500/10", icon: "🌱" },
+  { id: "qualifying", label: "Qualificação", color: "border-indigo-500/40 text-indigo-400 bg-indigo-500/10", icon: "🎯" },
+  { id: "price_sent", label: "Orçamento", color: "border-amber-500/40 text-amber-400 bg-amber-500/10", icon: "📑" },
+  { id: "negotiation", label: "Negociação", color: "border-orange-500/40 text-orange-400 bg-orange-500/10", icon: "🤝" },
+  { id: "payment_pending", label: "Pagamento", color: "border-emerald-500/40 text-emerald-400 bg-emerald-500/10", icon: "💳" },
+  { id: "won", label: "Fechado", color: "border-green-500/50 text-green-300 bg-green-500/20", icon: "🏆" },
+] as const;
+
+export const LEAD_TEMPERATURES = [
+  { id: "hot", label: "Quente", icon: "🔥", color: "border-red-500/40 text-red-400 bg-red-500/10" },
+  { id: "warm", label: "Morno", icon: "🌤️", color: "border-amber-500/40 text-amber-400 bg-amber-500/10" },
+  { id: "cold", label: "Frio", icon: "❄️", color: "border-blue-500/40 text-blue-400 bg-blue-500/10" },
+] as const;
+
+export const SYSTEM_TAG_TRANSLATIONS: Record<string, { label: string; icon?: string }> = {
+  price_request: { label: "Pediu Preço", icon: "💬" },
+  price_sent: { label: "Orçamento Enviado", icon: "📑" },
+  send_price: { label: "Enviar Preço", icon: "📤" },
+  warm: { label: "Lead Quente", icon: "🔥" },
+  cold: { label: "Lead Frio", icon: "❄️" },
+  hot: { label: "Super Quente", icon: "⚡" },
+  ficha_gerada: { label: "Ficha Gerada", icon: "📋" },
+  question: { label: "Dúvida", icon: "❓" },
+  educate: { label: "Educando Lead", icon: "💡" },
+  out_of_context: { label: "Fora de Contexto", icon: "🔄" },
+  handover_human: { label: "Transf. Humano", icon: "👤" },
+};
+
 export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: LeadDrawerProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"summary" | "graph" | "followups">("summary");
@@ -298,6 +327,13 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
     setCurrentFunnel(stage);
     onUpdateLead?.(lead.id, { funnel_stage: stage });
     notify.success("Estágio do funil atualizado com sucesso!");
+  };
+
+  const handleRemoveSystemTag = (tag: string) => {
+    const nextTags = currentTags.filter((t) => t.toLowerCase() !== tag.toLowerCase());
+    setCurrentTags(nextTags);
+    onUpdateLead?.(lead.id, { tags: nextTags });
+    notify.info(`Tag "${tag}" removida da análise.`);
   };
 
   // Toggle da Etiqueta Real do WhatsApp (Padrão WhatsApp Web com Checkbox)
@@ -588,75 +624,24 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
               </div>
             </div>
 
-            {/* SELETORES RÁPIDOS: Temperatura & Funil em linha compacta */}
-            <div className="mt-2.5 pt-2 border-t border-border/50 flex flex-wrap items-center justify-between gap-2">
-              {/* Temperatura */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1 shrink-0">
-                  <Flame className="h-3 w-3 text-amber-500" weight="fill" />
-                  Temp:
+            {/* Resumo compacto de Status na Ficha */}
+            <div className="mt-2 pt-2 border-t border-border/50 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase text-muted-foreground">Status do Lead:</span>
+                <span className={cn(
+                  "px-2 py-0.5 rounded-md text-[10px] font-bold border",
+                  tempNorm === "hot" || tempNorm === "quente"
+                    ? "bg-red-500/20 text-red-300 border-red-500/40"
+                    : tempNorm === "warm" || tempNorm === "morno"
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                    : "bg-blue-500/20 text-blue-300 border-blue-500/40"
+                )}>
+                  {tempNorm === "hot" || tempNorm === "quente" ? "🔥 Quente" : tempNorm === "warm" || tempNorm === "morno" ? "🌤️ Morno" : "❄️ Frio"}
                 </span>
-                <div className="inline-flex rounded-lg p-0.5 bg-muted/50 border border-border/40 gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => handleSetTemperature("cold")}
-                    className={cn(
-                      "px-2 py-0.5 rounded-md text-[11px] font-bold transition-all flex items-center gap-1",
-                      tempNorm === "cold" || tempNorm === "frio"
-                        ? "bg-blue-500 text-white shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <Snowflake className="h-2.5 w-2.5" weight="fill" />
-                    Frio
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSetTemperature("warm")}
-                    className={cn(
-                      "px-2 py-0.5 rounded-md text-[11px] font-bold transition-all flex items-center gap-1",
-                      tempNorm === "warm" || tempNorm === "morno"
-                        ? "bg-amber-500 text-white shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <Sun className="h-2.5 w-2.5" weight="fill" />
-                    Morno
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSetTemperature("hot")}
-                    className={cn(
-                      "px-2 py-0.5 rounded-md text-[11px] font-bold transition-all flex items-center gap-1",
-                      tempNorm === "hot" || tempNorm === "quente"
-                        ? "bg-red-500 text-white shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <Flame className="h-2.5 w-2.5" weight="fill" />
-                    Quente
-                  </button>
-                </div>
-              </div>
-
-              {/* Estágio do Funil */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1 shrink-0">
-                  <TrendUp className="h-3 w-3 text-primary" weight="bold" />
-                  Funil:
+                <span className="text-muted-foreground">•</span>
+                <span className="text-[11px] font-semibold text-primary">
+                  {FUNNEL_STAGES_PIPELINE.find((s) => s.id === currentFunnel)?.label || currentFunnel || "Novo Lead"}
                 </span>
-                <Select value={currentFunnel} onValueChange={handleSetFunnel}>
-                  <SelectTrigger className="h-7 text-xs font-semibold rounded-lg bg-card border-border/60 w-auto min-w-[150px] max-w-[200px]">
-                    <SelectValue placeholder="Estágio" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-border bg-card">
-                    {FUNNEL_STAGES.map((s) => (
-                      <SelectItem key={s.value} value={s.value} className="text-xs font-medium cursor-pointer">
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </div>
@@ -711,6 +696,73 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                 </div>
               </div>
             </div>
+
+            {/* AFUNILAMENTO DE IA (Imagem 4) - Pipeline Comercial & Temperatura */}
+            <Card className="rounded-xl border-border/70 bg-card/90 p-3 space-y-2.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sparkle className="h-4 w-4 text-primary" weight="fill" />
+                  <span className="text-xs font-bold text-foreground uppercase tracking-wider">Afunilamento de IA</span>
+                </div>
+                {/* Seletor de Temperatura do Lead */}
+                <div className="flex items-center gap-1">
+                  {LEAD_TEMPERATURES.map((t) => {
+                    const isCurrent = tempNorm === t.id || (t.id === "hot" && tempNorm === "quente") || (t.id === "warm" && tempNorm === "morno") || (t.id === "cold" && tempNorm === "frio");
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => handleSetTemperature(t.id as any)}
+                        className={cn(
+                          "px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1",
+                          isCurrent
+                            ? t.color
+                            : "border-border/30 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                        )}
+                        title={`Temperatura: ${t.label}`}
+                      >
+                        <span>{t.icon}</span>
+                        <span>{t.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 6 Etapas do Pipeline Comercial com Stepper Interativo */}
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-1.5 pt-0.5">
+                {FUNNEL_STAGES_PIPELINE.map((stage) => {
+                  const currentStageKey = (currentFunnel || "new_lead").toLowerCase();
+                  const isCurrent = currentStageKey === stage.id ||
+                    (stage.id === "new_lead" && (currentStageKey === "novo" || currentStageKey === "lead")) ||
+                    (stage.id === "price_sent" && currentStageKey === "orcamento") ||
+                    (stage.id === "payment_pending" && currentStageKey === "ready_to_buy") ||
+                    (stage.id === "won" && currentStageKey === "closed");
+                  return (
+                    <button
+                      key={stage.id}
+                      type="button"
+                      onClick={() => handleSetFunnel(stage.id)}
+                      className={cn(
+                        "flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-medium border transition-all text-center cursor-pointer",
+                        isCurrent
+                          ? cn(stage.color, "ring-1 ring-primary/40 font-bold shadow-xs")
+                          : "border-border/40 bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 hover:border-border/80"
+                      )}
+                      title={`Definir etapa como ${stage.label}`}
+                    >
+                      <span className="text-xs">{stage.icon}</span>
+                      <span className="truncate">{stage.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/30">
+                <span>Origem: <strong className="text-foreground">{lead.channelName || lead.sessionId || "WhatsApp (main)"}</strong></span>
+                <span>Etapa Atual: <strong className="text-primary">{FUNNEL_STAGES_PIPELINE.find((s) => s.id === currentFunnel)?.label || currentFunnel || "Novo Lead"}</strong></span>
+              </div>
+            </Card>
 
             {activeTab === "summary" ? (
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
@@ -840,26 +892,58 @@ export function LeadDrawer({ lead, onClose, onUpdateLead, fromInbox = false }: L
                         </div>
                       )}
                     </div>
+                  </Card>
 
-                    {/* Tags do Sistema / CRM secundárias (se houver) */}
-                    {systemTags.length > 0 && (
-                      <div className="pt-2 border-t border-border/30">
-                        <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
-                          Tags do Sistema & IA:
+                  {/* Imagem 3: Card de Análise Algorítmica da Conversa / IA */}
+                  <Card className="rounded-xl border-border/70 bg-card/80 p-3 space-y-2 shadow-sm">
+                    <div className="flex items-center justify-between pb-1 border-b border-border/40">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <Sparkle className="h-3.5 w-3.5 text-amber-400" weight="fill" />
+                        Análise Algorítmica da Conversa (IA)
+                      </span>
+                      {systemTags.length > 0 && (
+                        <span className="text-[10px] font-semibold text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded-full border border-border/40">
+                          {systemTags.length} tags de padrão
                         </span>
-                        <div className="flex flex-wrap gap-1">
-                          {systemTags.map((st) => (
-                            <Badge
+                      )}
+                    </div>
+
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Tags identificadas automaticamente pelo algoritmo ao rastrear palavras-chave e padrões da conversa.
+                    </p>
+
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {systemTags.length > 0 ? (
+                        systemTags.map((st) => {
+                          const trans = SYSTEM_TAG_TRANSLATIONS[st.toLowerCase()];
+                          return (
+                            <span
                               key={st}
-                              variant="outline"
-                              className="text-[9px] py-0 px-1.5 border-border/50 text-muted-foreground bg-muted/20"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-muted/60 border border-border/70 px-2 py-1 text-[11px] font-medium text-foreground transition-all shadow-xs"
+                              title={`Padrão de IA: ${st}`}
                             >
-                              {st}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                              {trans?.icon ? <span>{trans.icon}</span> : <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
+                              <span className="font-semibold">{st}</span>
+                              {trans?.label && (
+                                <span className="text-[10px] text-muted-foreground font-normal">({trans.label})</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSystemTag(st)}
+                                className="hover:text-destructive transition-colors ml-0.5 p-0.5 rounded hover:bg-background/40"
+                                title={`Remover tag ${st}`}
+                              >
+                                <X className="h-2.5 w-2.5" />
+                              </button>
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground italic py-1">
+                          Nenhum padrão algorítmico detectado ainda nesta conversa.
+                        </span>
+                      )}
+                    </div>
                   </Card>
                 </div>
 

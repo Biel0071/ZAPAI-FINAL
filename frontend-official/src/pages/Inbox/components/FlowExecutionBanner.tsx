@@ -28,14 +28,24 @@ export function matchesConversationFlow(
   context: { conversationId: string; sessionId?: string; phone?: string }
 ): boolean {
   if (!flow) return false;
+  const flowSession = flow.sessionId ? (flow.sessionId === "main" || flow.sessionId === "default" ? "legacy-default" : String(flow.sessionId)) : "";
+  const contextSession = context.sessionId ? (context.sessionId === "main" || context.sessionId === "default" ? "legacy-default" : String(context.sessionId)) : "";
+  if (contextSession && flowSession !== contextSession) {
+    return false;
+  }
   const sameConv = Boolean(flow.conversationId && context.conversationId && String(flow.conversationId) === String(context.conversationId));
+  if (sameConv) return true;
   const rawA = String(flow.chatId || "").replace(/\D/g, "");
   const rawB = String(context.phone || "").replace(/\D/g, "");
-  const samePhone = Boolean(rawA && rawB && (rawA === rawB || rawA.endsWith(rawB) || rawB.endsWith(rawA)));
-  if (!sameConv && !samePhone) return false;
-  if (context.sessionId && flow.sessionId && flow.sessionId !== "main" && flow.sessionId !== "default" && context.sessionId !== "main" && context.sessionId !== "default") {
-    if (String(flow.sessionId) !== String(context.sessionId)) return false;
-  }
+  const samePhone = Boolean(
+    rawA && rawB && (
+      rawA === rawB ||
+      rawA.endsWith(rawB) ||
+      rawB.endsWith(rawA) ||
+      (rawA.length >= 8 && rawB.length >= 8 && (rawA.endsWith(rawB.slice(-8)) || rawB.endsWith(rawA.slice(-8))))
+    )
+  );
+  if (!samePhone) return false;
   return true;
 }
 
@@ -127,9 +137,12 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
     stepDelaySeconds: flowData.stepDelaySeconds,
     now,
   });
+  const isCompleted = flowData.status === "completed" || progressPercent >= 100 || (Boolean(flowData.totalSteps) && Number(flowData.currentStep) >= Number(flowData.totalSteps));
   const displayName = getFlowDisplayName(flowData.flowName);
-  const stepLabel = `Etapa ${Math.min(Math.max(0, flowData.currentStep || 0), flowData.totalSteps || 0)} de ${flowData.totalSteps || 0}`;
-  const timerText = isPaused ? "—" : formatCountdown(remainingSeconds);
+  const stepLabel = isCompleted
+    ? `Todas as ${flowData.totalSteps || 0} etapas enviadas`
+    : `Etapa ${Math.min(Math.max(0, flowData.currentStep || 0), flowData.totalSteps || 0)} de ${flowData.totalSteps || 0}`;
+  const timerText = isPaused ? "—" : isCompleted ? "Concluído" : formatCountdown(remainingSeconds);
 
   const handleTogglePause = async () => {
     if (!flowData.chatId || !flowData.conversationId) return;
@@ -255,36 +268,48 @@ export function FlowExecutionBanner({ flowData, onCancelFlow }: FlowExecutionBan
 
         {/* Right: actions */}
         <div className="flex items-center gap-1.5 shrink-0 justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleTogglePause}
-            disabled={togglingPause}
-            aria-label={isPaused ? "Retomar disparo" : "Pausar disparo"}
-            title={isPaused ? "Retomar disparo (▶️)" : "Pausar disparo (⏸️)"}
-            className={cn(
-              "h-9 w-9 p-0 rounded-lg transition-all shadow-xs flex items-center justify-center text-sm",
-              isPaused
-                ? "border-emerald-500/50 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 hover:border-emerald-400"
-                : "border-amber-500/50 text-amber-400 bg-amber-500/10 hover:bg-amber-500/25 hover:border-amber-400"
-            )}
-          >
-            {isPaused ? <Play className="h-4 w-4 fill-current" /> : <Pause className="h-4 w-4 fill-current" />}
-          </Button>
+          {isCompleted ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 font-semibold text-xs shadow-xs animate-fade-in">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Concluído
+            </div>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleTogglePause}
+                disabled={togglingPause}
+                aria-label={isPaused ? "Retomar disparo" : "Pausar disparo"}
+                title={isPaused ? "Retomar disparo (▶️)" : "Pausar disparo (⏸️)"}
+                className={cn(
+                  "h-9 w-9 p-0 rounded-lg transition-all shadow-xs flex items-center justify-center text-sm",
+                  isPaused
+                    ? "border-emerald-500/50 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 hover:border-emerald-400"
+                    : "border-amber-500/50 text-amber-400 bg-amber-500/10 hover:bg-amber-500/25 hover:border-amber-400"
+                )}
+              >
+                {isPaused ? <Play className="h-4 w-4 fill-current" /> : <Pause className="h-4 w-4 fill-current" />}
+              </Button>
 
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => setShowConfirmModal(true)}
-            disabled={cancelling}
-            aria-label="Cancelar disparo"
-            title="Cancelar disparo (⏹️)"
-            className="h-9 w-9 p-0 rounded-lg bg-red-600/85 hover:bg-red-600 text-white transition-all shadow-xs flex items-center justify-center text-sm"
-          >
-            <StopCircle className="h-4 w-4" />
-          </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowConfirmModal(true)}
+                disabled={cancelling}
+                aria-label="Cancelar disparo"
+                title="Cancelar disparo (⏹️)"
+                className="h-9 w-9 p-0 rounded-lg bg-red-600/85 hover:bg-red-600 text-white transition-all shadow-xs flex items-center justify-center text-sm"
+              >
+                <StopCircle className="h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

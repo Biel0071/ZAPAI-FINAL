@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { query } = require('../../infrastructure/config/database');
+const { query, pool } = require('../../infrastructure/config/database');
 
 const router = express.Router();
 
@@ -151,6 +151,57 @@ function getFrontendBaseUrl() {
   }
 }
 
+router.post('/auth/company-registration', async (req, res) => {
+  const body = req.body || {};
+  const token = String(body.token || '').trim();
+  const companyName = String(body.companyName || '').trim();
+  const responsibleName = String(body.responsibleName || '').trim();
+  const username = String(body.username || '').trim();
+  const email = String(body.email || '').trim().toLowerCase();
+  const password = String(body.password || '');
+  if (token.length < 32 || !companyName || !responsibleName || !username || !email || password.length < 12 || password.length > 128) {
+    return res.status(400).json({ error: 'Informe os dados obrigatórios e uma senha entre 12 e 128 caracteres.' });
+  }
+  if (companyName.length > 200 || responsibleName.length > 160 || username.length > 80 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Os dados informados são inválidos.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const link = await client.query(
+      `SELECT id FROM company_registration_links WHERE token_hash = $1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > NOW() FOR UPDATE`,
+      [tokenHash]
+    );
+    if (!link.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(410).json({ error: 'O link de cadastro é inválido, expirou ou já foi utilizado.' });
+    }
+    const duplicate = await client.query(`SELECT 1 FROM users WHERE lower(username) = lower($1) OR lower(email) = lower($2)
+      UNION ALL SELECT 1 FROM company_registration_requests WHERE status = 'pending' AND (lower(username) = lower($1) OR lower(email) = lower($2)) LIMIT 1`, [username, email]);
+    if (duplicate.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'O usuário ou e-mail já está cadastrado.' });
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
+    await client.query(
+      `INSERT INTO company_registration_requests (link_id, company_name, responsible_name, username, email, password_hash)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [link.rows[0].id, companyName, responsibleName, username, email, passwordHash]
+    );
+    await client.query('UPDATE company_registration_links SET used_at = NOW() WHERE id = $1', [link.rows[0].id]);
+    await client.query('COMMIT');
+    return res.status(202).json({ status: 'pending', message: 'Solicitação enviada para aprovação. A conta só será ativada após a aprovação.' });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    if (error.code === '23505') return res.status(409).json({ error: 'Já existe uma solicitação pendente com este usuário ou e-mail.' });
+    return res.status(500).json({ error: 'Não foi possível registrar a solicitação.' });
+  } finally {
+    if (client) client.release();
+  }
+});
+
 router.post('/auth/login', async (req, res) => {
   const secret = process.env.JWT_SECRET || process.env.AUTH_JWT_SECRET || '';
 
@@ -162,15 +213,9 @@ router.post('/auth/login', async (req, res) => {
 
   const body = req.body || {};
   const username = String(body.username || body.email || '').trim();
-  const password = String(body.password || '').trim();
+  const password = String(body.password || '');
   const requestedTenant = String(body.tenantId || body.companyId || '').trim();
   const tenantId = String(process.env.AUTH_DEFAULT_TENANT_ID || process.env.DEFAULT_COMPANY_ID || 'default').trim();
-
-  if (requestedTenant && requestedTenant !== tenantId) {
-    return res.status(403).json({
-      error: 'Requested tenant is not allowed for this login.',
-    });
-  }
 
   if (!username || !password) {
     return res.status(400).json({
@@ -184,7 +229,7 @@ router.post('/auth/login', async (req, res) => {
   // Try database authentication first (production path)
   try {
     const result = await query(
-      'SELECT username, password_hash, tenant_id, role, is_active, blocked FROM users WHERE username = $1 OR email = $1 LIMIT 1',
+      'SELECT u.username, u.password_hash, u.tenant_id, u.role, u.is_active, u.blocked, c.status AS company_status FROM users u LEFT JOIN companies c ON c.id = u.tenant_id WHERE (u.username = $1 OR u.email = $1) AND u.deleted_at IS NULL LIMIT 1',
       [username]
     );
 
@@ -192,11 +237,18 @@ router.post('/auth/login', async (req, res) => {
       dbUserExists = true;
       const user = result.rows[0];
 
+      if (requestedTenant && requestedTenant !== String(user.tenant_id || tenantId)) {
+        return res.status(403).json({ error: 'Requested tenant does not match this account.' });
+      }
+
       if (!user.is_active) {
         return res.status(401).json({ error: 'Account is deactivated.' });
       }
       if (user.blocked) {
         return res.status(401).json({ error: 'Account is blocked.' });
+      }
+      if (user.company_status && user.company_status !== 'active') {
+        return res.status(403).json({ error: 'Company access is suspended.' });
       }
 
       const passwordValid = await bcrypt.compare(password, user.password_hash);

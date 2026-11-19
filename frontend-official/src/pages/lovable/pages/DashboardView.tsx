@@ -201,10 +201,10 @@ export function DashboardView({
     if (!isSessionConnected) {
       return {
         kpis: [
-          { label: "Mensagens no período", value: "0", tone: "offline" as const, hint: "Total enviadas + recebidas" },
-          { label: "Fila Ativa", value: "0", tone: "offline" as const, hint: "Conversas aguardando atendimento" },
-          { label: "Participação da IA", value: "0%", tone: "offline" as const, hint: "Mensagens automáticas processadas" },
-          { label: "Conversas no período", value: "0", tone: "offline" as const, hint: "Contatos cadastrados no CRM" },
+          { label: "Mensagens no período", value: "0", tone: "default" as const, hint: "Total enviadas + recebidas" },
+          { label: "Fila Ativa", value: "0", tone: "default" as const, hint: "Conversas aguardando atendimento" },
+          { label: "Participação da IA", value: "0%", tone: "default" as const, hint: "Mensagens automáticas processadas" },
+          { label: "Conversas no período", value: "0", tone: "default" as const, hint: "Contatos cadastrados no CRM" },
         ],
         chartData: [],
         tempDistribution: [],
@@ -929,7 +929,7 @@ export function DashboardView({
               {/* Temperature Donut — Horizontal Executive Split (Zero Clipping) */}
               <Card className="glass-card rounded-2xl border-border/70 hover-lift h-[245px] sm:h-[255px] flex flex-col">
                 {(() => {
-                  const total = safeAnalyticsViewModel.tempDistribution.reduce(
+                  const total = (safeAnalyticsViewModel.tempDistribution as any[]).reduce(
                     (acc: number, cur: any) => acc + (cur.value || 0),
                     0
                   );
