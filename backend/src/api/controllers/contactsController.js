@@ -35,14 +35,18 @@ async function listContacts(req, res) {
         const requestedLimit = Number(req.query?.limit) || 2000;
         const limit = Math.min(Math.max(requestedLimit, 1), 10000);
         const forceRefresh = req.query?.refresh === 'true' || req.query?.force === 'true';
+        const scope = String(req.query?.scope || 'recent').trim().toLowerCase();
+        const searchTerm = String(req.query?.search || '').trim();
+        const includeHistorical = scope === 'all' || Boolean(searchTerm);
         const conversations = await conversationRepository.listConversations(companyId, limit, {
           requireMessages: false,
           useCache: !forceRefresh,
           sessionId: requestedSessionId || undefined,
+          includeHistorical,
         });
         contacts = contactsService.listContactsFromConversations(conversations);
 
-        // Fetch saved contacts directly from leads table in PostgreSQL
+        // Enrich or merge leads table depending on scope ('recent' only enriches active recent contacts; 'all' includes full historical base)
         try {
           let leadsRes;
           if (requestedSessionId) {
@@ -83,7 +87,7 @@ async function listContacts(req, res) {
               if (lead.id && !existing.leadId) {
                 existing.leadId = lead.id;
               }
-            } else {
+            } else if (includeHistorical) {
               const newContact = {
                 id: String(lead.id),
                 leadId: lead.id,
@@ -127,7 +131,7 @@ async function listContacts(req, res) {
               if (c.name && (!existing.name || existing.name === 'Contato') && c.name !== c.phone) {
                 existing.name = c.name;
               }
-            } else {
+            } else if (includeHistorical) {
               const newContact = {
                 id: `cached-${cleanPhone}`,
                 conversationId: null,

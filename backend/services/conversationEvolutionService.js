@@ -833,8 +833,8 @@ async function extractAndPersistConversationLearning(conv, messages, evaluation,
       });
     }
 
+    const aiMemoryEvolutionService = require('./aiMemoryEvolutionService');
     for (const item of insights) {
-      // Registrar no log de evolução
       await query(
         `INSERT INTO agent_evolution_log (
           agent_key, company_id, change_type, source_description, fields_changed, applied_by, created_at
@@ -842,7 +842,7 @@ async function extractAndPersistConversationLearning(conv, messages, evaluation,
         [
           agentKey,
           cleanCompany,
-          `Aprendizado em Atendimento #${numId} (${clientName}): ${item.title} (+${item.xp} XP)`,
+          `Sinal observado no Atendimento #${numId} (${clientName}): ${item.title} (+${item.xp} XP)`,
           JSON.stringify({
             conversationId: numId,
             contactName: clientName,
@@ -854,33 +854,19 @@ async function extractAndPersistConversationLearning(conv, messages, evaluation,
         ]
       ).catch(() => {});
 
-      // Upsert no agent_memory_nodes
-      const crypto = require('crypto');
-      const nodeKey = `insight:${crypto.createHash('md5').update(item.title).digest('hex').slice(0, 16)}`;
-      await query(
-        `INSERT INTO agent_memory_nodes (
-          company_id, agent_key, node_key, node_type, label, content, searchable_text, properties, weight, created_at, last_seen_at
-        ) VALUES ($1, $2, $3, 'evolution_insight', $4, $5, $6, $7::jsonb, 1, NOW(), NOW())
-        ON CONFLICT (company_id, agent_key, node_key) DO UPDATE SET
-          weight = agent_memory_nodes.weight + 1,
-          last_seen_at = NOW(),
-          content = EXCLUDED.content,
-          properties = agent_memory_nodes.properties || EXCLUDED.properties`,
-        [
-          cleanCompany,
-          agentKey,
-          nodeKey,
-          item.title,
-          item.content,
-          `${item.title} ${item.content} ${item.category}`,
-          JSON.stringify({
-            category: item.category,
-            lastConversationId: numId,
-            lastClientName: clientName,
-            xp: item.xp,
-          }),
-        ]
-      ).catch(() => {});
+      await aiMemoryEvolutionService.proposeEvolutionLearning({
+        companyId: cleanCompany,
+        agentKey,
+        sessionId: conv.session_id || null,
+        patternType: item.category,
+        title: item.title,
+        beforeBehavior: 'Sem diretriz padronizada registrada para este padrão de atendimento',
+        afterBehavior: item.content,
+        evidenceItems: [{ conversationId: numId, contactName: clientName, excerpt: String(item.content || '').slice(0, 180) }],
+        impactMetrics: { xpObserved: item.xp },
+        sourceRole: 'evolution_engine',
+        minConfirmationsForApproval: 3,
+      }).catch(() => {});
     }
   } catch (err) {
     console.warn('[ConversationEvolution] extractAndPersistConversationLearning warning:', err.message);

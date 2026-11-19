@@ -23,6 +23,7 @@ import {
   Warning,
   WarningCircle,
   Info,
+  ShieldCheck,
   UserSwitch,
   UserCircle,
   CheckCircle,
@@ -88,7 +89,7 @@ import { cn } from "@/core/lib/utils";
 import { apiService, requestApiEndpoint } from "@/core/services/apiService";
 import { useToast } from "@/state/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
-import type { ChatMessage, Conversation } from "@/core/services/apiService";
+import type { ChatMessage, Conversation, ConversationContextCapsule } from "@/core/services/apiService";
 import { useAppStore, type AIResponseProgress } from "@/state/stores/appStore";
 
 function getActiveSessionIdentity() {
@@ -310,13 +311,62 @@ export const ActiveChatPane = memo(function ActiveChatPane({
   const { toast } = useToast();
   const [generatingSheet, setGeneratingSheet] = useState(false);
   const [isAiSuggestionOpen, setIsAiSuggestionOpen] = useState(false);
+  const [contextCapsule, setContextCapsule] = useState<ConversationContextCapsule | null>(null);
+  const [contextCapsuleExpanded, setContextCapsuleExpanded] = useState(false);
   const sheetRequestVersion = useRef(0);
 
   useEffect(() => {
     setGeneratingSheet(false);
     setIsAiSuggestionOpen(false);
+    setContextCapsuleExpanded(false);
     return () => { sheetRequestVersion.current += 1; };
   }, [selectedConversation?.id]);
+
+  useEffect(() => {
+    let active = true;
+    const convId = selectedConversation?.id;
+    const meta = selectedConversation?.contextTokenMeta;
+
+    if (!convId) {
+      setContextCapsule(null);
+      return () => { active = false; };
+    }
+
+    if (selectedConversation?.hasContextToken && meta?.prunedMessagesCount) {
+      setContextCapsule({
+        active: true,
+        tokenPreview: "zctx1...",
+        byteLength: Number(meta.byteLength || 0),
+        prunedMessagesCount: Number(meta.prunedMessagesCount || 0),
+        from: meta.from || null,
+        to: meta.to || null,
+        intent: "information",
+        stage: "new_lead",
+        commercial: {},
+        facts: {},
+        highlights: [],
+        summary: selectedConversation.summary || "",
+      });
+    } else {
+      setContextCapsule(null);
+    }
+
+    if (typeof apiService?.getConversationInsights === "function") {
+      void apiService.getConversationInsights(String(convId))
+        .then((res) => {
+          if (!active || !res) return;
+          const capsule = ((res as any)?.contextCapsule || (res as any)?.data?.contextCapsule) as ConversationContextCapsule | null | undefined;
+          if (capsule && capsule.active) {
+            setContextCapsule(capsule);
+          }
+        })
+        .catch(() => {
+          // Non-blocking context capsule fetch
+        });
+    }
+
+    return () => { active = false; };
+  }, [selectedConversation?.id, selectedConversation?.hasContextToken, selectedConversation?.contextTokenMeta, selectedConversation?.summary]);
 
   const [activeSheetModalData, setActiveSheetModalData] = useState<any>(null);
   const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
@@ -1841,6 +1891,94 @@ export const ActiveChatPane = memo(function ActiveChatPane({
           {activeFlowData && selectedConversation && matchesConversationFlow(activeFlowData, { conversationId: selectedConversation.id, sessionId: selectedConversation.sessionId, phone: selectedConversation.phone }) && (
             <FlowExecutionBanner key={selectedConversation.id} flowData={activeFlowData} onCancelFlow={() => setActiveFlowData(null)} />
           )}
+
+          {contextCapsule?.active && (
+            <div className="border-b border-emerald-500/25 bg-emerald-500/[0.06] px-3 py-1.5 text-xs shrink-0">
+              <div className="mx-auto max-w-3xl">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500 shrink-0">
+                      <ShieldCheck className="h-3.5 w-3.5" weight="fill" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold text-foreground">Token de Contexto Cripto ativo</span>
+                        <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          {contextCapsule.prunedMessagesCount} mensagens (&gt;30d) compactadas · {contextCapsule.byteLength} B
+                        </Badge>
+                      </div>
+                      {contextCapsule.summary && !contextCapsuleExpanded && (
+                        <p className="text-[11px] text-muted-foreground truncate mt-0.5">{contextCapsule.summary}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2.5 text-[11px] text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                    onClick={() => setContextCapsuleExpanded((prev) => !prev)}
+                  >
+                    {contextCapsuleExpanded ? "Ocultar" : "Ver contexto"}
+                  </Button>
+                </div>
+
+                {contextCapsuleExpanded && (
+                  <div className="mt-2 pt-2 border-t border-emerald-500/20 space-y-2 text-[11px] max-h-52 overflow-y-auto pr-1">
+                    {(contextCapsule.from || contextCapsule.to) && (
+                      <p className="text-muted-foreground">
+                        <span className="font-semibold text-foreground">Período selado:</span>{" "}
+                        {contextCapsule.from ? contextCapsule.from.slice(0, 10) : "?"} até{" "}
+                        {contextCapsule.to ? contextCapsule.to.slice(0, 10) : "?"} · Estágio:{" "}
+                        <span className="font-medium text-foreground">{contextCapsule.stage}</span> · Intenção:{" "}
+                        <span className="font-medium text-foreground">{contextCapsule.intent}</span>
+                      </p>
+                    )}
+
+                    {Object.keys(contextCapsule.commercial || {}).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(contextCapsule.commercial).map(([k, v]) => (
+                          <Badge key={k} variant="outline" className="text-[10px] border-emerald-500/30 bg-background/60">
+                            {k}: {v}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+
+                    {Object.values(contextCapsule.facts || {}).length > 0 && (
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">Fatos preservados:</p>
+                        <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
+                          {Object.values(contextCapsule.facts).slice(0, 8).map((fact, idx) => (
+                            <li key={idx}>
+                              <span className="font-medium text-foreground">{fact.label || "Dado"}:</span> {fact.value}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {contextCapsule.highlights?.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">Destaques históricos preservados:</p>
+                        <div className="space-y-1">
+                          {contextCapsule.highlights.map((h, idx) => (
+                            <div key={idx} className="rounded-md bg-background/60 border border-border/60 px-2 py-1 text-muted-foreground">
+                              <span className="font-semibold text-foreground">
+                                [{h.d || "hist"} {h.r === "a" ? "Atendente/IA" : "Cliente"}]:
+                              </span>{" "}
+                              {h.t}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <ScrollArea className="min-h-0 flex-1 chat-area-bg">
             <div
               key={selectedConversation?.id}

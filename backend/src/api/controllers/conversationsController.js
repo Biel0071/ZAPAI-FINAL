@@ -13,6 +13,7 @@ const { getCompanyId } = require('../../../services/tenantContext');
 const { query } = require('../../infrastructure/config/database');
 const orderSheetService = require('../../../services/orderSheetService');
 const attendantQualityDaemon = require('../../../services/attendantQualityDaemon');
+const contextTokenService = require('../../../services/contextTokenService');
 
 const avatarCache = new Map();
 const AVATAR_TTL_MS = 24 * 60 * 60 * 1000;
@@ -278,7 +279,8 @@ async function getConversationCounts(req, res) {
   const sessionId = getOptionalSessionId(req);
 
   try {
-    const params = [companyId];
+    const params = [companyId, conversationRepository.RECENT_CONVERSATION_DAYS];
+    const recentCond = conversationRepository.buildRecentConversationCondition('$2', 'conv');
     let sessionFilter = '';
     if (sessionId) {
       params.push(sessionId);
@@ -292,11 +294,11 @@ async function getConversationCounts(req, res) {
     const result = await query(
       `
         SELECT
-          COUNT(*)::int AS total,
-          COUNT(*) FILTER (WHERE conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived'))::int AS active,
-          COUNT(*) FILTER (WHERE conv.archived = true OR conv.status = 'archived')::int AS archived,
-          COUNT(*) FILTER (WHERE conv.unread_count > 0 AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')))::int AS unread,
-          COUNT(*) FILTER (WHERE conv.ai_enabled = true AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')))::int AS ai_active
+          COUNT(*) FILTER (WHERE ${recentCond})::int AS total,
+          COUNT(*) FILTER (WHERE conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived') AND ${recentCond})::int AS active,
+          COUNT(*) FILTER (WHERE (conv.archived = true OR conv.status = 'archived') AND (NULLIF(BTRIM(conv.last_message), '') IS NOT NULL OR EXISTS (SELECT 1 FROM messages msg WHERE msg.conversation_id = conv.id) OR conv.context_token IS NOT NULL))::int AS archived,
+          COUNT(*) FILTER (WHERE conv.unread_count > 0 AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')) AND ${recentCond})::int AS unread,
+          COUNT(*) FILTER (WHERE conv.ai_enabled = true AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived')) AND ${recentCond})::int AS ai_active
         FROM conversations conv
         WHERE (conv.company_id = $1 OR conv.company_id = 'default') ${sessionFilter}
       `,
@@ -549,20 +551,71 @@ async function markConversationRead(req, res) {
 async function getConversationInsights(req, res) {
   try {
     const { conversationId } = req.params;
+    const companyId = getRequestCompanyId(req);
     const insights = await inboxConversationService.getConversationInsights(conversationId);
     const runtime = conversationRuntimeService.getConversationRuntime(getStore(req), req.params.conversationId);
+
+    let contextCapsule = null;
+    try {
+      let tokenRow = null;
+      if (/^\d+$/.test(String(conversationId || '').trim())) {
+        tokenRow = (await query(
+          `SELECT conv.context_token, conv.context_token_meta, conv.remote_jid, l.phone
+           FROM conversations conv
+           LEFT JOIN leads l ON l.id = conv.lead_id
+           WHERE conv.id = $1 AND conv.company_id = $2
+           LIMIT 1`,
+          [Number(conversationId), companyId]
+        )).rows[0] || null;
+      } else {
+        tokenRow = (await query(
+          `SELECT conv.context_token, conv.context_token_meta, conv.remote_jid, l.phone
+           FROM conversations conv
+           LEFT JOIN leads l ON l.id = conv.lead_id
+           WHERE conv.company_id = $1 AND (conv.remote_jid = $2 OR l.phone = $2)
+           LIMIT 1`,
+          [companyId, String(conversationId || '').trim()]
+        )).rows[0] || null;
+      }
+
+      let rawToken = tokenRow?.context_token || null;
+      const tokenMeta = tokenRow?.context_token_meta || null;
+
+      if (!rawToken) {
+        const keyCandidate = tokenRow?.remote_jid || tokenRow?.phone || String(conversationId || '').trim();
+        const memRow = (await query(
+          `SELECT context_token, metrics
+           FROM ai_conversation_memory
+           WHERE company_id = $1 AND (contact_id = $2 OR phone = $2) AND context_token IS NOT NULL
+           ORDER BY updated_at DESC NULLS LAST
+           LIMIT 1`,
+          [companyId, keyCandidate]
+        )).rows[0] || null;
+        rawToken = memRow?.context_token || null;
+      }
+
+      if (rawToken) {
+        contextCapsule = contextTokenService.toContextCapsule(rawToken, companyId, tokenMeta);
+      }
+    } catch (_) {
+      contextCapsule = null;
+    }
+
     const leadScoreVal = typeof insights?.leadScore === 'number' ? insights.leadScore : 0;
     const confidenceVal = leadScoreVal <= 1 ? leadScoreVal : leadScoreVal / 100;
+    const rawSummary = insights?.conversationSummary || insights?.summary || '';
+    const isDefaultSummary = !rawSummary || rawSummary === 'Conversa iniciada sem resumo disponível.';
     const payload = {
       ...insights,
       confidence: confidenceVal,
-      summary: insights?.conversationSummary || insights?.summary || '',
-      intent: insights?.intent || 'information',
+      summary: (isDefaultSummary && contextCapsule?.summary) ? contextCapsule.summary : rawSummary,
+      intent: insights?.intent || contextCapsule?.intent || 'information',
       nextAction: insights?.nextSuggestedReply || insights?.nextAction || 'follow_up',
       sentiment: insights?.sentiment || 'neutro',
       aiPausedUntil: runtime?.aiPausedUntil,
       controlMode: runtime?.controlMode,
       humanActive: runtime?.controlMode === 'human_active' || runtime?.controlMode === 'paused_ai',
+      contextCapsule,
     };
     return res.status(200).json({
       ok: true,

@@ -140,6 +140,7 @@ export default function Contacts() {
   const [searchQuery, setSearchQuery] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [activeSegment, setActiveSegment] = useState<ContactSegment>("all");
+  const [contactScope, setContactScope] = useState<"recent" | "all">("recent");
 
   const sessions = useAppStore((state) => state.sessions);
   const activeSessionId = useAppStore((state) => state.activeSessionId);
@@ -187,8 +188,9 @@ export default function Contacts() {
 
   const loadContacts = useCallback(async () => {
     try {
+      setLoading(true);
       setError(null);
-      const contactsData = await apiService.getContacts(true);
+      const contactsData = await apiService.getContacts(true, undefined, contactScope);
       const rawList = Array.isArray(contactsData)
         ? contactsData
         : Array.isArray((contactsData as any)?.data)
@@ -227,7 +229,7 @@ export default function Contacts() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [contactScope]);
 
   useEffect(() => {
     void loadContacts();
@@ -521,13 +523,15 @@ export default function Contacts() {
     <div className="flex flex-col min-h-full">
       <Header 
         title="Leads CRM / Contatos" 
-        subtitle={!isSessionConnected ? "Sessão desconectada" : `${filteredContacts.length} contatos sincronizados`} 
+        subtitle={!isSessionConnected ? "Sessão desconectada" : `${filteredContacts.length} contatos (${contactScope === "recent" ? "últimos 30 dias" : "base completa"})`} 
       />
       <ContactsView
         loading={loading}
         error={error}
         isSessionConnected={isSessionConnected}
         activeSessionName={currentSession?.name || targetSessionId || undefined}
+        contactScope={contactScope}
+        onContactScopeChange={setContactScope}
         searchQuery={searchQuery}
         tagFilter={tagFilter}
         activeSegment={activeSegment}

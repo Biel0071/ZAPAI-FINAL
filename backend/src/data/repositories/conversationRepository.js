@@ -13,7 +13,24 @@ const CONVERSATION_CACHE_MAX_ENTRIES = Math.max(
   32,
   Number(process.env.CONVERSATION_CACHE_MAX_ENTRIES) || 512
 );
+const RECENT_CONVERSATION_DAYS = Math.max(1, Number(process.env.RECENT_CONTACT_WINDOW_DAYS || 30));
 const conversationCache = new Map();
+
+function buildRecentConversationCondition(daysParamPlaceholder, alias = 'conv') {
+  return `(
+    COALESCE(${alias}.is_pinned, false) = true
+    OR COALESCE(${alias}.unread_count, 0) > 0
+    OR (
+      COALESCE(${alias}.last_message_at, timezone('UTC', ${alias}.updated_at), timezone('UTC', ${alias}.created_at)) >= NOW() - (${daysParamPlaceholder} * INTERVAL '1 day')
+      AND (
+        NULLIF(BTRIM(${alias}.last_message), '') IS NOT NULL
+        OR EXISTS (SELECT 1 FROM messages msg WHERE msg.conversation_id = ${alias}.id)
+        OR ${alias}.context_token IS NOT NULL
+        OR ${alias}.created_at >= NOW() - INTERVAL '1 hour'
+      )
+    )
+  )`;
+}
 
 function getCompanyId(companyId) {
   return companyId || process.env.DEFAULT_COMPANY_ID || 'default';
@@ -159,6 +176,8 @@ function mapConversation(row) {
     pinned_at: row.pinned_at || null,
     archived: Boolean(row.archived || row.status === "archived"),
     archived_at: row.archived_at || null,
+    hasContextToken: Boolean(row.has_context_token || row.context_token),
+    contextTokenMeta: row.context_token_meta || null,
   };
 }
 
@@ -192,6 +211,8 @@ function getBaseSelect() {
       conv.pinned_at,
       COALESCE(conv.archived, false) as archived,
       conv.archived_at,
+      (conv.context_token IS NOT NULL) as has_context_token,
+      conv.context_token_meta,
       COALESCE(conv.last_message_at, conv.updated_at, conv.created_at) as last_message_at,
       COALESCE(lid_map.phone, l.phone, conv.remote_jid) as phone,
       lid_map.phone as mapped_phone,
@@ -657,7 +678,8 @@ async function listConversations(companyId, limit = 50, options = {}) {
   const strictSession = options?.strictSession === true;
   const requireMessages = options?.requireMessages === true;
   const filter = options?.filter || (options?.archived ? 'archived' : null);
-  const cacheKey = `${getCacheKey(companyId, limit, requestedSessionId || null)}:${requireMessages ? 'with-messages' : 'all'}:${strictSession ? 'strict' : 'fallback'}:${filter || 'none'}:${encodeURIComponent(search)}`;
+  const includeHistorical = options?.includeHistorical === true || Boolean(search) || filter === 'archived' || options?.archived === true;
+  const cacheKey = `${getCacheKey(companyId, limit, requestedSessionId || null)}:${requireMessages ? 'with-messages' : 'all'}:${strictSession ? 'strict' : 'fallback'}:${filter || 'none'}:${includeHistorical ? 'hist' : 'recent30d'}:${encodeURIComponent(search)}`;
 
   if (options.useCache !== false) {
     const cached = readCache(cacheKey);
@@ -683,11 +705,22 @@ async function listConversations(companyId, limit = 50, options = {}) {
   }
 
   if (filter === 'archived' || options?.archived === true) {
-    whereClause += " AND (conv.archived = true OR conv.status = 'archived')";
+    whereClause += " AND (conv.archived = true OR conv.status = 'archived') AND (NULLIF(BTRIM(conv.last_message), '') IS NOT NULL OR EXISTS (SELECT 1 FROM messages msg WHERE msg.conversation_id = conv.id) OR conv.context_token IS NOT NULL)";
   } else if (filter === 'unread') {
     whereClause += " AND conv.unread_count > 0 AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived'))";
   } else if (filter === 'active' || options?.status === 'active' || options?.status === 'open') {
     whereClause += " AND (conv.archived = false AND (conv.status IS NULL OR conv.status != 'archived'))";
+  }
+
+  if (!includeHistorical) {
+    values.push(RECENT_CONVERSATION_DAYS);
+    whereClause += ` AND ${buildRecentConversationCondition(`$${values.length}`, 'conv')}`;
+  } else if (search) {
+    whereClause += ` AND (
+      NULLIF(BTRIM(conv.last_message), '') IS NOT NULL
+      OR EXISTS (SELECT 1 FROM messages msg WHERE msg.conversation_id = conv.id)
+      OR conv.context_token IS NOT NULL
+    )`;
   }
 
   let searchClause = '';
@@ -738,6 +771,8 @@ async function listConversations(companyId, limit = 50, options = {}) {
           conv.pinned_at,
           COALESCE(conv.archived, false) as archived,
           conv.archived_at,
+          (conv.context_token IS NOT NULL) as has_context_token,
+          conv.context_token_meta,
           COALESCE(conv.last_message_at, conv.updated_at, conv.created_at) as last_message_at,
           COALESCE(lid_map.phone, l.phone, conv.remote_jid) as phone,
           lid_map.phone as mapped_phone,
@@ -789,6 +824,8 @@ async function deleteConversation(conversationId) {
 }
 
 module.exports = {
+  RECENT_CONVERSATION_DAYS,
+  buildRecentConversationCondition,
   create,
   createConversation,
   deleteConversation,

@@ -75,7 +75,20 @@ class HistoryRepository {
         try {
           await client.query('BEGIN');
           await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [JSON.stringify([companyId, sessionId, chat.chat_jid])]);
-          await this.ensureConversation(client, chat);
+          // Store valid contacts in leads without polluting conversations with empty 1970-01-01 rows;
+          // real conversations are created on-demand by ensureConversation() when messages within retention arrive.
+          const phone = (chat.chat_jid.endsWith('@lid') || chat.chat_jid.endsWith('@g.us'))
+            ? chat.chat_jid
+            : chat.chat_jid.split('@')[0];
+          const chatName = String(chat.name || '').trim();
+          if (chatName && chatName !== phone && chatName !== 'Contato') {
+            await client.query(`INSERT INTO leads(company_id,phone,name) VALUES($1,$2,$3)
+              ON CONFLICT(company_id,phone) DO UPDATE SET name=CASE
+                WHEN leads.name IS NULL OR leads.name=leads.phone OR leads.name='' OR leads.name='Contato'
+                THEN COALESCE(EXCLUDED.name, leads.name)
+                ELSE COALESCE(leads.name, EXCLUDED.name)
+              END`, [companyId, phone, chatName]);
+          }
           await client.query(`UPDATE whatsapp_history_chats SET imported=TRUE WHERE company_id=$1 AND session_id=$2 AND chat_jid=$3`, [companyId, sessionId, chat.chat_jid]);
           await client.query('COMMIT');
         } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }

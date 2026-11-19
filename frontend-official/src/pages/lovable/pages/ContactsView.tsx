@@ -55,6 +55,8 @@ export interface ContactsViewProps {
   onDeleteContact?: (id: string) => void;
   isSessionConnected?: boolean;
   activeSessionName?: string;
+  contactScope?: "recent" | "all";
+  onContactScopeChange?: (scope: "recent" | "all") => void;
 }
 
 export function ContactsView({
@@ -81,6 +83,8 @@ export function ContactsView({
   onDeleteContact,
   isSessionConnected = true,
   activeSessionName,
+  contactScope = "recent",
+  onContactScopeChange,
 }: ContactsViewProps) {
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const allFilteredSelected = viewModel.contacts.length > 0 && viewModel.contacts.every(c => selectedIds.has(c.id));
@@ -330,9 +334,9 @@ export function ContactsView({
         </div>
 
         <div className="space-y-4 min-w-0 w-full">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between w-full min-w-0">
-            <div className="flex flex-1 flex-col gap-2.5 sm:flex-row min-w-0">
-              <div className="flex-1 min-w-0">
+          <div className="flex flex-col gap-3 w-full min-w-0">
+            <div className="flex w-full flex-col gap-2.5 sm:flex-row min-w-0">
+              <div className="flex-1 min-w-[220px]">
                 <ChatSearchBar value={searchQuery} onChange={onSearchChange} placeholder="Buscar contatos..." />
               </div>
               <Input
@@ -343,7 +347,35 @@ export function ContactsView({
               />
             </div>
             
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+              {onContactScopeChange && (
+                <div className="flex items-center rounded-xl border border-border bg-card/50 p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => onContactScopeChange("recent")}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1.5 font-medium transition-colors",
+                      contactScope === "recent"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Recentes (30d)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onContactScopeChange("all")}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1.5 font-medium transition-colors",
+                      contactScope === "all"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Todos salvos
+                  </button>
+                </div>
+              )}
               <div className="flex items-center rounded-xl border border-border bg-card/50 p-0.5">
                 <Button
                   variant={viewMode === "grid" ? "secondary" : "ghost"}
