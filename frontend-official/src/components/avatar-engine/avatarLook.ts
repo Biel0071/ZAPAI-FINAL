@@ -1,5 +1,11 @@
 import type { AgentAvatarConfig } from "./AvatarDefinition";
-import { resolveHairColorForHair } from "./AvatarDefinition";
+import {
+  inferGenderFromConfig,
+  normalizeAccessorySubSlots,
+  normalizeAvatarComposition,
+  type FacialHairStyle,
+  type NormalizedAccessorySubSlots,
+} from "./avatar3d/slotCatalog";
 
 export type SkinPalette = { base: string; shadow: string; highlight: string; blush: string };
 export type HairPalette = { base: string; shadow: string; highlight: string };
@@ -29,74 +35,113 @@ export const HAIR_PALETTES: Record<string, HairPalette> = {
 const LEGACY_OUTFIT_MAP: Record<string, string> = {
   polo_zai_black: "outfit_01",
   polo_zai_white: "outfit_07",
+  upper_polo: "outfit_01",
   shirt_formal_blue: "outfit_02",
+  shirt_business_white: "outfit_02",
+  upper_shirt: "outfit_02",
   tshirt_casual_dark: "outfit_03",
-  hoodie_zai_black: "outfit_04",
+  hoodie_zai_black: "outfit_03",
+  upper_hoodie: "outfit_03",
+  uniform_tech_navy: "outfit_04",
+  delivery_cargo_set: "outfit_10",
+  upper_uniform_jacket: "outfit_04",
   blazer_executive_dark: "outfit_05",
+  blazer_emerald_trim: "outfit_05",
+  upper_blazer: "outfit_05",
   vest_operations: "outfit_06",
+  vest_hivis_safety: "outfit_06",
+  upper_vest: "outfit_06",
+  casual_tee_charcoal: "outfit_07",
+  upper_tee: "outfit_07",
   bomber_jacket_tech: "outfit_08",
+  jacket_exec_dark: "outfit_08",
+  upper_bomber: "outfit_08",
 };
 
 export function resolveOutfitId(avatar: Partial<AgentAvatarConfig>): string {
-  const raw = avatar.outfit || avatar.clothing || "outfit_01";
+  const raw = avatar.outfit || avatar.clothing || avatar.upperBody || "outfit_01";
   return LEGACY_OUTFIT_MAP[raw] || raw || "outfit_01";
 }
 
+export function resolveLowerBodyId(avatar: Partial<AgentAvatarConfig>): string {
+  return normalizeAvatarComposition(avatar).lowerBody;
+}
+
+export function resolveFootwearId(avatar: Partial<AgentAvatarConfig>): string {
+  return normalizeAvatarComposition(avatar).footwear;
+}
+
+export function resolveFacialHair(avatar: Partial<AgentAvatarConfig>): FacialHairStyle {
+  return normalizeAvatarComposition(avatar).facialHair;
+}
+
+export function resolveAccessorySubSlots(avatar: Partial<AgentAvatarConfig>): NormalizedAccessorySubSlots {
+  return normalizeAccessorySubSlots(avatar);
+}
+
 export function isFemaleAvatar(avatar: Partial<AgentAvatarConfig>): boolean {
-  return !(avatar.body === "male" || avatar.base === "male");
-}
-
-function accessoryList(avatar: Partial<AgentAvatarConfig>): string[] {
-  return Array.isArray(avatar.accessories) ? avatar.accessories : [];
-}
-
-function accessoryValue(avatar: Partial<AgentAvatarConfig>, key: string): string | undefined {
-  const acc = avatar.accessories;
-  return acc && typeof acc === "object" && !Array.isArray(acc) ? (acc as Record<string, string>)[key] : undefined;
+  return inferGenderFromConfig(avatar) !== "male";
 }
 
 export type AccessoryFlags = {
   headset: boolean;
+  earbud: boolean;
   badge: boolean;
+  badgeClip: boolean;
   glasses: boolean;
   sunglasses: boolean;
   tablet: boolean;
+  clipboard: boolean;
+  smartphone: boolean;
   watch: boolean;
   coffee: boolean;
   boxes: boolean;
   laptop: boolean;
   backpack: boolean;
+  cap: boolean;
   hardhat: boolean;
 };
 
 export function resolveAccessoryFlags(avatar: Partial<AgentAvatarConfig>): AccessoryFlags {
-  const list = accessoryList(avatar);
-  const has = (id: string) => list.includes(id);
+  const sub = normalizeAccessorySubSlots(avatar);
   return {
-    headset: avatar.headset === "headset_zai_green" || accessoryValue(avatar, "headset") === "headset_zai_green" || has("acc_02"),
-    badge: avatar.badge !== false && (accessoryValue(avatar, "badge") === "badge_zai_lanyard" || has("acc_03")),
-    glasses: avatar.glasses === "glasses_square_exec" || Boolean(avatar.glasses?.includes("glasses")) || accessoryValue(avatar, "glasses") === "glasses_square_exec" || has("acc_04"),
-    sunglasses: avatar.glasses === "sunglasses_wayfarer" || accessoryValue(avatar, "glasses") === "sunglasses_wayfarer" || has("acc_07"),
-    tablet: avatar.workObject === "tablet_zai" || has("acc_05"),
-    watch: accessoryValue(avatar, "watch") === "watch_zai_smart" || has("acc_06"),
-    coffee: avatar.workObject === "coffee_cup" || has("acc_08"),
-    boxes: avatar.workObject === "boxes_delivery" || has("acc_09"),
-    laptop: avatar.workObject === "laptop_zai" || has("acc_10"),
-    backpack: has("acc_11"),
-    hardhat: accessoryValue(avatar, "headwear") === "hardhat_zai_white" || has("acc_12"),
+    headset: sub.headset === "headset_pro",
+    earbud: sub.headset === "headset_earbud",
+    badge: sub.badge === "badge_lanyard",
+    badgeClip: sub.badge === "badge_clip",
+    glasses: sub.eyewear === "eyewear_executive",
+    sunglasses: sub.eyewear === "eyewear_wayfarer",
+    tablet: sub.prop === "prop_tablet",
+    clipboard: sub.prop === "prop_clipboard",
+    smartphone: sub.prop === "prop_smartphone",
+    watch: sub.wrist === "wrist_smartwatch",
+    coffee: sub.prop === "prop_coffee",
+    boxes: sub.prop === "prop_boxes",
+    laptop: sub.prop === "prop_laptop",
+    backpack: sub.back === "back_backpack",
+    cap: sub.headwear === "headwear_cap",
+    hardhat: sub.headwear === "headwear_hardhat",
   };
 }
 
 export function resolveSkinPalette(avatar: Partial<AgentAvatarConfig>): SkinPalette {
-  const key = avatar.skin || (avatar.face === "face_04" ? "tan" : avatar.face === "face_06" ? "bronze" : "peach");
+  const key = avatar.skin && SKIN_PALETTES[avatar.skin]
+    ? avatar.skin
+    : isFemaleAvatar(avatar)
+    ? "peach"
+    : "tan";
   return SKIN_PALETTES[key] || SKIN_PALETTES.peach;
 }
 
 export function resolveHairId(avatar: Partial<AgentAvatarConfig>): string {
-  return avatar.hair || (isFemaleAvatar(avatar) ? "hair_01" : "hair_05");
+  return normalizeAvatarComposition(avatar).hair;
 }
 
 export function resolveHairPalette(avatar: Partial<AgentAvatarConfig>): { key: string; palette: HairPalette } {
-  const key = resolveHairColorForHair(resolveHairId(avatar), avatar.hairColor, isFemaleAvatar(avatar));
+  const key = avatar.hairColor && HAIR_PALETTES[avatar.hairColor]
+    ? avatar.hairColor
+    : isFemaleAvatar(avatar)
+    ? "dark_brown"
+    : "black";
   return { key, palette: HAIR_PALETTES[key] || HAIR_PALETTES.dark_brown };
 }

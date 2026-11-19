@@ -89,6 +89,15 @@ import {
   Timer,
   FileText,
   Volume2,
+  History,
+  RotateCcw,
+  GitCompare,
+  Camera,
+  Lock,
+  Trash2,
+  Shield,
+  Footprints,
+  Shirt,
 } from "lucide-react";
 import {
   OBJECTIVES,
@@ -104,6 +113,7 @@ import { StorePixPanel } from "@/components/stores/StorePixPanel";
 import { supportsWebGL } from "@/components/avatar-engine/avatar3d/webglSupport";
 import { useUserRole } from "@/state/hooks/useUserRole";
 import { createAgentAvatar, buildStoreVisualDNA, resolveSpriteForAvatar, resolveBaseSpriteForAvatar, applyStylePreset } from "@/components/avatar-engine/CharacterFactory";
+import { resolveAccessoryFlags } from "@/components/avatar-engine/avatarLook";
 import {
   AVATAR_HAIRS,
   AVATAR_FACES,
@@ -113,17 +123,79 @@ import {
   HAIRSTYLES_FEMALE,
   HAIRSTYLES_MALE,
   CLOTHING_STYLES,
+  SLOT_LOWER_BODY_ITEMS,
+  SLOT_FOOTWEAR_ITEMS,
+  SLOT_UNIFORM_ITEMS,
+  FACIAL_HAIR_OPTIONS,
+  POSE_OPTIONS,
+  HAIR_COLORS,
+  SKIN_TONES,
+  buildSlotUpdate,
   resolveItemSpriteForGender,
   resolveHairColorForHair,
   resolveItemDisplayForGender,
   type AgentAvatarConfig,
+  type PoseId,
+  type SlotUpdateTarget,
 } from "@/components/avatar-engine/AvatarDefinition";
+import type { CameraPreset, ZaiAvatar3DHandle } from "@/components/avatar-engine/avatar3d/ZaiAvatar3D";
 import { AvatarItemPreview } from "@/components/avatar-engine/AvatarItemPreview";
 import { EvolutionTab } from "@/pages/AI/EvolutionTab";
 const CommercialPanel = React.lazy(() => import("@/components/evolution/HistoryBootstrapPanel").then(module => ({ default: module.HistoryBootstrapPanel })));
 const AgentTab = React.lazy(() => import("@/pages/AI/AgentTab").then(module => ({ default: module.AgentTab })));
 const MemoryView = React.lazy(() => import("@/pages/Memory").then(module => ({ default: module.default })));
-const ZaiAvatar3D = React.lazy(() => import("@/components/avatar-engine/avatar3d/ZaiAvatar3D"));
+const ZaiAvatar3D = React.lazy(() => import("@/components/avatar-engine/avatar3d/ZaiAvatarStage"));
+
+const DEFAULT_PERSONALITY_CATALOG = [
+  {
+    id: "executivo_direto",
+    label: "Executivo e Direto",
+    summary: "Respostas curtas, objetividade máxima, foco em fechamento e mínima contextualização.",
+    recommendedTone: "objetivo",
+    recommendedResponseStyle: "short_natural",
+    recommendedTemperature: 0.35,
+  },
+  {
+    id: "analitico_dados",
+    label: "Analítico e Orientado a Dados",
+    summary: "Mais análise, comparações claras, argumentação estruturada nos dados reais.",
+    recommendedTone: "profissional",
+    recommendedResponseStyle: "detailed",
+    recommendedTemperature: 0.45,
+  },
+  {
+    id: "consultivo_amigavel",
+    label: "Consultivo e Amigável",
+    summary: "Linguagem acolhedora, explicações didáticas e orientação passo a passo.",
+    recommendedTone: "acolhedor",
+    recommendedResponseStyle: "balanced",
+    recommendedTemperature: 0.7,
+  },
+  {
+    id: "operacional_diagnostico",
+    label: "Operacional e Diagnóstico",
+    summary: "Identificação estruturada de problemas, procedimentos, pré-condições e precisão técnica.",
+    recommendedTone: "tecnico",
+    recommendedResponseStyle: "balanced",
+    recommendedTemperature: 0.35,
+  },
+] as const;
+
+const ROUTING_MODE_OPTIONS = [
+  { id: "AUTO", label: "AUTO", desc: "Escolhe o melhor motor disponível com fallback automático" },
+  { id: "FAST", label: "FAST", desc: "Menor latência (Groq / Lite / Local rápido)" },
+  { id: "QUALITY", label: "QUALITY", desc: "Máxima precisão e raciocínio disponível" },
+  { id: "LOCAL", label: "LOCAL", desc: "Exclusivo no Ollama / ZAI da VPS (custo zero)" },
+  { id: "SPECIFIC", label: "SPECIFIC", desc: "Fixa exatamente o provedor e modelo selecionados" },
+] as const;
+
+function normalizeRouterProviderId(id?: string): string {
+  const clean = String(id || "").toLowerCase().trim();
+  if (!clean || clean === "vps_engine" || clean === "vps" || clean === "zai") return "zai";
+  if (clean === "anthropic") return "claude";
+  if (clean === "google") return "gemini";
+  return clean;
+}
 
 export interface SandboxChatMessage {
   id: string;
@@ -143,6 +215,15 @@ export interface SandboxChatMessage {
     provider?: string;
     model?: string;
     isFastPath?: boolean;
+    effectiveConfig?: {
+      personalityId?: string;
+      objectiveId?: string;
+      toneId?: string;
+      responseStyleId?: string;
+      temperature?: number;
+      routingMode?: string;
+    };
+    parameterWarnings?: string[];
     xpEarned?: {
       total: number;
       reason: string;
@@ -651,40 +732,35 @@ export default function AttendantsPage() {
     return String(tokens);
   }
 
-  // Inline 5-category Avatar Studio state (Cabelo, Rosto, Roupa, Acessórios, Estilo)
-  const [studioCategory, setStudioCategory] = useState<"hair" | "face" | "outfit" | "accessories" | "style">("hair");
+  // Modular Avatar Studio state (Cabelo, Rosto, Superior, Inferior, Calçados, Acessórios, Uniforme & Estilo)
+  const [studioCategory, setStudioCategory] = useState<
+    "hair" | "face" | "outfit" | "lower" | "footwear" | "accessories" | "style"
+  >("hair");
   const [studioRotationY, setStudioRotationY] = useState<number>(0);
   const [studioMovement3D, setStudioMovement3D] = useState<"idle" | "walk" | "wave" | "pose" | "spin360">("idle");
+  const [studioPoseId, setStudioPoseId] = useState<PoseId>("pose_executive");
+  const [studioSpinSpeed, setStudioSpinSpeed] = useState<0.5 | 1 | 2>(1);
+  const [studioSpinPaused, setStudioSpinPaused] = useState<boolean>(false);
+  const [studioCameraPreset, setStudioCameraPreset] = useState<CameraPreset>("full");
+  const [studioOperationalState, setStudioOperationalState] = useState<string | null>(null);
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
   const [isStudioDragging, setIsStudioDragging] = useState(false);
   const studioDragStartXRef = useRef<number>(0);
   const studioDragStartAngleRef = useRef<number>(0);
   const studioRotationYRef = useRef<number>(0);
   const studioMovement3DRef = useRef<string>("idle");
+  const avatar3dRef = useRef<ZaiAvatar3DHandle | null>(null);
   studioRotationYRef.current = studioRotationY;
   studioMovement3DRef.current = studioMovement3D;
 
   useEffect(() => {
     setStudioRotationY(typeof previewAgent?.avatarConfig?.rotationY === "number" ? previewAgent.avatarConfig.rotationY : 0);
     setStudioMovement3D(previewAgent?.avatarConfig?.movement3D || "idle");
+    setStudioPoseId((previewAgent?.avatarConfig?.poseId as PoseId) || "pose_executive");
+    setStudioSpinPaused(false);
+    setStudioOperationalState(null);
+    setStudioCameraPreset("full");
   }, [previewAgent?.key]);
-
-  // Smooth continuous turntable auto-spin loop when studioMovement3D === "spin360"
-  useEffect(() => {
-    if (studioMovement3D !== "spin360") return;
-    let animFrame: number;
-    let lastTime = performance.now();
-    const spinLoop = (now: number) => {
-      const dt = now - lastTime;
-      if (!isStudioDragging && dt >= 40) {
-        setStudioRotationY((prev) => (prev + 2) % 360);
-        lastTime = now;
-      }
-      animFrame = requestAnimationFrame(spinLoop);
-    };
-    animFrame = requestAnimationFrame(spinLoop);
-    return () => cancelAnimationFrame(animFrame);
-  }, [studioMovement3D, isStudioDragging]);
 
   const handleInlineStageMouseDown = (e: React.MouseEvent) => {
     setIsStudioDragging(true);
@@ -756,16 +832,56 @@ export default function AttendantsPage() {
     };
   }, [isStudioDragging]);
 
-  const handleUpdateAvatar = useCallback((overrides: Partial<AgentAvatarConfig>) => {
-    setPreviewAgent((prev: any) => {
-      if (!prev) return prev;
-      const baseConfig: AgentAvatarConfig = prev.avatarConfig || createAgentAvatar({
-        agentId: prev.key || prev.name,
-        name: prev.name,
-        role: prev.role,
+  const handleUpdateSlot = useCallback((target: SlotUpdateTarget, itemId: string) => {
+    const computeNextConfig = (agentItem: any): AgentAvatarConfig => {
+      const baseConfig: AgentAvatarConfig = agentItem.avatarConfig || createAgentAvatar({
+        agentId: agentItem.key || agentItem.name,
+        name: agentItem.name,
+        role: agentItem.role,
         storeId: previewStore?.id,
         storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
-        gender: prev.character?.gender || (prev.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+        gender: agentItem.character?.gender || (agentItem.name?.toLowerCase().includes("carlos") || agentItem.name?.toLowerCase().includes("joao") || agentItem.name?.toLowerCase().includes("joão") ? "male" : "female"),
+      });
+      return buildSlotUpdate(baseConfig, target, itemId);
+    };
+
+    setPreviewAgent((prev: any) => {
+      if (!prev) return prev;
+      const updatedConfig = computeNextConfig(prev);
+      const updatedSprite = resolveBaseSpriteForAvatar(updatedConfig);
+      updatedConfig.baseSpriteId = updatedSprite;
+      return {
+        ...prev,
+        avatarConfig: updatedConfig,
+        avatar: `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`,
+      };
+    });
+
+    setAgents((prev) => {
+      if (!previewAgent || previewAgent.isExample) return prev;
+      return prev.map((a) => {
+        if (a.key !== previewAgent.key) return a;
+        const updatedConfig = computeNextConfig(a);
+        const updatedSprite = resolveBaseSpriteForAvatar(updatedConfig);
+        updatedConfig.baseSpriteId = updatedSprite;
+        return {
+          ...a,
+          avatarConfig: updatedConfig,
+          avatar: `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`,
+        };
+      });
+    });
+  }, [previewAgent?.key, previewAgent?.isExample, previewStore]);
+
+  const handleUpdateAvatar = useCallback((overrides: Partial<AgentAvatarConfig>) => {
+    const mergeAgent = (agentItem: any): AgentAvatarConfig => {
+      const baseConfig: AgentAvatarConfig = agentItem.avatarConfig || createAgentAvatar({
+        agentId: agentItem.key || agentItem.name,
+        name: agentItem.name,
+        role: agentItem.role,
+        storeId: previewStore?.id,
+        storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
+        gender: agentItem.character?.gender || (agentItem.name?.toLowerCase().includes("carlos") || agentItem.name?.toLowerCase().includes("joao") || agentItem.name?.toLowerCase().includes("joão") ? "male" : "female"),
       });
 
       const updatedConfig: AgentAvatarConfig = { ...baseConfig, ...overrides };
@@ -777,12 +893,16 @@ export default function AttendantsPage() {
       const updatedSprite = resolveBaseSpriteForAvatar(updatedConfig);
       updatedConfig.baseSpriteId = updatedSprite;
       updatedConfig.catalogSpriteId = updatedSprite;
-      const avatarUrl = `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`;
+      return updatedConfig;
+    };
 
+    setPreviewAgent((prev: any) => {
+      if (!prev) return prev;
+      const updatedConfig = mergeAgent(prev);
       return {
         ...prev,
         avatarConfig: updatedConfig,
-        avatar: avatarUrl,
+        avatar: `/assets/avatar_factory/catalog/${updatedConfig.baseSpriteId}_clean.png`,
       };
     });
 
@@ -790,24 +910,12 @@ export default function AttendantsPage() {
       if (!previewAgent || previewAgent.isExample) return prev;
       return prev.map((a) => {
         if (a.key !== previewAgent.key) return a;
-        const baseConfig: AgentAvatarConfig = a.avatarConfig || createAgentAvatar({
-          agentId: a.key || a.name,
-          name: a.name,
-          role: a.role,
-          storeId: previewStore?.id,
-          storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
-          gender: a.character?.gender || (a.name?.toLowerCase().includes("carlos") ? "male" : "female"),
-        });
-        const updatedConfig: AgentAvatarConfig = { ...baseConfig, ...overrides };
-        if (overrides.outfit) updatedConfig.clothing = overrides.outfit;
-        if (overrides.clothing) updatedConfig.outfit = overrides.clothing;
-        if (overrides.body) updatedConfig.base = overrides.body === "male" ? "male" : "female";
-        if (overrides.base) updatedConfig.body = overrides.base === "male" ? "male" : "female";
-        const updatedSprite = resolveBaseSpriteForAvatar(updatedConfig);
-        updatedConfig.baseSpriteId = updatedSprite;
-        updatedConfig.catalogSpriteId = updatedSprite;
-        const avatarUrl = `/assets/avatar_factory/catalog/${updatedSprite}_clean.png`;
-        return { ...a, avatarConfig: updatedConfig, avatar: avatarUrl };
+        const updatedConfig = mergeAgent(a);
+        return {
+          ...a,
+          avatarConfig: updatedConfig,
+          avatar: `/assets/avatar_factory/catalog/${updatedConfig.baseSpriteId}_clean.png`,
+        };
       });
     });
   }, [previewAgent?.key, previewAgent?.isExample, previewStore]);
@@ -827,12 +935,13 @@ export default function AttendantsPage() {
         role: previewAgent.role,
         storeId: previewStore?.id,
         storeDNA: previewStore ? buildStoreVisualDNA(previewStore) : undefined,
-        gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") ? "male" : "female"),
+        gender: previewAgent.character?.gender || (previewAgent.name?.toLowerCase().includes("carlos") || previewAgent.name?.toLowerCase().includes("joao") || previewAgent.name?.toLowerCase().includes("joão") ? "male" : "female"),
       });
       const resolvedOutfit = previewAgent.avatarConfig?.outfit || previewAgent.avatarConfig?.clothing || configToSave.outfit || "outfit_01";
       const resolvedHair = previewAgent.avatarConfig?.hair || configToSave.hair || "hair_01";
       const resolvedFace = previewAgent.avatarConfig?.face || configToSave.face || "face_01";
       const resolvedStyle = previewAgent.avatarConfig?.style || configToSave.style || "style_vendas";
+      const capturedSnapshot = avatar3dRef.current?.captureSnapshot("portrait") || previewAgent.avatarConfig?.snapshotDataUrl;
 
       const configForSprite = {
         ...configToSave,
@@ -842,6 +951,9 @@ export default function AttendantsPage() {
         hair: resolvedHair,
         face: resolvedFace,
         style: resolvedStyle,
+        poseId: studioPoseId,
+        snapshotDataUrl: capturedSnapshot || undefined,
+        compositionVersion: 2,
         catalogSpriteId: undefined,
       };
       const spriteId = resolveBaseSpriteForAvatar(configForSprite);
@@ -876,7 +988,7 @@ export default function AttendantsPage() {
     } finally {
       setIsSavingAvatar(false);
     }
-  }, [previewAgent, previewStore, fetchData]);
+  }, [previewAgent, previewStore, studioPoseId, fetchData]);
 
   const activeHairItem = useMemo(() => {
     const hair = previewAgent?.avatarConfig?.hair;
@@ -971,9 +1083,11 @@ export default function AttendantsPage() {
     avatarStudio: false,
     objectiveTone: true,
     providers: false,
+    knowledge: false,
     trainingSandbox: false,
     prompt: false,
     chatSandbox: false,
+    memoryEvolution: true,
   });
 
   const toggleCard = (cardKey: string) => {
@@ -997,26 +1111,84 @@ export default function AttendantsPage() {
       avatarStudio: nextVal,
       objectiveTone: nextVal,
       providers: nextVal,
+      knowledge: nextVal,
       trainingSandbox: nextVal,
       prompt: nextVal,
       chatSandbox: nextVal,
+      memoryEvolution: nextVal,
     });
   };
 
-  // Agent Configuration State
+  // Agent Configuration State (Canonical AgentConfiguration + Model Router + Vault + Comparator)
+  const [personalityPreset, setPersonalityPreset] = useState<string>("consultivo_amigavel");
   const [selectedObjective, setSelectedObjective] = useState<string>("fechamento");
   const [selectedTone, setSelectedTone] = useState<string>("friendly");
   const [responseStyle, setResponseStyle] = useState<string>("short_natural");
-  const [temperature, setTemperature] = useState<number>(0.3);
+  const [temperature, setTemperature] = useState<number>(0.35);
+  const [maxTokens, setMaxTokens] = useState<number>(480);
+  const [routingMode, setRoutingMode] = useState<string>("AUTO");
+  const [sharedCompanyScopes, setSharedCompanyScopes] = useState<string[]>([
+    "commercial_rules",
+    "products",
+    "pricing_conditions",
+  ]);
   const [agentPrompt, setAgentPrompt] = useState<string>("Atenda com clareza e acolhimento. Use apenas fatos comerciais confirmados no perfil da loja; quando faltar informação, peça confirmação ou encaminhe para uma pessoa.");
   const [promptTemplates, setPromptTemplates] = useState<any[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("vps_engine");
   const [selectedModel, setSelectedModel] = useState<string>("qwen2.5:3b");
+  const [credentialScope, setCredentialScope] = useState<"company" | "agent">("company");
   const [apiKey, setApiKey] = useState<string>("");
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
   const [isSavingAgent, setIsSavingAgent] = useState<boolean>(false);
+  const [isSavingCredential, setIsSavingCredential] = useState<boolean>(false);
   const [isTestingConnection, setIsTestingConnection] = useState<boolean>(false);
   const [connectionTestResult, setConnectionTestResult] = useState<any>(null);
+  const [providerCatalog, setProviderCatalog] = useState<any[]>([]);
+  const [savedCredentials, setSavedCredentials] = useState<any[]>([]);
+  const [behaviorPersonalities, setBehaviorPersonalities] = useState<any[]>([...DEFAULT_PERSONALITY_CATALOG]);
+  const [agentVersions, setAgentVersions] = useState<any[]>([]);
+  const [isRollingBackVersion, setIsRollingBackVersion] = useState<string | number | null>(null);
+  const [sandboxMode, setSandboxMode] = useState<"chat" | "compare">("chat");
+  const [comparePrompt, setComparePrompt] = useState<string>("Quanto custa o produto e como posso pagar?");
+  const [compareResults, setCompareResults] = useState<any[]>([]);
+  const [isComparingVariants, setIsComparingVariants] = useState<boolean>(false);
+
+  const loadEnterpriseAgentMetadata = useCallback(async (agentKey?: string) => {
+    try {
+      const jobs: Promise<void>[] = [];
+      if (typeof apiService.getAgentBehaviorCatalog === "function") {
+        jobs.push(
+          apiService.getAgentBehaviorCatalog().then((res) => {
+            if (Array.isArray(res?.personalities) && res.personalities.length > 0) {
+              setBehaviorPersonalities(res.personalities);
+            }
+          }).catch(() => {})
+        );
+      }
+      if (typeof apiService.getAvailableAIProviders === "function") {
+        jobs.push(
+          apiService.getAvailableAIProviders(agentKey).then((res) => {
+            if (Array.isArray(res?.providers)) setProviderCatalog(res.providers);
+          }).catch(() => {})
+        );
+      }
+      if (typeof apiService.getAICredentials === "function") {
+        jobs.push(
+          apiService.getAICredentials(false).then((res) => {
+            if (Array.isArray(res?.credentials)) setSavedCredentials(res.credentials);
+          }).catch(() => {})
+        );
+      }
+      if (agentKey && typeof apiService.getAgentVersions === "function") {
+        jobs.push(
+          apiService.getAgentVersions(agentKey, 12).then((res) => {
+            if (Array.isArray(res?.versions)) setAgentVersions(res.versions);
+          }).catch(() => setAgentVersions([]))
+        );
+      }
+      await Promise.all(jobs);
+    } catch (_) {}
+  }, []);
 
   useEffect(() => {
     apiService.getPromptTemplates().then((result) => {
@@ -1025,20 +1197,103 @@ export default function AttendantsPage() {
     }).catch(() => setPromptTemplates([]));
   }, []);
 
-  // Sync state when previewAgent changes
+  // Sync state & enterprise catalogs when previewAgent changes
   useEffect(() => {
     if (previewAgent) {
-      if (previewAgent.objective) setSelectedObjective(previewAgent.objective);
-      if (previewAgent.tone) setSelectedTone(previewAgent.tone);
-      if (previewAgent.responseStyle) setResponseStyle(previewAgent.responseStyle);
+      setPersonalityPreset(previewAgent.personalityPreset || previewAgent.behaviorPreset || "consultivo_amigavel");
+      setSelectedObjective(previewAgent.objective || "fechamento");
+      setSelectedTone(previewAgent.tone || "friendly");
+      setResponseStyle(previewAgent.responseStyle || "short_natural");
       if (typeof previewAgent.temperature === "number") setTemperature(previewAgent.temperature);
+      if (typeof previewAgent.maxTokens === "number") setMaxTokens(previewAgent.maxTokens);
+      setRoutingMode(previewAgent.routingMode || "AUTO");
+      setSharedCompanyScopes(
+        Array.isArray(previewAgent.knowledgeConfiguration?.sharedCompanyScopes)
+          ? previewAgent.knowledgeConfiguration.sharedCompanyScopes
+          : ["commercial_rules", "products", "pricing_conditions"]
+      );
       if (previewAgent.personality || previewAgent.prompt) {
         setAgentPrompt(previewAgent.personality || previewAgent.prompt);
       }
-      setSelectedProvider(previewAgent.provider || "vps_engine");
-      setSelectedModel((previewAgent.model && previewAgent.model !== "qwen2.5:0.5b" && previewAgent.model !== "laya-system1") ? previewAgent.model : "qwen2.5:3b");
+      const normalizedProv = normalizeRouterProviderId(previewAgent.providerId || previewAgent.provider);
+      setSelectedProvider(normalizedProv === "zai" ? "vps_engine" : normalizedProv);
+      const rawModel = previewAgent.modelId || previewAgent.model;
+      setSelectedModel(rawModel && rawModel !== "qwen2.5:0.5b" && rawModel !== "laya-system1" ? rawModel : "qwen2.5:3b");
+      setCompareResults([]);
+      if (!previewAgent.isExample) {
+        void loadEnterpriseAgentMetadata(previewAgent.key);
+      } else {
+        setAgentVersions([]);
+      }
     }
-  }, [previewAgent?.key]);
+  }, [previewAgent?.key, previewAgent?.isExample, loadEnterpriseAgentMetadata]);
+
+  const handleSaveCredentialOnly = async () => {
+    if (!apiKey.trim()) {
+      notify.info("Informe a chave de API que deseja criptografar no cofre.");
+      return;
+    }
+    const routerProv = normalizeRouterProviderId(selectedProvider);
+    if (routerProv === "zai" || routerProv === "ollama") {
+      notify.info("Provedor ZAI / Ollama funciona sem chave de API.");
+      return;
+    }
+    setIsSavingCredential(true);
+    try {
+      if (typeof apiService.saveAICredential === "function") {
+        const res = await apiService.saveAICredential({
+          scope: credentialScope,
+          agentKey: credentialScope === "agent" ? previewAgent?.key : undefined,
+          providerId: routerProv,
+          apiKey: apiKey.trim(),
+          defaultModel: selectedModel,
+          enabled: true,
+        });
+        if (res?.success === false) throw new Error("Falha ao criptografar chave no cofre.");
+      } else {
+        await apiService.saveUserProvider({
+          provider: selectedProvider,
+          api_key: apiKey.trim(),
+          model: selectedModel,
+          enabled: true,
+        });
+      }
+      setApiKey("");
+      notify.success(`Chave criptografada no escopo ${credentialScope === "agent" ? `Atendente (${previewAgent?.name})` : "Empresa"} com sucesso!`);
+      await loadEnterpriseAgentMetadata(previewAgent?.key);
+    } catch (err: any) {
+      notify.error(err?.message || "Erro ao salvar chave de API.");
+    } finally {
+      setIsSavingCredential(false);
+    }
+  };
+
+  const handleRevokeSavedCredential = async (credId: number | string) => {
+    if (typeof apiService.revokeAICredential !== "function") return;
+    try {
+      await apiService.revokeAICredential(credId);
+      notify.success("Credencial revogada com segurança.");
+      await loadEnterpriseAgentMetadata(previewAgent?.key);
+    } catch (err: any) {
+      notify.error(err?.message || "Erro ao revogar credencial.");
+    }
+  };
+
+  const handleRollbackVersion = async (versionId: number | string) => {
+    if (!previewAgent?.key || typeof apiService.rollbackAgentVersion !== "function") return;
+    setIsRollingBackVersion(versionId);
+    try {
+      const res = await apiService.rollbackAgentVersion(previewAgent.key, versionId);
+      if (res?.success === false) throw new Error(res?.message || "Falha ao restaurar versão.");
+      notify.success("Versão anterior restaurada! Cache de IA invalidado.");
+      await fetchData();
+      await loadEnterpriseAgentMetadata(previewAgent.key);
+    } catch (err: any) {
+      notify.error(err?.message || "Não foi possível restaurar esta versão.");
+    } finally {
+      setIsRollingBackVersion(null);
+    }
+  };
 
   const handleSaveAgentConfig = async () => {
     if (!previewAgent) return;
@@ -1049,32 +1304,56 @@ export default function AttendantsPage() {
     }
     setIsSavingAgent(true);
     try {
+      const routerProvider = normalizeRouterProviderId(selectedProvider);
       const payload: any = {
+        personalityPreset,
         objective: selectedObjective,
         tone: selectedTone,
         responseStyle,
         temperature,
+        maxTokens,
+        routingMode,
         personality: agentPrompt,
         prompt: agentPrompt,
-        provider: selectedProvider,
+        provider: routerProvider,
+        providerId: routerProvider,
         model: selectedModel,
+        modelId: selectedModel,
+        whatsappConnectionId: previewAgent.sessionIds?.[0] || null,
+        knowledgeConfiguration: {
+          inheritStoreKnowledge: previewAgent.inheritStoreProfile !== false,
+          sharedCompanyScopes,
+        },
       };
       const result = await apiService.updateAIAgent(previewAgent.key, payload);
       if (result.success === false) throw new Error("Não foi possível salvar as configurações do atendente.");
 
       if (apiKey.trim()) {
-        const provRes = await apiService.saveUserProvider({
-          provider: selectedProvider,
-          api_key: apiKey.trim(),
-          model: selectedModel,
-          enabled: true,
-        });
-        if (provRes.success === false) throw new Error("A chave do provedor não pôde ser salva.");
+        if (typeof apiService.saveAICredential === "function") {
+          const credRes = await apiService.saveAICredential({
+            scope: credentialScope,
+            agentKey: credentialScope === "agent" ? previewAgent.key : undefined,
+            providerId: routerProvider,
+            apiKey: apiKey.trim(),
+            defaultModel: selectedModel,
+            enabled: true,
+          });
+          if (credRes?.success === false) throw new Error("A chave do provedor não pôde ser salva.");
+        } else {
+          const provRes = await apiService.saveUserProvider({
+            provider: selectedProvider,
+            api_key: apiKey.trim(),
+            model: selectedModel,
+            enabled: true,
+          });
+          if (provRes.success === false) throw new Error("A chave do provedor não pôde ser salva.");
+        }
         setApiKey("");
       }
 
-      notify.success(`Configurações de ${previewAgent.name} salvas com sucesso!`);
+      notify.success(`Configurações de ${previewAgent.name} salvas e versão registrada!`);
       await fetchData();
+      await loadEnterpriseAgentMetadata(previewAgent.key);
     } catch (err: any) {
       notify.error(err?.message || "Erro ao salvar configurações do atendente.");
     } finally {
@@ -1089,7 +1368,7 @@ export default function AttendantsPage() {
     }
     setIsTestingConnection(true);
     setConnectionTestResult(null);
-    const testQuery = "Olá! Gostaria de saber quais produtos, serviços e promoções você tem disponíveis e como pode me ajudar.";
+    const testQuery = "Olá! Gostaria de saber quais produtos, serviços e condições estão disponíveis hoje e como você pode me ajudar.";
     try {
       const userMsg: SandboxChatMessage = {
         id: generateUuid(),
@@ -1109,13 +1388,27 @@ export default function AttendantsPage() {
           ...previewAgent,
           personality: agentPrompt || previewAgent.personality,
           prompt: agentPrompt || previewAgent.prompt,
+          personalityPreset,
+          objective: selectedObjective,
+          tone: selectedTone,
           responseStyle,
           temperature,
+          maxTokens,
+          routingMode,
+          knowledgeConfiguration: {
+            inheritStoreKnowledge: previewAgent.inheritStoreProfile !== false,
+            sharedCompanyScopes,
+          },
         } : undefined,
+        personalityPreset,
+        objective: selectedObjective,
+        tone: selectedTone,
         responseStyle,
         temperature,
+        maxTokens,
+        routingMode,
         model: selectedModel,
-        providerId: selectedProvider,
+        providerId: normalizeRouterProviderId(selectedProvider),
       });
       const res = response.result;
       if (!res) throw new Error(response.error || "O teste não retornou dados.");
@@ -1137,8 +1430,10 @@ export default function AttendantsPage() {
             metrics: {
               responseTimeMs: res.responseTimeMs || 0,
               tokens: res.totalTokens || 0,
-              provider: currentProviderDef.name || selectedProvider,
+              provider: res.provider || currentProviderDef.name || selectedProvider,
               model: res.model || selectedModel,
+              effectiveConfig: res.effectiveConfig,
+              parameterWarnings: res.parameterWarnings,
               xpEarned: (res as any)?.xpEarned,
             },
           };
@@ -1155,16 +1450,80 @@ export default function AttendantsPage() {
     }
   };
 
+  const handleRunMultiPersonalityCompare = async () => {
+    if (!previewAgent || isComparingVariants || typeof apiService.compareAgentBehaviors !== "function") return;
+    const msg = comparePrompt.trim() || "Quanto custa o produto e como posso pagar?";
+    setIsComparingVariants(true);
+    setCompareResults([]);
+    try {
+      const routerProv = normalizeRouterProviderId(selectedProvider);
+      const variants = behaviorPersonalities.slice(0, 4).map((p: any) => ({
+        label: p.label,
+        personalityPreset: p.id,
+        objective: selectedObjective,
+        tone: p.recommendedTone,
+        responseStyle: p.recommendedResponseStyle || responseStyle,
+        temperature: typeof p.recommendedTemperature === "number" ? p.recommendedTemperature : temperature,
+        maxTokens,
+        routingMode,
+        providerId: routerProv,
+        modelId: routingMode === "SPECIFIC" ? selectedModel : "auto",
+      }));
+      for (const singleVariant of variants) {
+        try {
+          const res = await apiService.compareAgentBehaviors({
+            message: msg,
+            agentKey: previewAgent.key,
+            sessionId: previewAgent.sessionIds?.[0],
+            variants: [singleVariant],
+          });
+          if (res?.success === false) {
+            throw new Error("Falha ao comparar personalidades.");
+          }
+          const item = Array.isArray(res?.variants) ? res.variants[0] : null;
+          if (item) {
+            setCompareResults((prev) => [...prev, item]);
+          }
+        } catch (variantErr: any) {
+          setCompareResults((prev) => [
+            ...prev,
+            {
+              label: singleVariant.label,
+              personalityPreset: singleVariant.personalityPreset,
+              ok: false,
+              error: variantErr?.message || "Tempo esgotado ao gerar variante.",
+            },
+          ]);
+        }
+      }
+      await fetchZaiUsage();
+    } catch (err: any) {
+      notify.error(err?.message || "Não foi possível executar o comparador.");
+    } finally {
+      setIsComparingVariants(false);
+    }
+  };
+
   const currentObjectiveDef = resolveObjectiveDef(selectedObjective);
   const currentToneDef = TONE_OPTIONS.find((t) => t.id === selectedTone) || TONE_OPTIONS[0];
   const currentProviderDef = getProviderDef(selectedProvider);
+  const activeCatalogProvider = useMemo(() => {
+    const targetId = normalizeRouterProviderId(selectedProvider);
+    return providerCatalog.find((p) => p.id === targetId) || null;
+  }, [providerCatalog, selectedProvider]);
+  const activeCatalogModelMeta = useMemo(() => {
+    return activeCatalogProvider?.models?.find((m: any) => m.id === selectedModel) || null;
+  }, [activeCatalogProvider, selectedModel]);
 
   const availableModels = useMemo(() => {
     if (!isAdmin) {
       return ["auto"];
     }
-    return currentProviderDef.models;
-  }, [isAdmin, currentProviderDef]);
+    const catalogIds = Array.isArray(activeCatalogProvider?.models)
+      ? activeCatalogProvider.models.map((m: any) => m.id).filter(Boolean)
+      : [];
+    return Array.from(new Set([...catalogIds, ...currentProviderDef.models]));
+  }, [isAdmin, activeCatalogProvider, currentProviderDef]);
 
   const handleSaveAll = async () => {
     await handleSaveAgentConfig();
@@ -1203,12 +1562,15 @@ export default function AttendantsPage() {
     const responsible = agents.filter(agent => agent.sessionIds?.includes(sessionId));
     return responsible.length > 1 ? [{ sessionId, session, responsible }] : [];
   }), [sessions, agents]);
+  const prevSelectedWhatsAppRef = useRef(selectedWhatsApp);
   useEffect(() => {
-    if (selectedWhatsApp) {
+    const whatsappChanged = prevSelectedWhatsAppRef.current !== selectedWhatsApp;
+    prevSelectedWhatsAppRef.current = selectedWhatsApp;
+    if (selectedWhatsApp && (whatsappChanged || !previewAgent)) {
       const responsible = agents.filter(agent => agent.sessionIds?.includes(selectedWhatsApp));
       setPreviewAgent(responsible.length === 1 ? responsible[0] : null);
     }
-  }, [selectedWhatsApp, agents]);
+  }, [selectedWhatsApp, agents, previewAgent]);
   const switchAttendant = async (agentKey: string) => {
     if (!selectedWhatsApp || !agentKey || switchingAttendant) return;
     setSwitchingAttendant(true);
@@ -1345,13 +1707,27 @@ export default function AttendantsPage() {
           ...previewAgent,
           personality: agentPrompt || previewAgent.personality,
           prompt: agentPrompt || previewAgent.prompt,
+          personalityPreset,
+          objective: selectedObjective,
+          tone: selectedTone,
           responseStyle,
           temperature,
+          maxTokens,
+          routingMode,
+          knowledgeConfiguration: {
+            inheritStoreKnowledge: previewAgent.inheritStoreProfile !== false,
+            sharedCompanyScopes,
+          },
         } : undefined,
+        personalityPreset,
+        objective: selectedObjective,
+        tone: selectedTone,
         responseStyle,
         temperature,
+        maxTokens,
+        routingMode,
         sessionId: previewAgent?.sessionIds?.[0],
-        providerId: selectedProvider,
+        providerId: normalizeRouterProviderId(selectedProvider),
         model: selectedModel,
         history: historyPayload,
       });
@@ -1389,6 +1765,8 @@ export default function AttendantsPage() {
           provider: isFast ? "Rota Rápida VPS" : (getProviderDef(selectedProvider)?.name || selectedProvider),
           model: response.result?.model || selectedModel,
           isFastPath: isFast,
+          effectiveConfig: response.result?.effectiveConfig,
+          parameterWarnings: response.result?.parameterWarnings,
           xpEarned: (response.result as any)?.xpEarned,
         },
       };
@@ -1425,10 +1803,12 @@ export default function AttendantsPage() {
   };
 
   const STEPS = [
-    { step: 1, title: "Avatar Studio", desc: "Aparência do atendente", icon: TShirt },
-    { step: 2, title: "Objetivo & Tom", desc: "Conversão e linguagem", icon: Target },
-    { step: 3, title: "Provedores & Modelos", desc: "Motor e chaves de API", icon: Cpu },
-    { step: 4, title: "Treinamento & Sandbox", desc: "Instruções e teste ao vivo", icon: ChatCircleText },
+    { step: 1, title: "Identidade & Avatar", desc: "Personagem 3D modular", icon: TShirt },
+    { step: 2, title: "Objetivo & Comportamento", desc: "Personalidade e versão", icon: Target },
+    { step: 3, title: "Provedor & Modelo", desc: "Roteador e cofre API", icon: Cpu },
+    { step: 4, title: "Conhecimento", desc: "Diretrizes e absorção", icon: Brain },
+    { step: 5, title: "Testes", desc: "Chat e comparador 4x", icon: ChatCircleText },
+    { step: 6, title: "Memória & Evolução", desc: "Cérebro e métricas", icon: Sparkle },
   ];
 
   /* -------------------------------------------------------------
@@ -1506,23 +1886,11 @@ export default function AttendantsPage() {
                     type="button"
                     data-studio-gender="female"
                     onClick={() => {
-                      const updated = {
-                        ...resolvedInlineAvatar,
-                        body: "female" as const,
-                        base: "female" as const,
-                        hair: "hair_01",
-                        face: "face_01",
-                        catalogSpriteId: undefined,
-                      };
-                      handleUpdateAvatar({
-                        body: "female",
-                        base: "female",
-                        hair: "hair_01",
-                        face: "face_01",
-                        hairColor: resolveHairColorForHair("hair_01", resolvedInlineAvatar.hairColor, true),
-                        baseSpriteId: resolveBaseSpriteForAvatar(updated),
-                        catalogSpriteId: resolveBaseSpriteForAvatar(updated),
-                      });
+                      handleUpdateSlot("gender", "female");
+                      const currentHairDef = AVATAR_HAIRS.find((h) => h.id === resolvedInlineAvatar.hair);
+                      if (currentHairDef && currentHairDef.gender === "male") {
+                        handleUpdateSlot("hair_slot", "hair_01");
+                      }
                     }}
                     className={cn(
                       "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
@@ -1538,23 +1906,11 @@ export default function AttendantsPage() {
                     type="button"
                     data-studio-gender="male"
                     onClick={() => {
-                      const updated = {
-                        ...resolvedInlineAvatar,
-                        body: "male" as const,
-                        base: "male" as const,
-                        hair: "hair_05",
-                        face: "face_01",
-                        catalogSpriteId: undefined,
-                      };
-                      handleUpdateAvatar({
-                        body: "male",
-                        base: "male",
-                        hair: "hair_05",
-                        face: "face_01",
-                        hairColor: resolveHairColorForHair("hair_05", resolvedInlineAvatar.hairColor, false),
-                        baseSpriteId: resolveBaseSpriteForAvatar(updated),
-                        catalogSpriteId: resolveBaseSpriteForAvatar(updated),
-                      });
+                      handleUpdateSlot("gender", "male");
+                      const currentHairDef = AVATAR_HAIRS.find((h) => h.id === resolvedInlineAvatar.hair);
+                      if (currentHairDef && currentHairDef.gender === "female") {
+                        handleUpdateSlot("hair_slot", "hair_05");
+                      }
                     }}
                     className={cn(
                       "px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all cursor-pointer",
@@ -1570,17 +1926,76 @@ export default function AttendantsPage() {
               </div>
             </div>
 
+            {/* Camera Quick Presets & 360 Angle Shortcuts (Bottom-Right inside stage) */}
+            <div className="pointer-events-auto absolute bottom-2.5 right-2.5 z-20 flex items-center gap-1 flex-wrap justify-end">
+              <div className="flex items-center gap-0.5 rounded-full bg-black/75 border border-border/70 p-0.5 backdrop-blur-xs">
+                {([
+                  { deg: 0, label: "Frente" },
+                  { deg: 90, label: "Perfil" },
+                  { deg: 180, label: "Costas" },
+                ] as const).map((ang) => (
+                  <button
+                    key={ang.deg}
+                    type="button"
+                    data-studio-angle={ang.deg}
+                    onClick={() => {
+                      setStudioRotationY(ang.deg);
+                      if (studioMovement3D === "spin360") setStudioMovement3D("idle");
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[9px] font-mono transition-colors cursor-pointer",
+                      studioRotationY === ang.deg && studioMovement3D !== "spin360"
+                        ? "bg-cyan-500/25 text-cyan-300"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {ang.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-0.5 rounded-full bg-black/75 border border-border/70 p-0.5 backdrop-blur-xs">
+                {([
+                  { id: "full", label: "Corpo" },
+                  { id: "portrait", label: "Retrato" },
+                  { id: "reset", label: "Resetar" },
+                ] as const).map((cam) => (
+                  <button
+                    key={cam.id}
+                    type="button"
+                    data-camera-preset={cam.id}
+                    onClick={() => {
+                      if (cam.id === "reset") {
+                        setStudioCameraPreset("reset");
+                        setStudioRotationY(0);
+                        avatar3dRef.current?.resetCamera();
+                      } else {
+                        setStudioCameraPreset(cam.id);
+                      }
+                    }}
+                    className={cn(
+                      "px-2 py-0.5 rounded-full text-[9px] font-mono transition-colors cursor-pointer",
+                      studioCameraPreset === cam.id
+                        ? "bg-emerald-500/25 text-emerald-300"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {cam.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Centered Live Modular 3D/2.5D Character on Turntable / Workstation Scenario */}
             <div
               className={cn(
                 "relative w-full h-[270px] sm:h-[300px] flex items-center justify-center my-auto select-none transition-colors",
                 isStudioDragging ? "cursor-grabbing" : "cursor-grab"
               )}
-              onMouseDown={handleInlineStageMouseDown}
-              onTouchStart={handleInlineStageTouchStart}
-              title="Clique e arraste para girar em 360°"
+              onMouseDown={!supportsWebGL() ? handleInlineStageMouseDown : undefined}
+              onTouchStart={!supportsWebGL() ? handleInlineStageTouchStart : undefined}
+              title="Arraste para orbitar 360° e role o mouse para zoom"
             >
-              {/* Tripo3D Orbit Degree Indicator kept for tests/accessibility */}
+              {/* Orbit Degree Indicator kept for tests/accessibility */}
               <div className="sr-only">
                 <span>360° Orbit · {studioRotationY}°</span>
               </div>
@@ -1593,7 +2008,7 @@ export default function AttendantsPage() {
                 </div>
               )}
 
-              {/* Semantic sprite img kept in DOM for legacy test selectors */}
+              {/* Semantic sprite marker kept in DOM for test selectors */}
               <img
                 src={`/assets/avatar_factory/catalog/${inlineSpriteId}_clean.png`}
                 alt={previewAgent.name || "Avatar do atendente"}
@@ -1603,18 +2018,26 @@ export default function AttendantsPage() {
                 aria-hidden="true"
               />
               {(() => {
-                const studioAvatar = { ...resolvedInlineAvatar, body: inlineGender, base: inlineGender, rotationY: studioRotationY, movement3D: studioMovement3D };
+                const studioAvatar = {
+                  ...resolvedInlineAvatar,
+                  body: inlineGender,
+                  base: inlineGender,
+                  poseId: studioPoseId,
+                  rotationY: studioRotationY,
+                  movement3D: studioMovement3D,
+                };
+                const effectiveOpState =
+                  studioOperationalState ||
+                  (isAgentActive && studioMovement3D === "idle" && !isStudioDragging
+                    ? (previewPresence?.state as string) === "TYPING" || (previewPresence?.state as string) === "TALKING"
+                      ? previewPresence.state
+                      : "WORKING"
+                    : "WAITING");
                 const flatAvatar = (
                   <ZaiAvatarRenderer
                     avatar={studioAvatar}
-                    renderStyle={resolvedInlineAvatar.renderStyle || "chibi_25d"}
-                    state={
-                      isAgentActive && studioMovement3D === "idle" && !isStudioDragging
-                        ? (previewPresence?.state as string) === "TYPING" || (previewPresence?.state as string) === "TALKING"
-                          ? previewPresence.state
-                          : "WORKING"
-                        : "WAITING"
-                    }
+                    renderStyle={resolvedInlineAvatar.renderStyle || "3d_enterprise"}
+                    state={effectiveOpState as any}
                     size="workspace"
                     rotationY={studioRotationY}
                     movement3D={studioMovement3D}
@@ -1624,7 +2047,23 @@ export default function AttendantsPage() {
                 if (!supportsWebGL()) return flatAvatar;
                 return (
                   <React.Suspense fallback={flatAvatar}>
-                    <ZaiAvatar3D avatar={studioAvatar} rotationY={studioRotationY} movement3D={studioMovement3D} controlled fallback={flatAvatar} className="absolute inset-0" />
+                    <ZaiAvatar3D
+                      avatar={studioAvatar}
+                      rotationY={studioRotationY}
+                      movement3D={studioMovement3D}
+                      operationalState={effectiveOpState}
+                      poseId={studioPoseId}
+                      spinContinuous={studioMovement3D === "spin360"}
+                      spinSpeed={studioSpinSpeed * 0.95}
+                      spinPaused={isStudioDragging || studioSpinPaused}
+                      enableCameraControls
+                      cameraPreset={studioCameraPreset}
+                      onReady={(handle) => {
+                        avatar3dRef.current = handle;
+                      }}
+                      fallback={flatAvatar}
+                      className="absolute inset-0"
+                    />
                   </React.Suspense>
                 );
               })()}
@@ -1646,8 +2085,10 @@ export default function AttendantsPage() {
                 data-avatar-3d-movement={mv.id}
                 onClick={() => {
                   const nextMovement = studioMovement3D === mv.id ? "idle" : mv.id;
-                  const nextRot = mv.id !== "spin360" && nextMovement !== "idle" && studioRotationY === 0 ? 45 : studioRotationY;
+                  const nextRot = mv.id !== "spin360" && nextMovement !== "idle" && studioRotationY === 0 ? 15 : studioRotationY;
+                  setStudioOperationalState(null);
                   setStudioMovement3D(nextMovement);
+                  if (nextMovement === "spin360") setStudioSpinPaused(false);
                   setStudioRotationY(nextRot);
                   handleUpdateAvatar({ rotationY: nextRot, movement3D: nextMovement });
                 }}
@@ -1659,6 +2100,99 @@ export default function AttendantsPage() {
                 )}
               >
                 {mv.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Giro Contínuo speed & pause/resume controls (does not affect camera) */}
+          {studioMovement3D === "spin360" && (
+            <div className="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-muted/15 border border-emerald-500/30">
+              <button
+                type="button"
+                data-spin-pause-toggle="1"
+                onClick={() => setStudioSpinPaused((prev) => !prev)}
+                className={cn(
+                  "px-2.5 py-0.5 rounded-lg border text-[10px] font-mono cursor-pointer transition-colors",
+                  studioSpinPaused
+                    ? "bg-amber-500/20 border-amber-500/50 text-amber-300 font-semibold"
+                    : "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-semibold"
+                )}
+              >
+                {studioSpinPaused ? "▶ Retomar" : "⏸ Pausar"}
+              </button>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-mono text-muted-foreground mr-1">Velocidade:</span>
+                {([0.5, 1, 2] as const).map((spd) => (
+                  <button
+                    key={spd}
+                    type="button"
+                    data-spin-speed={spd}
+                    onClick={() => setStudioSpinSpeed(spd)}
+                    className={cn(
+                      "px-2 py-0.5 rounded-lg border text-[10px] font-mono cursor-pointer transition-colors",
+                      studioSpinSpeed === spd
+                        ? "bg-emerald-500/25 border-emerald-500/50 text-emerald-300 font-bold"
+                        : "bg-card/70 border-border/60 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {spd}x
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pose sub-selector when Posar 3D is active */}
+          {studioMovement3D === "pose" && (
+            <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-xl bg-muted/15 border border-border/50">
+              {POSE_OPTIONS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setStudioPoseId(p.id);
+                    handleUpdateAvatar({ poseId: p.id, movement3D: "pose" });
+                  }}
+                  className={cn(
+                    "px-2 py-0.5 rounded-lg border text-[10px] font-medium cursor-pointer transition-colors",
+                    studioPoseId === p.id
+                      ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                      : "bg-card/60 border-border/60 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Operational State Preview Chips */}
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-[10px] text-muted-foreground mr-1 font-mono">Estado IA:</span>
+            {([
+              { id: null, label: "Auto" },
+              { id: "THINKING", label: "Pensando" },
+              { id: "TYPING", label: "Digitando" },
+              { id: "TALKING", label: "Atendendo" },
+              { id: "SUCCESS", label: "Celebrando" },
+              { id: "ERROR", label: "Alerta" },
+              { id: "OFFLINE", label: "Offline" },
+            ] as const).map((st) => (
+              <button
+                key={String(st.id || "auto")}
+                type="button"
+                onClick={() => {
+                  setStudioOperationalState(st.id);
+                  if (st.id) setStudioMovement3D("idle");
+                }}
+                className={cn(
+                  "px-2 py-0.5 rounded-md border text-[9px] font-mono cursor-pointer transition-colors",
+                  studioOperationalState === st.id
+                    ? "border-emerald-500/60 bg-emerald-500/20 text-emerald-300"
+                    : "border-border/50 bg-background/50 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {st.label}
               </button>
             ))}
           </div>
@@ -1700,14 +2234,16 @@ export default function AttendantsPage() {
           </div>
         </div>
 
-        {/* Right: 5 Categories Selector + Items Grid (Col 7) */}
+        {/* Right: Modular Slot Categories + Isolated Grids (Col 7) */}
         <div className="lg:col-span-7 space-y-3">
-          {/* 5 Category Selector Buttons (Cabelo, Rosto, Roupa, Acessórios, Estilo) */}
-          <div className="grid grid-cols-5 gap-1.5 p-1 rounded-xl bg-muted/20 border border-border/60">
+          {/* Modular Slot Category Selector (Cabelo, Rosto, Superior, Inferior, Calçados, Acessórios, Uniforme & Estilo) */}
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 p-1 rounded-xl bg-muted/20 border border-border/60">
             {[
               { id: "hair" as const, label: "Cabelo", icon: Scissors },
               { id: "face" as const, label: "Rosto", icon: Smiley },
-              { id: "outfit" as const, label: "Roupa", icon: TShirt },
+              { id: "outfit" as const, label: "Superior", icon: Shirt },
+              { id: "lower" as const, label: "Inferior", icon: TShirt },
+              { id: "footwear" as const, label: "Calçados", icon: Footprints },
               { id: "accessories" as const, label: "Acessórios", icon: Eyeglasses },
               { id: "style" as const, label: "Estilo", icon: Sparkle },
             ].map((cat) => {
@@ -1717,27 +2253,70 @@ export default function AttendantsPage() {
                 <button
                   key={cat.id}
                   type="button"
+                  data-studio-category={cat.id}
                   onClick={() => setStudioCategory(cat.id)}
                   className={cn(
-                    "py-2 px-1 rounded-lg text-xs font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 cursor-pointer",
+                    "py-2 px-1 rounded-lg text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-1 cursor-pointer",
                     isSelected
                       ? "bg-card text-emerald-400 border border-emerald-500/50 shadow-xs"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" />
-                  <span className="text-[10px] sm:text-xs">{cat.label}</span>
+                  <span className="truncate max-w-full">{cat.label}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Interactive Items Selection Grid */}
-          <div className="rounded-xl border border-border/60 bg-card/60 p-3 max-h-[280px] overflow-y-auto scrollbar-zai">
+          {/* Morph & Palette Quick Strip (Pele & Cor do Cabelo sempre independentes) */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-2.5 py-2 rounded-xl border border-border/50 bg-muted/10">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] font-mono text-muted-foreground">Pele:</span>
+              {SKIN_TONES.map((sk) => (
+                <button
+                  key={sk.id}
+                  type="button"
+                  data-skin-tone={sk.id}
+                  onClick={() => handleUpdateSlot("skinTone", sk.id)}
+                  className={cn(
+                    "h-4 w-4 rounded-full border transition-transform cursor-pointer",
+                    resolvedInlineAvatar.skin === sk.id
+                      ? "border-emerald-400 ring-2 ring-emerald-500/50 scale-110"
+                      : "border-white/20 hover:scale-105"
+                  )}
+                  style={{ backgroundColor: sk.hex }}
+                  title={sk.name}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] font-mono text-muted-foreground">Cor cabelo:</span>
+              {HAIR_COLORS.slice(0, 7).map((hc) => (
+                <button
+                  key={hc.id}
+                  type="button"
+                  data-hair-color={hc.id}
+                  onClick={() => handleUpdateSlot("hairColor", hc.id)}
+                  className={cn(
+                    "h-4 w-4 rounded-full border transition-transform cursor-pointer",
+                    resolvedInlineAvatar.hairColor === hc.id
+                      ? "border-emerald-400 ring-2 ring-emerald-500/50 scale-110"
+                      : "border-white/20 hover:scale-105"
+                  )}
+                  style={{ backgroundColor: hc.hex }}
+                  title={hc.name}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Interactive Isolated Slot Selection Grid */}
+          <div className="rounded-xl border border-border/60 bg-card/60 p-3 max-h-[280px] overflow-y-auto scrollbar-zai space-y-2.5">
             {studioCategory === "hair" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_HAIRS.filter((h) => h.gender === "all" || h.gender === inlineGender).map((h) => {
-                  const currentHair = previewAgent?.avatarConfig?.hair;
+                  const currentHair = resolvedInlineAvatar.hair;
                   const isSelected =
                     currentHair === h.id ||
                     (h.id === "hair_01" && currentHair === "female_ponytail_brunette") ||
@@ -1749,22 +2328,7 @@ export default function AttendantsPage() {
                       key={h.id}
                       type="button"
                       data-avatar-item={h.id}
-                      onClick={() => {
-                        const hairColor = resolveHairColorForHair(h.id, previewAgent?.avatarConfig?.hairColor, inlineGender !== "male");
-                        const nextConfig = {
-                          ...resolvedInlineAvatar,
-                          body: inlineGender,
-                          base: inlineGender,
-                          hair: h.id,
-                          hairColor,
-                        };
-                        handleUpdateAvatar({
-                          body: inlineGender,
-                          base: inlineGender,
-                          hair: h.id,
-                          hairColor,
-                        });
-                      }}
+                      onClick={() => handleUpdateSlot("hair_slot", h.id)}
                       className={cn(
                         "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isSelected
@@ -1776,6 +2340,9 @@ export default function AttendantsPage() {
                         spriteRef={resolvedHairSprite}
                         itemId={h.id}
                         gender={inlineGender}
+                        hairColor={resolvedInlineAvatar.hairColor}
+                        skinTone={resolvedInlineAvatar.skin}
+                        baseAvatar={resolvedInlineAvatar}
                         focus="hair"
                         selected={isSelected}
                         size="sm"
@@ -1791,78 +2358,81 @@ export default function AttendantsPage() {
             )}
 
             {studioCategory === "face" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {AVATAR_FACES.map((f) => {
-                  const isSelected = previewAgent?.avatarConfig?.face === f.id;
-                  const resolvedFaceSprite = resolveItemSpriteForGender(f, inlineGender);
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      data-avatar-item={f.id}
-                      onClick={() => {
-                        const nextConfig = {
-                          ...resolvedInlineAvatar,
-                          body: inlineGender,
-                          base: inlineGender,
-                          face: f.id,
-                        };
-                        handleUpdateAvatar({
-                          body: inlineGender,
-                          base: inlineGender,
-                          face: f.id,
-                        });
-                      }}
-                      className={cn(
-                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
-                        isSelected
-                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
-                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <AvatarItemPreview
-                        spriteRef={inlineSpriteId || resolvedFaceSprite}
-                        itemId={f.id}
-                        gender={inlineGender}
-                        focus="face"
-                        selected={isSelected}
-                        size="sm"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate text-foreground">{f.title}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{f.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {AVATAR_FACES.map((f) => {
+                    const isSelected = resolvedInlineAvatar.face === f.id;
+                    const resolvedFaceSprite = resolveItemSpriteForGender(f, inlineGender);
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        data-avatar-item={f.id}
+                        onClick={() => handleUpdateSlot("face_slot", f.id)}
+                        className={cn(
+                          "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                            : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <AvatarItemPreview
+                          spriteRef={inlineSpriteId || resolvedFaceSprite}
+                          itemId={f.id}
+                          gender={inlineGender}
+                          hairColor={resolvedInlineAvatar.hairColor}
+                          skinTone={resolvedInlineAvatar.skin}
+                          baseAvatar={resolvedInlineAvatar}
+                          focus="face"
+                          selected={isSelected}
+                          size="sm"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold truncate text-foreground">{f.title}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{f.description}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {inlineGender === "male" && (
+                  <div className="pt-2 border-t border-border/40 space-y-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Barba & Bigode (camada independente)
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FACIAL_HAIR_OPTIONS.map((fh) => (
+                        <button
+                          key={fh.id}
+                          type="button"
+                          onClick={() => handleUpdateSlot("facialHair", fh.id)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg border text-[10px] font-medium cursor-pointer transition-colors",
+                            (resolvedInlineAvatar.facialHair || "none") === fh.id
+                              ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                              : "border-border/60 bg-muted/15 text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {fh.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {studioCategory === "outfit" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_OUTFITS.map((o) => {
-                  const isSelected = (previewAgent?.avatarConfig?.outfit || previewAgent?.avatarConfig?.clothing) === o.id;
+                  const isSelected = (resolvedInlineAvatar.outfit || resolvedInlineAvatar.clothing) === o.id || resolvedInlineAvatar.upperBody === o.id;
                   const resolvedOutfitSprite = resolveItemSpriteForGender(o, inlineGender);
                   return (
                     <button
                       key={o.id}
                       type="button"
                       data-avatar-item={o.id}
-                      onClick={() => {
-                        const nextConfig = {
-                          ...resolvedInlineAvatar,
-                          body: inlineGender,
-                          base: inlineGender,
-                          outfit: o.id,
-                          clothing: o.id,
-                        };
-                        handleUpdateAvatar({
-                          body: inlineGender,
-                          base: inlineGender,
-                          outfit: o.id,
-                          clothing: o.id,
-                        });
-                      }}
+                      onClick={() => handleUpdateSlot("upper_body_slot", o.id)}
                       className={cn(
                         "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
                         isSelected
@@ -1874,7 +2444,10 @@ export default function AttendantsPage() {
                         spriteRef={resolvedOutfitSprite}
                         itemId={o.id}
                         gender={inlineGender}
-                        focus="outfit"
+                        hairColor={resolvedInlineAvatar.hairColor}
+                        skinTone={resolvedInlineAvatar.skin}
+                        baseAvatar={resolvedInlineAvatar}
+                        focus="upper_body"
                         selected={isSelected}
                         size="sm"
                       />
@@ -1888,23 +2461,102 @@ export default function AttendantsPage() {
               </div>
             )}
 
+            {studioCategory === "lower" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {SLOT_LOWER_BODY_ITEMS.map((lb) => {
+                  const isSelected = (resolvedInlineAvatar.lowerBody || resolvedInlineAvatar.pants) === lb.id;
+                  return (
+                    <button
+                      key={lb.id}
+                      type="button"
+                      data-avatar-item={lb.id}
+                      onClick={() => handleUpdateSlot("lower_body_slot", lb.id)}
+                      className={cn(
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <AvatarItemPreview
+                        itemId={lb.id}
+                        gender={inlineGender}
+                        hairColor={resolvedInlineAvatar.hairColor}
+                        skinTone={resolvedInlineAvatar.skin}
+                        baseAvatar={resolvedInlineAvatar}
+                        focus="lower_body"
+                        selected={isSelected}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground">{lb.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{lb.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {studioCategory === "footwear" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {SLOT_FOOTWEAR_ITEMS.map((fw) => {
+                  const isSelected = (resolvedInlineAvatar.footwear || resolvedInlineAvatar.shoes) === fw.id;
+                  return (
+                    <button
+                      key={fw.id}
+                      type="button"
+                      data-avatar-item={fw.id}
+                      onClick={() => handleUpdateSlot("footwear_slot", fw.id)}
+                      className={cn(
+                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <AvatarItemPreview
+                        itemId={fw.id}
+                        gender={inlineGender}
+                        hairColor={resolvedInlineAvatar.hairColor}
+                        skinTone={resolvedInlineAvatar.skin}
+                        baseAvatar={resolvedInlineAvatar}
+                        focus="footwear"
+                        selected={isSelected}
+                        size="sm"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground">{fw.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{fw.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {studioCategory === "accessories" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {AVATAR_ACCESSORIES.map((a) => {
-                  const cfg = previewAgent?.avatarConfig;
-                  const isEquipped =
-                    (a.id === "acc_01" && (!cfg?.accessories || Object.values(cfg?.accessories || {}).every((v: any) => v === "none"))) ||
-                    (a.id === "acc_02" && cfg?.headset && cfg.headset !== "none") ||
-                    (a.id === "acc_03" && cfg?.accessories?.badge && cfg.accessories.badge !== "none") ||
-                    (a.id === "acc_04" && cfg?.glasses && cfg.glasses !== "none") ||
-                    (a.id === "acc_05" && cfg?.workObject === "tablet_zai") ||
-                    (a.id === "acc_06" && cfg?.accessories?.watch && cfg.accessories.watch !== "none") ||
-                    (a.id === "acc_07" && cfg?.glasses === "sunglasses_wayfarer") ||
-                    (a.id === "acc_08" && cfg?.workObject === "coffee_cup") ||
-                    (a.id === "acc_09" && cfg?.workObject === "boxes_delivery") ||
-                    (a.id === "acc_10" && cfg?.workObject === "laptop_zai") ||
-                    (a.id === "acc_11" && cfg?.accessories?.backpack === "backpack_tactical_black") ||
-                    (a.id === "acc_12" && cfg?.accessories?.headwear === "hardhat_zai_white");
+                  const cfg: any = resolvedInlineAvatar;
+                  const flags = resolveAccessoryFlags(cfg || {});
+                  const anyEquipped = Object.values(flags).some(Boolean);
+                  const subSlotMap: Record<string, { target: SlotUpdateTarget; value: string; active: boolean }> = {
+                    acc_01: { target: "accessory_slot", value: "acc_01", active: !anyEquipped },
+                    acc_02: { target: "headset", value: "acc_02", active: flags.headset || flags.earbud },
+                    acc_03: { target: "badge", value: "acc_03", active: flags.badge || flags.badgeClip },
+                    acc_04: { target: "eyewear", value: "acc_04", active: flags.glasses },
+                    acc_05: { target: "prop", value: "acc_05", active: flags.tablet },
+                    acc_06: { target: "wrist", value: "acc_06", active: flags.watch },
+                    acc_07: { target: "eyewear", value: "acc_07", active: flags.sunglasses },
+                    acc_08: { target: "prop", value: "acc_08", active: flags.coffee },
+                    acc_09: { target: "prop", value: "acc_09", active: flags.boxes },
+                    acc_10: { target: "prop", value: "acc_10", active: flags.laptop },
+                    acc_11: { target: "back", value: "acc_11", active: flags.backpack },
+                    acc_12: { target: "headwear", value: "acc_12", active: flags.hardhat || flags.cap },
+                  };
+                  const mapping = subSlotMap[a.id];
+                  const isEquipped = Boolean(mapping?.active);
 
                   const focusType =
                     a.id === "acc_01"
@@ -1920,55 +2572,12 @@ export default function AttendantsPage() {
                       type="button"
                       data-avatar-item={a.id}
                       onClick={() => {
-                        const updatedAccessories = { ...(cfg?.accessories || {}) };
-                        let updatedHeadset = cfg?.headset || "none";
-                        let updatedGlasses = cfg?.glasses || "none";
-                        let updatedWorkObject = cfg?.workObject || "none";
-
+                        if (!mapping) return;
                         if (a.id === "acc_01") {
-                          updatedHeadset = "none";
-                          updatedAccessories.headset = "none";
-                          updatedAccessories.badge = "none";
-                          updatedAccessories.watch = "none";
-                          updatedWorkObject = "none";
-                          updatedGlasses = "none";
-                          updatedAccessories.backpack = "none";
-                          updatedAccessories.headwear = "none";
-                        } else if (a.id === "acc_02") {
-                          updatedHeadset = updatedHeadset === "headset_zai_green" ? "none" : "headset_zai_green";
-                          updatedAccessories.headset = updatedHeadset;
-                        } else if (a.id === "acc_03") {
-                          updatedAccessories.badge = updatedAccessories.badge === "badge_zai_lanyard" ? "none" : "badge_zai_lanyard";
-                        } else if (a.id === "acc_04") {
-                          updatedGlasses = updatedGlasses === "glasses_square_exec" ? "none" : "glasses_square_exec";
-                          updatedAccessories.glasses = updatedGlasses;
-                        } else if (a.id === "acc_05") {
-                          updatedWorkObject = updatedWorkObject === "tablet_zai" ? "none" : "tablet_zai";
-                        } else if (a.id === "acc_06") {
-                          updatedAccessories.watch = updatedAccessories.watch === "watch_zai_smart" ? "none" : "watch_zai_smart";
-                        } else if (a.id === "acc_07") {
-                          updatedGlasses = updatedGlasses === "sunglasses_wayfarer" ? "none" : "sunglasses_wayfarer";
-                          updatedAccessories.glasses = updatedGlasses;
-                        } else if (a.id === "acc_08") {
-                          updatedWorkObject = updatedWorkObject === "coffee_cup" ? "none" : "coffee_cup";
-                        } else if (a.id === "acc_09") {
-                          updatedWorkObject = updatedWorkObject === "boxes_delivery" ? "none" : "boxes_delivery";
-                        } else if (a.id === "acc_10") {
-                          updatedWorkObject = updatedWorkObject === "laptop_zai" ? "none" : "laptop_zai";
-                        } else if (a.id === "acc_11") {
-                          updatedAccessories.backpack = updatedAccessories.backpack === "backpack_tactical_black" ? "none" : "backpack_tactical_black";
-                        } else if (a.id === "acc_12") {
-                          updatedAccessories.headwear = updatedAccessories.headwear === "hardhat_zai_white" ? "none" : "hardhat_zai_white";
+                          handleUpdateSlot("accessory_slot", "acc_01");
+                        } else {
+                          handleUpdateSlot(mapping.target, isEquipped ? "none" : mapping.value);
                         }
-
-                        handleUpdateAvatar({
-                          body: inlineGender,
-                          base: inlineGender,
-                          accessories: updatedAccessories,
-                          headset: updatedHeadset,
-                          glasses: updatedGlasses,
-                          workObject: updatedWorkObject,
-                        });
                       }}
                       className={cn(
                         "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
@@ -1981,8 +2590,11 @@ export default function AttendantsPage() {
                         spriteRef={resolvedAccSprite || inlineSpriteId}
                         itemId={a.id}
                         gender={inlineGender}
+                        hairColor={resolvedInlineAvatar.hairColor}
+                        skinTone={resolvedInlineAvatar.skin}
+                        baseAvatar={resolvedInlineAvatar}
                         focus={focusType}
-                        selected={Boolean(isEquipped)}
+                        selected={isEquipped}
                         size="sm"
                       />
                       <div className="min-w-0 flex-1">
@@ -1996,44 +2608,88 @@ export default function AttendantsPage() {
             )}
 
             {studioCategory === "style" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {AVATAR_STYLES.map((st) => {
-                  const isSelected = previewAgent?.avatarConfig?.style === st.id;
-                  const resolvedStyleSprite = resolveItemSpriteForGender(st, inlineGender);
-                  return (
-                    <button
-                      key={st.id}
-                      type="button"
-                      data-avatar-item={st.id}
-                      onClick={() => {
-                        const updated = applyStylePreset(resolvedInlineAvatar, st.id);
-                        handleUpdateAvatar({
-                          ...updated,
-                          style: st.id,
-                        });
-                      }}
-                      className={cn(
-                        "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
-                        isSelected
-                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
-                          : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <AvatarItemPreview
-                        spriteRef={resolvedStyleSprite}
-                        itemId={st.id}
-                        gender={inlineGender}
-                        focus="full"
-                        selected={isSelected}
-                        size="sm"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate text-foreground">{st.title}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{st.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Uniforme & Identidade da Loja (apenas cores/detalhes do crachá)
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {SLOT_UNIFORM_ITEMS.map((u) => {
+                      const isSelected = resolvedInlineAvatar.uniform === u.id;
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          data-avatar-item={u.id}
+                          onClick={() => handleUpdateSlot("uniform_slot", u.id)}
+                          className={cn(
+                            "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
+                            isSelected
+                              ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                              : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <AvatarItemPreview
+                            itemId={u.id}
+                            gender={inlineGender}
+                            hairColor={resolvedInlineAvatar.hairColor}
+                            skinTone={resolvedInlineAvatar.skin}
+                            baseAvatar={resolvedInlineAvatar}
+                            focus="uniform"
+                            selected={isSelected}
+                            size="sm"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold truncate text-foreground">{u.name}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{u.description}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-border/40">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1.5">
+                    Aura & Postura Visual (nunca altera cabelo ou roupa)
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {AVATAR_STYLES.map((st) => {
+                      const isSelected = resolvedInlineAvatar.style === st.id;
+                      const resolvedStyleSprite = resolveItemSpriteForGender(st, inlineGender);
+                      return (
+                        <button
+                          key={st.id}
+                          type="button"
+                          data-avatar-item={st.id}
+                          onClick={() => handleUpdateSlot("style_slot", st.id)}
+                          className={cn(
+                            "p-2 rounded-xl border text-left transition-all flex items-center gap-2.5 cursor-pointer select-none",
+                            isSelected
+                              ? "border-emerald-500 bg-emerald-500/15 text-emerald-300 shadow-xs"
+                              : "border-border/60 bg-muted/15 hover:border-border text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <AvatarItemPreview
+                            spriteRef={resolvedStyleSprite}
+                            itemId={st.id}
+                            gender={inlineGender}
+                            hairColor={resolvedInlineAvatar.hairColor}
+                            skinTone={resolvedInlineAvatar.skin}
+                            baseAvatar={resolvedInlineAvatar}
+                            focus="style"
+                            selected={isSelected}
+                            size="sm"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold truncate text-foreground">{st.title}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{st.description}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -2043,195 +2699,343 @@ export default function AttendantsPage() {
   };
 
   const renderObjectiveToneSection = () => {
+    const activePersonalityDef = behaviorPersonalities.find((p) => p.id === personalityPreset) || behaviorPersonalities[0];
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        {/* Left Column: Objetivo Central de Atendimento */}
-        <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5">
-          <div className="flex items-center justify-between">
+      <div className="space-y-5">
+        {/* Canonical 4 Personalities Row */}
+        <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="space-y-0.5">
               <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Target className="h-4 w-4 text-emerald-400" />
-                <span>Objetivo Central de Atendimento</span>
+                <Sparkles className="h-4 w-4 text-emerald-400" />
+                <span>Personalidade Operacional da IA</span>
               </h4>
               <p className="text-xs text-muted-foreground">
-                Define o foco de conversão e a postura que a IA assumirá em cada conversa.
+                Altera estruturalmente o raciocínio, comprimento e postura compilada no prompt real.
               </p>
             </div>
             <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40 text-[10px]">
-              {currentObjectiveDef.title}
+              {activePersonalityDef?.label || personalityPreset}
             </Badge>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {OBJECTIVES.map((obj) => {
-              const Icon = obj.icon;
-              const isSelected = selectedObjective === obj.id;
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {behaviorPersonalities.map((p) => {
+              const isSelected = personalityPreset === p.id;
               return (
-                <div
-                  key={obj.id}
-                  role="button"
-                  tabIndex={0}
+                <button
+                  key={p.id}
+                  type="button"
+                  data-personality-preset={p.id}
                   onClick={() => {
-                    setSelectedObjective(obj.id);
-                    notify.info(`Objetivo "${obj.title}" selecionado.`);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") setSelectedObjective(obj.id);
+                    setPersonalityPreset(p.id);
+                    if (p.recommendedTone) {
+                      const toneMap: Record<string, string> = {
+                        objetivo: "professional",
+                        profissional: "professional",
+                        acolhedor: "friendly",
+                        tecnico: "consultative",
+                      };
+                      setSelectedTone(toneMap[p.recommendedTone] || p.recommendedTone);
+                    }
+                    if (p.recommendedResponseStyle) setResponseStyle(p.recommendedResponseStyle);
+                    if (typeof p.recommendedTemperature === "number") setTemperature(p.recommendedTemperature);
+                    notify.info(`Personalidade "${p.label}" aplicada.`);
                   }}
                   className={cn(
-                    "p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 space-y-2 flex flex-col justify-between select-none relative group",
+                    "p-3.5 rounded-2xl border text-left transition-all space-y-1.5 cursor-pointer select-none",
                     isSelected
-                      ? "bg-emerald-500/10 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50"
+                      ? "bg-emerald-500/10 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/40"
                       : "bg-background/60 border-border/70 hover:bg-card hover:border-emerald-500/30"
                   )}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={cn(
-                          "h-8 w-8 rounded-xl flex items-center justify-center transition-colors shrink-0",
-                          isSelected
-                            ? "bg-emerald-500 text-white shadow-xs"
-                            : "bg-muted/50 text-muted-foreground border border-border/50 group-hover:text-foreground"
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-foreground block leading-tight">
-                          {obj.title}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground font-mono">
-                          {isSelected ? "● Ativo agora" : "Foco comercial"}
-                        </span>
-                      </div>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-[9px] font-semibold px-2 py-0.5 rounded-full shrink-0 border",
-                        isSelected
-                          ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/15"
-                          : "border-border/70 text-muted-foreground bg-muted/20"
-                      )}
-                    >
-                      {obj.badge}
-                    </Badge>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-foreground">{p.label}</span>
+                    {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />}
                   </div>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
-                    {obj.desc}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Column: Tom de Atendimento & Ajustes Finos */}
-        <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-emerald-400" />
-                <span>Tom de Atendimento & Ajustes Finos</span>
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                Escolha a linguagem e a velocidade de raciocínio das respostas.
-              </p>
-            </div>
-            <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300 bg-emerald-500/10">
-              {currentToneDef.label}
-            </Badge>
-          </div>
-
-          {/* 4 Tone Cards in 2x2 grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {TONE_OPTIONS.map((t) => {
-              const isSelected = selectedTone === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setSelectedTone(t.id)}
-                  className={cn(
-                    "p-3 rounded-2xl text-left border text-xs transition-all duration-200 select-none cursor-pointer space-y-1",
-                    isSelected
-                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 font-semibold shadow-[0_0_15px_rgba(16,185,129,0.12)] ring-1 ring-emerald-500/40"
-                      : "border-border/70 bg-background/60 text-muted-foreground hover:bg-card hover:text-foreground hover:border-emerald-500/30"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-foreground text-xs">{t.label}</span>
-                    {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2">
-                    {t.desc}
+                  <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-3">
+                    {p.summary}
                   </p>
                 </button>
               );
             })}
           </div>
+        </div>
 
-          {/* Fine Tuning Sliders */}
-          <div className="pt-2 border-t border-border/40 space-y-3">
-            {/* Response Style Segmented Control */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-foreground">Estilo de Resposta</span>
-                <span className="text-[11px] font-mono text-emerald-400">
-                  {responseStyle === "short_natural"
-                    ? "Curto & Direto"
-                    : responseStyle === "detailed"
-                    ? "Explicativo & Detalhado"
-                    : "Natural & Equilibrado"}
-                </span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+          {/* Left Column: Objetivo Central de Atendimento */}
+          <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Target className="h-4 w-4 text-emerald-400" />
+                  <span>Objetivo Central de Atendimento</span>
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Define o foco de conversão e a postura que a IA assumirá em cada conversa.
+                </p>
               </div>
-              <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-background/60 border border-border/60">
-                {[
-                  { id: "short_natural", label: "Curto & Direto" },
-                  { id: "balanced", label: "Equilibrado" },
-                  { id: "detailed", label: "Detalhado" },
-                ].map((st) => (
-                  <button
-                    key={st.id}
-                    type="button"
-                    onClick={() => setResponseStyle(st.id)}
-                    className={cn(
-                      "py-1.5 rounded-lg text-xs font-semibold transition-all text-center cursor-pointer",
-                      responseStyle === st.id
-                        ? "bg-emerald-600 text-white shadow-xs"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                    )}
-                  >
-                    {st.label}
-                  </button>
-                ))}
-              </div>
+              <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40 text-[10px]">
+                {currentObjectiveDef.title}
+              </Badge>
             </div>
 
-            {/* Model Temperature Slider */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-foreground">Temperatura do Modelo</span>
-                <span className="text-[11px] font-mono text-emerald-400">
-                  {temperature.toFixed(2)} {temperature < 0.4 ? "(Mais Preciso)" : temperature > 0.7 ? "(Mais Criativo)" : "(Equilibrado)"}
-                </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {OBJECTIVES.map((obj) => {
+                const Icon = obj.icon;
+                const isSelected = selectedObjective === obj.id;
+                return (
+                  <div
+                    key={obj.id}
+                    role="button"
+                    tabIndex={0}
+                    data-objective-id={obj.id}
+                    onClick={() => {
+                      setSelectedObjective(obj.id);
+                      notify.info(`Objetivo "${obj.title}" selecionado.`);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") setSelectedObjective(obj.id);
+                    }}
+                    className={cn(
+                      "p-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 space-y-2 flex flex-col justify-between select-none relative group",
+                      isSelected
+                        ? "bg-emerald-500/10 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/50"
+                        : "bg-background/60 border-border/70 hover:bg-card hover:border-emerald-500/30"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={cn(
+                            "h-8 w-8 rounded-xl flex items-center justify-center transition-colors shrink-0",
+                            isSelected
+                              ? "bg-emerald-500 text-white shadow-xs"
+                              : "bg-muted/50 text-muted-foreground border border-border/50 group-hover:text-foreground"
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-foreground block leading-tight">
+                            {obj.title}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {isSelected ? "● Ativo agora" : "Foco comercial"}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[9px] font-semibold px-2 py-0.5 rounded-full shrink-0 border",
+                          isSelected
+                            ? "border-emerald-500/40 text-emerald-300 bg-emerald-500/15"
+                            : "border-border/70 text-muted-foreground bg-muted/20"
+                        )}
+                      >
+                        {obj.badge}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+                      {obj.desc}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right Column: Tom, Estilo, Temperatura, Max Tokens */}
+          <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Sliders className="h-4 w-4 text-emerald-400" />
+                  <span>Tom de Atendimento & Parâmetros</span>
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Escolha a linguagem, densidade de resposta e limite real de saída.
+                </p>
               </div>
-              <Slider
-                value={[temperature]}
-                min={0}
-                max={1}
-                step={0.05}
-                onValueChange={(val) => setTemperature(val[0])}
-                className="py-1"
-              />
-              <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
-                <span>0.00 Mais Focado</span>
-                <span>0.50 Padrão</span>
-                <span>1.00 Mais Criativo</span>
+              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300 bg-emerald-500/10">
+                {currentToneDef.label}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {TONE_OPTIONS.map((t) => {
+                const isSelected = selectedTone === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setSelectedTone(t.id)}
+                    className={cn(
+                      "p-3 rounded-2xl text-left border text-xs transition-all duration-200 select-none cursor-pointer space-y-1",
+                      isSelected
+                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 font-semibold shadow-[0_0_15px_rgba(16,185,129,0.12)] ring-1 ring-emerald-500/40"
+                        : "border-border/70 bg-background/60 text-muted-foreground hover:bg-card hover:text-foreground hover:border-emerald-500/30"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-foreground text-xs">{t.label}</span>
+                      {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2">
+                      {t.desc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Fine Tuning Controls */}
+            <div className="pt-2 border-t border-border/40 space-y-3">
+              {/* Response Style 4-way Segmented Control */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-foreground">Estilo de Resposta</span>
+                  <span className="text-[11px] font-mono text-emerald-400">
+                    {responseStyle === "one_sentence"
+                      ? "1 Frase (Ultra-direto)"
+                      : responseStyle === "short_natural"
+                      ? "Curto & Natural"
+                      : responseStyle === "detailed"
+                      ? "Detalhado & Comparativo"
+                      : "Equilibrado"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-background/60 border border-border/60">
+                  {[
+                    { id: "one_sentence", label: "1 Frase" },
+                    { id: "short_natural", label: "Curto" },
+                    { id: "balanced", label: "Equilibrado" },
+                    { id: "detailed", label: "Detalhado" },
+                  ].map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setResponseStyle(st.id)}
+                      className={cn(
+                        "py-1.5 rounded-lg text-[11px] font-semibold transition-all text-center cursor-pointer",
+                        responseStyle === st.id
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                      )}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Model Temperature & Max Tokens */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-foreground">Temperatura</span>
+                    <span className="text-[11px] font-mono text-emerald-400">
+                      {temperature.toFixed(2)} {temperature < 0.4 ? "(Preciso)" : temperature > 0.7 ? "(Criativo)" : "(Equilibrado)"}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[temperature]}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    onValueChange={(val) => setTemperature(val[0])}
+                    disabled={activeCatalogModelMeta?.supportsTemperature === false}
+                    className="py-1"
+                  />
+                  {activeCatalogModelMeta?.supportsTemperature === false ? (
+                    <p className="text-[10px] text-amber-400">
+                      Modelo selecionado ignora temperatura fixa no endpoint.
+                    </p>
+                  ) : (
+                    <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+                      <span>0.00 Focado</span>
+                      <span>0.50</span>
+                      <span>1.00 Criativo</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-foreground">Max Tokens</span>
+                    <span className="text-[11px] font-mono text-emerald-400">
+                      {maxTokens} tokens
+                    </span>
+                  </div>
+                  <Slider
+                    value={[maxTokens]}
+                    min={180}
+                    max={1200}
+                    step={40}
+                    onValueChange={(val) => setMaxTokens(val[0])}
+                    className="py-1"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+                    <span>180 Curto</span>
+                    <span>480 Padrão</span>
+                    <span>1200 Longo</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Version History & 1-Click Rollback */}
+        <div className="p-4 rounded-2xl border border-border/70 bg-card/60 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <History className="h-4 w-4 text-emerald-400" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Histórico de Versões & Rollback ({previewAgent?.name})
+              </h4>
+            </div>
+            <span className="text-[11px] font-mono text-muted-foreground">
+              {agentVersions.length > 0 ? `${agentVersions.length} versão(ões)` : "Sem versões registradas"}
+            </span>
+          </div>
+
+          {agentVersions.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-40 overflow-y-auto scrollbar-zai">
+              {agentVersions.slice(0, 6).map((v: any) => (
+                <div
+                  key={v.id}
+                  className="p-2.5 rounded-xl border border-border/60 bg-background/60 flex items-center justify-between gap-2 text-xs"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/30 text-emerald-300 px-1.5 py-0">
+                        v{v.version_number ?? v.id}
+                      </Badge>
+                      <span className="text-[11px] font-semibold text-foreground truncate">
+                        {v.change_scope || "manual_save"}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                      {v.created_by || "sistema"} • {v.created_at ? new Date(v.created_at).toLocaleString("pt-BR") : "—"}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isRollingBackVersion === v.id}
+                    onClick={() => void handleRollbackVersion(v.id)}
+                    className="h-7 px-2 text-[10px] rounded-lg border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 shrink-0 cursor-pointer"
+                  >
+                    <RotateCcw className={cn("h-3 w-3 mr-1", isRollingBackVersion === v.id && "animate-spin")} />
+                    Restaurar
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -2333,6 +3137,50 @@ export default function AttendantsPage() {
           />
         </div>
 
+        {/* Authorized Shared Company Knowledge Scopes (Multi-WhatsApp) */}
+        <div className="p-2.5 rounded-xl border border-border/60 bg-background/50 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold text-foreground">
+              Conhecimento Comercial Compartilhado (Multi-WhatsApp)
+            </span>
+            <Badge variant="outline" className="text-[9px] font-mono border-emerald-500/30 text-emerald-300">
+              {sharedCompanyScopes.length} escopos ativos
+            </Badge>
+          </div>
+          <p className="text-[10px] text-muted-foreground leading-snug">
+            Permite compartilhar conhecimento oficial da empresa entre números sem misturar identidades ou históricos individuais.
+          </p>
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {([
+              { id: "commercial_rules", label: "Regras Comerciais" },
+              { id: "products", label: "Catálogo & Produtos" },
+              { id: "pricing_conditions", label: "Preços & Condições" },
+            ] as const).map((sc) => {
+              const activeScope = sharedCompanyScopes.includes(sc.id);
+              return (
+                <button
+                  key={sc.id}
+                  type="button"
+                  data-shared-scope={sc.id}
+                  onClick={() =>
+                    setSharedCompanyScopes((prev) =>
+                      prev.includes(sc.id) ? prev.filter((item) => item !== sc.id) : [...prev, sc.id]
+                    )
+                  }
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg border text-[10px] font-medium cursor-pointer transition-colors",
+                    activeScope
+                      ? "bg-emerald-500/15 border-emerald-500/50 text-emerald-300"
+                      : "bg-card/60 border-border/60 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {activeScope ? "✓ " : ""}{sc.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Quick Prompt Templates */}
         <div className="space-y-1.5 pt-1">
           <span className="text-[11px] font-semibold text-muted-foreground">Modelos Base de Atendimento:</span>
@@ -2365,39 +3213,96 @@ export default function AttendantsPage() {
   };
 
   const renderProvidersSection = () => {
+    const routerProvId = normalizeRouterProviderId(selectedProvider);
+    const isManagedZaiOrOllama = routerProvId === "zai" || routerProvId === "ollama";
+    const matchingCredentials = savedCredentials.filter((c: any) => c.provider_id === routerProvId && c.enabled !== false);
+    const providerSelectOptions = [
+      ...PROVIDER_OPTIONS,
+      { id: "openrouter", name: "OpenRouter Gateway", defaultModel: "meta-llama/llama-3.3-70b-instruct:free", models: ["meta-llama/llama-3.3-70b-instruct:free"] },
+      { id: "cloudflare", name: "Cloudflare Workers AI", defaultModel: "@cf/meta/llama-3.1-8b-instruct", models: ["@cf/meta/llama-3.1-8b-instruct"] },
+    ];
+
     return (
       <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="space-y-0.5">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
               <Cpu className="h-4 w-4 text-emerald-400" />
-              <span>Motor de IA deste atendente</span>
+              <span>Motor de IA, Roteador & Cofre de API</span>
             </h4>
             <p className="text-xs text-muted-foreground">
-              Configure o motor neural e a chave de API que processará as respostas deste atendente.
+              Escolha entre Provedor ZAI (zero chave), roteamento inteligente ou chave própria criptografada.
             </p>
           </div>
-          <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300 bg-emerald-500/10 uppercase flex items-center gap-1.5 py-1 px-2.5">
-            <ProviderLogo providerId={currentProviderDef.id} className="h-3.5 w-3.5 shrink-0" />
-            <span>{currentProviderDef.name}</span>
-          </Badge>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/settings?tab=ai-providers")}
+                className="h-7 text-[10px] rounded-lg border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
+              >
+                <Shield className="h-3 w-3 mr-1" />
+                Painel Master IA
+              </Button>
+            )}
+            <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300 bg-emerald-500/10 uppercase flex items-center gap-1.5 py-1 px-2.5">
+              <ProviderLogo providerId={selectedProvider} className="h-3.5 w-3.5 shrink-0" />
+              <span>{currentProviderDef.name}</span>
+            </Badge>
+          </div>
+        </div>
+
+        {/* Model Router Mode Selector */}
+        <div className="p-3 rounded-xl border border-border/60 bg-background/50 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-foreground">Modo do Model Router</span>
+            <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/40 text-emerald-300 bg-emerald-500/10">
+              {routingMode}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+            {ROUTING_MODE_OPTIONS.map((rm) => {
+              const isSelected = routingMode === rm.id;
+              return (
+                <button
+                  key={rm.id}
+                  type="button"
+                  data-routing-mode={rm.id}
+                  onClick={() => setRoutingMode(rm.id)}
+                  title={rm.desc}
+                  className={cn(
+                    "p-2 rounded-xl border text-left transition-all cursor-pointer",
+                    isSelected
+                      ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                      : "border-border/60 bg-card/50 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <div className="text-[11px] font-bold font-mono">{rm.label}</div>
+                  <div className="text-[9px] text-muted-foreground line-clamp-2 leading-tight mt-0.5">{rm.desc}</div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Status / Cota do Provedor ZAI */}
-        {selectedProvider === "vps_engine" && (
+        {isManagedZaiOrOllama && (
           isAdmin ? (
-            <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-between gap-3 shadow-xs">
+            <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex flex-wrap items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-300 shrink-0">
                   <Crown className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-emerald-300 flex items-center gap-2">
-                    <span>Conta Administrador — Provedor ZAI com Acesso Ilimitado</span>
+                  <div className="text-xs font-bold text-emerald-300 flex items-center gap-2 flex-wrap">
+                    <span>Provedor ZAI Pronta-Entrega (Zero API Key)</span>
                     <Badge className="bg-emerald-500 text-black text-[9px] font-bold px-1.5 py-0">LIBERADO</Badge>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Sua conta master tem uso liberado e ilimitado sem limite de mensagens diárias ou necessidade de recarga de saldo.
+                    Execução via runtime gerenciado/Ollama da VPS sem necessidade de chave de API do cliente.
+                    {activeCatalogProvider?.models?.length ? ` • ${activeCatalogProvider.models.filter((m: any) => m.available).length} modelo(s) ativo(s)` : ""}
                   </p>
                 </div>
               </div>
@@ -2407,7 +3312,7 @@ export default function AttendantsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-emerald-400 shrink-0" />
-                  <span className="text-xs font-bold text-foreground">Cota Diária Provedor ZAI</span>
+                  <span className="text-xs font-bold text-foreground">Provedor ZAI (Sem API Key) — Cota Diária</span>
                 </div>
                 <span className="text-xs font-semibold text-emerald-400">
                   {zaiUsage ? `${zaiUsage.countToday} / ${zaiUsage.limitToday} mensagens grátis hoje` : "50 mensagens grátis/dia"}
@@ -2441,7 +3346,7 @@ export default function AttendantsPage() {
           )
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Provider Select */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-foreground">Provedor</label>
@@ -2450,7 +3355,9 @@ export default function AttendantsPage() {
               onValueChange={(val) => {
                 setSelectedProvider(val);
                 const def = getProviderDef(val);
-                if (def) setSelectedModel(def.defaultModel);
+                const cat = providerCatalog.find((p) => p.id === normalizeRouterProviderId(val));
+                const nextDefault = cat?.defaultModel || def?.defaultModel;
+                if (nextDefault) setSelectedModel(nextDefault);
               }}
             >
               <SelectTrigger className="h-10 rounded-xl bg-background/70 border-border/70 text-xs">
@@ -2460,7 +3367,7 @@ export default function AttendantsPage() {
                 </div>
               </SelectTrigger>
               <SelectContent>
-                {PROVIDER_OPTIONS.map((p) => (
+                {providerSelectOptions.map((p) => (
                   <SelectItem key={p.id} value={p.id} className="text-xs">
                     <div className="flex items-center gap-2">
                       <ProviderLogo providerId={p.id} className="h-4 w-4 shrink-0" />
@@ -2478,7 +3385,7 @@ export default function AttendantsPage() {
               <label className="text-xs font-semibold text-foreground">Modelo</label>
               {!isAdmin && (
                 <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-500/40 text-amber-400 bg-amber-500/10">
-                  Modo Auto (Admin gerencia)
+                  Modo Auto
                 </Badge>
               )}
             </div>
@@ -2495,39 +3402,113 @@ export default function AttendantsPage() {
               <SelectContent>
                 {availableModels.map((m) => (
                   <SelectItem key={m} value={m} className="text-xs">
-                    {m === "auto" ? "auto (Automático / Otimizado por IA)" : m}
+                    {m === "auto" ? "auto (Roteamento Otimizado)" : m}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {!isAdmin && (
-              <p className="text-[10px] text-muted-foreground leading-tight">
-                Usuários operacionais utilizam roteamento automático. Troca manual reservada a administradores.
+            {activeCatalogModelMeta && (
+              <p className="text-[10px] text-muted-foreground font-mono">
+                Contexto: {Math.round((activeCatalogModelMeta.contextWindow || 32768) / 1000)}k •{" "}
+                {activeCatalogModelMeta.category === "local"
+                  ? "Local/Gratuito"
+                  : `$${activeCatalogModelMeta.inputCostPer1M || 0}/1M in`}
               </p>
             )}
           </div>
 
-          {/* API Key */}
-          <div className={cn("space-y-1.5", selectedProvider === "vps_engine" && "hidden")}>
-            <label className="text-xs font-semibold text-foreground">Chave de API (Opcional)</label>
-            <div className="relative">
-              <Input
-                type={showApiKey ? "text" : "password"}
-                placeholder={selectedProvider === "openai" ? "sk-..." : "Cole a chave do provedor"}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="h-10 rounded-xl bg-background/70 border-border/70 text-xs pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+          {/* Encrypted Vault Key Input with Company/Agent Scope */}
+          {!isManagedZaiOrOllama && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                  <Lock className="h-3 w-3 text-emerald-400" />
+                  <span>Chave Cofre AES-256</span>
+                </label>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCredentialScope("company")}
+                    className={cn(
+                      "px-1.5 py-0.5 rounded text-[9px] font-mono cursor-pointer",
+                      credentialScope === "company" ? "bg-emerald-500/20 text-emerald-300" : "text-muted-foreground"
+                    )}
+                  >
+                    Empresa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCredentialScope("agent")}
+                    className={cn(
+                      "px-1.5 py-0.5 rounded text-[9px] font-mono cursor-pointer",
+                      credentialScope === "agent" ? "bg-emerald-500/20 text-emerald-300" : "text-muted-foreground"
+                    )}
+                  >
+                    Atendente
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="relative flex-1">
+                  <Input
+                    type={showApiKey ? "text" : "password"}
+                    placeholder={routerProvId === "openai" ? "sk-..." : "Cole a chave do provedor"}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    autoComplete="new-password"
+                    className="h-10 rounded-xl bg-background/70 border-border/70 text-xs pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    {showApiKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+                {apiKey.trim() && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSaveCredentialOnly}
+                    disabled={isSavingCredential}
+                    className="h-10 px-3 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white shrink-0 cursor-pointer"
+                  >
+                    {isSavingCredential ? "..." : "Salvar"}
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
+
+        {/* Active Masked Vault Credentials for Selected Provider */}
+        {matchingCredentials.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {matchingCredentials.map((cred: any) => (
+              <div
+                key={cred.id}
+                className="flex items-center gap-2 px-2.5 py-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-[11px]"
+              >
+                <Key className="h-3 w-3 text-emerald-400" />
+                <span className="font-mono text-foreground">{cred.key_hint || "••••"}</span>
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-border/70">
+                  {cred.scope === "agent" ? `Atendente: ${cred.agent_key}` : cred.scope === "master" ? "Master" : "Empresa"}
+                </Badge>
+                {cred.scope !== "master" && (
+                  <button
+                    type="button"
+                    onClick={() => void handleRevokeSavedCredential(cred.id)}
+                    className="text-muted-foreground hover:text-destructive cursor-pointer ml-1"
+                    title="Revogar credencial"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Test Connection Button & Result */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/40">
@@ -2560,7 +3541,7 @@ export default function AttendantsPage() {
             )}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            A chave é armazenada com criptografia de ponta a ponta no backend da loja.
+            Precedência: Atendente &gt; Empresa &gt; Master (nunca exposta no cliente).
           </p>
         </div>
 
@@ -2576,7 +3557,7 @@ export default function AttendantsPage() {
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-xs font-semibold text-foreground">
-                  Resposta Real de {previewAgent.name} (Atendente Oficial da Loja):
+                  Resposta Real de {previewAgent.name}:
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -2593,23 +3574,6 @@ export default function AttendantsPage() {
             <p className="text-xs text-foreground/90 bg-background/50 p-2.5 rounded-lg border border-border/40 whitespace-pre-wrap leading-relaxed">
               {connectionTestResult.response}
             </p>
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[11px] text-muted-foreground">
-                Interação registrada ao vivo no Chat Sandbox ao lado.
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const chatEl = document.getElementById("chat-sandbox-content") || document.getElementById("sandbox-container");
-                  chatEl?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="h-7 text-[11px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
-              >
-                <span>💬 Ir para o Chat ao Lado &rarr;</span>
-              </Button>
-            </div>
           </div>
         )}
       </div>
@@ -2619,142 +3583,270 @@ export default function AttendantsPage() {
   const renderSandboxSection = () => {
     if (!previewAgent) return null;
     return (
-      <div className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5 flex flex-col h-full min-w-0 max-w-full">
-        <div className="flex items-center justify-between">
+      <div id="chat-sandbox-content" className="p-4 rounded-2xl border border-border/70 bg-card/70 space-y-3.5 flex flex-col h-full min-w-0 max-w-full">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="space-y-0.5">
             <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
               <ChatCircleText weight="bold" className="h-4 w-4 text-emerald-400" />
-              <span>Sandbox de Atendimento & Chat ao Vivo ({previewAgent.name})</span>
+              <span>Testes ao Vivo & Comparador ({previewAgent.name})</span>
             </h4>
             <p className="text-xs text-muted-foreground">
-              Inteligência real do atendente. Mensagens de teste não afetam clientes no WhatsApp.
+              Inteligência real compilada ({personalityPreset}). Não envia mensagens a clientes reais.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/ai?tab=evolution&agentKey=${previewAgent.key}`)}
-              className="h-7 px-2.5 text-[11px] gap-1.5 border-purple-500/40 text-purple-300 hover:bg-purple-500/10 cursor-pointer"
-            >
-              <Zap className="h-3.5 w-3.5 text-purple-400" />
-              <span>Ver Evolução & XP</span>
-            </Button>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-background/70 border border-border/60">
+              <button
+                type="button"
+                data-sandbox-mode="chat"
+                onClick={() => setSandboxMode("chat")}
+                className={cn(
+                  "px-2 py-1 rounded-md text-[11px] font-semibold cursor-pointer transition-colors",
+                  sandboxMode === "chat" ? "bg-emerald-600 text-white" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Chat ao Vivo
+              </button>
+              <button
+                type="button"
+                data-sandbox-mode="compare"
+                onClick={() => setSandboxMode("compare")}
+                className={cn(
+                  "px-2 py-1 rounded-md text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1",
+                  sandboxMode === "compare" ? "bg-emerald-600 text-white" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <GitCompare className="h-3 w-3" />
+                Comparar 4x
+              </button>
+            </div>
             <Badge variant="outline" className="text-[10px] font-bold text-emerald-400 border-emerald-500/30 bg-emerald-500/10 uppercase">
               AO VIVO
             </Badge>
           </div>
         </div>
 
-        {/* Quick test pills */}
-        <div className="flex flex-wrap items-center gap-1.5 pb-1 min-w-0 w-full max-w-full">
-          <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Perguntas rápidas:</span>
-          {[
-            ...QUICK_TEST_PROMPTS,
-            "Qual é o catálogo?",
-          ].map((q, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => setSandboxInput(q)}
-              disabled={isTestingAgent}
-              className="px-2.5 py-0.5 rounded-full text-[10px] bg-muted/40 hover:bg-emerald-500/15 text-muted-foreground hover:text-emerald-300 border border-border/60 shrink-0 transition-colors cursor-pointer"
-            >
-              {q}
-            </button>
-          ))}
-        </div>
-
-        {/* Chat message box */}
-        <div ref={sandboxScrollRef} className="h-[340px] rounded-xl border border-border/60 bg-background/50 p-3 overflow-y-auto space-y-3 text-xs scrollbar-zai">
-          {sandboxMessages.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground space-y-1.5">
-              <Headset className="h-7 w-7 text-muted-foreground/60" />
-              <p className="text-xs font-semibold text-foreground">Ambiente de Teste Interativo</p>
-              <p className="text-[11px] max-w-xs">
-                Envie uma pergunta para testar as respostas de <strong>{previewAgent.name}</strong> com a inteligência e configurações reais salvas.
-              </p>
+        {sandboxMode === "compare" ? (
+          <div className="space-y-3 flex-1 flex flex-col">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                data-compare-input="1"
+                value={comparePrompt}
+                onChange={(e) => setComparePrompt(e.target.value)}
+                placeholder="Ex: Quanto custa o produto e como posso pagar?"
+                className="h-9 rounded-xl text-xs flex-1"
+                disabled={isComparingVariants}
+              />
+              <Button
+                type="button"
+                size="sm"
+                data-run-compare="1"
+                onClick={() => void handleRunMultiPersonalityCompare()}
+                disabled={isComparingVariants}
+                className="h-9 px-3.5 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer shrink-0 gap-1.5"
+              >
+                <GitCompare className={cn("h-3.5 w-3.5", isComparingVariants && "animate-spin")} />
+                <span>{isComparingVariants ? "Comparando..." : "Comparar 4 Personalidades"}</span>
+              </Button>
             </div>
-          )}
-          {sandboxMessages.map((msg) => (
-            <div
-              key={msg.id}
-              className={cn(
-                "max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-xs transition-all",
-                msg.sender === "user"
-                  ? "ml-auto bg-emerald-600 text-white rounded-br-xs"
-                  : "mr-auto bg-card border border-border/60 text-foreground rounded-bl-xs"
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto scrollbar-zai pr-0.5">
+              {compareResults.length === 0 ? (
+                <div className="md:col-span-2 p-6 rounded-xl border border-dashed border-border/70 bg-background/40 text-center space-y-1.5">
+                  <GitCompare className="h-6 w-6 text-emerald-400 mx-auto" />
+                  <p className="text-xs font-semibold text-foreground">Comparador Lado a Lado (4 Personalidades)</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Executa a mesma pergunta simultaneamente em Executivo, Analítico, Consultivo e Operacional para comprovar diferenças reais de postura, tokens e latência.
+                  </p>
+                </div>
+              ) : (
+                compareResults.map((variant: any, idx: number) => (
+                  <div
+                    key={`${variant.personalityPreset || idx}-${idx}`}
+                    data-compare-variant={variant.personalityPreset}
+                    className="p-3 rounded-xl border border-border/70 bg-background/70 space-y-2 flex flex-col justify-between"
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/40 text-[10px]">
+                          {variant.label || variant.personalityPreset}
+                        </Badge>
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          {variant.ok ? `${variant.responseTimeMs || 0}ms` : "Falha"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">
+                        {variant.ok ? variant.response : `Erro: ${variant.error || "indisponível"}`}
+                      </p>
+                    </div>
+                    <div className="space-y-1.5 pt-2 border-t border-border/40 text-[9px] font-mono text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="px-1.5 py-0.5 rounded bg-muted/40">
+                          {variant.provider || normalizeRouterProviderId(selectedProvider)} · {variant.model || selectedModel}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-muted/40">
+                          {variant.routingMode || routingMode}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-muted/40">
+                          {variant.totalTokens ?? 0} tokens
+                        </span>
+                        {typeof variant.estimatedCostUsd === "number" && (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300">
+                            ${variant.estimatedCostUsd.toFixed(5)}
+                          </span>
+                        )}
+                      </div>
+                      {variant.effectiveConfig && (
+                        <div className="flex flex-wrap items-center gap-1 text-[8px] text-cyan-300/90">
+                          <span className="px-1.5 py-0.5 rounded bg-cyan-500/10">
+                            obj: {variant.effectiveConfig.objectiveId || selectedObjective}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded bg-cyan-500/10">
+                            tom: {variant.effectiveConfig.toneId || "—"}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded bg-cyan-500/10">
+                            estilo: {variant.effectiveConfig.responseStyleId || "—"}
+                          </span>
+                          {variant.effectiveConfig.temperature != null && (
+                            <span className="px-1.5 py-0.5 rounded bg-cyan-500/10">
+                              temp: {variant.effectiveConfig.temperature}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {Array.isArray(variant.parameterWarnings) && variant.parameterWarnings.length > 0 && (
+                        <div className="text-[9px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5">
+                          ⚠ {variant.parameterWarnings[0]}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
               )}
-            >
-              {/* Texto principal da mensagem sem tags de código cru */}
-              <div className="whitespace-pre-wrap">{msg.cleanText || msg.text}</div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Quick test pills */}
+            <div className="flex flex-wrap items-center gap-1.5 pb-1 min-w-0 w-full max-w-full">
+              <span className="text-[10px] text-muted-foreground shrink-0 font-medium">Perguntas rápidas:</span>
+              {[
+                ...QUICK_TEST_PROMPTS,
+                "Qual é o catálogo?",
+              ].map((q, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSandboxInput(q)}
+                  disabled={isTestingAgent}
+                  className="px-2.5 py-0.5 rounded-full text-[10px] bg-muted/40 hover:bg-emerald-500/15 text-muted-foreground hover:text-emerald-300 border border-border/60 shrink-0 transition-colors cursor-pointer"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
 
-              {/* Mídia Anexada (Áudio Player funcional / Imagem com zoom / Vídeo / Documento) */}
-              {msg.media && <SandboxMediaPreview media={msg.media} />}
+            {/* Chat message box */}
+            <div ref={sandboxScrollRef} className="h-[340px] rounded-xl border border-border/60 bg-background/50 p-3 overflow-y-auto space-y-3 text-xs scrollbar-zai">
+              {sandboxMessages.length === 0 && (
+                <div className="h-full flex flex-col items-center justify-center text-center p-4 text-muted-foreground space-y-1.5">
+                  <Headset className="h-7 w-7 text-muted-foreground/60" />
+                  <p className="text-xs font-semibold text-foreground">Ambiente de Teste Interativo</p>
+                  <p className="text-[11px] max-w-xs">
+                    Envie uma pergunta para testar as respostas de <strong>{previewAgent.name}</strong> com a inteligência e configurações reais salvas.
+                  </p>
+                </div>
+              )}
+              {sandboxMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    "max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow-xs transition-all",
+                    msg.sender === "user"
+                      ? "ml-auto bg-emerald-600 text-white rounded-br-xs"
+                      : "mr-auto bg-card border border-border/60 text-foreground rounded-bl-xs"
+                  )}
+                >
+                  {/* Texto principal da mensagem sem tags de código cru */}
+                  <div className="whitespace-pre-wrap">{msg.cleanText || msg.text}</div>
 
-              {/* Metadados e badges de performance e delay */}
-              {msg.sender === "agent" && msg.metrics && (
-                <div className="flex flex-wrap items-center gap-1.5 pt-2 mt-2 border-t border-border/40 text-[10px] text-muted-foreground font-mono">
-                  <span className="flex items-center gap-1 text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
-                    ⏱️ {(msg.metrics.responseTimeMs / 1000).toFixed(1)}s
-                  </span>
-                  <span className="flex items-center gap-1 text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded-md">
-                    🪙 {msg.metrics.tokens ?? 0} tokens
-                  </span>
-                  <span className="flex items-center gap-1 text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded-md">
-                    ⚡ {msg.metrics.provider} ({msg.metrics.model})
-                  </span>
-                  {msg.metrics.xpEarned && msg.metrics.xpEarned.total > 0 && (
-                    <span
-                      title={msg.metrics.xpEarned.reason}
-                      className="flex items-center gap-1 text-purple-300 font-bold bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-500/40 px-2 py-0.5 rounded-md shadow-xs animate-in fade-in"
-                    >
-                      ✨ +{msg.metrics.xpEarned.total} XP • {msg.metrics.xpEarned.reason}
-                    </span>
+                  {/* Mídia Anexada (Áudio Player funcional / Imagem com zoom / Vídeo / Documento) */}
+                  {msg.media && <SandboxMediaPreview media={msg.media} />}
+
+                  {/* Metadados e badges de performance e delay */}
+                  {msg.sender === "agent" && msg.metrics && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-2 mt-2 border-t border-border/40 text-[10px] text-muted-foreground font-mono">
+                      <span className="flex items-center gap-1 text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
+                        ⏱️ {(msg.metrics.responseTimeMs / 1000).toFixed(1)}s
+                      </span>
+                      <span className="flex items-center gap-1 text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded-md">
+                        🪙 {msg.metrics.tokens ?? 0} tokens
+                      </span>
+                      <span className="flex items-center gap-1 text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded-md">
+                        ⚡ {msg.metrics.provider} ({msg.metrics.model})
+                      </span>
+                      {msg.metrics.effectiveConfig?.personalityId && (
+                        <span className="text-slate-300 bg-slate-500/15 px-1.5 py-0.5 rounded-md">
+                          {msg.metrics.effectiveConfig.personalityId} · {msg.metrics.effectiveConfig.objectiveId || "fechamento"} · T={msg.metrics.effectiveConfig.temperature ?? "—"}
+                        </span>
+                      )}
+                      {Array.isArray(msg.metrics.parameterWarnings) && msg.metrics.parameterWarnings.length > 0 && (
+                        <span className="text-amber-300 bg-amber-500/15 px-1.5 py-0.5 rounded-md">
+                          ⚠ {msg.metrics.parameterWarnings[0]}
+                        </span>
+                      )}
+                      {msg.metrics.xpEarned && msg.metrics.xpEarned.total > 0 && (
+                        <span
+                          title={msg.metrics.xpEarned.reason}
+                          className="flex items-center gap-1 text-purple-300 font-bold bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-500/40 px-2 py-0.5 rounded-md shadow-xs animate-in fade-in"
+                        >
+                          ✨ +{msg.metrics.xpEarned.total} XP • {msg.metrics.xpEarned.reason}
+                        </span>
+                      )}
+                      {msg.quickReplyTitle && (
+                        <span className="text-emerald-300 font-semibold bg-emerald-500/15 px-1.5 py-0.5 rounded-md truncate max-w-[200px]">
+                          🎵 Resposta Rápida: {msg.quickReplyTitle}
+                        </span>
+                      )}
+                    </div>
                   )}
-                  {msg.quickReplyTitle && (
-                    <span className="text-emerald-300 font-semibold bg-emerald-500/15 px-1.5 py-0.5 rounded-md truncate max-w-[200px]">
-                      🎵 Resposta Rápida: {msg.quickReplyTitle}
-                    </span>
-                  )}
+                </div>
+              ))}
+              {isTestingAgent && (
+                <div className="mr-auto bg-card border border-emerald-500/40 text-foreground rounded-2xl rounded-bl-xs px-3.5 py-2 text-xs flex items-center gap-2.5 shadow-xs">
+                  <div className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                  <span className="font-medium text-emerald-300">{previewAgent.name} está digitando...</span>
+                  <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/40 text-emerald-400 bg-emerald-500/10 px-1.5 py-0">
+                    ⏱️ {(testingElapsedMs / 1000).toFixed(1)}s
+                  </Badge>
                 </div>
               )}
             </div>
-          ))}
-          {isTestingAgent && (
-            <div className="mr-auto bg-card border border-emerald-500/40 text-foreground rounded-2xl rounded-bl-xs px-3.5 py-2 text-xs flex items-center gap-2.5 shadow-xs">
-              <div className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-              </div>
-              <span className="font-medium text-emerald-300">{previewAgent.name} está digitando...</span>
-              <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/40 text-emerald-400 bg-emerald-500/10 px-1.5 py-0">
-                ⏱️ {(testingElapsedMs / 1000).toFixed(1)}s
-              </Badge>
-            </div>
-          )}
-        </div>
 
-        {/* Input Composer */}
-        <form onSubmit={handleSendTestMessage} className="flex items-center gap-2 pt-1">
-          <Input
-            placeholder={`Pergunte algo para ${previewAgent.name}...`}
-            value={sandboxInput}
-            onChange={(e) => setSandboxInput(e.target.value)}
-            className="rounded-xl text-xs h-10 flex-1"
-            disabled={isTestingAgent}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!sandboxInput.trim() || isTestingAgent}
-            className="h-10 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-5 font-semibold shadow-xs cursor-pointer"
-          >
-            Enviar
-          </Button>
-        </form>
+            {/* Input Composer */}
+            <form onSubmit={handleSendTestMessage} className="flex items-center gap-2 pt-1">
+              <Input
+                placeholder={`Pergunte algo para ${previewAgent.name}...`}
+                value={sandboxInput}
+                onChange={(e) => setSandboxInput(e.target.value)}
+                className="rounded-xl text-xs h-10 flex-1"
+                disabled={isTestingAgent}
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!sandboxInput.trim() || isTestingAgent}
+                className="h-10 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-5 font-semibold shadow-xs cursor-pointer"
+              >
+                Enviar
+              </Button>
+            </form>
+          </>
+        )}
       </div>
     );
   };
@@ -2931,6 +4023,8 @@ export default function AttendantsPage() {
                 <button
                   key={agent.key || agent.id}
                   type="button"
+                  data-attendant-card={agent.key || agent.id}
+                  data-attendant-name={agent.name || ""}
                   onClick={() => setPreviewAgent(agent)}
                   className={cn(
                     "flex items-center gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-xl border transition-all text-left w-full sm:w-auto shrink-0 cursor-pointer select-none h-[58px]",
@@ -3561,10 +4655,10 @@ export default function AttendantsPage() {
               <div className="space-y-4">
                 {/* RENDER CONTENT BASED ON VIEW MODE */}
                 {viewMode === "steps" ? (
-                  /* STEPPER WORKFLOW */
+                  /* 6-STEP GUIDED WORKFLOW */
                   <div className="rounded-2xl border border-border/70 bg-card/85 backdrop-blur shadow-sm p-4 md:p-6 space-y-6">
-                    {/* Horizontal Steps Bar */}
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 border-b border-border/50 pb-4">
+                    {/* Horizontal 6 Steps Bar */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 border-b border-border/50 pb-4">
                       {STEPS.map((s) => {
                         const Icon = s.icon;
                         const isActive = activeStep === s.step;
@@ -3573,9 +4667,10 @@ export default function AttendantsPage() {
                           <button
                             key={s.step}
                             type="button"
+                            data-attendant-step={s.step}
                             onClick={() => setActiveStep(s.step)}
                             className={cn(
-                              "p-2.5 rounded-xl border text-left transition-all flex items-center gap-2.5 select-none cursor-pointer",
+                              "p-2.5 rounded-xl border text-left transition-all flex items-center gap-2 select-none cursor-pointer",
                               isActive
                                 ? "bg-emerald-500/15 border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.12)] ring-1 ring-emerald-500/40 text-emerald-300"
                                 : isDone
@@ -3585,7 +4680,7 @@ export default function AttendantsPage() {
                           >
                             <div
                               className={cn(
-                                "h-7 w-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0",
+                                "h-6 w-6 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0",
                                 isActive
                                   ? "bg-emerald-500 text-white"
                                   : isDone
@@ -3593,11 +4688,11 @@ export default function AttendantsPage() {
                                   : "bg-muted text-muted-foreground"
                               )}
                             >
-                              {isDone ? <CheckCircle2 className="h-4 w-4" /> : s.step}
+                              {isDone ? <CheckCircle2 className="h-3.5 w-3.5" /> : s.step}
                             </div>
                             <div className="min-w-0">
-                              <span className="text-xs font-bold block truncate leading-tight">{s.title}</span>
-                              <span className="text-[10px] text-muted-foreground hidden sm:block truncate">{s.desc}</span>
+                              <span className="text-[11px] font-bold block truncate leading-tight">{s.title}</span>
+                              <span className="text-[9px] text-muted-foreground hidden xl:block truncate">{s.desc}</span>
                             </div>
                           </button>
                         );
@@ -3609,15 +4704,17 @@ export default function AttendantsPage() {
                       {activeStep === 1 && renderAvatarStudioSection()}
                       {activeStep === 2 && renderObjectiveToneSection()}
                       {activeStep === 3 && renderProvidersSection()}
-                      {activeStep === 4 && (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch min-w-0 max-w-full">
-                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col min-w-0 max-w-full">
-                            {renderPromptSection()}
-                          </div>
-                          <div className="rounded-2xl border border-border/70 bg-card/85 p-4 sm:p-5 flex flex-col min-w-0 max-w-full">
-                            {renderSandboxSection()}
-                          </div>
-                        </div>
+                      {activeStep === 4 && renderPromptSection()}
+                      {activeStep === 5 && renderSandboxSection()}
+                      {activeStep === 6 && (
+                        <EvolutionTab
+                          agentKey={previewAgent?.key}
+                          embeddedAgentKey={previewAgent?.key}
+                          embeddedSessionId={previewAgent?.sessionIds?.[0]}
+                          selectedAgent={previewAgent}
+                          onSelectAgent={(key) => setPreviewAgent(agents.find((a) => (a.key || a.id) === key) || null)}
+                          agents={agents}
+                        />
                       )}
                     </div>
 
@@ -3666,9 +4763,9 @@ export default function AttendantsPage() {
                     </div>
                   </div>
                 ) : (
-                  /* COMPLETE MODE: 5 ACCORDION / COLLAPSIBLE CARDS */
+                  /* COMPLETE MODE: 6 ACCORDION / COLLAPSIBLE CARDS */
                   <div className="space-y-4">
-                    {/* Card 1: Avatar Studio 2.5D */}
+                    {/* Card 1: Identidade & Avatar */}
                     <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
                       <CardHeader
                         onClick={() => toggleCard("avatarStudio")}
@@ -3685,7 +4782,7 @@ export default function AttendantsPage() {
                           </div>
                           <div className="min-w-0">
                             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                              <span>1. Avatar Studio<span className="sr-only"> 2.5D</span></span>
+                              <span>1. Identidade & Avatar Studio<span className="sr-only">Avatar Studio 2.5D</span></span>
                             </CardTitle>
                           </div>
                         </div>
@@ -3705,7 +4802,7 @@ export default function AttendantsPage() {
                       )}
                     </Card>
 
-                    {/* Card 2: Objetivo & Tom */}
+                    {/* Card 2: Objetivo & Comportamento */}
                     <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
                       <CardHeader
                         onClick={() => toggleCard("objectiveTone")}
@@ -3722,13 +4819,13 @@ export default function AttendantsPage() {
                           </div>
                           <div className="min-w-0">
                             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                              <span>2. Objetivo Central & Tom de Atendimento</span>
+                              <span>2. Objetivo & Comportamento</span>
                               <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
-                                Comportamento
+                                Personalidade & Versões
                               </Badge>
                             </CardTitle>
                             <CardDescription className="text-[11px] text-muted-foreground truncate">
-                              Foco de conversão, empatia, estilo de resposta e temperatura neural.
+                              Personalidade, objetivo central, estilo, maxTokens e histórico com rollback.
                             </CardDescription>
                           </div>
                         </div>
@@ -3765,13 +4862,13 @@ export default function AttendantsPage() {
                           </div>
                           <div className="min-w-0">
                             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                              <span>3. Provedores de IA & Modelos</span>
+                              <span>3. Provedores de IA & Roteamento</span>
                               <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
-                                Infraestrutura
+                                {routingMode}
                               </Badge>
                             </CardTitle>
                             <CardDescription className="text-[11px] text-muted-foreground truncate">
-                              OpenAI, Groq, Anthropic, Gemini, DeepSeek e chaves de API.
+                              Provedor ZAI (zero chave), Model Router e cofre AES-256 por empresa ou atendente.
                             </CardDescription>
                           </div>
                         </div>
@@ -3792,7 +4889,45 @@ export default function AttendantsPage() {
                       )}
                     </Card>
 
-                    {/* Card 4: Treinamento & Sandbox de Atendimento ao Vivo (Unificado) */}
+                    {/* Card 4: Conhecimento */}
+                    <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                      <CardHeader
+                        onClick={() => toggleCard("knowledge")}
+                        onKeyDown={(event) => handleCardHeaderKeyDown(event, "knowledge")}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={!collapsedCards.knowledge}
+                        aria-controls="knowledge-content"
+                        className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                            <Brain className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
+                              <span>4. Conhecimento & Instruções</span>
+                              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
+                                Diretrizes
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription className="text-[11px] text-muted-foreground truncate">
+                              Prompt base, templates oficiais e absorção contínua de regras comerciais.
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground shrink-0">
+                          {collapsedCards.knowledge ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                        </span>
+                      </CardHeader>
+                      {!collapsedCards.knowledge && (
+                        <CardContent id="knowledge-content" className="p-4 sm:p-5">
+                          {renderPromptSection()}
+                        </CardContent>
+                      )}
+                    </Card>
+
+                    {/* Card 5: Testes (Chat ao Vivo & Comparador Multi-Personalidade) */}
                     <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
                       <CardHeader
                         onClick={() => toggleCard("trainingSandbox")}
@@ -3809,13 +4944,13 @@ export default function AttendantsPage() {
                           </div>
                           <div className="min-w-0">
                             <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
-                              <span>4. Treinamento & Sandbox de Atendimento ao Vivo</span>
+                              <span>5. Testes ao Vivo & Comparador 4x</span>
                               <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10 uppercase">
-                                Instrução & Simulação
+                                Simulação Real
                               </Badge>
                             </CardTitle>
                             <CardDescription className="text-[11px] text-muted-foreground truncate">
-                              Envie comandos e instruções no prompt à esquerda e teste o chat ao vivo à direita em tempo real.
+                              Valide o atendimento ao vivo ou compare as 4 personalidades lado a lado.
                             </CardDescription>
                           </div>
                         </div>
@@ -3830,14 +4965,52 @@ export default function AttendantsPage() {
                       </CardHeader>
                       {!collapsedCards.trainingSandbox && (
                         <CardContent id="training-sandbox-content" className="p-4 sm:p-5">
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch min-w-0 max-w-full">
-                            <div className="min-w-0 max-w-full flex flex-col h-full">
-                              {renderPromptSection()}
-                            </div>
-                            <div className="min-w-0 max-w-full flex flex-col h-full">
-                              {renderSandboxSection()}
-                            </div>
+                          {renderSandboxSection()}
+                        </CardContent>
+                      )}
+                    </Card>
+
+                    {/* Card 6: Memória & Evolução */}
+                    <Card className="rounded-2xl border-border/70 bg-card/85 backdrop-blur shadow-sm overflow-hidden">
+                      <CardHeader
+                        onClick={() => toggleCard("memoryEvolution")}
+                        onKeyDown={(event) => handleCardHeaderKeyDown(event, "memoryEvolution")}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={!collapsedCards.memoryEvolution}
+                        aria-controls="memory-evolution-content"
+                        className="p-3.5 sm:p-4 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between gap-2 cursor-pointer hover:bg-muted/20 transition-colors select-none"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
+                            <Sparkle weight="fill" className="h-4 w-4" />
                           </div>
+                          <div className="min-w-0">
+                            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2 truncate">
+                              <span>6. Memória Neural & Evolução Controlada</span>
+                              <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-300 bg-purple-500/10 uppercase">
+                                Auditável
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription className="text-[11px] text-muted-foreground truncate">
+                              Base de conhecimento, propostas cognitivas com aprovação e explicabilidade real.
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <span aria-hidden="true" className="h-7 w-7 flex items-center justify-center text-muted-foreground shrink-0">
+                          {collapsedCards.memoryEvolution ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                        </span>
+                      </CardHeader>
+                      {!collapsedCards.memoryEvolution && (
+                        <CardContent id="memory-evolution-content" className="p-4 sm:p-5">
+                          <EvolutionTab
+                            agentKey={previewAgent?.key}
+                            embeddedAgentKey={previewAgent?.key}
+                            embeddedSessionId={previewAgent?.sessionIds?.[0]}
+                            selectedAgent={previewAgent}
+                            onSelectAgent={(key) => setPreviewAgent(agents.find((a) => (a.key || a.id) === key) || null)}
+                            agents={agents}
+                          />
                         </CardContent>
                       )}
                     </Card>

@@ -101,10 +101,14 @@ export interface AgentAvatarConfig {
   headset: string;
   clothing: string;
   outfit?: string;
+  upperBody?: string;
+  lowerBody?: string;
   pants: string;
+  footwear?: string;
   shoes: string;
   accessories: Record<string, string> | any;
   style?: string;
+  uniform?: string;
   workObject: string;
   badge: boolean;
   branding: StoreBranding;
@@ -114,7 +118,20 @@ export interface AgentAvatarConfig {
   baseSpriteId?: string;
   rotationY?: number;
   movement3D?: "idle" | "walk" | "wave" | "pose" | "spin360";
+  poseId?: string;
   renderStyle?: "3d_enterprise" | "chibi_25d";
+  snapshotDataUrl?: string;
+  compositionVersion?: number;
+  slots?: {
+    hair?: string;
+    face?: string;
+    upperBody?: string;
+    lowerBody?: string;
+    footwear?: string;
+    uniform?: string;
+    style?: string;
+    accessories?: Record<string, string>;
+  };
 }
 
 /**
@@ -929,3 +946,34 @@ export const DEFAULT_AVATAR_PRESETS: Record<string, Partial<AgentAvatarConfig>> 
     },
   },
 };
+
+export {
+  CATALOG_VERSION,
+  SLOT_HAIR_ITEMS,
+  SLOT_FACE_ITEMS,
+  SLOT_UPPER_BODY_ITEMS,
+  SLOT_LOWER_BODY_ITEMS,
+  SLOT_FOOTWEAR_ITEMS,
+  SLOT_ACCESSORY_ITEMS,
+  SLOT_UNIFORM_ITEMS,
+  SLOT_STYLE_ITEMS,
+  ALL_SLOT_CATALOG_ITEMS,
+  SLOT_CATALOG_BY_ID,
+  FACIAL_HAIR_OPTIONS,
+  POSE_OPTIONS,
+  findCatalogItem,
+  getCatalogItemsForSlot,
+  inferGenderFromConfig,
+  normalizeAccessorySubSlots,
+  normalizeAvatarComposition,
+  buildSlotUpdate,
+  type AvatarSlotType,
+  type AccessorySubSlot,
+  type FacialHairStyle,
+  type PoseId,
+  type SlotCategory,
+  type SlotCatalogItem,
+  type NormalizedAccessorySubSlots,
+  type NormalizedAvatarComposition,
+  type SlotUpdateTarget,
+} from "./avatar3d/slotCatalog";

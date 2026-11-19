@@ -12,19 +12,36 @@ function names(root: THREE.Object3D): string[] {
 const base = { agentId: "camila", body: "female", hair: "hair_01", outfit: "outfit_01", accessories: [] } as any;
 
 describe("resolveAvatarLook3D", () => {
-  it("maps catalog ids to 3D parts", () => {
-    const look = resolveAvatarLook3D({ ...base, hair: "hair_13", outfit: "outfit_06", accessories: ["acc_02", "acc_05"] });
-    expect(look.hairStyle).toBe("long");
+  it("maps catalog ids to independent 3D parts without forced cross-slot overrides", () => {
+    const look = resolveAvatarLook3D({
+      ...base,
+      hair: "hair_13",
+      outfit: "outfit_06",
+      accessories: ["acc_02", "acc_05", "acc_12"],
+    });
+    expect(look.hairStyle).toBe("long_tucked");
     expect(look.headwear).toBe("hardhat");
     expect(look.outfit.kind).toBe("vest");
     expect(look.accessories.headset).toBe(true);
     expect(look.accessories.tablet).toBe(true);
   });
 
-  it("keeps male and beard choices", () => {
-    const look = resolveAvatarLook3D({ ...base, body: "male", base: "male", hair: "hair_16" });
-    expect(look.female).toBe(false);
-    expect(look.beard).toBe(true);
+  it("keeps hair_13 and hair_16 free of forced headwear or forced beard", () => {
+    const hair13Look = resolveAvatarLook3D({ ...base, hair: "hair_13" });
+    expect(hair13Look.headwear).toBe("none");
+
+    const hair16Look = resolveAvatarLook3D({ ...base, body: "male", base: "male", hair: "hair_16" });
+    expect(hair16Look.female).toBe(false);
+    expect(hair16Look.beard).toBe(false);
+
+    const explicitBeard = resolveAvatarLook3D({
+      ...base,
+      body: "male",
+      base: "male",
+      hair: "hair_16",
+      facialHair: "full_beard",
+    });
+    expect(explicitBeard.beard).toBe(true);
   });
 
   it("falls back to a valid style for unknown ids", () => {
@@ -35,12 +52,22 @@ describe("resolveAvatarLook3D", () => {
 });
 
 describe("buildChibi", () => {
-  it("builds exactly one character with rig, hair, outfit and requested accessories", () => {
+  it("builds exactly one humanoid character with rig, hair, outfit and requested accessories", () => {
     const chibi = buildChibi(resolveAvatarLook3D({ ...base, accessories: ["acc_02", "acc_04", "acc_05"] }));
     const parts = names(chibi.rig.root);
     expect(parts.filter((name) => name === "head-skin")).toHaveLength(1);
     expect(parts.filter((name) => name === "torso")).toHaveLength(1);
-    expect(parts).toEqual(expect.arrayContaining(["hair-ponytail-0", "outfit-polo", "acc-headset", "acc-glasses", "acc-tablet", "arm-left", "leg-right"]));
+    expect(parts).toEqual(
+      expect.arrayContaining([
+        "hair-ponytail-0",
+        "outfit-polo",
+        "acc-headset",
+        "acc-glasses",
+        "acc-tablet",
+        "leftUpperArm",
+        "rightThigh",
+      ]),
+    );
     expect(chibi.hold.left).toBe(true);
     chibi.dispose();
   });

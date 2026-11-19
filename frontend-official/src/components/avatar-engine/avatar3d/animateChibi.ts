@@ -1,37 +1,24 @@
 import type { ChibiRig } from "./buildBody";
 import type { HoldPose } from "./buildAccessories";
+import {
+  AvatarAnimationFSM,
+  resolveAnimStateFromProps,
+  type Movement3D,
+} from "./animationStateMachine";
 
-export type Movement3D = "idle" | "walk" | "wave" | "pose" | "spin360";
+export type { Movement3D };
 
-const ARM_REST_Z = 0.12;
+const defaultFsm = new AvatarAnimationFSM("idle");
 
-export function animateChibi(rig: ChibiRig, hold: HoldPose, movement: Movement3D, t: number): void {
-  const walking = movement === "walk";
-  const step = Math.sin(t * 6);
-
-  rig.body.position.y = walking ? Math.abs(step) * 0.04 : Math.sin(t * 2) * 0.012;
-  rig.head.rotation.set(0, 0, Math.sin(t * 1.3) * 0.03);
-  rig.leftLeg.rotation.x = walking ? step * 0.5 : 0;
-  rig.rightLeg.rotation.x = walking ? -step * 0.5 : 0;
-
-  rig.leftArm.rotation.set(walking ? -step * 0.4 : 0, 0, -ARM_REST_Z);
-  rig.rightArm.rotation.set(walking ? step * 0.4 : 0, 0, ARM_REST_Z);
-
-  if (hold.both) {
-    rig.leftArm.rotation.set(-1.25, 0, -0.05);
-    rig.rightArm.rotation.set(-1.25, 0, 0.05);
-  }
-  if (hold.left) rig.leftArm.rotation.set(-0.95, 0, -0.1);
-  if (hold.right) rig.rightArm.rotation.set(-0.95, 0, 0.1);
-
-  rig.peace.visible = movement === "pose";
-  if (movement === "wave") {
-    rig.rightArm.rotation.set(1.15, 0, 2.75 + Math.sin(t * 8) * 0.3);
-    rig.head.rotation.z = -0.08;
-  }
-  if (movement === "pose") {
-    if (!hold.left && !hold.both) rig.leftArm.rotation.set(0.15, 0, -0.55);
-    rig.rightArm.rotation.set(1.35, 0, 2.55 + Math.sin(t * 2) * 0.04);
-    rig.head.rotation.set(0.05, 0.12, -0.12);
-  }
+export function animateChibi(
+  rig: ChibiRig,
+  hold: HoldPose,
+  movement: Movement3D,
+  _t: number,
+  dt = 1 / 60,
+): void {
+  const target = resolveAnimStateFromProps(movement);
+  defaultFsm.bindRig(rig);
+  defaultFsm.setState(target);
+  defaultFsm.update(dt, rig, hold);
 }

@@ -76,7 +76,14 @@ export const AttendantItemCard: React.FC<AttendantItemCardProps> = React.memo(({
 
       {/* Avatar Container (64–76px canonical range -> 68px) */}
       <div className="relative flex items-center justify-center h-[68px] w-full overflow-hidden my-0.5">
-        <div className="transform scale-[0.62] origin-center -translate-y-4 pointer-events-none">
+        <div
+          className={cn(
+            "pointer-events-none",
+            attendant.avatarConfig?.snapshotDataUrl
+              ? "flex items-center justify-center h-full w-full"
+              : "transform scale-[0.62] origin-center -translate-y-4"
+          )}
+        >
           <ZaiAvatarRenderer
             avatar={attendant.avatarConfig || {}}
             state={isExample ? "IDLE" : attendant.active === false ? "IDLE" : "WORKING"}
